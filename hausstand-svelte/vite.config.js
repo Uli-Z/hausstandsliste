@@ -9,7 +9,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: undefined,
-        inlineDynamicImports: true,
+        codeSplitting: false,
         entryFileNames: 'assets/app.js',
         chunkFileNames: 'assets/app.js',
         assetFileNames: 'assets/[name][extname]'

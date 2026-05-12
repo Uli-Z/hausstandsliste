@@ -2,7 +2,6 @@
   import { appState, createEvent, createRedistribution } from '../stores/projectStore.js';
   import { money, normShares } from '../lib/domain.js';
   export let person;
-  export let projection;
   export let asOfDate;
 
   function startDissolve() {
