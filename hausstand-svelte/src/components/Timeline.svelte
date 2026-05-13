@@ -14,9 +14,50 @@
   let showFuture = false;
 
   $: allEvents = [...(project.events || [])].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || (a.order ?? 0) - (b.order ?? 0));
+  $: peopleById = new Map((project.people || []).map(person => [person.id, person.name || person.id]));
+  $: itemsById = new Map((project.items || []).map(item => [item.id, item.name || item.id]));
+
+  function personName(personId) {
+    if (!personId) return 'Unbekannte Person';
+    return peopleById.get(personId) || personId;
+  }
+
+  function itemName(itemId, fallbackName = '') {
+    if (!itemId) return fallbackName || 'Unbekannter Gegenstand';
+    return itemsById.get(itemId) || fallbackName || itemId;
+  }
+
+  function eventLabel(eventType) {
+    return labels[eventType] || eventType?.replaceAll('-', ' ') || 'Ereignis';
+  }
+
+  function affectsPersonByShareDelta(baseProjection, change) {
+    return shareDeltasForChange(baseProjection, change).some(row => row.personId === personId);
+  }
+
+  function eventAffectsPerson(event) {
+    if (event.personId === personId) return true;
+    if ((event.events || []).some(child => child.personId === personId)) return true;
+    if (event.type === 'item-added' && Number(event.shares?.[personId] || 0) > 0) return true;
+
+    if (event.type === 'shares-set') {
+      const before = projectBeforeEvent(project, event.id, event.date);
+      return affectsPersonByShareDelta(before, event);
+    }
+
+    if (event.type === 'redistribution-executed') {
+      const before = projectBeforeEvent(project, event.id, event.date);
+      return (event.events || [])
+        .filter(child => child.type === 'shares-set')
+        .some(child => affectsPersonByShareDelta(before, child));
+    }
+
+    return false;
+  }
+
   $: events = allEvents.filter(e => {
     if (itemId) return e.itemId === itemId || (e.events || []).some(c => c.itemId === itemId);
-    if (personId) return e.personId === personId || (e.events || []).some(c => c.personId === personId);
+    if (personId) return eventAffectsPerson(e);
     return true;
   });
   $: future = events.filter(e => e.date > asOfDate);
@@ -36,20 +77,23 @@
   function summary(event) {
     if (event.type === 'redistribution-executed') {
       const preview = redistributionPreview(project, { title: event.title, effectiveDate: event.date, changes: (event.events || []).filter(e => e.type === 'shares-set') });
-      return `${event.title || 'Umverteilung'} · ${(event.events || []).length} Änderungen · ${preview.payments.length} Zahlungen`;
+      const affectedItems = [...new Set((event.events || []).filter(e => e.type === 'shares-set').map(e => itemName(e.itemId)).filter(Boolean))];
+      const itemInfo = affectedItems.length ? ` · ${affectedItems.join(', ')}` : '';
+      return `${event.title || 'Umverteilung'} · ${(event.events || []).length} Änderungen · ${preview.payments.length} Zahlungen${itemInfo}`;
     }
     if (event.type === 'shares-set') {
       const before = projectBeforeEvent(project, event.id, event.date);
       const deltas = shareDeltasForChange(before, event);
-      if (deltas.length === 0) return event.note || 'Manuelle Korrektur';
-      return `${event.note || 'Anteile'} · ${deltas.map(d => `${d.personName} ${d.delta >= 0 ? '+' : ''}${money(d.delta)}`).join(' · ')}`;
+      const item = itemName(event.itemId);
+      if (deltas.length === 0) return `${item} · ${event.note || 'Manuelle Korrektur'}`;
+      return `${item} · ${event.note || 'Anteile'} · ${deltas.map(d => `${d.personName} ${d.delta >= 0 ? '+' : ''}${money(d.delta)}`).join(' · ')}`;
     }
-    if (event.type === 'person-added') return `Willkommen, ${event.name || event.personId}!`;
-    if (event.type === 'person-deactivated') return `${event.personId}: ${event.reason || 'Auszug'}`;
-    if (event.type === 'person-reactivated') return `${event.personId}: ${event.reason || 'Rückkehr'}`;
-    if (event.type === 'item-added') return `${event.name || event.itemId} (${money(event.initialValue)})`;
-    if (event.type === 'item-ended') return `${event.itemId}: ${event.reason || 'Beendet'}`;
-    return event.type;
+    if (event.type === 'person-added') return `Willkommen, ${event.name || personName(event.personId)}!`;
+    if (event.type === 'person-deactivated') return `${personName(event.personId)} · ${event.reason || 'Auszug'}`;
+    if (event.type === 'person-reactivated') return `${personName(event.personId)} · ${event.reason || 'Rückkehr'}`;
+    if (event.type === 'item-added') return `${itemName(event.itemId, event.name)} · Startwert ${money(event.initialValue)}`;
+    if (event.type === 'item-ended') return `${itemName(event.itemId)} · ${event.reason || 'Beendet'}`;
+    return event.note || event.name || event.reason || event.type;
   }
 
   function openEdit(event) {
@@ -71,7 +115,7 @@
         {#each future as event}
           <div class="event-card clickable" on:click={() => openEdit(event)}>
             <div class="event-meta">
-              <span class="label">{labels[event.type] || event.type}</span>
+              <span class="label">{eventLabel(event.type)}</span>
               <span class="date">{dateDE(event.date)}</span>
             </div>
             <div class="event-summary">{summary(event)}</div>
@@ -86,7 +130,7 @@
       {#each visiblePast as event}
         <div class="event-card clickable" on:click={() => openEdit(event)}>
           <div class="event-meta">
-            <span class="label">{labels[event.type] || event.type}</span>
+            <span class="label">{eventLabel(event.type)}</span>
             <span class="date">{dateDE(event.date)}</span>
           </div>
           <div class="event-summary">{summary(event)}</div>

@@ -12,7 +12,7 @@
   import { addDays } from './lib/util.js';
   import { onMount } from 'svelte';
 
-  let tab = 'drafts';
+  let tab = 'archive';
 
   onMount(() => {
     const copy = loadWorkingCopy();
@@ -37,6 +37,12 @@
       appState.setAsOfDate(addDays($appState.asOfDate, 1));
     }
   }
+
+  function startNewProject() {
+    const message = 'Achtung: Der aktuelle Arbeitsstand im Browser wird gelöscht. Bitte vorher speichern oder exportieren. Neues Projekt starten?';
+    if (!confirm(message)) return;
+    appState.newProject();
+  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -46,45 +52,52 @@
   {#if route.page === 'dashboard'}
     <section class="dashboard-3">
       <Timeline project={$appState.project} asOfDate={$appState.asOfDate} />
-      <PeoplePanel people={$projection.people} totalValue={$projection.totalValue} activeItems={$projection.activeItems} />
+      <div class="stack">
+        <PeoplePanel people={$projection.people} totalValue={$projection.totalValue} activeItems={$projection.activeItems} />
+        {#if drafts.length}
+          <section class="panel">
+            <div class="panel-header">
+              <h2>📝 Entwürfe</h2>
+              <span class="badge accent">{drafts.length}</span>
+            </div>
+            <div class="panel-body">
+              <div class="stack">
+                {#each drafts as d}
+                  <div class="event-card">
+                    <div class="split">
+                      <div>
+                        <div class="event-type">{d.type === 'redistribution' ? 'Umverteilung' : 'Gegenstand'}</div>
+                        <strong>{d.title || d.data?.name || 'Unbenannter Entwurf'}</strong>
+                        <div class="muted">
+                          {#if d.type === 'redistribution'}
+                            {d.effectiveDate} · {d.changes?.length || 0} Änderung(en)
+                          {:else if d.type === 'item'}
+                            {d.data.valuation.type} · {money(d.data.initialValue)}
+                          {/if}
+                        </div>
+                      </div>
+                      <div class="row">
+                        <button class="small ghost danger" on:click={() => { if(confirm('Entwurf löschen?')) appState.deleteDraft(d.id); }}>🗑️ Löschen</button>
+                        <button class="small" on:click={() => appState.setDialog({ type: d.type === 'redistribution' ? 'redistributionEdit' : 'itemAdd', id: d.id })}>✏️ Öffnen</button>
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </section>
+        {/if}
+      </div>
       <ItemsPanel items={$projection.activeItems} tags={$projection.allTags} />
     </section>
     <section class="panel" style="margin-top:16px">
       <div class="tabs">
-        <button class="tab" class:active={tab==='drafts'} on:click={() => tab='drafts'}>📝 Entwürfe ({drafts.length})</button>
         <button class="tab" class:active={tab==='archive'} on:click={() => tab='archive'}>📦 Archiv</button>
         <button class="tab" class:active={tab==='json'} on:click={() => tab='json'}>🧾 JSON</button>
+        <button class="tab" class:active={tab==='new'} on:click={() => tab='new'}>✨ Neues Projekt</button>
       </div>
       <div class="panel-body">
-        {#if tab === 'drafts'}
-          {#if drafts.length}
-            <div class="stack">
-              {#each drafts as d}
-                <div class="event-card">
-                  <div class="split">
-                    <div>
-                      <div class="event-type">{d.type === 'redistribution' ? 'Umverteilung' : 'Gegenstand'}</div>
-                      <strong>{d.title || d.data?.name || 'Unbenannter Entwurf'}</strong>
-                      <div class="muted">
-                        {#if d.type === 'redistribution'}
-                          {d.effectiveDate} · {d.changes?.length || 0} Änderung(en)
-                        {:else if d.type === 'item'}
-                          {d.data.valuation.type} · {money(d.data.initialValue)}
-                        {/if}
-                      </div>
-                    </div>
-                    <div class="row">
-                      <button class="small ghost danger" on:click={() => { if(confirm('Entwurf löschen?')) appState.deleteDraft(d.id); }}>🗑️ Löschen</button>
-                      <button class="small" on:click={() => appState.setDialog({ type: d.type === 'redistribution' ? 'redistributionEdit' : 'itemAdd', id: d.id })}>✏️ Öffnen</button>
-                    </div>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          {:else}
-            <div class="empty">Keine Entwürfe vorhanden.</div>
-          {/if}
-        {:else if tab === 'archive'}
+        {#if tab === 'archive'}
           {#if $projection.archivedItems.length}
             <table>
               <thead>
@@ -105,8 +118,17 @@
           {:else}
             <div class="empty">Noch keine archivierten Gegenstände.</div>
           {/if}
-        {:else}
+        {:else if tab === 'json'}
           <pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>
+        {:else}
+          <div class="split" style="align-items:flex-start">
+            <div>
+              <div class="event-type">Neues Projekt</div>
+              <strong>Nur selten nötig</strong>
+              <div class="muted">Der aktuelle Arbeitsstand im Browser wird gelöscht. Bitte vorher speichern oder exportieren.</div>
+            </div>
+            <button class="danger" on:click={startNewProject}>✨ Neues Projekt starten</button>
+          </div>
         {/if}
       </div>
     </section>
