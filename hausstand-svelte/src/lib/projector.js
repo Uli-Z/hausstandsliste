@@ -58,7 +58,9 @@ export const applyEvent = (state, event) => {
   } else if (event.type === 'shares-set') {
     runtime(state, event.itemId).shares = normShares(event.shares);
   } else if (event.type === 'redistribution-executed') {
-    for (const child of event.events || []) applyEvent(state, { ...child, date: event.date, order: event.order });
+    for (const child of event.events || []) {
+      applyEvent(state, { ...child, date: event.date, order: event.order });
+    }
   } else {
     state.warnings.push(`Unbekannter Ereignistyp: ${event.type}`);
   }
@@ -132,28 +134,3 @@ export const shareDeltasForChange = (baseProjection, change) => {
   }).filter(x => Math.abs(x.delta) > 0.005);
 };
 
-export const redistributionPreview = (project, redistribution) => {
-  const base = projectAt(project, redistribution.effectiveDate);
-  const deltas = new Map();
-  for (const change of redistribution.changes || []) {
-    for (const row of shareDeltasForChange(base, change)) {
-      const existing = deltas.get(row.personId) || { personId: row.personId, personName: row.personName, delta: 0 };
-      existing.delta += row.delta;
-      deltas.set(row.personId, existing);
-    }
-  }
-  const rows = [...deltas.values()].filter(row => Math.abs(row.delta) > 0.005).sort((a, b) => b.delta - a.delta);
-  const payers = rows.filter(r => r.delta > 0.005).map(r => ({ ...r, amount: r.delta }));
-  const receivers = rows.filter(r => r.delta < -0.005).map(r => ({ ...r, amount: -r.delta }));
-  const payments = [];
-  let i = 0, j = 0;
-  while (i < payers.length && j < receivers.length) {
-    const amount = Math.min(payers[i].amount, receivers[j].amount);
-    if (amount > 0.005) payments.push({ from: payers[i].personName, to: receivers[j].personName, amount });
-    payers[i].amount -= amount;
-    receivers[j].amount -= amount;
-    if (payers[i].amount <= 0.005) i += 1;
-    if (receivers[j].amount <= 0.005) j += 1;
-  }
-  return { base, rows, payments };
-};

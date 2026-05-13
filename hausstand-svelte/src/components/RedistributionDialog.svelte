@@ -1,101 +1,236 @@
 <script>
   import { appState } from '../stores/projectStore.js';
   import { money, normShares } from '../lib/domain.js';
-  import { redistributionPreview } from '../lib/projector.js';
+  import { 
+    redistributionPreview, 
+    redistributionMarkdown, 
+    buildTransferChanges, 
+    buildRemovePersonChanges, 
+    buildAddPersonChanges 
+  } from '../lib/redistribution.js';
   import ShareEditor from './ShareEditor.svelte';
-  import { uid } from '../lib/util.js';
+  import { uid, clone, dateDE } from '../lib/util.js';
+  
   export let dialog;
   export let project;
   export let projection;
 
-  $: redistribution = (project.redistributions || []).find(r => r.id === dialog.id) || dialog.redistribution;
-  $: preview = redistribution ? redistributionPreview(project, redistribution) : { rows: [], payments: [] };
-  let editingItemId = null;
-  let sourcePersonId = dialog.sourcePersonId || '';
-  let targetPersonId = '';
-  let units = 1;
-  $: editingChange = redistribution?.changes?.find(c => c.itemId === editingItemId);
+  // Lokale Arbeitskopie
+  let redistribution = clone(dialog.redistribution || (project.drafts || []).find(d => d.id === dialog.id));
+  
+  $: preview = redistribution ? redistributionPreview(project, redistribution) : { base: null, rows: [], payments: [] };
+  
   $: people = projection.people;
   $: itemsAtDate = preview.base?.activeItems || [];
 
-  function saveWork(mutator) {
-    appState.mutateProject(p => {
-      const r = p.redistributions.find(x => x.id === redistribution.id);
-      if (r) mutator(r);
-    });
-  }
+  let filterText = "";
+  $: filteredItems = itemsAtDate.filter(i => i.name.toLowerCase().includes(filterText.toLowerCase()));
+
+  // Sub-Modals
+  let activeSubModal = null; // 'item', 'special-transfer', 'special-remove', 'special-add'
+  let subModalData = {};
+
   function upsertChange(itemId, shares) {
-    saveWork(r => {
-      const clean = normShares(shares);
-      const idx = r.changes.findIndex(c => c.itemId === itemId);
-      if (idx >= 0) r.changes[idx] = { itemId, shares: clean };
-      else r.changes.push({ itemId, shares: clean });
-    });
+    const clean = normShares(shares);
+    const idx = redistribution.changes.findIndex(c => c.itemId === itemId);
+    if (idx >= 0) redistribution.changes[idx] = { itemId, shares: clean };
+    else redistribution.changes.push({ itemId, shares: clean });
+    redistribution = { ...redistribution };
   }
-  function removeChange(itemId) { saveWork(r => { r.changes = r.changes.filter(c => c.itemId !== itemId); }); if (editingItemId === itemId) editingItemId = null; }
-  function applyRemovePerson() {
-    if (!sourcePersonId) return alert('Bitte Person wählen.');
-    for (const item of itemsAtDate) if (item.shares?.[sourcePersonId]) { const shares = { ...item.shares }; delete shares[sourcePersonId]; upsertChange(item.id, shares); }
+
+  function openItemEdit(item) {
+    const existing = redistribution.changes.find(c => c.itemId === item.id);
+    activeSubModal = 'item';
+    subModalData = {
+      item,
+      shares: clone(existing ? existing.shares : item.shares)
+    };
   }
-  function applyAddPerson() {
-    if (!targetPersonId) return alert('Bitte Person wählen.');
-    for (const item of itemsAtDate) if (!item.shares?.[targetPersonId]) upsertChange(item.id, { ...item.shares, [targetPersonId]: Number(units) || 1 });
-  }
-  function applyTransferPerson() {
-    if (!sourcePersonId || !targetPersonId) return alert('Bitte Quelle und Ziel wählen.');
-    if (sourcePersonId === targetPersonId) return alert('Quelle und Ziel müssen verschieden sein.');
-    for (const item of itemsAtDate) {
-      const current = item.shares || {};
-      if (!current[sourcePersonId]) continue;
-      const shares = { ...current, [targetPersonId]: (Number(current[targetPersonId]) || 0) + (Number(current[sourcePersonId]) || 0) };
-      delete shares[sourcePersonId];
-      upsertChange(item.id, shares);
+
+  function applySpecial() {
+    let changes = [];
+    if (activeSubModal === 'special-transfer') {
+      changes = buildTransferChanges(preview.base, subModalData.sourceId, subModalData.targetId);
+    } else if (activeSubModal === 'special-remove') {
+      changes = buildRemovePersonChanges(preview.base, subModalData.sourceId);
+    } else if (activeSubModal === 'special-add') {
+      changes = buildAddPersonChanges(preview.base, subModalData.targetId, Number(subModalData.units) || 1);
     }
+    for (const c of changes) upsertChange(c.itemId, c.shares);
+    activeSubModal = null;
   }
+
+  function saveAsDraft() {
+    appState.upsertDraft(redistribution);
+    appState.closeDialog();
+  }
+
   function execute() {
+    if (!confirm('Umverteilung jetzt ausführen?')) return;
     appState.mutateProject(p => {
-      const idx = p.redistributions.findIndex(r => r.id === redistribution.id);
-      if (idx < 0) return;
-      const r = p.redistributions[idx];
-      p.events.push({ id: uid('event'), type: 'redistribution-executed', date: r.effectiveDate, order: Date.now(), title: r.title, events: r.changes.map(c => ({ id: uid('event_child'), type: 'shares-set', itemId: c.itemId, shares: normShares(c.shares), note: r.title })) });
-      p.redistributions.splice(idx, 1);
+      p.events.push({ 
+        id: uid('event'), type: 'redistribution-executed', date: redistribution.effectiveDate, order: Date.now(), title: redistribution.title,
+        events: redistribution.changes.map(c => ({ id: uid('event_child'), type: 'shares-set', itemId: c.itemId, shares: normShares(c.shares), note: redistribution.title })) 
+      });
+      p.drafts = (p.drafts || []).filter(d => d.id !== redistribution.id);
     });
     appState.closeDialog();
   }
 </script>
 
 <div class="modal-backdrop">
-  <div class="modal">
-    <div class="modal-header"><h3>🔁 Umverteilung: {redistribution?.title}</h3><button class="ghost" on:click={() => appState.closeDialog()}>✕</button></div>
-    <div class="modal-body stack">
-      {#if redistribution}
-        <div class="grid-3"><label>Titel <input value={redistribution.title} on:input={e => saveWork(r => r.title = e.currentTarget.value)}></label><label>Datum <input type="date" value={redistribution.effectiveDate} on:change={e => saveWork(r => r.effectiveDate = e.currentTarget.value)}></label><div class="notice">Änderungen werden zunächst nur vorgemerkt.</div></div>
-
-        <section class="mini-card stack"><strong>⚡ Personenaktion</strong><div class="form-grid">
-          <label>Von Person <select bind:value={sourcePersonId}><option value="">auswählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
-          <label>Auf Person <select bind:value={targetPersonId}><option value="">auswählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
-          <label>Einheiten beim Hinzufügen <input type="number" min="0.01" step="0.01" bind:value={units}></label>
-          <div class="row" style="align-self:end"><button on:click={applyTransferPerson}>🔁 alle Anteile übertragen</button><button on:click={applyRemovePerson}>🧹 alle Anteile entfernen</button><button on:click={applyAddPerson}>➕ Person überall hinzufügen</button></div>
-        </div></section>
-
-        <section class="mini-card stack"><strong>📋 Vorgemerkte Einzeländerungen</strong>
-          {#if redistribution.changes?.length}
-            <table><thead><tr><th>Gegenstand</th><th>Neue Anteilseigner</th><th></th></tr></thead><tbody>{#each redistribution.changes as change}<tr class:changed-row={editingItemId===change.itemId}><td>{itemsAtDate.find(i=>i.id===change.itemId)?.name || change.itemId}</td><td>{Object.entries(change.shares).map(([pid,u]) => `${people.find(p=>p.id===pid)?.name || pid}: ${u}`).join(' · ')}</td><td class="right"><button class="small" on:click={() => editingItemId = change.itemId}>✏️</button> <button class="small danger" on:click={() => removeChange(change.itemId)}>🗑️</button></td></tr>{/each}</tbody></table>
-          {:else}<div class="empty">Noch keine Änderungen vorgemerkt.</div>{/if}
-          <label>Gegenstand manuell bearbeiten <select on:change={e => { editingItemId = e.currentTarget.value; if (editingItemId && !redistribution.changes?.some(c => c.itemId === editingItemId)) { const item = itemsAtDate.find(i => i.id === editingItemId); upsertChange(editingItemId, item?.shares || {}); } }}><option value="">auswählen …</option>{#each itemsAtDate as item}<option value={item.id}>{item.name}</option>{/each}</select></label>
-          {#if editingChange}
-            <div class="notice">Bearbeitung: {itemsAtDate.find(i=>i.id===editingItemId)?.name || editingItemId}</div>
-            <ShareEditor people={people} bind:shares={editingChange.shares} />
-            <button on:click={() => upsertChange(editingItemId, editingChange.shares)}>💾 Einzeländerung speichern</button>
-          {/if}
-        </section>
-
-        <section class="mini-card stack"><strong>💶 Wertverschiebung und Ausgleichsempfehlung</strong>
-          {#if preview.rows.length}<table><thead><tr><th>Person</th><th class="money">Delta</th></tr></thead><tbody>{#each preview.rows as row}<tr><td>{row.personName}</td><td class="money">{row.delta >= 0 ? '+' : ''}{money(row.delta)}</td></tr>{/each}</tbody></table>{:else}<div class="empty">Keine Wertverschiebung.</div>{/if}
-          {#if preview.payments.length}<table><thead><tr><th>Zahler</th><th>Empfänger</th><th class="money">Betrag</th></tr></thead><tbody>{#each preview.payments as p}<tr><td>{p.from}</td><td>{p.to}</td><td class="money">{money(p.amount)}</td></tr>{/each}</tbody></table>{:else}<div class="notice">Keine Ausgleichszahlung empfohlen.</div>{/if}
-        </section>
-      {/if}
+  <div class="modal large-modal">
+    <div class="modal-header">
+      <div class="stack">
+        <h3>🔁 Umverteilung vorbereiten</h3>
+        <div class="muted">Stichtag: {dateDE(redistribution?.effectiveDate)} (fixiert)</div>
+      </div>
+      <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>
     </div>
-    <div class="modal-footer"><button on:click={() => appState.closeDialog()}>Schließen</button><button class="primary" disabled={!redistribution?.changes?.length} on:click={execute}>✅ Umverteilung ausführen</button></div>
+    
+    <div class="modal-body grid-redistribution">
+      <!-- Linke Seite: Spezialaktionen und Items -->
+      <div class="stack content-left">
+        <section class="mini-card stack">
+          <label>Titel <input bind:value={redistribution.title} placeholder="z. B. Auszug Anna"></label>
+          <strong>🛠️ Spezialaktionen</strong>
+          <div class="row">
+            <button class="small" on:click={() => { activeSubModal = 'special-transfer'; subModalData = { sourceId: dialog.sourcePersonId || '', targetId: '' }; }}>Alle Anteile übertragen</button>
+            <button class="small" on:click={() => { activeSubModal = 'special-remove'; subModalData = { sourceId: dialog.sourcePersonId || '' }; }}>Anteile entfernen</button>
+            <button class="small" on:click={() => { activeSubModal = 'special-add'; subModalData = { targetId: '', units: 1 }; }}>Person überall hinzufügen</button>
+          </div>
+        </section>
+
+        <section class="stack" style="flex: 1; overflow: hidden;">
+          <div class="split">
+            <strong>📋 Gegenstände zum Stichtag</strong>
+            <input type="text" placeholder="Filter …" bind:value={filterText} class="small-input">
+          </div>
+          <div class="item-list scrollable">
+            {#each filteredItems as item}
+              {@const changed = redistribution.changes.some(c => c.itemId === item.id)}
+              <div class="item-row clickable-row" class:is-changed={changed} on:click={() => openItemEdit(item)}>
+                <div class="split">
+                  <span>{item.name}</span>
+                  {#if changed}<span class="badge ok">geändert</span>{/if}
+                </div>
+                <div class="muted small-text">{Object.entries(redistribution.changes.find(c => c.itemId === item.id)?.shares || item.shares).map(([pid, u]) => `${people.find(p=>p.id===pid)?.name || pid}: ${u}`).join(' · ')}</div>
+              </div>
+            {/each}
+          </div>
+        </section>
+      </div>
+
+      <!-- Rechte Seite: Preview & Settlement -->
+      <div class="stack content-right">
+        <section class="mini-card stack">
+          <div class="split">
+            <strong>💶 Vorschau & Ausgleich</strong>
+            <button class="small ghost" on:click={() => navigator.clipboard.writeText(redistributionMarkdown(redistribution, preview)).then(() => alert('Markdown kopiert.'))}>📋 MD</button>
+          </div>
+          <div class="stack">
+            <div class="muted">Wertverschiebung</div>
+            {#if preview.rows.length}
+              <table class="tight">
+                <tbody>
+                  {#each preview.rows as row}
+                    <tr><td>{row.personName}</td><td class="money" class:positive={row.delta > 0} class:negative={row.delta < 0}>{row.delta >= 0 ? '+' : ''}{money(row.delta)}</td></tr>
+                  {/each}
+                </tbody>
+              </table>
+            {:else}<div class="empty-small">Keine Verschiebung.</div>{/if}
+            
+            <div class="muted" style="margin-top:8px">Empfohlener Ausgleich</div>
+            {#if preview.payments.length}
+              <table class="tight">
+                <tbody>
+                  {#each preview.payments as p}
+                    <tr><td>{p.from} → {p.to}</td><td class="money">{money(p.amount)}</td></tr>
+                  {/each}
+                </tbody>
+              </table>
+            {:else}<div class="notice-small">Kein Ausgleich empfohlen.</div>{/if}
+          </div>
+        </section>
+        <div class="notice small-text">Entwürfe werden im Projekt-JSON gespeichert, wirken aber erst nach dem "Ausführen" auf die Timeline.</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button on:click={() => appState.closeDialog()}>Verwerfen / Schließen</button>
+      <div style="flex:1"></div>
+      <button on:click={saveAsDraft}>💾 Als Entwurf speichern</button>
+      <button class="primary" on:click={execute} disabled={!redistribution.changes.length}>✅ Umverteilung ausführen</button>
+    </div>
   </div>
 </div>
+
+<!-- Sub-Modals -->
+{#if activeSubModal}
+  <div class="modal-backdrop sub-modal">
+    <div class="modal" style="max-width: 600px">
+      <div class="modal-header">
+        <h3>
+          {#if activeSubModal === 'item'}Anteilssatz ändern: {subModalData.item.name}{/if}
+          {#if activeSubModal === 'special-transfer'}Alle Anteile übertragen{/if}
+          {#if activeSubModal === 'special-remove'}Alle Anteile einer Person entfernen{/if}
+          {#if activeSubModal === 'special-add'}Person überall hinzufügen{/if}
+        </h3>
+      </div>
+      <div class="modal-body stack">
+        {#if activeSubModal === 'item'}
+          <div class="grid-2">
+            <div class="stack">
+              <div class="muted">Bisher</div>
+              {#each Object.entries(subModalData.item.shares) as [pid, u]}
+                <div class="small-text">{people.find(p=>p.id===pid)?.name || pid}: {u}</div>
+              {/each}
+            </div>
+            <div class="stack">
+              <div class="muted">Neu</div>
+              <ShareEditor {people} bind:shares={subModalData.shares} />
+            </div>
+          </div>
+        {:else if activeSubModal === 'special-transfer'}
+          <div class="form-grid">
+            <label>Von Person <select bind:value={subModalData.sourceId}><option value="">wählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
+            <label>Auf Person <select bind:value={subModalData.targetId}><option value="">wählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
+          </div>
+        {:else if activeSubModal === 'special-remove'}
+          <label>Person entfernen <select bind:value={subModalData.sourceId}><option value="">wählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
+        {:else if activeSubModal === 'special-add'}
+          <div class="form-grid">
+            <label>Hinzuzufügende Person <select bind:value={subModalData.targetId}><option value="">wählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
+            <label>Einheiten <input type="number" step="1" bind:value={subModalData.units}></label>
+          </div>
+        {/if}
+      </div>
+      <div class="modal-footer">
+        <button on:click={() => activeSubModal = null}>Abbrechen</button>
+        <button class="primary" on:click={() => {
+          if (activeSubModal === 'item') { upsertChange(subModalData.item.id, subModalData.shares); activeSubModal = null; }
+          else applySpecial();
+        }}>Anwenden</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<style>
+  .large-modal { width: 95vw; max-width: 1100px; height: 85vh; display: flex; flex-direction: column; }
+  .grid-redistribution { display: grid; grid-template-columns: 1fr 340px; gap: 24px; flex: 1; overflow: hidden; }
+  .scrollable { overflow-y: auto; max-height: 100%; border: 1px solid var(--border); border-radius: 8px; }
+  .item-list { background: var(--soft); }
+  .item-row { padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .item-row:last-child { border-bottom: none; }
+  .item-row.is-changed { background: var(--ok-soft); border-left: 4px solid var(--ok); }
+  .small-text { font-size: 0.85rem; }
+  .small-input { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.9rem; }
+  .tight td { padding: 2px 0; }
+  .empty-small { font-size: 0.85rem; color: var(--muted); font-style: italic; }
+  .notice-small { font-size: 0.85rem; padding: 6px; background: var(--soft); border-radius: 4px; }
+  .positive { color: var(--ok); }
+  .negative { color: var(--warn); }
+  .sub-modal { z-index: 100; }
+  .content-left { overflow: hidden; display: flex; flex-direction: column; }
+</style>

@@ -9,7 +9,7 @@
   $: filtered = items.filter(item => (!tag || (item.tags || []).includes(tag)) && (!search.trim() || [item.name, item.note, ...(item.tags || [])].join(' ').toLowerCase().includes(search.toLowerCase().trim()))).sort((a,b)=>a.name.localeCompare(b.name,'de'));
 </script>
 <section class="panel">
-  <div class="panel-header"><h2>📦 Aktive Gegenstände</h2><div class="row"><button class="small" on:click={() => appState.setDialog({ type: 'itemAdd' })}>➕ Gegenstand</button><button class="small" on:click={() => appState.setDialog({ type: 'redistributionNew' })}>🔁 Umverteilung</button></div></div>
+  <div class="panel-header"><h2>📦 Aktive Gegenstände</h2><div class="row"><button class="small" on:click={() => appState.setDialog({ type: 'itemAdd' })}>➕ Gegenstand</button><button class="small" on:click={() => appState.startRedistribution()}>🔁 Umverteilung</button></div></div>
   <div class="panel-body stack">
     <div class="row"><input bind:value={search} placeholder="Suche nach Name, Tag oder Notiz …"><select bind:value={tag} style="max-width:220px"><option value="">Alle Tags</option>{#each tags as t}<option>{t}</option>{/each}</select></div>
     {#if filtered.length}

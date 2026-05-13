@@ -12,7 +12,7 @@ export const emptyProject = () => ({
   people: [],
   items: [],
   events: [],
-  redistributions: []
+  drafts: []
 });
 
 export const normalize = raw => {
@@ -22,7 +22,8 @@ export const normalize = raw => {
   p.people = Array.isArray(raw?.people) ? raw.people : [];
   p.items = Array.isArray(raw?.items) ? raw.items : [];
   p.events = Array.isArray(raw?.events) ? raw.events : [];
-  p.redistributions = Array.isArray(raw?.redistributions) ? raw.redistributions : [];
+  p.drafts = Array.isArray(raw?.drafts) ? raw.drafts : (Array.isArray(raw?.redistributions) ? raw.redistributions : []);
+  delete p.redistributions;
   p.currency = 'EUR';
   return p;
 };

@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hausstand – Anteilsverwaltung v0.3</title>
+<style>
+:root{
+  --bg:#f6f7f9;--panel:#fff;--soft:#f0f3f7;--text:#17202a;--muted:#667085;
+  --border:#d9dee7;--accent:#2f6fed;--accent-soft:#e9f0ff;--danger:#b42318;
+  --danger-soft:#fff0ed;--warn:#b54708;--warn-soft:#fff7e6;--ok:#027a48;
+  --ok-soft:#e9f8ef;--shadow:0 8px 24px rgba(20,32,45,.08);--r:14px;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.45}
+header{position:sticky;top:0;z-index:20;background:rgba(246,247,249,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.topbar{max-width:1440px;margin:0 auto;padding:12px 18px;display:grid;grid-template-columns:minmax(260px,1fr) auto minmax(260px,1fr);gap:18px;align-items:center}
+h1{font-size:18px;margin:0;letter-spacing:-.02em}.brand p{margin:2px 0 0;color:var(--muted);font-size:13px}.brand{min-width:0}.brand h1,.brand p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toolbar,.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.toolbar{justify-content:flex-end}.toolbar.center{justify-content:center}.toolbar.right{justify-content:flex-end}.toolbar-group{display:flex;gap:6px;align-items:end;flex-wrap:wrap;padding:4px 6px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.72)}.asof-control{width:170px}.file-input{max-width:220px}.icon-btn{min-width:36px;padding-inline:9px}.options-menu{position:relative}.options-menu>summary{list-style:none;border:1px solid var(--border);background:var(--panel);border-radius:10px;padding:8px 11px;cursor:pointer}.options-menu>summary::-webkit-details-marker{display:none}.options-menu[open]>summary{border-color:#aeb7c5}.options-popover{position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:min(320px,calc(100vw - 36px));padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--panel);box-shadow:var(--shadow);display:grid;gap:8px}.options-popover button,.options-popover input{width:100%}.options-popover .file-input{max-width:none}
+main{max-width:1440px;margin:0 auto;padding:18px;display:grid;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.panel-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:12px;align-items:center}
+.panel-header h2{margin:0;font-size:16px}.hint{color:var(--muted);font-size:13px}.panel-body{padding:16px}
+.grid-2{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.4fr);gap:16px;align-items:start}.dashboard-3{display:grid;grid-template-columns:minmax(260px,.85fr) minmax(260px,.9fr) minmax(360px,1.35fr);gap:16px;align-items:start}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wide{grid-column:1/-1}
+button,input,select,textarea{font:inherit}button{border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:10px;padding:8px 11px;cursor:pointer}
+button:hover{border-color:#aeb7c5}button.primary{background:var(--accent);border-color:var(--accent);color:white}button.danger{color:var(--danger);border-color:#fecdca;background:var(--danger-soft)}button.small{padding:5px 8px;font-size:12px;border-radius:8px}button.ghost{background:transparent}
+button:disabled{opacity:.45;cursor:not-allowed}
+label{display:grid;gap:5px;font-size:13px;color:var(--muted)}input,select,textarea{width:100%;border:1px solid var(--border);border-radius:10px;padding:8px 10px;background:#fff;color:var(--text)}textarea{min-height:78px;resize:vertical}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:9px 8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}th{color:var(--muted);font-weight:600;background:#fafbfc}tr:last-child td{border-bottom:0}
+.money{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.right{text-align:right}.muted{color:var(--muted)}.mono{font-family:var(--mono)}.nowrap{white-space:nowrap}
+.badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 9px;font-size:12px;border:1px solid var(--border);background:var(--soft);color:var(--muted);white-space:nowrap}
+.badge.ok{color:var(--ok);background:var(--ok-soft);border-color:#b7ebcc}.badge.warn{color:var(--warn);background:var(--warn-soft);border-color:#fedf89}.badge.danger{color:var(--danger);background:var(--danger-soft);border-color:#fecdca}.badge.accent{color:var(--accent);background:var(--accent-soft);border-color:#bfd0ff}
+.notice{border-radius:12px;padding:12px;border:1px solid var(--border);background:#fafbfc;color:var(--muted);font-size:13px}.notice.warn{border-color:#fedf89;background:var(--warn-soft);color:#7a3b00}.notice.danger{border-color:#fecdca;background:var(--danger-soft);color:var(--danger)}
+.empty{color:var(--muted);background:#fafbfc;border:1px dashed var(--border);border-radius:12px;padding:18px;text-align:center}.stack{display:grid;gap:12px}.split{display:flex;justify-content:space-between;gap:12px;align-items:center}.status-strip{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--border);padding:8px 8px 0;background:#fafbfc;overflow-x:auto}.tab{border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:0;background:transparent}.tab.active{background:var(--panel);color:var(--accent)}
+.view{display:none}.view.active{display:block}.clickable-row{cursor:pointer}.clickable-row:hover td{background:#f5f8ff}
+.tag{display:inline-flex;padding:2px 7px;border-radius:999px;background:var(--soft);color:var(--muted);font-size:12px;margin:0 4px 4px 0}
+.mini-card{border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff}.event-card{border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff;display:grid;gap:6px}.event-type{font-family:var(--mono);font-size:12px;color:var(--accent)}.timeline-marker{display:flex;align-items:center;gap:10px;color:var(--accent);font-size:12px;font-weight:700;margin:10px 0}.timeline-marker:before,.timeline-marker:after{content:"";height:1px;background:var(--accent);flex:1}.timeline-more{width:100%;text-align:center;background:var(--soft)}
+.detail-hero{display:grid;gap:12px;grid-template-columns:1.35fr .95fr;align-items:start}.detail-title{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.detail-title h2{margin:0;font-size:22px;letter-spacing:-.02em}.action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.breadcrumb{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;margin-bottom:8px}.breadcrumb button{padding:4px 8px;border-radius:8px}
+.share-editor{display:grid;gap:8px;border:1px solid var(--border);background:#fafbfc;border-radius:12px;padding:10px}.share-row{display:grid;grid-template-columns:1fr 120px auto;gap:8px;align-items:end}
+dialog{border:1px solid var(--border);border-radius:16px;padding:0;box-shadow:0 28px 80px rgba(20,32,45,.24);max-width:920px;width:calc(100vw - 30px)}dialog::backdrop{background:rgba(17,24,39,.45)}
+.dialog-header{padding:16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:12px;align-items:center}.dialog-header h3{margin:0}.dialog-body{padding:16px;max-height:72vh;overflow:auto}.dialog-footer{padding:14px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.json-preview{white-space:pre-wrap;font-family:var(--mono);font-size:12px;max-height:420px;overflow:auto;background:#101828;color:#e6edf7;border-radius:12px;padding:12px}
+.is-hidden{display:none!important}.changed-row td{background:#fff7e6}.invalid-field{border-color:#f04438!important;background:#fff0ed!important}.dialog-wide{max-width:1180px}
+@media(max-width:1000px){.topbar,.grid-2,.grid-3,.dashboard-3,.detail-hero,.action-grid,.form-grid{grid-template-columns:1fr}.toolbar,.toolbar.center,.toolbar.right{justify-content:flex-start}.toolbar-group{width:100%}.asof-control,.file-input{width:100%;max-width:none}.options-menu{width:100%}.options-menu>summary{width:100%;text-align:center}.options-popover{position:static;width:100%;margin-top:8px}.share-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <h1>🏠 Hausstand – Anteilsverwaltung</h1>
+      <p id="subtitle">Lokale JSON-Projektdatei · keine Zahlungsverwaltung</p>
+    </div>
+    <div class="toolbar center" aria-label="Stichtag wählen">
+      <div class="toolbar-group">
+        <button id="firstEventBtn" class="icon-btn" title="Zum ersten Ereignis" aria-label="Zum ersten Ereignis">⏮️</button>
+        <button id="prevDayBtn" class="icon-btn" title="Stichtag einen Tag zurück" aria-label="Stichtag einen Tag zurück">⬅️</button>
+        <label class="asof-control">Stichtag <input id="asOfDate" type="date"></label>
+        <button id="nextDayBtn" class="icon-btn" title="Stichtag einen Tag vor" aria-label="Stichtag einen Tag vor">➡️</button>
+        <button id="lastEventBtn" class="icon-btn" title="Zum letzten Ereignis" aria-label="Zum letzten Ereignis">⏭️</button>
+        <button id="todayBtn">📍 Heute</button>
+      </div>
+    </div>
+    <div class="toolbar right" aria-label="Speichern und Optionen">
+      <button id="exportBtn" class="primary">💾 Speichern</button>
+      <details class="options-menu">
+        <summary>⚙️ Optionen</summary>
+        <div class="options-popover">
+          <input id="fileInput" class="file-input" type="file" accept="application/json,.json">
+          <button id="newProjectBtn">🆕 Neues Projekt</button>
+          <button id="restoreBtn">♻️ Arbeitskopie laden</button>
+        </div>
+      </details>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="pageDashboard" class="view active">
+    <section class="dashboard-3">
+      <section class="panel">
+        <div class="panel-header"><h2>Timeline</h2><span class="hint">Stichtag markiert</span></div>
+        <div class="panel-body" id="timelineView"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-header"><h2>Personen</h2><div class="row"><span class="hint">Klick öffnet Detailseite</span><button class="small" data-action="modal" data-modal="personAdd">👤 Person hinzufügen</button></div></div>
+        <div class="panel-body" id="peopleSummary"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-header"><h2>Aktive Gegenstände</h2><div class="row"><span class="hint">Kompakte Liste</span><button class="small" data-action="modal" data-modal="itemAdd">📦 Gegenstand hinzufügen</button><button class="small" data-action="modal" data-modal="redistributionNew">🔀 Umverteilung starten</button></div></div>
+        <div class="panel-body">
+          <div class="row" style="margin-bottom:12px">
+            <input id="itemSearch" placeholder="Suche nach Name, Tag oder Notiz …">
+            <select id="tagFilter" style="max-width:220px"><option value="">Alle Tags</option></select>
+          </div>
+          <div id="itemsTable"></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="tabs">
+        <button class="tab active" data-action="tab" data-tab="redistributionsView">Umverteilungen</button>
+        <button class="tab" data-action="tab" data-tab="archiveView">Archiv</button>
+        <button class="tab" data-action="tab" data-tab="jsonView">JSON-Vorschau</button>
+      </div>
+      <div class="panel-body">
+        <div id="redistributionsView" class="view active"></div>
+        <div id="archiveView" class="view"></div>
+        <div id="jsonView" class="view"></div>
+      </div>
+    </section>
+  </section>
+
+  <section id="pageItem" class="view"></section>
+  <section id="pagePerson" class="view"></section>
+</main>
+
+<dialog id="modal">
+  <form method="dialog" id="modalForm">
+    <div class="dialog-header"><h3 id="modalTitle"></h3><button type="button" class="ghost" data-action="close">✕</button></div>
+    <div class="dialog-body" id="modalBody"></div>
+    <div class="dialog-footer" id="modalFooter"></div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+"use strict";
+
+/* Util: kleine technische Hilfsfunktionen */
+const Util = (() => {
+  const todayISO = () => new Date().toISOString().slice(0,10);
+  const nowISO = () => new Date().toISOString();
+  const uid = p => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
+  const clone = v => typeof structuredClone==="function" ? structuredClone(v) : JSON.parse(JSON.stringify(v));
+  const n = (v,f=0) => { const x=Number(v); return Number.isFinite(x)?x:f; };
+  const esc = v => String(v ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  const yearsBetween = (a,b) => {
+    const x = new Date(`${a}T00:00:00`), y = new Date(`${b}T00:00:00`);
+    if(Number.isNaN(x.getTime())||Number.isNaN(y.getTime())) return 0;
+    return Math.max(0,(y-x)/(365.2425*24*60*60*1000));
+  };
+  const byDateOrder = (a,b) => String(a.date||"").localeCompare(String(b.date||"")) || (a.order??0)-(b.order??0);
+  const dateFromISO = iso => {
+    const m = String(iso||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? new Date(Number(m[1]), Number(m[2])-1, Number(m[3])) : null;
+  };
+  const fmtDate = iso => {
+    const d = dateFromISO(iso);
+    return d ? new Intl.DateTimeFormat("de-DE",{dateStyle:"medium"}).format(d) : "–";
+  };
+  const fmtDT = iso => iso ? new Intl.DateTimeFormat("de-DE",{dateStyle:"medium",timeStyle:"short"}).format(new Date(iso)) : "–";
+  const addDaysISO = (iso,days) => {
+    const d = dateFromISO(iso) || dateFromISO(todayISO());
+    d.setDate(d.getDate()+Number(days||0));
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+    return `${y}-${m}-${day}`;
+  };
+  const eventDateBounds = events => {
+    const dates=(events||[]).map(e=>e?.date).filter(Boolean).sort();
+    return {first:dates[0]||null,last:dates.at(-1)||null};
+  };
+  const tags = s => String(s||"").split(",").map(x=>x.trim()).filter(Boolean);
+  return {todayISO,nowISO,uid,clone,n,esc,yearsBetween,byDateOrder,dateFromISO,fmtDate,fmtDT,addDaysISO,eventDateBounds,tags};
+})();
+
+/* Domain: Projektstruktur, Währung, Anteilsmathematik */
+const Domain = (() => {
+  const moneyFmt = new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"});
+  const pctFmt = new Intl.NumberFormat("de-DE",{style:"percent",minimumFractionDigits:1,maximumFractionDigits:1});
+  const money = v => moneyFmt.format(Number(v)||0);
+  const pct = v => pctFmt.format(Number(v)||0);
+  const emptyProject = () => ({
+    schemaVersion:1, appVersion:"0.3.0", currency:"EUR",
+    community:{name:"Hausgemeinschaft"},
+    humanReadableSnapshot:{generatedAt:Util.nowISO(),asOfDate:Util.todayISO(),summary:[],people:[],items:[]},
+    people:[], items:[], events:[], redistributions:[]
+  });
+  const normalize = raw => {
+    const p = {...emptyProject(), ...(raw||{})};
+    p.community = {name:"Hausgemeinschaft", ...(raw?.community||{})};
+    p.people = Array.isArray(raw?.people)?raw.people:[];
+    p.items = Array.isArray(raw?.items)?raw.items:[];
+    p.events = Array.isArray(raw?.events)?raw.events:[];
+    p.redistributions = Array.isArray(raw?.redistributions)?raw.redistributions:(Array.isArray(raw?.drafts)?raw.drafts:[]);
+    p.currency = "EUR"; p.schemaVersion = Number(p.schemaVersion||1);
+    return p;
+  };
+  const shareTotal = shares => Object.values(shares||{}).reduce((s,v)=>s+(Number(v)>0?Number(v):0),0);
+  const normShares = shares => {
+    const out={}; for(const [pid,val] of Object.entries(shares||{})){ const x=Number(val); if(Number.isFinite(x)&&x>0) out[pid]=x; }
+    return out;
+  };
+  return {money,pct,emptyProject,normalize,shareTotal,normShares};
+})();
+
+/* Valuation: fachliche Wertmodelle */
+const Valuation = (() => {
+  const valueAt = (valuation,startValue,startDate,asOfDate) => {
+    const base=Math.max(0,Number(startValue)||0), min=Math.max(0,Number(valuation?.minimumValue)||0);
+    const years=Util.yearsBetween(startDate,asOfDate); let v=base;
+    if(valuation?.type==="linear"){ const d=Number(valuation.durationYears)||0; if(d>0) v=base*Math.max(0,1-years/d); }
+    else if(valuation?.type==="degressive"){ const r=Math.max(0,Math.min(1,Number(valuation.annualRate)||0)); v=base*Math.pow(1-r,years); }
+    else v=base;
+    return Math.max(min,v);
+  };
+  const label = val => {
+    if(!val) return "konstant";
+    const min = Number(val.minimumValue||0)>0 ? `, Mindestwert ${Domain.money(val.minimumValue)}` : "";
+    if(val.type==="linear") return `linear über ${val.durationYears||"?"} Jahre${min}`;
+    if(val.type==="degressive") return `degressiv ${Math.round((val.annualRate||0)*1000)/10}%/Jahr${min}`;
+    return `konstant${min}`;
+  };
+  return {valueAt,label};
+})();
+
+/* Projector: rekonstruiert den Zustand zum Stichtag aus Events */
+const Projector = (() => {
+  const init = project => ({
+    peopleById:new Map(project.people.map(p=>[p.id,{...p,active:false}])),
+    itemsById:new Map(project.items.map(i=>[i.id,{...i}])),
+    runtime:new Map(), warnings:[]
+  });
+  const ensurePerson=(s,id,name=id)=>{ if(!s.peopleById.has(id)) s.peopleById.set(id,{id,name,active:false,synthetic:true}); return s.peopleById.get(id); };
+  const ensureItem=(s,id,name=id)=>{ if(!s.itemsById.has(id)) s.itemsById.set(id,{id,name,tags:[],note:"",synthetic:true}); return s.itemsById.get(id); };
+  const rt=(s,id)=>{ if(!s.runtime.has(id)) s.runtime.set(id,{itemId:id,status:"unknown",date:null,initialValue:0,valuation:{type:"fixed",minimumValue:0},shares:{}}); return s.runtime.get(id); };
+  const apply=(s,e)=>{
+    if(e.type==="person-added"){ const p=ensurePerson(s,e.personId,e.name); if((p.synthetic || !p.name || p.name===e.personId) && e.name) p.name=e.name; p.active=true; p.activeFrom=e.date; p.inactiveFrom=null; }
+    else if(e.type==="person-deactivated"){ const p=ensurePerson(s,e.personId); p.active=false; p.inactiveFrom=e.date; p.inactiveReason=e.reason||""; }
+    else if(e.type==="person-reactivated"){ const p=ensurePerson(s,e.personId); p.active=true; p.reactivatedAt=e.date; p.inactiveFrom=null; }
+    else if(e.type==="item-added"){
+      const item=ensureItem(s,e.itemId,e.name); if((item.synthetic || !item.name || item.name===e.itemId) && e.name) item.name=e.name;
+      const r=rt(s,e.itemId); r.status="active"; r.date=e.date; r.initialValue=Number(e.initialValue)||0; r.valuation=e.valuation||{type:"fixed",minimumValue:0}; r.shares=Domain.normShares(e.shares);
+    }
+    else if(e.type==="item-ended"){ const r=rt(s,e.itemId); r.status=e.statusAfter||"ended"; r.endedAt=e.date; r.endReason=e.reason||""; }
+    else if(e.type==="shares-set"){ const r=rt(s,e.itemId); r.shares=Domain.normShares(e.shares); }
+    else if(e.type==="redistribution-executed"){
+      for(const child of e.events||[]) apply(s,{...child,date:e.date,order:e.order});
+    }
+    else s.warnings.push(`Unbekannter Ereignistyp: ${e.type}`);
+  };
+  const project=(project,asOfDate)=>{
+    const s=init(project);
+    const ev=project.events.filter(e=>e?.date && e.date<=asOfDate).sort(Util.byDateOrder);
+    for(const e of ev) apply(s,e);
+    const items=[];
+    for(const [id,r] of s.runtime.entries()){
+      const base=s.itemsById.get(id)||{id,name:id,tags:[],note:""};
+      const active=r.status==="active"; const value=active?Valuation.valueAt(r.valuation,r.initialValue,r.date,asOfDate):0;
+      const total=Domain.shareTotal(r.shares);
+      const shareRows=Object.entries(r.shares||{}).map(([pid,units])=>{
+        const f=total>0?units/total:0; const p=s.peopleById.get(pid);
+        return {personId:pid,personName:p?.name||pid,units,fraction:f,value:value*f,active:!!p?.active};
+      });
+      items.push({...base,runtime:r,status:r.status,value,shares:r.shares,shareRows});
+    }
+    const activeItems=items.filter(i=>i.status==="active" && i.value>0.0001);
+    const archivedItems=items.filter(i=>i.status!=="active");
+    const people=[...s.peopleById.values()].map(p=>{
+      const holdings=activeItems.flatMap(item=>item.shareRows.filter(x=>x.personId===p.id).map(x=>({item,...x})));
+      const totalValue=holdings.reduce((sum,h)=>sum+h.value,0);
+      return {...p,holdings,totalValue};
+    }).filter(p=>p.active || p.totalValue>0.0001);
+    const allTags=[...new Set(project.items.flatMap(i=>i.tags||[]))].sort((a,b)=>a.localeCompare(b,"de"));
+    return {asOfDate,people,items,activeItems,archivedItems,allTags,totalValue:activeItems.reduce((s,i)=>s+i.value,0),peopleById:s.peopleById,itemsById:s.itemsById,warnings:s.warnings};
+  };
+  const itemBeforeEvent=(projectData,event)=>{
+    const p=Util.clone(projectData);
+    const idx=p.events.findIndex(e=>e.id===event.id);
+    if(idx>=0) p.events.splice(idx,1);
+    return project(p,event.date);
+  };
+  const shareDeltas=(projectData,event)=>{
+    const before=itemBeforeEvent(projectData,event);
+    const item=before.items.find(i=>i.id===event.itemId); if(!item) return [];
+    const beforeShares=item.shares||{}, afterShares=Domain.normShares(event.shares), value=item.value||0;
+    const beforeTotal=Domain.shareTotal(beforeShares), afterTotal=Domain.shareTotal(afterShares);
+    const ids=[...new Set([...Object.keys(beforeShares),...Object.keys(afterShares)])];
+    return ids.map(pid=>{
+      const bf=beforeTotal>0?(beforeShares[pid]||0)/beforeTotal:0, af=afterTotal>0?(afterShares[pid]||0)/afterTotal:0;
+      const name=before.peopleById.get(pid)?.name || pid;
+      return {personId:pid,personName:name,beforeValue:value*bf,afterValue:value*af,delta:value*(af-bf)};
+    }).filter(x=>Math.abs(x.delta)>0.005);
+  };
+  return {project,shareDeltas};
+})();
+
+/* Persistence: JSON-Datei und Browser-Arbeitskopie */
+const Persistence = (() => {
+  const KEY="hausstand_anteile_v03_working_copy";
+  const localLoad=()=>{const raw=localStorage.getItem(KEY);return raw?JSON.parse(raw):null};
+  const localSave=payload=>localStorage.setItem(KEY,JSON.stringify(payload));
+  const snapshot=(project,asOfDate)=>{
+    const s=Projector.project(project,asOfDate);
+    return {
+      generatedAt:Util.nowISO(), asOfDate,
+      summary:[`Gemeinschaft: ${project.community?.name||"Hausgemeinschaft"}`,`Gesamtwert aktiver Gegenstände: ${Domain.money(s.totalValue)}`,`Personen mit Anteilen: ${s.people.length}`,`Aktive Gegenstände mit Wert: ${s.activeItems.length}`],
+      people:s.people.map(p=>({name:p.name,active:!!p.active,totalValue:Math.round(p.totalValue*100)/100})),
+      items:s.activeItems.map(i=>({name:i.name,currentValue:Math.round(i.value*100)/100,valuation:Valuation.label(i.runtime.valuation),tags:i.tags||[],shares:Object.fromEntries(i.shareRows.map(r=>[r.personName,r.units]))}))
+    };
+  };
+  const exportProject=(project,asOfDate)=>{ const out=Util.clone(project); out.schemaVersion=1; out.currency="EUR"; out.humanReadableSnapshot=snapshot(out,asOfDate); return out; };
+  const download=(project,asOfDate)=>{
+    const out=exportProject(project,asOfDate);
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob); const a=document.createElement("a");
+    a.href=url; a.download=`${(project.community?.name||"hausstand").toLowerCase().replace(/[^a-z0-9äöüß]+/gi,"_")}_${asOfDate}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  return {localLoad,localSave,exportProject,download};
+})();
+
+/* Store: zentraler App-Zustand */
+const Store = (() => {
+  let state={project:Domain.emptyProject(),asOfDate:Util.todayISO(),fileName:null,dirty:false,lastImportAt:null,lastExportAt:null};
+  const subs=new Set();
+  const get=()=>state;
+  const set=(patch,opt={})=>{state={...state,...patch}; if(opt.persist!==false) persist(); subs.forEach(fn=>fn(state));};
+  const updateProject=fn=>{const p=Util.clone(state.project); fn(p); set({project:p,dirty:true});};
+  const persist=()=>Persistence.localSave({project:state.project,asOfDate:state.asOfDate,fileName:state.fileName,dirty:state.dirty,savedAt:Util.nowISO()});
+  const sub=fn=>{subs.add(fn); fn(state); return()=>subs.delete(fn);};
+  return {get,set,updateProject,sub};
+})();
+
+/* UI: Dialoge, Navigation, Rendering, Workflows */
+const UI = (() => {
+  const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  let projection=null;
+  let redistributionWork=null;
+  let timelinePastLimit=10;
+  let timelineFutureOpen=false;
+
+  const init=()=>{
+    $("#asOfDate").value=Store.get().asOfDate;
+    bind();
+    Store.sub(render);
+  };
+
+  const setAsOfDate=date=>{timelinePastLimit=10; timelineFutureOpen=false; Store.set({asOfDate:date||Util.todayISO()});};
+  const jumpToEventDate=which=>{
+    const bounds=Util.eventDateBounds(Store.get().project.events);
+    const date=which==="first" ? bounds.first : bounds.last;
+    if(date) setAsOfDate(date);
+  };
+
+  const bind=()=>{
+    $("#todayBtn").onclick=()=>setAsOfDate(Util.todayISO());
+    $("#prevDayBtn").onclick=()=>setAsOfDate(Util.addDaysISO(Store.get().asOfDate,-1));
+    $("#nextDayBtn").onclick=()=>setAsOfDate(Util.addDaysISO(Store.get().asOfDate,1));
+    $("#firstEventBtn").onclick=()=>jumpToEventDate("first");
+    $("#lastEventBtn").onclick=()=>jumpToEventDate("last");
+    $("#asOfDate").onchange=e=>setAsOfDate(e.target.value||Util.todayISO());
+    $("#newProjectBtn").onclick=()=>{if(Store.get().dirty&&!confirm("Ungespeicherte Änderungen verwerfen?"))return; openNewProject();};
+    $("#restoreBtn").onclick=()=>{const local=Persistence.localLoad(); if(!local)return alert("Keine lokale Arbeitskopie gefunden."); Store.set({project:Domain.normalize(local.project),asOfDate:local.asOfDate||Util.todayISO(),fileName:local.fileName||null,dirty:!!local.dirty,lastImportAt:null,lastExportAt:null});};
+    $("#exportBtn").onclick=()=>{Persistence.download(Store.get().project,Store.get().asOfDate); Store.set({dirty:false,lastExportAt:Util.nowISO()});};
+    $("#fileInput").onchange=async e=>{
+      const file=e.target.files?.[0]; if(!file)return;
+      try{ const parsed=JSON.parse(await file.text()); Store.set({project:Domain.normalize(parsed),fileName:file.name,dirty:false,lastImportAt:Util.nowISO(),lastExportAt:null}); }
+      catch(err){ alert(`Importfehler: ${err.message}`); }
+      finally{ e.target.value=""; }
+    };
+    document.addEventListener("click",e=>{
+      const t=e.target.closest("[data-action]"); if(!t)return;
+      const a=t.dataset.action;
+      if(a==="nav") nav(t.dataset.route||"#/");
+      if(a==="modal") openModal(t.dataset.modal,t.dataset);
+      if(a==="close") $("#modal").close();
+      if(a==="tab") showTab(t.dataset.tab);
+      if(a==="edit-event") openEventEdit(t.dataset.eventId);
+      if(a==="edit-redistribution-child") editRedistributionChildEvent(t.dataset.eventId, Number(t.dataset.childIndex));
+      if(a==="delete-event") deleteEvent(t.dataset.eventId);
+      if(a==="delete-redistribution") deleteRedistribution(t.dataset.id);
+      if(a==="execute-redistribution") executeRedistribution(t.dataset.id);
+      if(a==="copy-redistribution-md") copyRedistributionMarkdown(t.dataset.id);
+    });
+    $("#itemSearch").oninput=renderItems;
+    $("#tagFilter").onchange=renderItems;
+    window.addEventListener("hashchange",renderRoute);
+    window.addEventListener("beforeunload",e=>{if(Store.get().dirty){e.preventDefault();e.returnValue="";}});
+  };
+
+  const render=state=>{
+    projection=Projector.project(state.project,state.asOfDate);
+    $("#asOfDate").value=state.asOfDate;
+    const bounds=Util.eventDateBounds(state.project.events);
+    $("#firstEventBtn").disabled=!bounds.first;
+    $("#lastEventBtn").disabled=!bounds.last;
+    renderStatus(state); renderPeople(); renderTagFilter(); renderItems(); renderTimeline(); renderRedistributions(); renderArchive(); renderJson(); renderRoute();
+  };
+
+  const renderStatus=s=>{
+    const local=Persistence.localLoad();
+    const bits=[
+      s.fileName||"keine Datei geladen",
+      s.dirty?"ungespeicherte Änderungen":"exportierter Stand",
+      local?"Browser-Arbeitskopie vorhanden":null
+    ].filter(Boolean);
+    $("#subtitle").textContent=`${s.project.community?.name||"Hausgemeinschaft"} · ${bits.join(" · ")}`;
+  };
+
+  const renderPeople=()=>{
+    const people=projection.people.slice().sort((a,b)=>b.totalValue-a.totalValue||a.name.localeCompare(b.name,"de"));
+    if(!people.length){ $("#peopleSummary").innerHTML=`<div class="empty">Noch keine Personen oder Anteile zum Stichtag.</div>`; return; }
+    $("#peopleSummary").innerHTML=`
+      <div class="stack">
+        <div class="grid-3">
+          <div class="mini-card"><div class="muted">Gesamtwert</div><strong>${Domain.money(projection.totalValue)}</strong></div>
+          <div class="mini-card"><div class="muted">Personen</div><strong>${people.length}</strong></div>
+          <div class="mini-card"><div class="muted">Gegenstände</div><strong>${projection.activeItems.length}</strong></div>
+        </div>
+        <table><thead><tr><th>Person</th><th>Status</th><th class="money">Wertanteil</th><th class="right">Positionen</th></tr></thead><tbody>
+        ${people.map(p=>`<tr class="clickable-row" data-action="nav" data-route="#/people/${Util.esc(p.id)}"><td><strong>${Util.esc(p.name)}</strong></td><td>${p.active?`<span class="badge ok">aktiv</span>`:`<span class="badge warn">inaktiv</span>`}</td><td class="money">${Domain.money(p.totalValue)}</td><td class="right">${p.holdings.length}</td></tr>`).join("")}
+        </tbody></table>
+        ${people.some(p=>!p.active&&p.totalValue>0)?`<div class="notice warn">Mindestens eine inaktive Person hält zum Stichtag noch Anteile.</div>`:""}
+      </div>`;
+  };
+
+  const renderTagFilter=()=>{
+    const cur=$("#tagFilter").value;
+    $("#tagFilter").innerHTML=`<option value="">Alle Tags</option>`+projection.allTags.map(t=>`<option value="${Util.esc(t)}">${Util.esc(t)}</option>`).join("");
+    $("#tagFilter").value=cur;
+  };
+
+  const renderItems=()=>{
+    const search=($("#itemSearch").value||"").toLowerCase().trim(), tag=$("#tagFilter").value;
+    let items=projection.activeItems.slice().sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    if(tag) items=items.filter(i=>(i.tags||[]).includes(tag));
+    if(search) items=items.filter(i=>[i.name,i.note,...(i.tags||[])].join(" ").toLowerCase().includes(search));
+    if(!items.length){ $("#itemsTable").innerHTML=`<div class="empty">Keine passenden aktiven Gegenstände mit Wert.</div>`; return; }
+    $("#itemsTable").innerHTML=`<table><thead><tr><th>Gegenstand</th><th>Tags</th><th>Bewertung</th><th class="right">Anteilseigner</th><th class="money">Gesamtwert</th></tr></thead><tbody>
+      ${items.map(i=>`<tr class="clickable-row" data-action="nav" data-route="#/items/${Util.esc(i.id)}"><td><strong>${Util.esc(i.name)}</strong>${i.note?`<div class="muted">${Util.esc(i.note)}</div>`:""}</td><td>${renderTags(i.tags)}</td><td>${Util.esc(Valuation.label(i.runtime.valuation))}</td><td class="right">${i.shareRows.length}</td><td class="money">${Domain.money(i.value)}</td></tr>`).join("")}
+    </tbody></table>`;
+  };
+
+  const renderTimeline=()=>{
+    const asOf=Store.get().asOfDate;
+    const events=Store.get().project.events.slice().sort(Util.byDateOrder);
+    const past=events.filter(e=>(e.date||"")<=asOf).reverse();
+    const future=events.filter(e=>(e.date||"")>asOf);
+    const visiblePast=past.slice(0,timelinePastLimit);
+    const older=past.length-visiblePast.length;
+    const htmlParts=[];
+    if(future.length){
+      htmlParts.push(`<button type="button" class="timeline-more" id="toggleFutureEvents">${future.length} zukünftige Ereignisse ${timelineFutureOpen?"ausblenden":"anzeigen"}</button>`);
+      if(timelineFutureOpen) htmlParts.push(renderEventList(future));
+    }
+    htmlParts.push(`<div class="timeline-marker">Stichtag ${Util.esc(Util.fmtDate(asOf))}</div>`);
+    htmlParts.push(renderEventList(visiblePast));
+    if(older>0) htmlParts.push(`<button type="button" class="timeline-more" id="showMorePastEvents">Weitere 10 ältere Ereignisse anzeigen (${older} verbleibend)</button>`);
+    if(!events.length) htmlParts.push(`<div class="empty">Keine Ereignisse.</div>`);
+    $("#timelineView").innerHTML=`<div class="stack">${htmlParts.join("")}</div>`;
+    $("#toggleFutureEvents")?.addEventListener("click",()=>{timelineFutureOpen=!timelineFutureOpen; renderTimeline();});
+    $("#showMorePastEvents")?.addEventListener("click",()=>{timelinePastLimit+=10; renderTimeline();});
+  };
+  const renderRedistributions=()=>{
+    const rs=Store.get().project.redistributions||[];
+    if(!rs.length){ $("#redistributionsView").innerHTML=`<div class="empty">Keine gespeicherten Umverteilungen.</div>`; return; }
+    $("#redistributionsView").innerHTML=`<div class="stack">${rs.map(r=>`
+      <div class="event-card">
+        <div class="split"><div><div class="event-type">redistribution</div><strong>${Util.esc(r.title||r.id)}</strong></div><div class="row"><button class="small primary" data-action="execute-redistribution" data-id="${Util.esc(r.id)}">✅ Änderungen übernehmen</button><button class="small" data-action="modal" data-modal="redistributionEdit" data-id="${Util.esc(r.id)}">✏️ Bearbeiten</button><button class="small danger" data-action="delete-redistribution" data-id="${Util.esc(r.id)}">🗑️ Löschen</button></div></div>
+        <div class="muted">Stichtag ${Util.esc(Util.fmtDate(r.effectiveDate))} · ${r.changes?.length||0} Änderung(en)</div>
+        ${renderRedistributionPreview(r)}
+      </div>`).join("")}</div>`;
+  };
+  const renderArchive=()=>{
+    const items=projection.archivedItems.slice().sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    if(!items.length){ $("#archiveView").innerHTML=`<div class="empty">Noch keine beendeten oder archivierten Gegenstände.</div>`; return; }
+    $("#archiveView").innerHTML=`<table><thead><tr><th>Gegenstand</th><th>Status</th><th>Endgrund</th><th>Tags</th></tr></thead><tbody>
+      ${items.map(i=>`<tr class="clickable-row" data-action="nav" data-route="#/items/${Util.esc(i.id)}"><td><strong>${Util.esc(i.name)}</strong></td><td>${Util.esc(i.status)}</td><td>${Util.esc(i.runtime.endReason||"")}</td><td>${renderTags(i.tags)}</td></tr>`).join("")}
+    </tbody></table>`;
+  };
+  const renderJson=()=>$("#jsonView").innerHTML=`<pre class="json-preview">${Util.esc(JSON.stringify(Persistence.exportProject(Store.get().project,Store.get().asOfDate),null,2))}</pre>`;
+
+  const renderRoute=()=>{
+    const route=parseRoute();
+    $("#pageDashboard").classList.toggle("active",route.page==="dashboard");
+    $("#pageItem").classList.toggle("active",route.page==="item");
+    $("#pagePerson").classList.toggle("active",route.page==="person");
+    if(route.page==="item") renderItemDetail(route.id);
+    if(route.page==="person") renderPersonDetail(route.id);
+  };
+  const parseRoute=()=>{const parts=(location.hash||"#/").replace(/^#\/?/,"").split("/").filter(Boolean); if(!parts.length)return{page:"dashboard"}; if(parts[0]==="items")return{page:"item",id:parts[1]}; if(parts[0]==="people")return{page:"person",id:parts[1]}; return{page:"dashboard"};};
+  const nav=route=>{location.hash=route; renderRoute();};
+  const showTab=id=>{$$(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===id)); $$("#redistributionsView,#archiveView,#jsonView").forEach(v=>v.classList.toggle("active",v.id===id));};
+
+  const renderItemDetail=id=>{
+    const item=projection.items.find(i=>i.id===id);
+    if(!item){ $("#pageItem").innerHTML=`<section class="panel"><div class="panel-body"><button data-action="nav" data-route="#/">← Übersicht</button><div class="empty" style="margin-top:12px">Gegenstand nicht gefunden.</div></div></section>`; return; }
+    const events=Store.get().project.events.filter(e=>touchesItem(e,id)).sort(Util.byDateOrder).reverse();
+    $("#pageItem").innerHTML=`
+      <section class="panel"><div class="panel-body">
+        <div class="breadcrumb"><button data-action="nav" data-route="#/">← Übersicht</button><span>Gegenstand</span></div>
+        <div class="detail-hero">
+          <div class="stack">
+            <div class="detail-title"><h2>${Util.esc(item.name)}</h2><span class="badge ${item.status==="active"?"ok":"warn"}">${Util.esc(item.status)}</span></div>
+            <div>${renderTags(item.tags)}</div>${item.note?`<div class="notice">${Util.esc(item.note)}</div>`:""}
+            <div class="grid-3"><div class="mini-card"><div class="muted">Wert</div><strong>${Domain.money(item.value)}</strong></div><div class="mini-card"><div class="muted">Anteilseigner</div><strong>${item.shareRows.length}</strong></div><div class="mini-card"><div class="muted">Bewertung</div><strong>${Util.esc(Valuation.label(item.runtime.valuation))}</strong></div></div>
+          </div>
+          <div class="mini-card stack">
+            <strong>Aktionen</strong>
+            <div class="action-grid">
+              <button data-action="modal" data-modal="shareSet" data-item-id="${Util.esc(id)}">🧮 Anteile ändern</button>
+              <button data-action="modal" data-modal="itemMeta" data-item-id="${Util.esc(id)}">✏️ Stammdaten korrigieren</button>
+              <button data-action="modal" data-modal="itemEnd" data-item-id="${Util.esc(id)}">📦 Beenden / ausbuchen</button>
+              <button data-action="modal" data-modal="itemContinue" data-item-id="${Util.esc(id)}">🧬 Als neue Version fortführen</button>
+            </div>
+            <div class="notice">Aktionen erstellen neue Ereignisse; Stammdatenkorrekturen ändern direkt den Gegenstand.</div>
+          </div>
+        </div>
+      </div></section>
+      <section class="grid-2" style="margin-top:16px">
+        <section class="panel"><div class="panel-header"><h2>Anteile</h2><span class="hint">zum Stichtag</span></div><div class="panel-body">${renderItemShares(item)}</div></section>
+        <section class="panel"><div class="panel-header"><h2>Gegenstands-Timeline</h2><span class="hint">typenspezifisch bearbeitbar</span></div><div class="panel-body">${renderEventList(events)}</div></section>
+      </section>`;
+  };
+
+  const renderPersonDetail=id=>{
+    const person=projection.people.find(p=>p.id===id)||projection.peopleById.get(id);
+    if(!person){ $("#pagePerson").innerHTML=`<section class="panel"><div class="panel-body"><button data-action="nav" data-route="#/">← Übersicht</button><div class="empty" style="margin-top:12px">Person nicht gefunden.</div></div></section>`; return; }
+    const holdings=person.holdings||[], events=Store.get().project.events.filter(e=>touchesPerson(e,id)).sort(Util.byDateOrder).reverse();
+    $("#pagePerson").innerHTML=`
+      <section class="panel"><div class="panel-body">
+        <div class="breadcrumb"><button data-action="nav" data-route="#/">← Übersicht</button><span>Person</span></div>
+        <div class="detail-hero">
+          <div class="stack">
+            <div class="detail-title"><h2>${Util.esc(person.name)}</h2>${person.active?`<span class="badge ok">aktiv</span>`:`<span class="badge warn">inaktiv</span>`}</div>
+            <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>${Domain.money(person.totalValue||0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>${holdings.length}</strong></div><div class="mini-card"><div class="muted">Status</div><strong>${person.active?"aktiv":"inaktiv"}</strong></div></div>
+          </div>
+          <div class="mini-card stack">
+            <strong>Aktionen</strong>
+            <div class="action-grid">
+              <button data-action="modal" data-modal="personMeta" data-person-id="${Util.esc(id)}">✏️ Stammdaten korrigieren</button>
+              ${person.active?`<button data-action="modal" data-modal="personDeactivate" data-person-id="${Util.esc(id)}">🚪 Deaktivieren / Auszug</button>`:`<button data-action="modal" data-modal="personReactivate" data-person-id="${Util.esc(id)}">🔄 Reaktivieren</button>`}
+              <button data-action="modal" data-modal="personTransferAll" data-person-id="${Util.esc(id)}">🔁 Alle Anteile übertragen</button>
+              <button data-action="modal" data-modal="personDissolveAll" data-person-id="${Util.esc(id)}">🧹 Alle Anteile auflösen</button>
+            </div>
+          </div>
+        </div>
+      </div></section>
+      <section class="grid-2" style="margin-top:16px">
+        <section class="panel"><div class="panel-header"><h2>Gehaltene Anteile</h2><span class="hint">zum Stichtag</span></div><div class="panel-body">${renderHoldings(holdings)}</div></section>
+        <section class="panel"><div class="panel-header"><h2>Personen-Timeline</h2><span class="hint">typenspezifisch bearbeitbar</span></div><div class="panel-body">${renderEventList(events)}</div></section>
+      </section>`;
+  };
+
+  const renderTags=tags=>(tags||[]).length?(tags||[]).map(t=>`<span class="tag">${Util.esc(t)}</span>`).join(""):`<span class="muted">–</span>`;
+  const renderItemShares=item=>item.shareRows.length?`<table><thead><tr><th>Person</th><th class="right">Einheiten</th><th class="right">Prozent</th><th class="money">Wertanteil</th></tr></thead><tbody>${item.shareRows.map(r=>`<tr class="clickable-row" data-action="nav" data-route="#/people/${Util.esc(r.personId)}"><td>${Util.esc(r.personName)}${r.active?"":" <span class='muted'>(inaktiv)</span>"}</td><td class="right">${r.units}</td><td class="right">${Domain.pct(r.fraction)}</td><td class="money">${Domain.money(r.value)}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">Keine Anteile.</div>`;
+  const renderHoldings=h=>h.length?`<table><thead><tr><th>Gegenstand</th><th class="right">Einheiten</th><th class="right">Prozent</th><th class="money">Wertanteil</th></tr></thead><tbody>${h.map(x=>`<tr class="clickable-row" data-action="nav" data-route="#/items/${Util.esc(x.item.id)}"><td>${Util.esc(x.item.name)}</td><td class="right">${x.units}</td><td class="right">${Domain.pct(x.fraction)}</td><td class="money">${Domain.money(x.value)}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">Keine Anteile zum Stichtag.</div>`;
+
+  const renderEventList=events=>events.length?`<div class="stack">${events.map(e=>`<div class="event-card"><div class="split"><div><div class="event-type">${Util.esc(e.type)}</div><strong>${Util.esc(e.date?Util.fmtDate(e.date):"ohne Datum")}</strong></div><button class="small" data-action="edit-event" data-event-id="${Util.esc(e.id)}">✏️ Ereignis bearbeiten</button></div><div>${eventSummary(e)}</div></div>`).join("")}</div>`:`<div class="empty">Keine Ereignisse.</div>`;
+  const eventSummary=e=>{
+    if(e.type==="person-added")return`Person hinzugefügt: <strong>${Util.esc(e.name||nameOfPerson(e.personId))}</strong>`;
+    if(e.type==="person-deactivated")return`Person deaktiviert: <strong>${Util.esc(nameOfPerson(e.personId))}</strong>${e.reason?` · ${Util.esc(e.reason)}`:""}`;
+    if(e.type==="person-reactivated")return`Person reaktiviert: <strong>${Util.esc(nameOfPerson(e.personId))}</strong>${e.reason?` · ${Util.esc(e.reason)}`:""}`;
+    if(e.type==="item-added")return`Gegenstand hinzugefügt: <strong>${Util.esc(e.name||nameOfItem(e.itemId))}</strong> · ${Domain.money(e.initialValue)} · ${Util.esc(Valuation.label(e.valuation))}`;
+    if(e.type==="item-ended")return`Gegenstand beendet: <strong>${Util.esc(nameOfItem(e.itemId))}</strong> · ${Util.esc(e.statusAfter||"ended")}${e.reason?` · ${Util.esc(e.reason)}`:""}`;
+    if(e.type==="shares-set"){const deltas=Projector.shareDeltas(Store.get().project,e);return`Anteile geändert: <strong>${Util.esc(nameOfItem(e.itemId))}</strong>${e.note?` · ${Util.esc(e.note)}`:""}${deltas.length?`<div class="muted">Wertverschiebung: ${deltas.map(d=>`${Util.esc(d.personName)} ${d.delta>=0?"+":""}${Domain.money(d.delta)}`).join(" · ")}</div>`:""}`;}
+    if(e.type==="redistribution-executed"){return`Umverteilung ausgeführt: <strong>${Util.esc(e.title||"Umverteilung")}</strong> · ${(e.events||[]).length} Änderung(en)<div style="margin-top:8px">${renderRedistributionPreview({id:e.id,title:e.title,effectiveDate:e.date,changes:(e.events||[]).filter(x=>x.type==="shares-set").map(x=>({itemId:x.itemId,shares:x.shares}))})}</div>`;}
+    return`<span class="muted">${Util.esc(JSON.stringify(e))}</span>`;
+  };
+
+  /* Modals */
+  const modal=(title,body,footer,submit)=>{
+    $("#modalTitle").textContent=title; $("#modalBody").innerHTML=body; $("#modalFooter").innerHTML=footer||`<button type="button" data-action="close">Abbrechen</button><button class="primary">Speichern</button>`;
+    $("#modalForm").onsubmit=e=>{e.preventDefault(); submit?.(new FormData(e.currentTarget));};
+    const dlg=$("#modal");
+    if(!dlg.open) dlg.showModal();
+  };
+  const close=()=>{$("#modal").classList.remove("dialog-wide"); $("#modal").close();};
+
+  const openModal=(kind,data={})=>{
+    if(kind==="personAdd") return personAdd();
+    if(kind==="personMeta") return personMeta(data.personId);
+    if(kind==="personDeactivate") return personStatus(data.personId,"person-deactivated","Person deaktivieren / Auszug");
+    if(kind==="personReactivate") return personStatus(data.personId,"person-reactivated","Person reaktivieren");
+    if(kind==="itemAdd") return itemAdd();
+    if(kind==="itemMeta") return itemMeta(data.itemId);
+    if(kind==="itemEnd") return itemEnd(data.itemId);
+    if(kind==="shareSet") return shareSet(data.itemId);
+    if(kind==="itemContinue") return itemContinue(data.itemId);
+    if(kind==="personTransferAll") return personBulk(data.personId,"transfer");
+    if(kind==="personDissolveAll") return personBulk(data.personId,"dissolve");
+    if(kind==="redistributionNew") return redistributionEdit(null);
+    if(kind==="redistributionEdit") return redistributionEdit(data.id);
+  };
+
+  const personAdd=()=>modal("Person hinzufügen",`
+    <div class="form-grid"><label>Name<input name="name" required></label><label>Eintrittsdatum<input name="date" type="date" value="${Store.get().asOfDate}" required></label></div>`,
+    null,fd=>{const name=String(fd.get("name")).trim(), date=String(fd.get("date")); if(!name)return; const id=Util.uid("person");
+      Store.updateProject(p=>{p.people.push({id,name}); p.events.push({id:Util.uid("event"),type:"person-added",date,order:nextOrder(p),personId:id,name});}); close();});
+
+  const personMeta=id=>{const person=projection.peopleById.get(id); modal("Person-Stammdaten korrigieren",`
+    <div class="notice">Stammdatenkorrektur: kein Timeline-Ereignis.</div><label>Name<input name="name" value="${Util.esc(person?.name||"")}" required></label>`,
+    null,fd=>{const name=String(fd.get("name")).trim(); if(!name)return; Store.updateProject(p=>{let row=p.people.find(x=>x.id===id); if(row)row.name=name; else p.people.push({id,name}); for(const e of p.events){ if(e.type==="person-added" && e.personId===id) e.name=name; }}); close();});};
+
+  const personStatus=(id,type,title)=>modal(title,`
+    <div class="form-grid"><label>Datum<input name="date" type="date" value="${Store.get().asOfDate}" required></label><label>Grund/Notiz<input name="reason" value="${type==="person-deactivated"?"Auszug":"Wiedereinzug"}"></label></div>`,
+    null,fd=>{Store.updateProject(p=>p.events.push({id:Util.uid("event"),type,date:String(fd.get("date")),order:nextOrder(p),personId:id,reason:String(fd.get("reason")||"")})); close();});
+
+  const itemAdd=()=>{
+    const date = Store.get().asOfDate;
+    const activeShares = Object.fromEntries(activePeopleAt(date).map(p=>[p.id,1]));
+    modal("Gegenstand hinzufügen",`
+    <div class="form-grid">
+      <label>Name<input name="name" required></label>
+      <label>Startdatum<input name="date" type="date" value="${date}" required></label>
+      <label>Startwert (€)<input name="initialValue" type="number" step="0.01" min="0" value="100" required></label>
+      <label>Abschreibung<select name="valuationType"><option value="linear">Linear</option><option value="degressive">Degressiv</option><option value="fixed">Keine / konstanter Wert</option></select></label>
+      <label data-valuation-field="linear">Nutzungsdauer Jahre<input name="durationYears" type="number" step="0.1" min="0.1" value="5"></label>
+      <label data-valuation-field="degressive">Degressiv %/Jahr<input name="annualRatePercent" type="number" step="0.1" min="0.1" max="100" value="20"></label>
+      <label>Mindestwert (€)<input name="minimumValue" type="number" step="0.01" min="0" value="0"></label>
+      <label>Tags<input name="tags"></label>
+      <label class="wide">Notiz<textarea name="note"></textarea></label>
+    </div>
+    <div id="valuationWarning" class="notice warn is-hidden" style="margin-top:12px"></div>
+    <h4>Anteile</h4><div id="itemAddShares">${shareEditorForPeople(activePeopleAt(date), activeShares)}</div>`,
+    null,fd=>{
+      if(!validateValuationForm()) return;
+      const itemId=Util.uid("item"), name=String(fd.get("name")).trim(); if(!name)return;
+      const valuation=readValuation(fd), shares=readShares($("#itemAddShares"));
+      if(Domain.shareTotal(shares)<=0)return alert("Bitte mindestens einen Anteil setzen.");
+      Store.updateProject(p=>{p.items.push({id:itemId,name,tags:Util.tags(fd.get("tags")),note:String(fd.get("note")||""),predecessorItemId:null}); p.events.push({id:Util.uid("event"),type:"item-added",date:String(fd.get("date")),order:nextOrder(p),itemId,name,initialValue:Util.n(fd.get("initialValue")),valuation,shares});}); close();});
+    setupValuationUi();
+    const dateInput=$("#modalForm [name=date]");
+    dateInput.addEventListener("change",()=>{
+      const shares = Object.fromEntries(activePeopleAt(dateInput.value).map(p=>[p.id,1]));
+      $("#itemAddShares").innerHTML = shareEditorForPeople(activePeopleAt(dateInput.value), shares);
+    });
+  };
+
+  const itemMeta=id=>{const item=Store.get().project.items.find(i=>i.id===id); modal("Gegenstand-Stammdaten korrigieren",`
+    <div class="notice">Stammdatenkorrektur: kein Timeline-Ereignis.</div><div class="form-grid"><label>Name<input name="name" value="${Util.esc(item?.name||"")}" required></label><label>Tags<input name="tags" value="${Util.esc((item?.tags||[]).join(", "))}"></label><label class="wide">Notiz<textarea name="note">${Util.esc(item?.note||"")}</textarea></label></div>`,
+    null,fd=>{Store.updateProject(p=>{let row=p.items.find(i=>i.id===id); const name=String(fd.get("name")).trim(); const tags=Util.tags(fd.get("tags")); const note=String(fd.get("note")||""); if(row){row.name=name; row.tags=tags; row.note=note;} else p.items.push({id,name,tags,note,predecessorItemId:null}); for(const e of p.events){ if(e.type==="item-added" && e.itemId===id) e.name=name; }}); close();});};
+
+  const itemEnd=id=>modal("Gegenstand beenden / ausbuchen",`
+    <div class="form-grid"><label>Datum<input name="date" type="date" value="${Store.get().asOfDate}" required></label><label>Status danach<select name="statusAfter"><option value="ended">beendet</option><option value="taken-private">privat übernommen / mitgenommen</option><option value="disposed">entsorgt</option><option value="succeeded">ersetzt / fortgeführt</option></select></label><label class="wide">Grund / Notiz<textarea name="reason"></textarea></label></div>`,
+    null,fd=>{Store.updateProject(p=>p.events.push({id:Util.uid("event"),type:"item-ended",date:String(fd.get("date")),order:nextOrder(p),itemId:id,statusAfter:String(fd.get("statusAfter")),reason:String(fd.get("reason")||"")})); close();});
+
+  const shareSet=(itemId,prefillShares=null)=>{const item=projection.items.find(i=>i.id===itemId); modal("Anteile ändern",`
+    <div class="notice">Erstellt ein neues Anteilssatz-Ereignis. Ausgleichswerte werden dynamisch berechnet.</div>
+    <div class="form-grid"><label>Datum<input name="date" type="date" value="${Store.get().asOfDate}" required></label><label>Gegenstand<input disabled value="${Util.esc(item?.name||itemId)}"></label><label class="wide">Notiz<textarea name="note"></textarea></label></div>
+    <h4>Neuer Anteilssatz</h4>${shareEditor(prefillShares||item?.shares||{})}<div id="sharePreview" style="margin-top:12px"></div>`,
+    null,fd=>{const shares=readShares(); if(Domain.shareTotal(shares)<=0)return alert("Bitte mindestens einen Anteil setzen."); Store.updateProject(p=>p.events.push({id:Util.uid("event"),type:"shares-set",date:String(fd.get("date")),order:nextOrder(p),itemId,shares,note:String(fd.get("note")||"")})); close();});
+    $("#modalBody").addEventListener("input",()=>sharePreview(itemId),{once:false}); sharePreview(itemId);
+  };
+
+  const itemContinue=id=>{
+    const old=projection.items.find(i=>i.id===id), startValue=old?.value||0;
+    modal("Gegenstand als neue Version fortführen",`
+      <div class="notice">Erzeugt zwei normale Ereignisse: alter Gegenstand wird beendet, neue Version wird angelegt.</div>
+      <div class="form-grid">
+        <label>Datum<input name="date" type="date" value="${Store.get().asOfDate}" required></label><label>Neuer Name<input name="name" value="${Util.esc((old?.name||"Gegenstand")+" v2")}" required></label>
+        <label>Startwert (€)<input name="initialValue" type="number" step="0.01" value="${Math.round(startValue*100)/100}" required></label><label>Bewertung<select name="valuationType"><option value="linear">Linear</option><option value="degressive">Degressiv</option><option value="fixed">Keine / konstanter Wert</option></select></label>
+        <label data-valuation-field="linear">Nutzungsdauer Jahre<input name="durationYears" type="number" step="0.1" min="0.1" value="5"></label><label data-valuation-field="degressive">Degressiv %/Jahr<input name="annualRatePercent" type="number" step="0.1" min="0.1" max="100" value="20"></label>
+        <label>Mindestwert (€)<input name="minimumValue" type="number" step="0.01" value="${Util.esc(old?.runtime?.valuation?.minimumValue||0)}"></label><label>Tags<input name="tags" value="${Util.esc((old?.tags||[]).join(", "))}"></label>
+        <label class="wide">Notiz<textarea name="note">${Util.esc(old?.note||"")}</textarea></label>
+      </div><h4>Anteile</h4>${shareEditor(old?.shares||{})}`,
+      null,fd=>{if(!validateValuationForm()) return; const newId=Util.uid("item"), name=String(fd.get("name")).trim(), date=String(fd.get("date")), shares=readShares(); if(!name||Domain.shareTotal(shares)<=0)return;
+        Store.updateProject(p=>{p.events.push({id:Util.uid("event"),type:"item-ended",date,order:nextOrder(p),itemId:id,statusAfter:"succeeded",reason:"Als neue Version fortgeführt"}); p.items.push({id:newId,name,tags:Util.tags(fd.get("tags")),note:String(fd.get("note")||""),predecessorItemId:id}); p.events.push({id:Util.uid("event"),type:"item-added",date,order:nextOrder(p),itemId:newId,name,initialValue:Util.n(fd.get("initialValue")),valuation:readValuation(fd),shares});}); close(); nav(`#/items/${newId}`);});
+    setupValuationUi();
+  };
+
+  const personBulk=(personId,mode)=>{
+    const title=mode==="transfer"?"Alle Anteile übertragen":"Alle Anteile auflösen";
+    const stateAtDate=Projector.project(Store.get().project, Store.get().asOfDate);
+    const people=[...stateAtDate.peopleById.values()].filter(p=>p.id!==personId).sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    modal(title,`
+      <div class="notice">Es wird zuerst eine neue Umverteilung gestartet. Danach wird die passende Personen-Aktion im Umverteilungsdialog angewendet, damit du alle betroffenen Gegenstände, Wertverschiebungen und Ausgleichsempfehlungen prüfen kannst.</div>
+      <div class="form-grid"><label>Datum<input name="date" type="date" value="${Store.get().asOfDate}" required></label>
+      ${mode==="transfer"?`<label>Zielperson<select name="toPersonId">${people.map(p=>`<option value="${Util.esc(p.id)}">${Util.esc(p.name)}${p.active?"":" (inaktiv)"}</option>`).join("")}</select></label>`:""}
+      <label class="wide">Bezeichnung<input name="title" value="${Util.esc(`${title}: ${nameOfPerson(personId)}`)}"></label></div>`,
+      `<button type="button" data-action="close">Abbrechen</button><button class="primary">🔀 Umverteilung starten und Aktion anwenden</button>`,
+      fd=>{
+        const date=String(fd.get("date"));
+        const to=String(fd.get("toPersonId")||"");
+        const titleText=String(fd.get("title")||title).trim()||title;
+        const state=Projector.project(Store.get().project, date);
+        redistributionWork={id:null,title:titleText,effectiveDate:date,changes:[],filter:""};
+        if(mode==="transfer") applyRedistributionPersonAction(state,"transfer",personId,1,to);
+        else applyRedistributionPersonAction(state,"remove",personId,1,"");
+        openRedistributionWorkspace();
+      });
+  };
+
+  const redistributionEdit=id=>{
+    const existing=id?(Store.get().project.redistributions||[]).find(r=>r.id===id):null;
+    modal(existing?"Umverteilung bearbeiten":"Umverteilung starten",`
+      <div class="form-grid">
+        <label>Bezeichnung<input name="title" value="${Util.esc(existing?.title||"Neue Umverteilung")}" required></label>
+        <label>Datum<input name="date" type="date" value="${Util.esc(existing?.effectiveDate||Store.get().asOfDate)}" ${existing?"disabled":""} required></label>
+      </div>
+      <div class="notice" style="margin-top:12px">Nach dem Start ist das Datum fest. Es bestimmt, welche Personen und Gegenstände in der Umverteilung sichtbar sind.</div>`,
+      `<button type="button" data-action="close">Abbrechen</button><button class="primary">${existing?"Weiter bearbeiten":"Umverteilung anlegen"}</button>`,
+      fd=>{
+        const date=existing?.effectiveDate||String(fd.get("date"));
+        redistributionWork={
+          id: existing?.id || null,
+          title: String(fd.get("title")||"Umverteilung"),
+          effectiveDate: date,
+          changes: Util.clone(existing?.changes||[]),
+          filter: ""
+        };
+        openRedistributionWorkspace();
+      });
+  };
+
+  const openRedistributionWorkspace=()=>{
+    const work=redistributionWork;
+    const stateAtDate=Projector.project(Store.get().project, work.effectiveDate);
+    modal(`Umverteilung: ${work.title}`,`
+      <div class="stack">
+        <div class="notice">Datum: <strong>${Util.esc(Util.fmtDate(work.effectiveDate))}</strong>. Gezeigt werden nur Gegenstände, die an diesem Datum aktiv sind. Geänderte Gegenstände werden markiert.</div>
+        <div id="redistributionMainPreview">${renderRedistributionPreview(work)}</div>
+        <div id="redistributionChangeList">${renderRedistributionChangeList(work, stateAtDate)}</div>
+        <div class="row">
+          <button type="button" id="openRedistributionPersonAction">👥 Personen-Aktion …</button>
+        </div>
+        <label>Filter direkt über der Tabelle
+          <input id="redistributionSearch" value="${Util.esc(work.filter||"")}" placeholder="Name, Tag, Notiz">
+        </label>
+        <div id="redistributionTableWrap">${renderRedistributionTable(stateAtDate, work)}</div>
+      </div>`,
+      `<button type="button" data-action="close">Abbrechen</button><button type="button" id="saveRedistributionOnly">Umverteilung speichern</button><button type="button" class="primary" id="executeRedistributionNow">✅ Änderungen übernehmen</button>`,
+      ()=>{});
+    $("#modal").classList.add("dialog-wide");
+    const input=$("#redistributionSearch");
+    input.addEventListener("input",e=>{
+      work.filter=e.target.value;
+      $("#redistributionTableWrap").innerHTML=renderRedistributionTable(stateAtDate, work);
+      bindRedistributionRows();
+      input.focus();
+    });
+    bindRedistributionRows();
+    $("#openRedistributionPersonAction").onclick=()=>openRedistributionPersonActionModal();
+    $("#saveRedistributionOnly").onclick=()=>{upsertRedistribution(work); close();};
+    $("#executeRedistributionNow").onclick=()=>{const id=upsertRedistribution(work); executeRedistribution(id); close();};
+  };
+
+  const renderRedistributionTable=(stateAtDate, work)=>{
+    const currentChanges=new Map((work.changes||[]).map(c=>[c.itemId,c]));
+    const search=(work.filter||"").toLowerCase().trim();
+    let items=stateAtDate.activeItems.slice().sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    if(search) items=items.filter(i=>[i.name,i.note,...(i.tags||[])].join(" ").toLowerCase().includes(search));
+    if(!items.length) return `<div class="empty">Keine passenden aktiven Gegenstände zum Umverteilungsdatum.</div>`;
+    return `<table>
+      <thead><tr><th>Gegenstand</th><th>Tags</th><th class="right">Anteilseigner</th><th class="money">Wert</th><th>Status</th></tr></thead>
+      <tbody>
+        ${items.map(i=>{
+          const changed=currentChanges.has(i.id);
+          const shares=changed?currentChanges.get(i.id).shares:i.shares;
+          return `<tr class="clickable-row ${changed?"changed-row":""}" data-redistribution-item="${Util.esc(i.id)}"><td><strong>${Util.esc(i.name)}</strong>${i.note?`<div class="muted">${Util.esc(i.note)}</div>`:""}</td><td>${renderTags(i.tags)}</td><td class="right">${Object.keys(shares||{}).length}</td><td class="money">${Domain.money(i.value)}</td><td>${changed?`<span class="badge warn">geändert</span>`:`<span class="badge">unverändert</span>`}</td></tr>`;
+        }).join("")}
+      </tbody>
+    </table>`;
+  };
+
+  const renderRedistributionChangeList=(work,stateAtDate)=>{
+    const changes=work.changes||[];
+    if(!changes.length) return `<div class="notice">Noch keine Einzeländerungen vorgemerkt.</div>`;
+    return `<div class="stack"><strong>Vorgemerkte Einzeländerungen</strong>${changes.map(c=>{
+      const item=stateAtDate.items.find(i=>i.id===c.itemId) || projection.items.find(i=>i.id===c.itemId);
+      const count=Object.keys(c.shares||{}).length;
+      return `<div class="mini-card split"><div><strong>${Util.esc(item?.name||c.itemId)}</strong><div class="muted">${count} Anteilseigner nach Änderung</div></div><div class="row"><button type="button" class="small" data-redistribution-item="${Util.esc(c.itemId)}">✏️ Bearbeiten</button><button type="button" class="small danger" data-remove-redistribution-change="${Util.esc(c.itemId)}">🗑️ Entfernen</button></div></div>`;
+    }).join("")}</div>`;
+  };
+
+  const bindRedistributionRows=()=>{
+    $$('[data-redistribution-item]').forEach(row=>row.addEventListener('click',()=>openRedistributionItemEditor(row.dataset.redistributionItem)));
+    $$('[data-remove-redistribution-change]').forEach(btn=>btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const itemId=btn.dataset.removeRedistributionChange;
+      redistributionWork.changes=(redistributionWork.changes||[]).filter(c=>c.itemId!==itemId);
+      openRedistributionWorkspace();
+    }));
+  };
+
+  const openRedistributionPersonActionModal=()=>{
+    const work=redistributionWork;
+    const stateAtDate=Projector.project(Store.get().project, work.effectiveDate);
+    const persons=[...stateAtDate.peopleById.values()].sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    modal("Personen-Aktion in Umverteilung",`
+      <div class="notice">Diese Aktion erzeugt vorgemerkte Änderungen für alle zum Umverteilungsdatum aktiven Gegenstände. Danach kannst du jede einzelne Änderung im Umverteilungsdialog prüfen und bearbeiten.</div>
+      <div class="form-grid">
+        <label>Aktion<select name="action" id="personActionSelect"><option value="remove">Alle Anteile einer Person entfernen</option><option value="add">Person zu allen Gegenständen hinzufügen</option><option value="transfer">Alle Anteile von einer Person auf eine andere übertragen</option></select></label>
+        <label id="personActionFromWrap">Von / Person<select name="personId" id="personActionPerson">${persons.map(p=>`<option value="${Util.esc(p.id)}">${Util.esc(p.name)}${p.active?"":" (inaktiv)"}</option>`).join("")}</select></label>
+        <label id="personActionToWrap">An Zielperson übertragen<select name="toPersonId" id="personActionToPerson">${persons.map(p=>`<option value="${Util.esc(p.id)}">${Util.esc(p.name)}${p.active?"":" (inaktiv)"}</option>`).join("")}</select></label>
+        <label id="personActionUnits">Anteilseinheiten beim Hinzufügen<input name="units" type="number" step="0.01" min="0.01" value="1"></label>
+      </div>`,
+      `<button type="button" id="backToRedistributionFromPersonAction">Zurück</button><button type="button" class="primary" id="applyPersonActionInRedistribution">✅ Aktion anwenden</button>`,
+      ()=>{});
+    const sync=()=>{
+      const action=$("#personActionSelect").value;
+      $("#personActionUnits").classList.toggle("is-hidden", action!=="add");
+      $("#personActionToWrap").classList.toggle("is-hidden", action!=="transfer");
+    };
+    $("#personActionSelect").addEventListener("change",sync); sync();
+    $("#backToRedistributionFromPersonAction").onclick=()=>openRedistributionWorkspace();
+    $("#applyPersonActionInRedistribution").onclick=()=>{
+      const fd=new FormData($("#modalForm"));
+      applyRedistributionPersonAction(stateAtDate, String(fd.get("action")), String(fd.get("personId")), Util.n(fd.get("units"),1), String(fd.get("toPersonId")||""));
+      openRedistributionWorkspace();
+    };
+  };
+
+  const openRedistributionItemEditor=itemId=>{
+    const work=redistributionWork;
+    const stateAtDate=Projector.project(Store.get().project, work.effectiveDate);
+    const item=stateAtDate.activeItems.find(i=>i.id===itemId); if(!item)return;
+    const existing=(work.changes||[]).find(c=>c.itemId===itemId);
+    modal(`Anteile ändern: ${item.name}`,`
+      <div class="notice">Links stehen die ursprünglichen Anteile zum Umverteilungsdatum. Rechts stellst du den neuen Anteilssatz ein.</div>
+      <div class="grid-2">
+        <div>
+          <h4>Ursprünglicher Anteilssatz</h4>
+          ${readOnlySharesTable(item)}
+        </div>
+        <div>
+          <h4>Neuer Anteilssatz</h4>
+          ${shareEditor(existing?.shares||item.shares||{})}
+        </div>
+      </div>
+      <div id="sharePreview" style="margin-top:12px"></div>`,
+      `<button type="button" id="backToRedistribution">Zurück</button><button type="button" id="removeRedistributionChange">Änderung zurücknehmen</button><button type="button" class="primary" id="saveRedistributionItem">Änderung merken</button>`,
+      ()=>{});
+    $("#backToRedistribution").onclick=()=>openRedistributionWorkspace();
+    $("#removeRedistributionChange").onclick=()=>{work.changes=(work.changes||[]).filter(c=>c.itemId!==itemId); openRedistributionWorkspace();};
+    $("#saveRedistributionItem").onclick=()=>{const shares=readShares($("#modalBody")); if(Domain.shareTotal(shares)<=0)return alert("Bitte mindestens einen Anteil setzen."); setRedistributionChange(itemId,shares); openRedistributionWorkspace();};
+    $("#modalBody").addEventListener("input",()=>sharePreviewForState(itemId,stateAtDate,work.effectiveDate));
+    sharePreviewForState(itemId,stateAtDate,work.effectiveDate);
+  };
+
+  const readOnlySharesTable=item=>item.shareRows.length?`<table><thead><tr><th>Person</th><th class="right">Einheiten</th><th class="right">Prozent</th><th class="money">Wert</th></tr></thead><tbody>${item.shareRows.map(r=>`<tr><td>${Util.esc(r.personName)}${r.active?"":" <span class='muted'>(inaktiv)</span>"}</td><td class="right">${r.units}</td><td class="right">${Domain.pct(r.fraction)}</td><td class="money">${Domain.money(r.value)}</td></tr>`).join("")}</tbody></table>`:`<div class="empty">Keine ursprünglichen Anteile.</div>`;
+
+  const setRedistributionChange=(itemId,shares)=>{
+    const work=redistributionWork;
+    work.changes=(work.changes||[]).filter(c=>c.itemId!==itemId);
+    work.changes.push({itemId,shares:Domain.normShares(shares)});
+  };
+
+  const applyRedistributionPersonAction=(stateAtDate, action, personId, units=1, toPersonId="")=>{
+    if(!action||!personId)return;
+    for(const item of stateAtDate.activeItems){
+      const current=(redistributionWork.changes||[]).find(c=>c.itemId===item.id)?.shares || item.shares || {};
+      const shares={...current};
+      if(action==="remove"){
+        if(!shares[personId]) continue;
+        delete shares[personId];
+      } else if(action==="add"){
+        shares[personId]=shares[personId] || units;
+      } else if(action==="transfer"){
+        if(!toPersonId || toPersonId===personId || !shares[personId]) continue;
+        shares[toPersonId]=Number(shares[toPersonId]||0)+Number(shares[personId]||0);
+        delete shares[personId];
+      }
+      if(Domain.shareTotal(shares)>0) setRedistributionChange(item.id,shares);
+    }
+  };
+
+  const upsertRedistribution=work=>{
+    let id=work.id || Util.uid("redistribution");
+    Store.updateProject(p=>{
+      const row={id,type:"redistribution",title:work.title,createdAt:Util.nowISO(),effectiveDate:work.effectiveDate,changes:work.changes||[]};
+      const idx=(p.redistributions||[]).findIndex(r=>r.id===id);
+      if(idx>=0)p.redistributions[idx]=row; else p.redistributions.push(row);
+    });
+    return id;
+  };
+
+  const openEventEdit=eventId=>{
+    const e=Store.get().project.events.find(x=>x.id===eventId); if(!e)return;
+    if(e.type==="shares-set") return editSharesEvent(e);
+    if(e.type==="item-ended") return editItemEndedEvent(e);
+    if(e.type==="item-added") return editItemAddedEvent(e);
+    if(e.type==="redistribution-executed") return editRedistributionEvent(e);
+    if(e.type==="person-added"||e.type==="person-deactivated"||e.type==="person-reactivated") return editPersonEvent(e);
+    modal("Ereignis bearbeiten",`<div class="notice warn">Fallback: unbekannter Ereignistyp.</div><textarea name="json" class="mono" style="min-height:280px">${Util.esc(JSON.stringify(e,null,2))}</textarea>`,`<button type="button" data-action="close">Abbrechen</button><button type="button" class="danger" data-action="delete-event" data-event-id="${Util.esc(eventId)}">🗑️ Löschen</button><button class="primary">Speichern</button>`,fd=>{try{replaceEvent(eventId,JSON.parse(String(fd.get("json"))));close();}catch(err){alert(err.message)}}); $("#deleteEventBtn").onclick=()=>deleteEvent(eventId);
+  };
+
+  const editRedistributionEvent=e=>modal("Umverteilung in der Historie",`
+    <div class="notice warn">Diese Umverteilung ist als ein Ereignis gespeichert. Änderungen an Einzelpositionen korrigieren die Historie direkt. Wenn du die gesamte Umverteilung löschst, werden alle enthaltenen Anteilsänderungen gemeinsam rückgängig gemacht.</div>
+    <div class="mini-card"><strong>${Util.esc(e.title||"Umverteilung")}</strong><div class="muted">${(e.events||[]).length} enthaltene Änderung(en)</div></div>
+    ${renderRedistributionPreview({id:e.id,title:e.title,effectiveDate:e.date,changes:(e.events||[]).filter(x=>x.type==="shares-set").map(x=>({itemId:x.itemId,shares:x.shares}))})}
+    <div class="stack"><strong>Einzeländerungen</strong>${(e.events||[]).map((child,idx)=>{
+      if(child.type!=="shares-set") return `<div class="mini-card"><strong>${Util.esc(child.type)}</strong><div class="muted">${Util.esc(child.reason||child.note||"")}</div></div>`;
+      return `<div class="mini-card split"><div><strong>${Util.esc(nameOfItem(child.itemId))}</strong><div class="muted">${Object.keys(child.shares||{}).length} Anteilseigner nach Änderung</div></div><button type="button" class="small" data-action="edit-redistribution-child" data-event-id="${Util.esc(e.id)}" data-child-index="${idx}">✏️ Änderung bearbeiten</button></div>`;
+    }).join("")}</div>`,
+    `<button type="button" data-action="close">Schließen</button><button type="button" class="danger" data-action="delete-event" data-event-id="${Util.esc(e.id)}">🗑️ Gesamte Umverteilung löschen</button>`,
+    ()=>{});
+
+  const editRedistributionChildEvent=(eventId,childIndex)=>{
+    const parent=Store.get().project.events.find(x=>x.id===eventId); if(!parent)return;
+    const child=(parent.events||[])[childIndex]; if(!child || child.type!=="shares-set")return;
+    modal(`Einzeländerung bearbeiten: ${nameOfItem(child.itemId)}`,`
+      <div class="notice warn">Diese Korrektur ändert die bereits ausgeführte Umverteilung in der Timeline.</div>
+      <h4>Neuer Anteilssatz</h4>${shareEditor(child.shares||{})}`,
+      `<button type="button" data-action="close">Abbrechen</button><button type="button" class="danger" id="deleteRedistributionChild">🗑️ Einzeländerung entfernen</button><button type="button" class="primary" id="saveRedistributionChild">💾 Speichern</button>`,
+      ()=>{});
+    $("#deleteRedistributionChild").onclick=()=>{Store.updateProject(p=>{const e=p.events.find(x=>x.id===eventId); if(e?.events) e.events=e.events.filter((_,i)=>i!==childIndex);}); close();};
+    $("#saveRedistributionChild").onclick=()=>{const shares=readShares($("#modalBody")); if(Domain.shareTotal(shares)<=0)return alert("Bitte mindestens einen Anteil setzen."); Store.updateProject(p=>{const e=p.events.find(x=>x.id===eventId); if(e?.events?.[childIndex]) e.events[childIndex]={...e.events[childIndex],shares:Domain.normShares(shares)};}); close();};
+  };
+
+  const editSharesEvent=e=>modal("Ereignis bearbeiten: Anteile geändert",`
+    <div class="notice warn">Historie korrigieren: Diese Änderung kann spätere Zustände beeinflussen.</div>
+    <div class="form-grid"><label>Datum<input name="date" type="date" value="${Util.esc(e.date)}" required></label><label>Gegenstand<select name="itemId">${Store.get().project.items.map(i=>`<option value="${Util.esc(i.id)}" ${i.id===e.itemId?"selected":""}>${Util.esc(i.name)}</option>`).join("")}</select></label><label class="wide">Notiz<textarea name="note">${Util.esc(e.note||"")}</textarea></label></div><h4>Anteilssatz</h4>${shareEditor(e.shares||{})}`,
+    editFooter(e.id),fd=>{const shares=readShares(); if(Domain.shareTotal(shares)<=0)return alert("Mindestens ein Anteil nötig."); replaceEvent(e.id,{...e,date:String(fd.get("date")),itemId:String(fd.get("itemId")),shares,note:String(fd.get("note")||"")}); close();});
+
+  const editItemEndedEvent=e=>{
+    modal("Ereignis bearbeiten: Gegenstand beendet",`
+    <div class="notice warn">Historie korrigieren.</div><div class="form-grid"><label>Datum<input name="date" type="date" value="${Util.esc(e.date)}"></label><label>Status danach<select name="statusAfter"><option value="ended">beendet</option><option value="taken-private">privat übernommen</option><option value="disposed">entsorgt</option><option value="succeeded">ersetzt/fortgeführt</option></select></label><label class="wide">Grund<textarea name="reason">${Util.esc(e.reason||"")}</textarea></label></div>`,
+    editFooter(e.id),fd=>{replaceEvent(e.id,{...e,date:String(fd.get("date")),statusAfter:String(fd.get("statusAfter")),reason:String(fd.get("reason")||"")}); close();});
+    $("#modalForm [name=statusAfter]").value=e.statusAfter||"ended";
+  };
+
+  const editPersonEvent=e=>modal(`Ereignis bearbeiten: ${e.type}`,`
+    <div class="notice warn">Historie korrigieren.</div><div class="form-grid"><label>Datum<input name="date" type="date" value="${Util.esc(e.date)}"></label>${e.type==="person-added"?`<label>Name im Eintrittsereignis<input name="name" value="${Util.esc(e.name||nameOfPerson(e.personId))}"></label>`:`<label>Grund/Notiz<input name="reason" value="${Util.esc(e.reason||"")}"></label>`}</div>`,
+    editFooter(e.id),fd=>{const upd={...e,date:String(fd.get("date"))}; if(e.type==="person-added")upd.name=String(fd.get("name")||""); else upd.reason=String(fd.get("reason")||""); replaceEvent(e.id,upd); close();});
+
+  const editItemAddedEvent=e=>{
+    modal("Ereignis bearbeiten: Gegenstand hinzugefügt",`
+    <div class="notice warn">Historie korrigieren. Stammdaten wie Tags/Notiz werden separat am Gegenstand korrigiert.</div>
+    <div class="form-grid"><label>Datum<input name="date" type="date" value="${Util.esc(e.date)}"></label><label>Name im Ereignis<input name="name" value="${Util.esc(e.name||nameOfItem(e.itemId))}"></label><label>Startwert<input name="initialValue" type="number" step="0.01" value="${Util.esc(e.initialValue||0)}"></label><label>Bewertung<select name="valuationType"><option value="linear">Linear</option><option value="degressive">Degressiv</option><option value="fixed">Konstant</option></select></label><label>Nutzungsdauer<input name="durationYears" type="number" step="0.1" value="${Util.esc(e.valuation?.durationYears||"")}"></label><label>Degressiv %<input name="annualRatePercent" type="number" step="0.1" value="${Util.esc((e.valuation?.annualRate||0)*100)}"></label><label>Mindestwert<input name="minimumValue" type="number" step="0.01" value="${Util.esc(e.valuation?.minimumValue||0)}"></label></div><h4>Initiale Anteile</h4>${shareEditor(e.shares||{})}`,
+    editFooter(e.id),fd=>{const shares=readShares(); if(Domain.shareTotal(shares)<=0)return alert("Mindestens ein Anteil nötig."); replaceEvent(e.id,{...e,date:String(fd.get("date")),name:String(fd.get("name")||""),initialValue:Util.n(fd.get("initialValue")),valuation:readValuation(fd),shares}); close();});
+    $("#modalForm [name=valuationType]").value=e.valuation?.type||"fixed";
+    setupValuationUi();
+  };
+
+  const editFooter=id=>`<button type="button" data-action="close">Abbrechen</button><button type="button" class="danger" data-action="delete-event" data-event-id="${Util.esc(id)}">Ereignis löschen</button><button class="primary">Korrektur speichern</button>`;
+  const replaceEvent=(id,event)=>Store.updateProject(p=>{const idx=p.events.findIndex(e=>e.id===id); if(idx>=0)p.events[idx]=event;});
+  const deleteEvent=id=>{if(!confirm("Dieses Ereignis löschen? Spätere Zustände können sich ändern."))return; Store.updateProject(p=>p.events=p.events.filter(e=>e.id!==id)); close();};
+
+  /* Umverteilungs-Logik */
+  const bulkChanges=(personId,mode,toPersonId)=>{
+    const out=[]; for(const item of projection.activeItems){ if(!item.shares?.[personId])continue; const shares={...item.shares}; if(mode==="transfer"){shares[toPersonId]=Number(shares[toPersonId]||0)+Number(shares[personId]||0);} delete shares[personId]; if(Domain.shareTotal(shares)>0) out.push({itemId:item.id,shares}); }
+    return out;
+  };
+  const bulkPreview=(personId,mode,to)=>{const changes=bulkChanges(personId,mode,to); return `<div class="notice">${changes.length} Gegenstand/Gegenstände wären betroffen.</div>`;};
+  const saveRedistribution=(title,date,changes,extra={})=>Store.updateProject(p=>p.redistributions.push({id:Util.uid("redistribution"),type:"redistribution",title,createdAt:Util.nowISO(),effectiveDate:date,changes,...extra}));
+  const applyChangesAsEvents=(date,changes,note)=>Store.updateProject(p=>{for(const c of changes)p.events.push({id:Util.uid("event"),type:"shares-set",date,order:nextOrder(p),itemId:c.itemId,shares:c.shares,note});});
+  const executeRedistribution=id=>{const r=(Store.get().project.redistributions||[]).find(x=>x.id===id); if(!r)return; Store.updateProject(p=>{const childEvents=[]; for(const c of r.changes||[])childEvents.push({id:Util.uid("event"),type:"shares-set",date:r.effectiveDate,itemId:c.itemId,shares:c.shares,note:r.title||"Umverteilung"}); if(r.deactivatePersonId)childEvents.push({id:Util.uid("event"),type:"person-deactivated",date:r.effectiveDate,personId:r.deactivatePersonId,reason:r.note||r.title||"Auszug"}); p.events.push({id:Util.uid("event"),type:"redistribution-executed",date:r.effectiveDate,order:nextOrder(p),title:r.title||"Umverteilung",events:childEvents}); p.redistributions=p.redistributions.filter(x=>x.id!==id);});};
+    const deleteRedistribution=id=>{if(!confirm("Umverteilung löschen?"))return; Store.updateProject(p=>p.redistributions=p.redistributions.filter(x=>x.id!==id));};
+  const redistributionDeltas=(r)=>{
+    const totals=new Map();
+    const projectData=Util.clone(Store.get().project);
+    if(r?.id) projectData.events=(projectData.events||[]).filter(e=>e.id!==r.id);
+    for(const c of r.changes||[]){
+      const event={id:`preview_${c.itemId}`,type:"shares-set",date:r.effectiveDate,itemId:c.itemId,shares:c.shares};
+      for(const d of Projector.shareDeltas(projectData,event)){
+        const old=totals.get(d.personId)||{personId:d.personId,personName:d.personName,delta:0};
+        old.delta+=d.delta;
+        totals.set(d.personId,old);
+      }
+    }
+    return [...totals.values()].filter(x=>Math.abs(x.delta)>0.005).sort((a,b)=>a.personName.localeCompare(b.personName,"de"));
+  };
+
+  const settlementRecommendations=(deltas)=>{
+    const debtors=deltas.filter(d=>d.delta>0.005).map(d=>({...d,amount:d.delta}));      // hat Wert erhalten, zahlt
+    const creditors=deltas.filter(d=>d.delta<-0.005).map(d=>({...d,amount:-d.delta})); // hat Wert abgegeben, bekommt
+    const out=[];
+    let i=0,j=0;
+    while(i<debtors.length && j<creditors.length){
+      const amount=Math.min(debtors[i].amount, creditors[j].amount);
+      if(amount>0.005) out.push({from:debtors[i].personName,to:creditors[j].personName,amount});
+      debtors[i].amount-=amount; creditors[j].amount-=amount;
+      if(debtors[i].amount<=0.005)i++;
+      if(creditors[j].amount<=0.005)j++;
+    }
+    return out;
+  };
+
+  const redistributionMarkdown=(r)=>{
+    const deltas=redistributionDeltas(r);
+    const settlements=settlementRecommendations(deltas);
+    const lines=[];
+    lines.push(`# Ausgleichsempfehlung: ${r.title||"Umverteilung"}`);
+    lines.push("");
+    lines.push(`Stichtag: ${Util.fmtDate(r.effectiveDate)}`);
+    lines.push("");
+    lines.push("## Wertverschiebung");
+    if(!deltas.length) lines.push("- Keine Wertverschiebung.");
+    for(const d of deltas) lines.push(`- ${d.personName}: ${d.delta>=0?"+":""}${Domain.money(d.delta)}`);
+    lines.push("");
+    lines.push("## Empfohlener Ausgleich");
+    if(!settlements.length) lines.push("- Kein Ausgleich nötig.");
+    for(const s of settlements) lines.push(`- ${s.from} zahlt ${Domain.money(s.amount)} an ${s.to}`);
+    return lines.join("\\n");
+  };
+
+  const copyRedistributionMarkdown=(id)=>{
+    const r=(Store.get().project.redistributions||[]).find(x=>x.id===id) || redistributionWork;
+    if(!r) return;
+    const text=redistributionMarkdown(r);
+    navigator.clipboard?.writeText(text).then(()=>alert("Markdown-Ausgleichsempfehlung kopiert.")).catch(()=>{
+      prompt("Markdown kopieren:", text);
+    });
+  };
+
+  const renderRedistributionPreview=r=>{
+    const deltas=redistributionDeltas(r);
+    const settlements=settlementRecommendations(deltas);
+    const deltaHtml=deltas.length?`<table style="margin-top:8px"><thead><tr><th>Person</th><th class="money">Wertverschiebung</th><th>Deutung</th></tr></thead><tbody>${deltas.map(x=>`<tr><td>${Util.esc(x.personName)}</td><td class="money">${x.delta>=0?"+":""}${Domain.money(x.delta)}</td><td>${x.delta>0?"hat Wert erhalten und zahlt":"hat Wert abgegeben und erhält Ausgleich"}</td></tr>`).join("")}</tbody></table>`:"<div class="muted" style="margin-top:8px">Keine Wertverschiebung.</div>";
+    const settlementHtml=settlements.length?`<ul style="margin:8px 0 0">${settlements.map(s=>`<li>${Util.esc(s.from)} zahlt <strong>${Domain.money(s.amount)}</strong> an ${Util.esc(s.to)}</li>`).join("")}</ul>`:`<div class="muted" style="margin-top:8px">Kein Ausgleich nötig.</div>`;
+    return `<div class="notice"><strong>Wertverschiebung</strong>${deltaHtml}<div style="margin-top:10px"><strong>Empfohlener Ausgleich</strong>${settlementHtml}</div><div style="margin-top:10px"><button type="button" class="small" data-action="copy-redistribution-md" data-id="${Util.esc(r.id||"__work__")}">📋 Als Markdown kopieren</button></div></div>`;
+  };
+
+  const readRedistributionChanges=()=>$$("[data-redistribution-change]").map(card=>({itemId:card.dataset.itemId,shares:readShares(card)})).filter(c=>Domain.shareTotal(c.shares)>0);
+  const renderRedistributionModalPreview=()=>{$("#redistributionPreview").innerHTML=`<div class="notice">${readRedistributionChanges().length} Änderung(en) in dieser Umverteilung.</div>`;};
+
+  /* Form-Helfer */
+  const shareEditor=(shares={},nested=false)=>{
+    const people=[...projection.peopleById.values()].sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    if(!people.length)return`<div class="empty">Bitte zuerst Personen hinzufügen.</div>`;
+    return `<div class="share-editor" ${nested?'data-redistribution-change-shares':''}>${people.map(p=>`<div class="share-row"><label>Person<input value="${Util.esc(p.name)}${p.active?"":" (inaktiv)"}" disabled><input type="hidden" data-person-id value="${Util.esc(p.id)}"></label><label>Anteilseinheiten<input data-share-units type="number" step="0.01" min="0" value="${Number(shares[p.id]||0)}"></label><button type="button" class="small" onclick="this.closest('.share-row').querySelector('[data-share-units]').value='0';this.closest('.share-editor').dispatchEvent(new Event('input',{bubbles:true}))">0</button></div>`).join("")}</div>`;
+  };
+
+  const shareEditorForPeople=(people,shares={})=>{
+    const shown=(people||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    if(!shown.length)return`<div class="empty">Zu diesem Datum sind keine Personen aktiv.</div>`;
+    return `<div class="share-editor">${shown.map(p=>`<div class="share-row"><label>Person<input value="${Util.esc(p.name)}" disabled><input type="hidden" data-person-id value="${Util.esc(p.id)}"></label><label>Anteilseinheiten<input data-share-units type="number" step="0.01" min="0" value="${Number(shares[p.id]||0)}"></label><button type="button" class="small" onclick="this.closest('.share-row').querySelector('[data-share-units]').value='0';this.closest('.share-editor').dispatchEvent(new Event('input',{bubbles:true}))">0</button></div>`).join("")}</div>`;
+  };
+  const readShares=(root=document)=>{const out={}; $$(".share-row",root).forEach(row=>{const pid=row.querySelector("[data-person-id]")?.value, units=Util.n(row.querySelector("[data-share-units]")?.value,0); if(pid&&units>0)out[pid]=units;}); return out;};
+  const activePeopleAt=date=>Projector.project(Store.get().project,date||Store.get().asOfDate).people.filter(p=>p.active);
+
+  const readValuation=fd=>{
+    const type=String(fd.get("valuationType")||"fixed");
+    const v={type,minimumValue:Util.n(fd.get("minimumValue"),0)};
+    if(type==="linear")v.durationYears=Util.n(fd.get("durationYears"),0);
+    if(type==="degressive")v.annualRate=Util.n(fd.get("annualRatePercent"),0)/100;
+    return v;
+  };
+
+  const setupValuationUi=()=>{
+    const form=$("#modalForm"), type=form.querySelector("[name=valuationType]");
+    if(!type) return;
+    const update=()=>{
+      const val=type.value;
+      $$("[data-valuation-field]",form).forEach(el=>el.classList.toggle("is-hidden",el.dataset.valuationField!==val));
+      validateValuationForm(false);
+    };
+    type.addEventListener("change",update);
+    form.addEventListener("input",()=>validateValuationForm(false));
+    update();
+  };
+
+  const validateValuationForm=(show=true)=>{
+    const form=$("#modalForm"), fd=new FormData(form), type=String(fd.get("valuationType")||"fixed");
+    const warnings=[];
+    $$("[name=durationYears],[name=annualRatePercent],[name=minimumValue],[name=initialValue]",form).forEach(i=>i.classList.remove("invalid-field"));
+    if(Util.n(fd.get("initialValue"),-1)<0){warnings.push("Der Startwert darf nicht negativ sein."); form.querySelector("[name=initialValue]")?.classList.add("invalid-field");}
+    if(Util.n(fd.get("minimumValue"),-1)<0){warnings.push("Der Mindestwert darf nicht negativ sein."); form.querySelector("[name=minimumValue]")?.classList.add("invalid-field");}
+    if(type==="linear" && Util.n(fd.get("durationYears"),0)<=0){warnings.push("Bei linearer Abschreibung muss die Nutzungsdauer größer als 0 sein."); form.querySelector("[name=durationYears]")?.classList.add("invalid-field");}
+    if(type==="degressive"){
+      const r=Util.n(fd.get("annualRatePercent"),0);
+      if(r<=0||r>100){warnings.push("Bei degressiver Abschreibung muss der jährliche Prozentsatz größer als 0 und höchstens 100 sein."); form.querySelector("[name=annualRatePercent]")?.classList.add("invalid-field");}
+    }
+    const box=$("#valuationWarning");
+    if(box){box.classList.toggle("is-hidden",warnings.length===0); box.innerHTML=warnings.map(Util.esc).join("<br>");}
+    if(show&&warnings.length) alert(warnings.join("\\n"));
+    return warnings.length===0;
+  };
+
+  const sharePreview=itemId=>{
+    const el=$("#sharePreview"); if(!el)return;
+    const shares=readShares($("#modalBody"));
+    const tmp=Util.clone(Store.get().project);
+    const ev={id:"preview",type:"shares-set",date:$("#modalForm [name=date]")?.value||Store.get().asOfDate,itemId,shares};
+    tmp.events.push(ev);
+    const ds=Projector.shareDeltas(tmp,ev);
+    el.innerHTML=ds.length?`<div class="notice"><strong>Wertverschiebung:</strong> ${ds.map(d=>`${Util.esc(d.personName)} ${d.delta>=0?"+":""}${Domain.money(d.delta)}`).join(" · ")}</div>`:`<div class="notice">Keine Wertverschiebung erkennbar.</div>`;
+  };
+
+  const sharePreviewForState=(itemId,stateAtDate,date)=>{
+    const el=$("#sharePreview"); if(!el)return;
+    const shares=readShares($("#modalBody"));
+    const tmp=Util.clone(Store.get().project);
+    const ev={id:"preview",type:"shares-set",date,itemId,shares};
+    tmp.events.push(ev);
+    const ds=Projector.shareDeltas(tmp,ev);
+    el.innerHTML=ds.length?`<div class="notice"><strong>Wertverschiebung:</strong> ${ds.map(d=>`${Util.esc(d.personName)} ${d.delta>=0?"+":""}${Domain.money(d.delta)}`).join(" · ")}</div>`:`<div class="notice">Keine Wertverschiebung erkennbar.</div>`;
+  };
+  const nextOrder=p=>Math.max(0,...p.events.map(e=>Number(e.order||0)))+1;
+  const nameOfPerson=id=>projection.peopleById.get(id)?.name||id, nameOfItem=id=>projection.itemsById.get(id)?.name||id;
+  const touchesItem=(e,id)=>e.itemId===id||e.oldItemId===id||e.newItemId===id||(e.type==="redistribution-executed"&&(e.events||[]).some(child=>touchesItem(child,id)));
+  const touchesPerson=(e,id)=>e.personId===id||(e.shares&&Object.prototype.hasOwnProperty.call(e.shares,id))||(e.type==="redistribution-executed"&&(e.events||[]).some(child=>touchesPerson(child,id)));
+  const openNewProject=()=>modal("Neues Projekt",`<label>Name der Gemeinschaft<input name="name" value="Hausgemeinschaft" required></label>`,null,fd=>{Store.set({project:{...Domain.emptyProject(),community:{name:String(fd.get("name")||"Hausgemeinschaft")}},asOfDate:Util.todayISO(),fileName:null,dirty:false,lastImportAt:null,lastExportAt:null}); close();});
+  return {init};
+})();
+
+UI.init();
+})();
+</script>
+</body>
+</html>

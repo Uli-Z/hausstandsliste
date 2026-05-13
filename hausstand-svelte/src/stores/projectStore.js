@@ -32,6 +32,23 @@ function createStore() {
       mutator(project);
       return persist({ ...s, project, dirty: true });
     }),
+    startRedistribution: (title, date, changes = [], extraDialog = {}) => update(s => {
+      const r = createRedistribution(title || 'Neue Umverteilung', date || s.asOfDate, changes);
+      return { ...s, activeDialog: { type: 'redistributionEdit', redistribution: r, ...extraDialog } };
+    }),
+    upsertDraft: draft => update(s => {
+      const project = clone(s.project);
+      project.drafts = project.drafts || [];
+      const idx = project.drafts.findIndex(d => d.id === draft.id);
+      if (idx >= 0) project.drafts[idx] = clone(draft);
+      else project.drafts.push(clone(draft));
+      return persist({ ...s, project, dirty: true });
+    }),
+    deleteDraft: id => update(s => {
+      const project = clone(s.project);
+      project.drafts = (project.drafts || []).filter(d => d.id !== id);
+      return persist({ ...s, project, dirty: true });
+    }),
     markExported: () => update(s => persist({ ...s, dirty: false }))
   };
 }

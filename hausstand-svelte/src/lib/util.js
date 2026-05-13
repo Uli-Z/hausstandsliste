@@ -1,4 +1,7 @@
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+export const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 export const nowISO = () => new Date().toISOString();
 export const uid = prefix => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 export const clone = value => typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value));
@@ -15,7 +18,7 @@ export const dateTimeDE = iso => iso ? new Intl.DateTimeFormat('de-DE', { dateSt
 export const addDays = (iso, days) => {
   const d = new Date(`${iso || todayISO()}T00:00:00`);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 export const yearsBetween = (start, end) => {
   const a = new Date(`${start}T00:00:00`);

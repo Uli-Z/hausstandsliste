@@ -1,6 +1,8 @@
 <script>
   import { appState, createEvent, createRedistribution } from '../stores/projectStore.js';
   import { money, normShares } from '../lib/domain.js';
+  import { dateDE } from '../lib/util.js';
+  import Timeline from './Timeline.svelte';
   export let person;
   export let asOfDate;
 
@@ -10,15 +12,11 @@
       delete shares[person.id];
       return { itemId: h.item.id, shares: normShares(shares) };
     }).filter(c => Object.keys(c.shares).length);
-    const redistribution = createRedistribution(`Alle Anteile von ${person.name} auflösen`, asOfDate, changes);
-    appState.mutateProject(p => p.redistributions.push(redistribution));
-    appState.setDialog({ type: 'redistributionEdit', id: redistribution.id, initialAction: 'remove-person-shares', sourcePersonId: person.id });
+    appState.startRedistribution(`Alle Anteile von ${person.name} auflösen`, asOfDate, changes, { sourcePersonId: person.id });
   }
 
   function startTransfer() {
-    const redistribution = createRedistribution(`Alle Anteile von ${person.name} übertragen`, asOfDate, []);
-    appState.mutateProject(p => p.redistributions.push(redistribution));
-    appState.setDialog({ type: 'redistributionEdit', id: redistribution.id, initialAction: 'transfer-person-shares', sourcePersonId: person.id });
+    appState.startRedistribution(`Alle Anteile von ${person.name} übertragen`, asOfDate, [], { sourcePersonId: person.id });
   }
 </script>
 <section class="panel"><div class="panel-body">
@@ -40,5 +38,7 @@
   <section class="panel"><div class="panel-header"><h2>💶 Gehaltene Anteile</h2></div><div class="panel-body">
     {#if person.holdings?.length}<table><thead><tr><th>Gegenstand</th><th class="right">Einheiten</th><th class="money">Wertanteil</th></tr></thead><tbody>{#each person.holdings as h}<tr class="clickable-row" on:click={() => appState.setRoute({ page: 'item', id: h.item.id })}><td>{h.item.name}</td><td class="right">{h.units}</td><td class="money">{money(h.value)}</td></tr>{/each}</tbody></table>{:else}<div class="empty">Keine Anteile zum Stichtag.</div>{/if}
   </div></section>
-  <section class="panel"><div class="panel-header"><h2>🕒 Personen-Timeline</h2></div><div class="panel-body stack">{#each $appState.project.events.filter(e => e.personId === person.id || (e.events || []).some(c => c.personId === person.id)) as e}<div class="event-card"><div class="event-type">{e.type}</div><strong>{e.date}</strong></div>{/each}</div></section>
+  <section class="panel">
+    <Timeline project={$appState.project} asOfDate={$appState.asOfDate} personId={person.id} title="🕒 Personen-Timeline" />
+  </section>
 </section>
