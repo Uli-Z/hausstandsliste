@@ -1,6 +1,66 @@
 import { normShares, shareTotal, money } from './domain.js';
 import { projectAt, shareDeltasForChange } from './projector.js';
 
+export function sharesEqual(left, right) {
+  const a = normShares(left);
+  const b = normShares(right);
+  const ids = [...new Set([...Object.keys(a), ...Object.keys(b)])];
+  return ids.every(personId => Number(a[personId] || 0) === Number(b[personId] || 0));
+}
+
+export function formatShares(shares, peopleById) {
+  return Object.entries(normShares(shares))
+    .map(([personId, units]) => `${peopleById.get(personId)?.name || personId}: ${units}`)
+    .join(' · ');
+}
+
+export function buildRedistributionItemRows(baseProjection, changes = [], itemIds = null) {
+  if (!baseProjection) return [];
+
+  const changeByItemId = new Map((changes || []).map(change => [change.itemId, change]));
+  const baseItems = itemIds
+    ? itemIds.map(itemId => baseProjection.items.find(item => item.id === itemId)).filter(Boolean)
+    : baseProjection.activeItems;
+
+  return baseItems.map(item => {
+    const change = changeByItemId.get(item.id) || null;
+    const beforeShares = normShares(item.shares || {});
+    const afterShares = change ? normShares(change.shares) : beforeShares;
+    const deltas = change ? shareDeltasForChange(baseProjection, change) : [];
+    const peopleIds = [...new Set([...Object.keys(beforeShares), ...Object.keys(afterShares)])];
+
+    const changedPeople = peopleIds.map(personId => {
+      const beforeUnits = Number(beforeShares[personId] || 0);
+      const afterUnits = Number(afterShares[personId] || 0);
+      const delta = deltas.find(entry => entry.personId === personId);
+      const valueDelta = delta?.delta || 0;
+      return {
+        personId,
+        personName: baseProjection.peopleById.get(personId)?.name || personId,
+        beforeUnits,
+        afterUnits,
+        unitsDelta: afterUnits - beforeUnits,
+        valueDelta
+      };
+    }).filter(row => row.beforeUnits !== row.afterUnits || Math.abs(row.valueDelta) > 0.005);
+
+    return {
+      itemId: item.id,
+      itemName: item.name,
+      itemValue: item.value,
+      changed: !!change && !sharesEqual(beforeShares, afterShares),
+      beforeShares,
+      afterShares,
+      beforeSummary: formatShares(beforeShares, baseProjection.peopleById),
+      afterSummary: formatShares(afterShares, baseProjection.peopleById),
+      changedPeople
+    };
+  }).sort((a, b) => {
+    if (a.changed !== b.changed) return a.changed ? -1 : 1;
+    return a.itemName.localeCompare(b.itemName, 'de');
+  });
+}
+
 /**
  * Erzeugt eine Liste von Änderungen für eine Umverteilung, um alle Anteile einer Person
  * auf eine andere zu übertragen.
@@ -72,8 +132,13 @@ export function redistributionPreview(project, redistribution) {
   const rows = [...deltas.values()]
     .filter(row => Math.abs(row.delta) > 0.005)
     .sort((a, b) => b.delta - a.delta);
-    
-  return { base, rows, payments: settlementRecommendations(rows) };
+
+  return {
+    base,
+    rows,
+    payments: settlementRecommendations(rows),
+    itemRows: buildRedistributionItemRows(base, redistribution.changes || [])
+  };
 }
 
 /**

@@ -1,10 +1,34 @@
 <script>
-  import { appState, createEvent, createRedistribution } from '../stores/projectStore.js';
+  import { appState, createEvent } from '../stores/projectStore.js';
   import { money, normShares } from '../lib/domain.js';
   import { dateDE } from '../lib/util.js';
   import Timeline from './Timeline.svelte';
   export let person;
+  export let projection;
   export let asOfDate;
+  let transferDialogOpen = false;
+  let transferTargetId = '';
+
+  $: activeTargets = (projection?.people || []).filter(p => p.active && String(p.id) !== String(person.id));
+
+  function runTransfer(target) {
+    if (!target) return;
+    const changes = (person.holdings || []).map(h => {
+      const sourceUnits = Number(h.item.shares?.[person.id] || 0);
+      const targetUnits = Number(h.item.shares?.[target.id] || 0);
+      const shares = { ...(h.item.shares || {}) };
+      delete shares[person.id];
+      shares[target.id] = sourceUnits + targetUnits;
+      return { itemId: h.item.id, shares: normShares(shares) };
+    }).filter(c => Object.keys(c.shares).length);
+
+    appState.startRedistribution(
+      `Alle Anteile von ${person.name} an ${target.name} übertragen`,
+      asOfDate,
+      changes,
+      { sourcePersonId: person.id, targetPersonId: target.id }
+    );
+  }
 
   function startDissolve() {
     const changes = person.holdings.map(h => {
@@ -16,7 +40,23 @@
   }
 
   function startTransfer() {
-    appState.startRedistribution(`Alle Anteile von ${person.name} übertragen`, asOfDate, [], { sourcePersonId: person.id });
+    if (!activeTargets.length) {
+      alert('Keine aktive Zielperson verfügbar.');
+      return;
+    }
+    if (activeTargets.length === 1) {
+      runTransfer(activeTargets[0]);
+      return;
+    }
+    transferTargetId = '';
+    transferDialogOpen = true;
+  }
+
+  function confirmTransferTarget() {
+    const target = activeTargets.find(p => String(p.id) === String(transferTargetId));
+    if (!target) return;
+    transferDialogOpen = false;
+    runTransfer(target);
   }
 </script>
 <section class="panel"><div class="panel-body">
@@ -42,3 +82,29 @@
     <Timeline project={$appState.project} asOfDate={$appState.asOfDate} personId={person.id} title="🕒 Personen-Timeline" />
   </section>
 </section>
+
+{#if transferDialogOpen}
+  <div class="modal-backdrop">
+    <div class="modal" style="max-width: 520px">
+      <div class="modal-header">
+        <h3>🔁 Anteile übertragen</h3>
+        <button class="ghost" on:click={() => transferDialogOpen = false}>✕</button>
+      </div>
+      <div class="modal-body stack">
+        <div>An wen sollen alle Anteile von <strong>{person.name}</strong> übertragen werden?</div>
+        <label>Zielperson
+          <select bind:value={transferTargetId}>
+            <option value="">wählen …</option>
+            {#each activeTargets as target}
+              <option value={target.id}>{target.name}</option>
+            {/each}
+          </select>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button on:click={() => transferDialogOpen = false}>Abbrechen</button>
+        <button class="primary" on:click={confirmTransferTarget} disabled={!transferTargetId}>Weiter</button>
+      </div>
+    </div>
+  </div>
+{/if}

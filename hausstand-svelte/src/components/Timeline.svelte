@@ -27,6 +27,16 @@
     return itemsById.get(itemId) || fallbackName || itemId;
   }
 
+  function openPerson(personId) {
+    if (!personId) return;
+    appState.setRoute({ page: 'person', id: personId });
+  }
+
+  function openItem(itemId) {
+    if (!itemId) return;
+    appState.setRoute({ page: 'item', id: itemId });
+  }
+
   function eventLabel(eventType) {
     return labels[eventType] || eventType?.replaceAll('-', ' ') || 'Ereignis';
   }
@@ -96,6 +106,22 @@
     return event.note || event.name || event.reason || event.type;
   }
 
+  function deltasFor(event) {
+    const before = projectBeforeEvent(project, event.id, event.date);
+    return shareDeltasForChange(before, event);
+  }
+
+  function redistributionData(event) {
+    const shareEvents = (event.events || []).filter(e => e.type === 'shares-set');
+    const preview = redistributionPreview(project, {
+      title: event.title,
+      effectiveDate: event.date,
+      changes: shareEvents
+    });
+    const affectedItems = [...new Set(shareEvents.map(e => e.itemId).filter(Boolean))];
+    return { preview, affectedItems };
+  }
+
   function openEdit(event) {
     appState.setDialog({ 
       type: event.type === 'redistribution-executed' ? 'executedRedistributionEdit' : 'eventEdit', 
@@ -105,7 +131,7 @@
 </script>
 
 <section class="panel timeline-panel">
-  <div class="panel-header"><h2>{title}</h2><span class="hint">Klicken zum Bearbeiten</span></div>
+  <div class="panel-header"><h2>{title}</h2><span class="hint">⚙️ unten rechts = Bearbeiten</span></div>
   <div class="panel-body stack">
     {#if future.length}
       <button class="timeline-more" on:click={() => showFuture = !showFuture}>
@@ -113,12 +139,49 @@
       </button>
       {#if showFuture}
         {#each future as event}
-          <div class="event-card clickable" on:click={() => openEdit(event)}>
+          <div class="event-card timeline-event-card">
             <div class="event-meta">
               <span class="label">{eventLabel(event.type)}</span>
               <span class="date">{dateDE(event.date)}</span>
             </div>
-            <div class="event-summary">{summary(event)}</div>
+            <div class="event-summary">
+              {#if event.type === 'redistribution-executed'}
+                {@const data = redistributionData(event)}
+                <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {data.preview.payments.length} Zahlungen</span>
+                {#if data.affectedItems.length}
+                  <span> · </span>
+                  {#each data.affectedItems as currentItemId, index}
+                    <button class="entity-link" on:click={() => openItem(currentItemId)}>{itemName(currentItemId)}</button>{#if index < data.affectedItems.length - 1}, {/if}
+                  {/each}
+                {/if}
+              {:else if event.type === 'shares-set'}
+                {@const deltas = deltasFor(event)}
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
+                <span> · {event.note || 'Anteile'}</span>
+                {#if deltas.length}
+                  <span> · </span>
+                  {#each deltas as delta, index}
+                    <button class="entity-link" on:click={() => openPerson(delta.personId)}>{delta.personName}</button>
+                    <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
+                  {/each}
+                {/if}
+              {:else if event.type === 'person-added'}
+                <span>Willkommen, </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
+              {:else if event.type === 'person-deactivated'}
+                <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Auszug'}</span>
+              {:else if event.type === 'person-reactivated'}
+                <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Rückkehr'}</span>
+              {:else if event.type === 'item-added'}
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span>
+              {:else if event.type === 'item-ended'}
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
+              {:else}
+                {summary(event)}
+              {/if}
+            </div>
+            <div class="event-actions">
+              <button class="small ghost edit-button" title="Ereignis bearbeiten" on:click={() => openEdit(event)}>⚙️</button>
+            </div>
           </div>
         {/each}
       {/if}
@@ -128,12 +191,49 @@
 
     {#if visiblePast.length}
       {#each visiblePast as event}
-        <div class="event-card clickable" on:click={() => openEdit(event)}>
+        <div class="event-card timeline-event-card">
           <div class="event-meta">
             <span class="label">{eventLabel(event.type)}</span>
             <span class="date">{dateDE(event.date)}</span>
           </div>
-          <div class="event-summary">{summary(event)}</div>
+          <div class="event-summary">
+            {#if event.type === 'redistribution-executed'}
+              {@const data = redistributionData(event)}
+              <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {data.preview.payments.length} Zahlungen</span>
+              {#if data.affectedItems.length}
+                <span> · </span>
+                {#each data.affectedItems as currentItemId, index}
+                  <button class="entity-link" on:click={() => openItem(currentItemId)}>{itemName(currentItemId)}</button>{#if index < data.affectedItems.length - 1}, {/if}
+                {/each}
+              {/if}
+            {:else if event.type === 'shares-set'}
+              {@const deltas = deltasFor(event)}
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
+              <span> · {event.note || 'Anteile'}</span>
+              {#if deltas.length}
+                <span> · </span>
+                {#each deltas as delta, index}
+                  <button class="entity-link" on:click={() => openPerson(delta.personId)}>{delta.personName}</button>
+                  <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
+                {/each}
+              {/if}
+            {:else if event.type === 'person-added'}
+              <span>Willkommen, </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
+            {:else if event.type === 'person-deactivated'}
+              <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Auszug'}</span>
+            {:else if event.type === 'person-reactivated'}
+              <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Rückkehr'}</span>
+            {:else if event.type === 'item-added'}
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span>
+            {:else if event.type === 'item-ended'}
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
+            {:else}
+              {summary(event)}
+            {/if}
+          </div>
+          <div class="event-actions">
+            <button class="small ghost edit-button" title="Ereignis bearbeiten" on:click={() => openEdit(event)}>⚙️</button>
+          </div>
         </div>
       {/each}
       {#if past.length > visiblePast.length}
@@ -149,18 +249,13 @@
   .timeline-panel {
     font-size: 0.9rem;
   }
-  .event-card.clickable {
-    cursor: pointer;
-    transition: transform 0.1s, box-shadow 0.1s;
+  .timeline-event-card {
     padding: 10px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--panel);
-  }
-  .event-card.clickable:hover {
-    background: var(--soft);
-    border-color: var(--accent);
-    transform: translateX(2px);
+    display: grid;
+    gap: 6px;
   }
   .event-meta {
     display: flex;
@@ -182,6 +277,44 @@
   .event-summary {
     color: var(--text);
     line-height: 1.3;
+  }
+  .entity-link {
+    border: 1px solid transparent;
+    background: var(--accent-soft);
+    color: #1f4db6;
+    padding: 1px 8px;
+    border-radius: 999px;
+    text-decoration: none;
+    cursor: pointer;
+    display: inline;
+    font: inherit;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+    margin: 0 2px;
+    vertical-align: baseline;
+  }
+  .entity-link:hover {
+    background: #dbe8ff;
+    border-color: #b6cbff;
+    color: #163a8a;
+  }
+  .entity-link:active {
+    transform: translateY(1px);
+  }
+  .entity-link:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(47, 111, 237, 0.22);
+  }
+  .event-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .edit-button {
+    min-width: 32px;
+    min-height: 28px;
+    padding: 3px 6px;
   }
   .timeline-marker {
     font-size: 0.8rem;

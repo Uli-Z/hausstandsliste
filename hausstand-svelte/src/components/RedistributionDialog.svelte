@@ -4,11 +4,14 @@
   import { 
     redistributionPreview, 
     redistributionMarkdown, 
+    buildRedistributionItemRows,
     buildTransferChanges, 
     buildRemovePersonChanges, 
-    buildAddPersonChanges 
+    buildAddPersonChanges,
+    sharesEqual
   } from '../lib/redistribution.js';
   import ShareEditor from './ShareEditor.svelte';
+  import RedistributionItemList from './RedistributionItemList.svelte';
   import { uid, clone, dateDE } from '../lib/util.js';
   
   export let dialog;
@@ -22,9 +25,9 @@
   
   $: people = projection.people;
   $: itemsAtDate = preview.base?.activeItems || [];
+  $: itemRows = preview.base ? buildRedistributionItemRows(preview.base, redistribution.changes || []) : [];
 
   let filterText = "";
-  $: filteredItems = itemsAtDate.filter(i => i.name.toLowerCase().includes(filterText.toLowerCase()));
 
   // Sub-Modals
   let activeSubModal = null; // 'item', 'special-transfer', 'special-remove', 'special-add'
@@ -32,8 +35,11 @@
 
   function upsertChange(itemId, shares) {
     const clean = normShares(shares);
+    const baseItem = preview.base?.items.find(item => item.id === itemId);
     const idx = redistribution.changes.findIndex(c => c.itemId === itemId);
-    if (idx >= 0) redistribution.changes[idx] = { itemId, shares: clean };
+    if (baseItem && sharesEqual(baseItem.shares, clean)) {
+      redistribution.changes = redistribution.changes.filter(c => c.itemId !== itemId);
+    } else if (idx >= 0) redistribution.changes[idx] = { itemId, shares: clean };
     else redistribution.changes.push({ itemId, shares: clean });
     redistribution = { ...redistribution };
   }
@@ -106,18 +112,12 @@
             <strong>📋 Gegenstände zum Stichtag</strong>
             <input type="text" placeholder="Filter …" bind:value={filterText} class="small-input">
           </div>
-          <div class="item-list scrollable">
-            {#each filteredItems as item}
-              {@const changed = redistribution.changes.some(c => c.itemId === item.id)}
-              <div class="item-row clickable-row" class:is-changed={changed} on:click={() => openItemEdit(item)}>
-                <div class="split">
-                  <span>{item.name}</span>
-                  {#if changed}<span class="badge ok">geändert</span>{/if}
-                </div>
-                <div class="muted small-text">{Object.entries(redistribution.changes.find(c => c.itemId === item.id)?.shares || item.shares).map(([pid, u]) => `${people.find(p=>p.id===pid)?.name || pid}: ${u}`).join(' · ')}</div>
-              </div>
-            {/each}
-          </div>
+          <RedistributionItemList rows={itemRows} {filterText} emptyLabel="Keine Gegenstände zum Stichtag."
+            on:select={(event) => {
+              const item = itemsAtDate.find(entry => entry.id === event.detail.row.itemId);
+              if (item) openItemEdit(item);
+            }}
+          />
         </section>
       </div>
 
@@ -219,11 +219,6 @@
 <style>
   .large-modal { width: 95vw; max-width: 1100px; height: 85vh; display: flex; flex-direction: column; }
   .grid-redistribution { display: grid; grid-template-columns: 1fr 340px; gap: 24px; flex: 1; overflow: hidden; }
-  .scrollable { overflow-y: auto; max-height: 100%; border: 1px solid var(--border); border-radius: 8px; }
-  .item-list { background: var(--soft); }
-  .item-row { padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--panel); }
-  .item-row:last-child { border-bottom: none; }
-  .item-row.is-changed { background: var(--ok-soft); border-left: 4px solid var(--ok); }
   .small-text { font-size: 0.85rem; }
   .small-input { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.9rem; }
   .tight td { padding: 2px 0; }

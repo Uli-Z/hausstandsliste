@@ -22,6 +22,26 @@
   let annualRate = 0.2;
   let minimumValue = 0;
   let shares = {};
+  const normalizePersonName = value => String(value || '').trim().toLocaleLowerCase('de');
+
+  $: normalizedName = normalizePersonName(name);
+  $: duplicatePerson = dialog?.type === 'personAdd'
+    ? (project.people || []).find(p => normalizePersonName(p.name) === normalizedName)
+    : (dialog?.type === 'personMeta'
+      ? (project.people || []).find(p => String(p.id) !== String(person?.id) && normalizePersonName(p.name) === normalizedName)
+      : null);
+  $: duplicateProjection = duplicatePerson ? projection.peopleById.get(duplicatePerson.id) : null;
+  $: duplicateIsActive = !!duplicateProjection?.active;
+  $: duplicateAddedEvent = duplicatePerson
+    ? (project.events || []).find(e => e.type === 'person-added' && String(e.personId) === String(duplicatePerson.id))
+    : null;
+  $: duplicateIsFutureMoveIn = !!(duplicateAddedEvent?.date && duplicateAddedEvent.date > asOfDate);
+  $: duplicateLatestDeactivation = duplicatePerson
+    ? [...(project.events || [])]
+      .reverse()
+      .find(e => e.type === 'person-deactivated' && String(e.personId) === String(duplicatePerson.id))
+    : null;
+  $: canSavePersonName = !!normalizedName && !duplicatePerson;
 
   $: person = dialog?.personId ? project.people.find(p => p.id === dialog.personId) : null;
   $: item = dialog?.itemId ? project.items.find(i => i.id === dialog.itemId) : null;
@@ -58,6 +78,7 @@
 
   function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; reason = ''; initialValue = 0; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
   function addPerson() {
+    if (!canSavePersonName) return;
     const personId = uid('person');
     appState.mutateProject(p => { 
       p.people.push({ id: personId, name: name || 'Neue Person' }); 
@@ -65,7 +86,78 @@
     });
     close();
   }
-  function savePersonMeta() { appState.mutateProject(p => { const x = p.people.find(y => y.id === person.id); if (x) x.name = name || x.name; }); close(); }
+  function savePersonMeta() {
+    if (!canSavePersonName) return;
+    appState.mutateProject(p => { const x = p.people.find(y => y.id === person.id); if (x) x.name = name || x.name; });
+    close();
+  }
+
+  function pullMoveInForward(existingPerson) {
+    if (!existingPerson) return;
+    appState.mutateProject(p => {
+      const event = p.events.find(e => e.type === 'person-added' && String(e.personId) === String(existingPerson.id));
+      if (event) event.date = asOfDate;
+    });
+    close();
+  }
+
+  function deleteMoveOut(existingPerson) {
+    if (!existingPerson) return;
+    appState.mutateProject(p => {
+      const index = [...p.events].map((e, i) => ({ e, i }))
+        .reverse()
+        .find(x => x.e.type === 'person-deactivated' && String(x.e.personId) === String(existingPerson.id))?.i;
+      if (index === undefined) return;
+      p.events.splice(index, 1);
+    });
+    close();
+  }
+
+  function stripPersonFromEvent(event, personId) {
+    if (!event) return null;
+    if (
+      (event.type === 'person-added' || event.type === 'person-deactivated' || event.type === 'person-reactivated')
+      && String(event.personId) === String(personId)
+    ) {
+      return null;
+    }
+    if ((event.type === 'item-added' || event.type === 'shares-set') && event.shares) {
+      const shares = { ...event.shares };
+      delete shares[personId];
+      return { ...event, shares: normShares(shares) };
+    }
+    if (event.type === 'redistribution-executed' && Array.isArray(event.events)) {
+      const childEvents = event.events
+        .map(child => stripPersonFromEvent(child, personId))
+        .filter(Boolean);
+      return { ...event, events: childEvents };
+    }
+    return event;
+  }
+
+  function deletePersonCompletely() {
+    if (!person) return;
+    const ok = confirm(
+      `Person "${person.name}" wirklich komplett löschen?\n\n` +
+      'Dabei werden Stammdaten, Einzugs-/Auszugsereignisse und alle Beteiligungen entfernt.\n' +
+      'Achtung: Dadurch können sich Werte und Verteilungen deutlich verschieben.'
+    );
+    if (!ok) return;
+    appState.mutateProject(p => {
+      p.people = (p.people || []).filter(x => String(x.id) !== String(person.id));
+      p.events = (p.events || [])
+        .map(e => stripPersonFromEvent(e, person.id))
+        .filter(Boolean);
+      p.drafts = (p.drafts || []).map(draft => {
+        if (draft?.type !== 'item' || !draft?.data?.shares) return draft;
+        const shares = { ...draft.data.shares };
+        delete shares[person.id];
+        return { ...draft, data: { ...draft.data, shares: normShares(shares) } };
+      });
+    });
+    close();
+    appState.setRoute({ page: 'dashboard' });
+  }
   
   function saveItemDraft() {
     const draftId = dialog.id || uid('draft_item');
@@ -183,6 +275,28 @@
       <div class="modal-body stack">
         {#if dialog.type === 'personAdd' || dialog.type === 'personMeta'}
           <label>Name <input bind:value={name} placeholder="Name"></label>
+          {#if duplicatePerson}
+            <div class="notice warn">
+              Eine Person mit diesem Namen existiert bereits: <strong>{duplicatePerson.name}</strong>
+              ({duplicateIsActive ? 'aktiv' : 'inaktiv'}).
+            </div>
+            {#if !duplicateIsActive}
+              <div class="row">
+                {#if duplicateIsFutureMoveIn}
+                  <button class="small" on:click={() => pullMoveInForward(duplicatePerson)}>Einzug auf Stichtag vorziehen</button>
+                {/if}
+                {#if duplicateLatestDeactivation}
+                  <button class="small danger" on:click={() => deleteMoveOut(duplicatePerson)}>Letzten Auszug löschen</button>
+                {/if}
+              </div>
+            {/if}
+          {/if}
+          {#if dialog.type === 'personMeta'}
+            <div class="notice warn">
+              Komplett löschen entfernt die Person aus den Stammdaten sowie Einzugs-/Auszugsereignisse und alle Beteiligungen.
+              Das kann bestehende Verteilungen stark verändern.
+            </div>
+          {/if}
         {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
           <div class="form-grid">
             <label>Name <input bind:value={itemName}></label>
@@ -219,8 +333,9 @@
       </div>
       <div class="modal-footer"><button on:click={close}>Abbrechen</button>
         <div style="flex:1"></div>
-        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson}>✅ Anlegen</button>{/if}
-        {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta}>💾 Speichern</button>{/if}
+        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName}>✅ Anlegen</button>{/if}
+        {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>💾 Speichern</button>{/if}
+        {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely}>🗑️ Komplett löschen</button>{/if}
         {#if dialog.type === 'itemAdd'}
           <button on:click={saveItemDraft}>💾 Als Entwurf speichern</button>
           <button class="primary" on:click={addItem}>✅ Anlegen</button>
