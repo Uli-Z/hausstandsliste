@@ -15,6 +15,7 @@
 
   $: if (event && !edited) {
     edited = clone(event);
+    if (!edited.financialMode) edited.financialMode = 'none';
   }
 
   // Für die Vorschau brauchen wir ein temporäres Redistribution-Objekt
@@ -108,6 +109,12 @@
             <div class="grid-2">
               <label>Titel <input bind:value={edited.title}></label>
               <label>Datum <input type="date" bind:value={edited.date}></label>
+              <label>Finanzielle Wirkung
+                <select bind:value={edited.financialMode}>
+                  <option value="derived">Entgeltlich – Forderungen neu berechnen</option>
+                  <option value="none">Ohne Forderung – Korrektur / Schenkung</option>
+                </select>
+              </label>
             </div>
             <div class="notice">Klick auf einen Gegenstand öffnet die Bearbeitung der Anteile. Wenn die Anteile wieder dem Zustand davor entsprechen, wird die Änderung entfernt.</div>
           </section>

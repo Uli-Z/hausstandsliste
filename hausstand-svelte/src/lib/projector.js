@@ -22,8 +22,9 @@ const init = project => ({
   warnings: []
 });
 
-export const applyEvent = (state, event) => {
+export const applyEvent = (state, event, beforeApply = null, parent = null) => {
   if (!event) return;
+  if (beforeApply) beforeApply(state, event, parent);
   if (event.type === 'person-added') {
     const person = ensurePerson(state, event.personId, event.name);
     // Stammdaten haben Vorrang. Event-Name nur als Fallback verwenden.
@@ -59,18 +60,23 @@ export const applyEvent = (state, event) => {
     runtime(state, event.itemId).shares = normShares(event.shares);
   } else if (event.type === 'redistribution-executed') {
     for (const child of event.events || []) {
-      applyEvent(state, { ...child, date: event.date, order: event.order });
+      applyEvent(state, { ...child, date: event.date, order: event.order }, beforeApply, event);
     }
   } else {
     state.warnings.push(`Unbekannter Ereignistyp: ${event.type}`);
   }
 };
 
-export const projectAt = (project, asOfDate) => {
+// Both ownership and financial projections walk the same, ordered history.
+export const walkEvents = (project, asOfDate, beforeApply = null) => {
   const state = init(project);
   const events = (project.events || []).filter(e => e?.date && e.date <= asOfDate).sort(byDateOrder);
-  for (const event of events) applyEvent(state, event);
+  for (const event of events) applyEvent(state, event, beforeApply);
+  return state;
+};
 
+export const projectAt = (project, asOfDate) => {
+  const state = walkEvents(project, asOfDate);
   const items = [];
   for (const [id, rt] of state.runtime.entries()) {
     const base = state.itemsById.get(id) || { id, name: id, tags: [], note: '' };

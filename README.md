@@ -42,11 +42,11 @@ In der aktuellen implementierten Version gibt es noch keinen Backend-Server und 
 
 Der Quellcode ist öffentlich; **GitHub Pages ist für dieses Repository derzeit nicht aktiviert** (geprüft am 20.11.2026). Es gibt keine eingerichtete automatische Veröffentlichung und derzeit keine CI-Testpipeline. Das Standalone-Build-Ziel ist vorhanden; ein frischer Build wurde bei der Dokumentationsüberarbeitung nicht ausgeführt.
 
-## Geplante Erweiterungen (noch nicht implementiert)
+## Erweiterungen (Forderungslogik im Feature-Branch umgesetzt)
 
 Für die nächste Entwicklungsphase sind **zwei Produktfunktionen** und eine Benachrichtigung vorgesehen:
 
-1. **Offene Forderungen aus Anteilsbewegungen:** Jede wirtschaftliche Eigentumsübertragung erzeugt **aus ihren historischen Ereignisdaten abgeleitete** Forderungen. Gegenläufige Forderungen werden automatisch verrechnet, **ohne Checkbox oder gespeicherten Zahlungsstatus**. Wird ein Quellereignis zeitlich oder wertmäßig verändert oder gelöscht, werden alle betroffenen Forderungen und Salden neu berechnet. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
+1. **Forderungen aus Anteilsbewegungen (Feature-Branch):** Jede wirtschaftliche Eigentumsübertragung erzeugt **aus ihren historischen Ereignisdaten abgeleitete** Forderungen. Gegenläufige Forderungen werden automatisch verrechnet, **ohne Checkbox oder gespeicherten Zahlungsstatus**. Wird ein Quellereignis zeitlich oder wertmäßig verändert oder gelöscht, werden alle betroffenen Forderungen und Salden neu berechnet. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
 2. **Mehrere verschlüsselte Projektdateien auf einem PHP-Server:** Ein gemeinsamer Arbeitsordner mit sichtbaren Dateinamen, Passwort zum Entschlüsseln, Checkout/Checkin mit standardmäßig zwei Stunden Inaktivitätsfrist, Revisionsschutz und verschlüsselter Versionshistorie. Zusätzlich zur Offline-HTML-Version soll aus demselben Quellcode ein `hausstand.php`-Release gebaut werden.
 3. **Verschlüsselte E-Mail-Sicherung:** Nach jeder bestätigten Online-Speicherung eine Kopie der verschlüsselten Dateiversion an eine konfigurierte E-Mail-Adresse senden. Die Verschlüsselung muss genauso für lokale Dateien funktionieren.
 
@@ -56,7 +56,7 @@ Detaillierte, noch nicht implementierte Fach- und Architekturentwürfe:
 - [Kollaborative PHP-Dateiablage](docs/FEATURE-COLLABORATIVE-STORAGE.md)
 - [Sicherheits- und Verschlüsselungsentwurf](docs/SECURITY-AND-ENCRYPTION.md)
 
-**Status:** Es handelt sich um geplante Änderungen. Der vorhandene Code ist weiterhin Version 0.7.0 ohne Schuldenstatus, serverseitige Speicherung, Verschlüsselung oder E-Mail-Versand.
+**Status:** Die Forderungsprojektion ist im Feature-Branch implementiert; CI-/Browsertests sind noch zu verifizieren. Es werden weiterhin keine realen Geldzahlungen erfasst. PHP, Verschlüsselung und E-Mail bleiben geplant.
 
 ## Projekt-Dokumentation
 

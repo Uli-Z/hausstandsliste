@@ -1,6 +1,6 @@
 # Projektstand und Umsetzungsplan
 
-**Planungsstand 20.11.2026; keine neuen Funktionen implementiert.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
+**Stand 20.11.2026: Forderungsprojektion auf Feature-Branch implementiert, CI/Browsertests noch offen; PHP-/Krypto-/E-Mail-Funktionen weiter geplant.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
 
 ## Bereits vorhanden (statisch im Code geprüft)
 
@@ -10,7 +10,7 @@
 - Vorschau auf Wertverschiebung und **empfohlene** Zahlungen, aber keine tatsächlich gebuchten Zahlungen
 - Lokale JSON-Dateien, `localStorage`-Arbeitskopie, Vite-/Standalone-HTML-Build
 
-**Nicht vorhanden:** automatische Forderungsableitung und Nettoausgleich aus Events, Verschlüsselung, PHP-Dateispeicherung, Checkout/Checkin, Versionsarchiv, Passwortwechsel, E-Mail-Sicherung, automatisierte Tests und CI. GitHub Pages ist derzeit nicht aktiviert.
+**Nicht vorhanden:** Erfassung tatsächlicher Geldzahlungen, Verschlüsselung, PHP-Dateispeicherung, Checkout/Checkin, Versionsarchiv, Passwortwechsel, E-Mail-Sicherung, automatisierte Tests und CI. GitHub Pages ist derzeit nicht aktiviert.
 
 ## Zwei priorisierte Produktfeatures + E-Mail-Sicherung
 
@@ -20,15 +20,16 @@
 
 **Architekturänderung 20.11.2026:** Anders als im ersten Entwurf **keine persistenten Forderungsbuchungen, keine Checkbox, kein Ausgleichsstatus**. Forderungen entstehen allein durch die finanzielle Bedeutung von `project.events[]` und werden bei jeder Projektion wieder aus der Ereignishistorie berechnet.
 
-- [ ] Eigentums-/Anteilsänderungen als entgeltliche/unentgeltliche Vorgänge eindeutig einordnen; Altprojekte nicht still rückwirkend zu Geldforderungen machen.
-- [ ] Reine Funktion `deriveClaims(project, asOfDate)` berechnet Schuldner, Gläubiger, Cent-Betrag und Referenz auf Quell-/Child-Event.
-- [ ] Gegenseitige Forderungen **bilateral saldieren**; individuelle Salden und optional separate, unverbindliche **multilaterale** Vereinfachung anzeigen.
-- [ ] Bei Datum-, Wert-, Anteilsänderung oder Löschung eines historischen Events alle davon abhängigen Forderungen **automatisch neu projizieren**; keine verwaisten Finanzpostings.
-- [ ] Personeneinbringung nur bei bekannter wirtschaftlicher Finanzierung in eine Forderung übersetzen; keine fiktiven Gegenparteien.
-- [ ] Historische Korrekturen, gleichdatierte Events und Rundungen durch deterministische Cent-Tests absichern.
-- [ ] Optional **später**: tatsächlich geleistete Zahlungen oder vereinbarte Anpassungen als separate datierte Gegenbuchungsereignisse (nicht als Checkbox) erfassen.
+- [x] Neue entgeltliche/unentgeltliche Anteilsänderungen explizit kennzeichnen; alte Events ohne Marker bleiben neutral.
+- [x] `deriveClaims(project, asOfDate)` berechnet Forderungen mit Cent-Beträgen und Herkunftsreferenz auf Quell-/Child-Event.
+- [x] Bilaterale Salden, freiwillige multilaterale Vereinfachung und Einzelvorgänge im Dashboard.
+- [x] Rückwirkende Änderung/Löschung verändert Forderungsprojektion automatisch; keine zweite persistente Forderungsliste.
+- [x] Bei neuen Gegenständen optional finanzierende Person dokumentieren.
+- [x] Node-Testfälle und GitHub-Actions-Workflow ergänzt (Ausführung im PR prüfen).
+- [ ] Browser-/JSON-Roundtrip und reale End-to-End-Nutzung testen.
+- [ ] Optional später echte Zahlungen als datierte Gegenbuchungsereignisse erfassen.
 
-**Bevorzugte Umsetzung:** `src/lib/ledger.js` als reine Ableitung auf denselben Events, die `projector.js` rekonstruiert. Kein `finance.postings[]`, keine `finance.settlementEvents[]`, keine Statusaktionen `settlePostings()`/`reopenPostings()`.
+**Implementierung:** `src/lib/ledger.js`, `src/lib/projector.js` (`walkEvents`), `src/components/LedgerPanel.svelte`, `tests/ledger.test.js`. Keine persistenten `finance.postings[]`, keine Checkboxen und keine gesonderten Statusaktionen.
 
 ### B. Optionale verschlüsselte PHP-Online-Dateiablage
 
@@ -57,7 +58,7 @@ Als Unterfunktion des Online-Modus:
 ## Vorgehensreihenfolge (Empfehlung)
 
 1. **Basis absichern:** `npm ci`, `npm run build:single`, fachliche Tests einrichten (bisher nicht ausgeführt); ältere JSON-Beispiele anonymisiert sichern.
-2. **Forderungen vor Online-Betrieb:** Ereignissemantik und Altprojekt-Migration klären; `ledger.js`, dynamische Forderungsableitung, Netto-UI und historische Korrekturtests.
+2. **Forderungen vor Online-Betrieb:** Grundfunktionen im Feature-Branch umgesetzt; CI und Browser-/Import-Export-Abnahme abschließen.
 3. **Verschlüsselung unabhängig vom Speicher:** formatversioniertes Crypto-Modul, lokaler verschlüsselter Export/Import, keinen Klartext-Cache im Verschlüsselungsmodus, Sicherheits-/Dateiformat-Tests.
 4. **Speicheradapter und PHP-Server:** `documentStore`, API, eine Deploy-PHP-Datei, Mehrdateienliste, Checkout/Lease/Revisionsschutz und Versionshistorie.
 5. **Passwortwechsel und E-Mail:** historische Versionen reencrypten, Bearbeitungsberechtigung rotieren, Mail-Queue und Retries.

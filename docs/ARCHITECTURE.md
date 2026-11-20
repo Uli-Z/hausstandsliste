@@ -104,3 +104,8 @@ Die bisherige Architektur wird **nicht ersetzt**. Sie soll zu drei weitgehend un
 Die bisherige Architekturaufnahme oben beschreibt weiterhin den **Ist-Zustand**; keines dieser drei neuen Module oder das PHP-Backend existiert derzeit. Der neue optionale Webserver-Modus hebt den bisherigen Offline-HTML-Modus nicht auf.
 
 Zentrale Invarianten: Eigentumsveränderungen sind unabhängig von der Zahlung; Forderungen sind **nicht persistierte** und bei Quellereignis-Korrekturen stets neu berechnete Projektionen zum Stichtag; das Speichermedium ändert niemals die Bedeutung des Projekt-JSON; unbekannte Passwörter dürfen den Server nicht in die Lage versetzen, Klartext zu sehen; keine stillen Übertragungs-/Revisionskonflikte.
+
+
+## Implementierte Forderungsprojektion (Feature-Branch, 20.11.2026)
+
+`src/lib/ledger.js` rekonstruiert Cent-Forderungen durch `walkEvents` aus `projector.js`, synchron zum Eigentumszustand. Die Herkunft wird durch `sourceEventId` und bei Sammelumverteilungen `childEventId` nachvollziehbar. Es wird **kein** zweites Finanzjournal gespeichert: geänderte oder gelöschte Quellereignisse führen automatisch zu neu berechneten Salden. Neue entgeltliche Vorgänge setzen `financialMode:'derived'`, während alte Einträge ohne Kennzeichnung neutral bleiben. Neu hinzugefügte Gegenstände können optional `financedByPersonId` erfassen. Der bestehende Projekt-JSON-Aufbau bleibt kompatibel.

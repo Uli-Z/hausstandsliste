@@ -22,6 +22,8 @@
   let annualRate = 0.2;
   let minimumValue = 0;
   let shares = {};
+  let shareFinancialMode = 'derived';
+  let financedByPersonId = '';
   const normalizePersonName = value => String(value || '').trim().toLocaleLowerCase('de');
 
   $: normalizedName = normalizePersonName(name);
@@ -60,6 +62,7 @@
       annualRate = draft.data.valuation.annualRate || 0.2;
       minimumValue = draft.data.valuation.minimumValue || 0;
       shares = { ...(draft.data.shares || {}) };
+      financedByPersonId = draft.data.financedByPersonId || '';
     }
   }
   $: if ((dialog?.type === 'shareSet' || (dialog?.type === 'itemAdd' && !dialog.id) || dialog?.type === 'itemContinue') && projectedItem && Object.keys(shares).length === 0) {
@@ -76,7 +79,7 @@
     }
   }
 
-  function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; reason = ''; initialValue = 0; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
+  function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; shareFinancialMode = 'derived'; financedByPersonId = ''; reason = ''; initialValue = 0; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
   function addPerson() {
     if (!canSavePersonName) return;
     const personId = uid('person');
@@ -179,7 +182,8 @@
           annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
           minimumValue: Number(minimumValue) || 0
         },
-        shares: initialShares
+        shares: initialShares,
+        financedByPersonId: financedByPersonId || undefined
       }
     });
     close();
@@ -201,7 +205,9 @@
           annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
           minimumValue: Number(minimumValue) || 0 
         }, 
-        shares: initialShares 
+        shares: initialShares,
+        financedByPersonId: financedByPersonId || undefined,
+        financialMode: financedByPersonId ? 'derived' : 'none'
       }));
       if (dialog.id) {
         p.drafts = (p.drafts || []).filter(d => d.id !== dialog.id);
@@ -246,7 +252,7 @@
   }
 
   function saveItemMeta() { appState.mutateProject(p => { const x = p.items.find(y => y.id === item.id); if (x) { x.name = itemName || x.name; x.tags = parseTags(tags); x.note = note; } }); close(); }
-  function saveShareSet() { appState.mutateProject(p => p.events.push(createEvent('shares-set', asOfDate, { itemId: projectedItem.id, shares: normShares(shares), note: 'Anteile geändert' }))); close(); }
+  function saveShareSet() { appState.mutateProject(p => p.events.push(createEvent('shares-set', asOfDate, { itemId: projectedItem.id, shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert' }))); close(); }
   function endItem() { appState.mutateProject(p => p.events.push(createEvent('item-ended', asOfDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }))); close(); }
 </script>
 
@@ -317,12 +323,29 @@
             <section class="wide mini-card stack">
               <strong>Initiale Anteile</strong>
               <ShareEditor people={projection.people} bind:shares />
+              {#if dialog.type === 'itemAdd'}
+                <label>Finanziert / eingebracht von
+                  <select bind:value={financedByPersonId}>
+                    <option value="">Keine Finanzierung zuordnen (keine Forderung)</option>
+                    {#each project.people || [] as person}
+                      <option value={person.id}>{person.name}</option>
+                    {/each}
+                  </select>
+                </label>
+                <div class="muted">Wenn eine Person den ganzen Gegenstand finanziert hat, schulden andere Anteilseigner ihr automatisch ihren Anteil am Startwert.</div>
+              {/if}
             </section>
           </div>
         {:else if dialog.type === 'itemMeta'}
           <div class="form-grid"><label>Name <input bind:value={itemName}></label><label>Tags <input bind:value={tags}></label><label class="wide">Notiz <textarea bind:value={note}></textarea></label></div>
         {:else if dialog.type === 'shareSet'}
           <ShareEditor people={projection.people} bind:shares />
+          <label>Finanzielle Wirkung
+            <select bind:value={shareFinancialMode}>
+              <option value="derived">Entgeltlich – Forderung berechnen</option>
+              <option value="none">Unentgeltlich / Korrektur – keine Forderung</option>
+            </select>
+          </label>
         {:else if dialog.type === 'itemEnd'}
           <label>Grund <input bind:value={reason} placeholder="kaputt, verkauft, privat übernommen …"></label>
         {:else if dialog.type === 'options'}
