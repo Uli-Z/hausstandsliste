@@ -36,11 +36,27 @@ Das Ergebnis liegt unter `hausstand-svelte/dist/hausstand-standalone.html` und k
 
 ## Speicherung und Datenschutz
 
-Es gibt derzeit keinen Backend-Server und keine Datenbank. Die App speichert die Arbeitskopie im `localStorage` des verwendeten Browsers. Die **exportierte JSON-Projektdatei ist der dauerhaft aufzubewahrende Datenbestand**. Browserdaten können verloren gehen oder auf einem anderen Gerät fehlen – daher regelmäßig exportieren und gesichert ablegen. Persönliche Projektdaten nicht in dieses öffentliche Repository committen.
+In der aktuellen implementierten Version gibt es noch keinen Backend-Server und keine Datenbank. Die App speichert die Arbeitskopie im `localStorage` des verwendeten Browsers. Die **exportierte JSON-Projektdatei ist der dauerhaft aufzubewahrende Datenbestand**. Browserdaten können verloren gehen oder auf einem anderen Gerät fehlen – daher regelmäßig exportieren und gesichert ablegen. Persönliche Projektdaten nicht in dieses öffentliche Repository committen.
 
 ## Veröffentlichungsstatus
 
 Der Quellcode ist öffentlich; **GitHub Pages ist für dieses Repository derzeit nicht aktiviert** (geprüft am 20.11.2026). Es gibt keine eingerichtete automatische Veröffentlichung und derzeit keine CI-Testpipeline. Das Standalone-Build-Ziel ist vorhanden; ein frischer Build wurde bei der Dokumentationsüberarbeitung nicht ausgeführt.
+
+## Geplante Erweiterungen (noch nicht implementiert)
+
+Für die nächste Entwicklungsphase sind **zwei Produktfunktionen** und eine Benachrichtigung vorgesehen:
+
+1. **Offene Forderungen aus Anteilsbewegungen:** Jede wirtschaftliche Eigentumsübertragung erhält fest zugeordnete finanzielle Buchungen mit Status **ausgeglichen/offen**; mehrere noch offene Buchungen können zu vereinfachten Nettoschulden verrechnet werden. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
+2. **Mehrere verschlüsselte Projektdateien auf einem PHP-Server:** Ein gemeinsamer Arbeitsordner mit sichtbaren Dateinamen, Passwort zum Entschlüsseln, Checkout/Checkin mit standardmäßig zwei Stunden Inaktivitätsfrist, Revisionsschutz und verschlüsselter Versionshistorie. Zusätzlich zur Offline-HTML-Version soll aus demselben Quellcode ein `hausstand.php`-Release gebaut werden.
+3. **Verschlüsselte E-Mail-Sicherung:** Nach jeder bestätigten Online-Speicherung eine Kopie der verschlüsselten Dateiversion an eine konfigurierte E-Mail-Adresse senden. Die Verschlüsselung muss genauso für lokale Dateien funktionieren.
+
+Detaillierte, noch nicht implementierte Fach- und Architekturentwürfe:
+
+- [Forderungsjournal und Nettoausgleich](docs/FEATURE-DEBT-LEDGER.md)
+- [Kollaborative PHP-Dateiablage](docs/FEATURE-COLLABORATIVE-STORAGE.md)
+- [Sicherheits- und Verschlüsselungsentwurf](docs/SECURITY-AND-ENCRYPTION.md)
+
+**Status:** Es handelt sich um geplante Änderungen. Der vorhandene Code ist weiterhin Version 0.7.0 ohne Schuldenstatus, serverseitige Speicherung, Verschlüsselung oder E-Mail-Versand.
 
 ## Projekt-Dokumentation
 

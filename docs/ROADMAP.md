@@ -1,61 +1,83 @@
-# Projektstand, nächste Schritte und offene Entscheidungen
+# Projektstand und Umsetzungsplan
 
-**Stand der Codeprüfung: 20.11.2026.** Hauptbranch `master`, Svelte-App `0.7.0`. Aussagen zu „vorhanden“ beruhen auf Quellcodesichtung, nicht auf einem in dieser Sitzung durchgeführten Browsertest.
+**Planungsstand 20.11.2026; keine neuen Funktionen implementiert.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
 
-## Bereits im Code vorhanden
+## Bereits vorhanden (statisch im Code geprüft)
 
-- Personen hinzufügen, deaktivieren, reaktivieren und Stammdaten bearbeiten
-- Gegenstände mit Tags, Wert und Anteilen anlegen, beenden, archivieren und als Nachfolgegegenstand fortführen
-- Stichtagsbezogene Ereignis-Timeline mit Bearbeitungsmöglichkeiten
-- Lineares, degressives und fixes Wertmodell
-- Relative Anteilsverteilung je Gegenstand; Sammel-Umverteilungen
-- Entwürfe für Gegenstände und Umverteilungen in `drafts[]`
-- Wertdifferenzen, **empfohlene** Ausgleichszahlungen und Markdown-Export der Empfehlung
-- Projekt-JSON-Import/-Export und `localStorage`-Arbeitskopie
-- Build-Skripte für Vite und Standalone-HTML
+- Personen und Gegenstände mit historischen Ereignissen; Anteile zum Stichtag
+- Linear/degressiv/fix bewertete Gegenstände
+- Direkte und gruppierte Anteilsänderungen, Entwürfe, rückwirkende Korrektur
+- Vorschau auf Wertverschiebung und **empfohlene** Zahlungen, aber keine tatsächlich gebuchten Zahlungen
+- Lokale JSON-Dateien, `localStorage`-Arbeitskopie, Vite-/Standalone-HTML-Build
 
-**Nicht vorhanden:** Erfassung realer Zahlungen, Offen-/Beglichen-Status, Teilzahlungen, Fälligkeitslisten, CI-Tests und automatisch veröffentlichte Web-App.
+**Nicht vorhanden:** persistenter Forderungsstatus, Nettoausgleich offener Vorgänge, Verschlüsselung, PHP-Dateispeicherung, Checkout/Checkin, Versionsarchiv, Passwortwechsel, E-Mail-Sicherung, automatisierte Tests und CI. GitHub Pages ist derzeit nicht aktiviert.
 
-## Nächste Produktaufgabe: Schuldenbegleichung
+## Zwei priorisierte Produktfeatures + E-Mail-Sicherung
 
-Ziel: Aus einer **ausgeführten** Umverteilung abgeleitete einzelne Ausgleichszahlungen sollen nachvollziehbar als **offen** oder **beglichen** markiert und dauerhaft im Projekt-JSON gespeichert werden. Eine Eigentumsänderung darf unabhängig davon bestehen bleiben, ob das Geld geflossen ist.
+### A. Forderungsjournal aus Anteilsbewegungen
 
-Vorgeschlagenes erstes Verhalten (noch nicht implementiert):
+[Fachkonzept vollständig lesen](FEATURE-DEBT-LEDGER.md).
 
-1. Bei ausgeführten Umverteilungen Zahlungsvorschläge mit Schuldner, Gläubiger, Betrag und Status anzeigen.
-2. Jede Forderung separat „offen/beglichen“ schalten; optional Datum und Notiz zur Zahlung erfassen.
-3. Offene Beträge pro Person nachvollziehbar anzeigen.
-4. JSON-Export/-Import muss alle Zahlungsinformationen verlustfrei erhalten.
-5. Bei nachträglich bearbeiteten Umverteilungen bestehende Zahlungsvermerke nicht versehentlich löschen oder unbemerkt falschen Forderungen zuordnen.
+- [ ] Jede wirtschaftlich relevante Anteilsbewegung erhält stabile, fixierte Forderungspostings mit Schuldner, Gläubiger und Betrag in Cent.
+- [ ] Die Nutzeroberfläche bietet je Posting **„Ausgeglichen“ (Boolean)**, unabhängig von der Eigentumsübertragung; persistiert und zur Historie nachvollziehbar.
+- [ ] Aus **nicht ausgeglichenen** Postings werden persönliche Salden und eine vereinfachte Nettoausgleichsempfehlung berechnet.
+- [ ] Eine gemeinsame Nettoabrechnung schließt explizit die einbezogenen Postings ab, statt bloß eine neue Rechenzeile zu erzeugen.
+- [ ] Einbringung neuer Gegenstände berücksichtigt nach ausdrücklicher Angabe, wer finanziert/eingebracht hat; kein frei erfundener Schuldner.
+- [ ] Schema-1-Projekte ohne stillschweigend nachträglich erzeugte Schulden migrieren; rückwirkende Änderungen bereits abgerechneter Vorgänge sicher behandeln.
 
-**Vor der Implementierung klären:**
-- Start nur mit vollständig „beglichen/offen“ oder auch Teilzahlungen?
-- Sollen Zahlungsvorgänge als separate datierte Events oder als eigene Projektentitäten gespeichert werden?
-- Wie wird eine Zahlung eindeutig mit einer Forderung verknüpft, wenn `settlementRecommendations()` Vorschläge jedes Mal neu berechnet und keine stabilen Zahlungs-IDs erzeugt?
-- Was passiert bei rückwirkender Änderung/Löschung einer Umverteilung oder bei Stichtagen vor Zahlungseingang?
+**Bevorzugte interne Lösung:** `finance.postings[]` + `finance.settlementEvents[]` mit `settled:boolean`, getrennt von Eigentumsereignissen; reine Fachlogik in neuem `ledger.js`.
 
-Keine vermeintliche Umsetzung allein durch einen Checkbox-Zustand in der UI: maßgeblich sind **Persistenz und konsistente Historie**.
+### B. Optionale verschlüsselte PHP-Online-Dateiablage
 
-## Technische Stabilisierung (priorisieren, bevor echte Daten produktiv genutzt werden)
+[Architektur & Workflow vollständig lesen](FEATURE-COLLABORATIVE-STORAGE.md).
 
-- [ ] `npm ci`, `check:js`, `build:single` tatsächlich ausführen und Ergebnis dokumentieren
-- [ ] Standalone per `file://` offline prüfen, einschließlich JSON-Import/-Export
-- [ ] Automatisierte Tests der Projektion, Bewertungsmodelle und Umverteilung ergänzen
-- [ ] CI für Build und Tests einrichten
-- [ ] JSON-Eingabevalidierung, fehlerhafte Browser-Arbeitskopien und Sicherungshinweise prüfen
-- [ ] Alte Projektdateien und die Feature-Parität zur `vorlage.html` stichprobenartig testen
-- [ ] Datenbezug beim vollständigen Löschen von Personen inklusive gespeicherter Umverteilungsentwürfe prüfen
+- [ ] Eine Svelte-Quellbasis mit **zwei Artefakten**: offline `hausstand-standalone.html` und optional `hausstand.php` (HTML + kleine PHP-Speicher-API).
+- [ ] Mehrere Dateien mit sichtbaren Anzeigenamen, pro Datei eigenes Entschlüsselungspasswort, gemeinsame Arbeitsordner-Ansicht.
+- [ ] Checkout/Checkin pro Datei; Lease nach standardmäßig **zwei Stunden Inaktivität** automatisch freigeben.
+- [ ] Jeder Speichervorgang verlangt gültige Lease und passende Basisrevision; fremde/abgelaufene Bearbeitung darf keine Änderungen überschreiben.
+- [ ] Jede bestätigte Speicherung erzeugt eine verschlüsselte Vorversion; Wiederherstellen erzeugt eine **neue** Revision.
+- [ ] Pro Datei Passwort setzen/ändern; bestehende Versionshistorie bei Schlüsselwechsel konsistent behandeln.
+- [ ] Webserver speichert nur **Ciphertext**, separate Datei-/Edit-Autorisierung, Datenordner außerhalb Webroot; HTTPS und Sicherheitsprüfung.
+- [ ] Lokaler verschlüsselter Export/Import nutzt **dasselbe** Format unabhängig vom Server.
 
-## Bereitstellung (separater Schritt)
+[Sicherheits- und Verschlüsselungsmodell vollständig lesen](SECURITY-AND-ENCRYPTION.md). Wichtige Grenze: Ein kompromittierter Server, der Web-Code ausliefert, kann Browser-Passwörter trotz clientseitiger Datei-Verschlüsselung abgreifen.
 
-- [ ] Entscheiden, ob die Svelte-App über GitHub Pages öffentlich erreichbar sein soll
-- [ ] Falls ja: reproduzierbaren Build und Deployment-Workflow ergänzen; korrekte Basis-URLs/Assets prüfen
-- [ ] Sicherstellen, dass die Webseite **keine persönlichen Projekt-JSON-Dateien** ausliefert und die App ohne externen Dienst nutzbar bleibt
+### C. E-Mail-Backup verschlüsselter Revisionen
 
-## Bewusste Abgrenzung
+Als Unterfunktion des Online-Modus:
 
-Nicht ohne ausdrückliche Produktentscheidung in Richtung Server-Datenbank, Account-System, Live-Synchronisierung oder vollwertige Finanzbuchhaltung ausbauen. Die Stärke des Projekts ist seine einfache, portable Offline-Nutzung.
+- [ ] Nach jedem **bestätigten** neuen Revisionsstand eine E-Mail mit **verschlüsseltem Dateianhang** an konfigurierte Empfänger vorbereiten.
+- [ ] SMTP/Transport und Empfänger nur serverseitig konfigurieren, keine beliebige offene Mail-Relay-API.
+- [ ] Bei Mailfehler bleibt die Datei gespeichert; Versandstatus/Retry-Warteschlange, keine doppelten Mails je Revision.
+- [ ] Kein Passwort, keine Klartext-Daten im E-Mail-Inhalt; sichtbare Metadaten im Betreff bewusst minimieren.
 
-## Pflege dieser Datei
+## Vorgehensreihenfolge (Empfehlung)
 
-Nach jeder Entwicklungssitzung den tatsächlichen Stand (implementiert / verifiziert / offen) nachführen. Neue Änderungswünsche zunächst hier und, bei Datenmodellfragen, in [ARCHITECTURE.md](ARCHITECTURE.md) festhalten.
+1. **Basis absichern:** `npm ci`, `npm run build:single`, fachliche Tests einrichten (bisher nicht ausgeführt); ältere JSON-Beispiele anonymisiert sichern.
+2. **Forderungen vor Online-Betrieb:** Schema-2-Entwurf prüfen; `ledger.js`, automatische Postings bei Anteilsänderungen, Status/Netto-UI, Migration und Tests.
+3. **Verschlüsselung unabhängig vom Speicher:** formatversioniertes Crypto-Modul, lokaler verschlüsselter Export/Import, keinen Klartext-Cache im Verschlüsselungsmodus, Sicherheits-/Dateiformat-Tests.
+4. **Speicheradapter und PHP-Server:** `documentStore`, API, eine Deploy-PHP-Datei, Mehrdateienliste, Checkout/Lease/Revisionsschutz und Versionshistorie.
+5. **Passwortwechsel und E-Mail:** historische Versionen reencrypten, Bearbeitungsberechtigung rotieren, Mail-Queue und Retries.
+6. **Integration/CI/Release:** Zwei-Browser- und Sicherheitstests, Offline-/Online-Abnahme, Deployment-Anleitung. GitHub Pages ist optional nur für statische Offline-Variante; **PHP läuft nicht auf GitHub Pages**.
+
+## Noch offene Produktentscheidungen – vorgeschlagene Defaults
+
+| Frage | Vorschlag |
+| --- | --- |
+| Ausgeglichen = nur bezahlt? | Nein: Zahlung **oder** gemeinsam vereinbarte Verrechnung, bei Bedarf Methode notieren |
+| Teilzahlungen? | Nicht in Version 1 des Features; zunächst Boolean pro Posting |
+| Neue Gegenstände ohne bekannten Finanzierer? | Keine automatisch generierten Geldforderungen |
+| Alte Anteilsereignisse nach Update? | Keine automatische rückwirkende Schuldenerzeugung |
+| Komplettauflösung ohne Rest-Eigentümer? | Übernehmer/Verwertung explizit erfassen |
+| Mehrere online bearbeitende Personen? | Ein Checkout-Inhaber pro Datei, keine Live-Merge-Funktion |
+| Lease-Zeit? | 2 h seit letzter **echter** Bearbeitungsaktivität, keine passive Dauerverlängerung |
+| Versionen? | Jede bestätigte neue Revision erhalten, Restore ist neuer Commit |
+| Dateinamen öffentlich? | Ja, Inhaltsverschlüsselung pro Datei; das ist bewusste Metadaten-Offenlegung |
+| Alle dürfen Dateien anlegen/löschen? | Nein, öffentlich erreichbare Instanz braucht zusätzliches Workspace-Verwaltungsrecht |
+| Passwort/Krypto? | Browserseitig, starkes KDF und AES-GCM; Details mit Security-Review finalisieren |
+
+## Pflege und Qualitätsregeln
+
+Die Detailentwürfe sind **keine Funktionszusagen**, sondern der aktuelle Entwicklungsplan. Änderungen am Quellcode jeweils mit Tests, Schema-/Migrationsdokumentation und Aktualisierung dieser Roadmap begleiten. Erst dann „umgesetzt“ markieren.
+
+Ausführliche Akzeptanzfälle: [Entwicklung](DEVELOPMENT.md). Vor neuen Aufgaben stets [AGENTS.md](../AGENTS.md) lesen.

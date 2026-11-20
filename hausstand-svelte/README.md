@@ -47,3 +47,8 @@ Ein gespeicherter Browser-Arbeitsstand ist **keine Datensicherung**. Projekt-JSO
 - [Entwicklung, Tests und Build](../docs/DEVELOPMENT.md)
 - [Roadmap und offene Fragen](../docs/ROADMAP.md)
 - [KI- und Entwicklerregeln](../AGENTS.md), [lokale technische Hinweise](GEMINI.md)
+
+
+## Nächste Entwicklungsetappe (geplant)
+
+Fachlich: [Forderungen je Anteilsbewegung, Ausgleichsstatus und Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md). Technisch: [optionale Online-Ablage per PHP](../docs/FEATURE-COLLABORATIVE-STORAGE.md) und [lokale wie serverseitige verschlüsselte Dateien](../docs/SECURITY-AND-ENCRYPTION.md). Die gleiche Svelte-App soll zwei Artefakte erzeugen, `hausstand-standalone.html` und `hausstand.php`; die PHP-Datei ist **ein generiertes Release-Artefakt, keine separate UI**. Server-API und Mailversand sind noch nicht implementiert.

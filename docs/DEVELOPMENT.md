@@ -53,3 +53,15 @@ Es existieren aktuell **keine automatisierten Tests**, keine eingecheckten GitHu
 - Vor destruktiven Eingriffen eine JSON-Sicherung exportieren. Browser-Storage ist kein belastbares Backup.
 - Keine personenbezogenen Echtdaten oder exportierten Projekt-JSONs zu diesem öffentlichen Repository hinzufügen.
 - Keine Seitenveröffentlichung oder automatische Synchronisation als vorhanden annehmen: erst explizit einrichten und prüfen.
+
+
+## Geplante ergänzende Abnahmetests (noch nicht implementiert)
+
+Bei den geplanten Funktionen die folgenden Schwerpunkte in automatisierte Tests aufnehmen:
+
+- **Forderungsjournal:** anteilige Übertragungen, anteilige Auflösung, neue Einbringung mit/ohne Finanzierer, saldierte Gegenschulden, Integer-Cent-Rundung, Ausgleichshaken und Sammelverrechnung, historische Korrektur, Schema-1-Migration.
+- **Verschlüsselung:** lokale Export-Import-Runde mit korrekter/falscher Passphrase, manipulierte Ciphertexte, KDF-Parameter, Nonce-Eindeutigkeit, altes Dateiformat, Passwortwechsel und Reverschlüsselung alter Versionen; `localStorage` enthält im verschlüsselten Modus keine Klartextdaten.
+- **PHP-API:** Lese-/Schreibberechtigung, Rate-Limits, zwei Browser, Checkout/Checkin, 2-h-Inaktivitätsablauf, Revision-409, Atomizität und Absturzsimulation, verschlüsselte Versionshistorie und Restore als neue Revision, Pfadüberquerung, Dateigrößen, E-Mail-Warteschlange und Wiederholung ohne doppelte Mails.
+- **Build:** neues `build:php`-Ziel prüfen, generierte `hausstand.php` neben `hausstand-standalone.html`; beide aus derselben Svelte-Quelle, Offline-HTML ohne Netzwerkanfragen und Remote-Betrieb nur unter HTTPS.
+
+Diese Tests/Befehle müssen vor einer künftigen Produktivfreigabe tatsächlich ausgeführt werden. Details siehe [Feature Forderungen](FEATURE-DEBT-LEDGER.md), [PHP-Modus](FEATURE-COLLABORATIVE-STORAGE.md), [Sicherheitsentwurf](SECURITY-AND-ENCRYPTION.md).

@@ -35,3 +35,12 @@ npm run build:single
 ```
 
 Danach die manuellen Akzeptanzfälle aus [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) im Browser ausführen, besonders JSON-Roundtrip, historische Stichtage, Umverteilungen, Export und `file://`-Start der Standalone-Datei. Automatisierte Tests existieren derzeit nicht. Nicht verifizierte Builds/Tests nicht als erfolgreich dokumentieren.
+
+
+## Geplante Architekturentwicklung (noch kein Code)
+
+- [Forderungsjournal/Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md): bevorzugt `finance.postings[]` und datierte `finance.settlementEvents[]`; angezeigter Status `settled:boolean`, centgenau. Keine Altereignisse stillschweigend in Forderungen umwandeln.
+- [PHP-Ablage](../docs/FEATURE-COLLABORATIVE-STORAGE.md): eine Svelte-App, zwei Build-Artefakte, getrennte Speicheradapter und ein eigenes `documentStore` für Revision, Dirty-Flag und Checkout.
+- [Browser-Verschlüsselung](../docs/SECURITY-AND-ENCRYPTION.md): dasselbe verschlüsselte Containerformat für lokalen Export und Remote-Speicherung; aktuell vorhandene Klartext-`localStorage`-Arbeitskopie darf niemals bei verschlüsselten Projekten unverschlüsselt fortgeführt werden.
+
+**Noch nicht implementieren oder als vorhanden behaupten**, bevor die betreffenden Architekturentscheidungen bestätigt, getestet und in Code umgesetzt sind.
