@@ -16,6 +16,7 @@ Weitere Befehle:
 | Befehl | Zweck |
 | --- | --- |
 | `npm run check:js` | Syntaxprüfung von `scripts/inline-build.mjs` |
+| `npm test` | Node-Bordmitteltests der Forderungslogik |
 | `npm run build` | Vite-Produktionsbuild in `dist/` |
 | `npm run build:single` | Vite-Build plus `dist/hausstand-standalone.html` |
 | `npm run dev` | Lokaler Entwicklungsserver |
@@ -70,3 +71,8 @@ Diese Tests/Befehle müssen vor einer künftigen Produktivfreigabe tatsächlich 
 ### Zusätzliche Regressionstests zur präzisierten Forderungsarchitektur
 
 Mit den drei Ereignissen Anna → Ben 200 €, Ben → Anna 75 € und Ben → Anna 45 € muss Anna netto 80 € schulden. Bei rückwirkender Änderung des ersten Ereignisses auf 150 € muss das automatisch **30 €** ergeben; beim Löschen des ersten Ereignisses muss Ben netto **120 €** schulden. Kein Ausgleichs-Boolean, kein verwaistes Posting und kein eigener Finanzstatus darf im exportierten JSON zurückbleiben. `deriveClaims()` muss zu jedem Eintrag ein gültiges Quellereignis referenzieren, auch nach Datumsänderungen und bei Child-Events in Sammelumverteilungen. Beide Nettoformen (bilateral und fakultativ multilateral) ausdrücklich unterscheiden. Bei Zahlungen als späteren Gegenbuchungsereignissen dürfen tatsächlich geflossene Beträge nicht automatisch mit einem rückwirkend geänderten Kaufbetrag überschrieben werden.
+
+
+## Testautomatisierung des Forderungsfeatures (20.11.2026)
+
+`hausstand-svelte/tests/ledger.test.js` enthält automatisierte Tests für Gegenforderungen, historische Änderungen/Löschungen, Stichtage, Anteilauflösung, Cent-Rundung, Legacy-Events und Sammelumverteilung. Mit `npm test` ausführen. `.github/workflows/ci.yml` startet bei Pull Requests nach `master` und führt `npm ci`, `npm run check:js`, `npm test` und `npm run build:single` aus. **Bis zur Bestätigung des ersten CI-Laufs nicht als grün bezeichnen.** Eine manuelle Browser- und JSON-Roundtrip-Prüfung ist zusätzlich erforderlich.

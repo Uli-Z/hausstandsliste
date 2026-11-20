@@ -1,6 +1,6 @@
 # Fachkonzept: automatisch abgeleitete Forderungen und Nettoschulden
 
-**Status: Planung, nicht implementiert. Fachliche Präzisierung: 20.11.2026.** Diese Fassung **ersetzt** den älteren Plan mit `finance.postings[]`, `settlementEvents[]` und einer Checkbox „bezahlt“. Es gibt **keinen** gespeicherten Boolean-Status und kein zweites, separat zu pflegendes Forderungsjournal.
+**Status: Kernfunktionen auf `feature/event-derived-debts` implementiert am 20.11.2026; CI- und Browsertests noch zu überprüfen.** Diese Fassung **ersetzt** den älteren Plan mit `finance.postings[]`, `settlementEvents[]` und einer Checkbox „bezahlt“. Es gibt **keinen** gespeicherten Boolean-Status und kein zweites, separat zu pflegendes Forderungsjournal.
 
 ## 1. Gewünschtes Verhalten
 
@@ -133,3 +133,15 @@ Anders als im bisherigen Planungsvorschlag darf der finanzielle Teil der Daten *
 3. Soll neben der bilateralen Saldierung eine **multilaterale Auszahlungsempfehlung** angezeigt werden? Ja als klar gekennzeichnete, unverbindliche Vorschau; keine Änderung der Forderungsgläubiger durch Anzeige allein.
 
 **Festlegung gegenüber Vorgängerversion:** Forderungen sind **ausschließlich Projektionen der Quellereignisse**; keine persistenten, abhakbaren Forderungen. Änderungen an Quellereignissen ändern automatisch die daraus abgeleiteten Forderungen.
+
+
+## Implementierungsstand (20.11.2026)
+
+- `src/lib/ledger.js`: reine, centgenaue Forderungsableitung, bilaterale und optionale multilaterale Saldierung.
+- `projector.js`: gemeinsamer deterministischer `walkEvents` mit Before-Apply-Hook für verschachtelte Umverteilungen.
+- `financialMode:'derived'` aktiviert die Ableitung bei neuen Anteilstransaktionen; `financialMode:'none'` und alte Events ohne Feld bleiben ohne Forderung.
+- `item-added` kann mit `financedByPersonId` eine Person als Finanzierer erfassen und bei mehreren Eigentümern daraus Ansprüche ableiten.
+- `LedgerPanel.svelte`: bilaterale Salden, unverbindliche Gesamtverrechnung, Herkunft der Einzelvorgänge und Editierlink.
+- `tests/ledger.test.js`, `.github/workflows/ci.yml`: automatische Test- und Buildprüfung ergänzt; Ergebnisse vor Merge überprüfen.
+
+**Noch nicht enthalten:** tatsächliche Geldzahlungen, Gegenbuchungsereignisse, PHP, Verschlüsselung oder E-Mail. Die Forderungsbeträge sind ausschließlich zur Laufzeit berechnet und werden nicht in der Projektdatei gespeichert.

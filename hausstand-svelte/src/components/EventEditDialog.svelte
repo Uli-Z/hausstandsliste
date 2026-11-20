@@ -13,6 +13,7 @@
 
   $: if (event && !edited) {
     edited = clone(event);
+    if (edited.type === 'shares-set' && !edited.financialMode) edited.financialMode = 'none';
   }
 
   function save() {
@@ -74,6 +75,17 @@
             <section class="mini-card stack">
               <strong>Initiale Anteile</strong>
               <ShareEditor {people} bind:shares={edited.shares} />
+              <label>Von wem finanziert?
+                <select value={edited.financedByPersonId || ''} on:change={e => {
+                  edited.financedByPersonId = e.currentTarget.value;
+                  edited.financialMode = edited.financedByPersonId ? 'derived' : 'none';
+                }}>
+                  <option value="">Nicht dokumentiert / keine Forderung</option>
+                  {#each project.people || [] as person}
+                    <option value={person.id}>{person.name}</option>
+                  {/each}
+                </select>
+              </label>
             </section>
           {:else if edited.type === 'item-ended'}
             <label>Status danach <select bind:value={edited.statusAfter}>
@@ -88,6 +100,12 @@
             <section class="mini-card stack">
               <strong>Anteile</strong>
               <ShareEditor {people} bind:shares={edited.shares} />
+              <label>Finanzielle Wirkung
+                <select bind:value={edited.financialMode}>
+                  <option value="derived">Entgeltliche Übertragung – Forderung berechnen</option>
+                  <option value="none">Unentgeltlich / Korrektur – keine Forderung</option>
+                </select>
+              </label>
             </section>
           {/if}
         </div>

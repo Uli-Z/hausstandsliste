@@ -20,6 +20,8 @@
 
   // Lokale Arbeitskopie
   let redistribution = clone(dialog.redistribution || (project.drafts || []).find(d => d.id === dialog.id));
+  // Old saved drafts remain financially neutral until explicitly enabled.
+  if (redistribution && !redistribution.financialMode) redistribution.financialMode = 'none';
   
   $: preview = redistribution ? redistributionPreview(project, redistribution) : { base: null, rows: [], payments: [] };
   
@@ -75,7 +77,7 @@
     if (!confirm('Umverteilung jetzt ausführen?')) return;
     appState.mutateProject(p => {
       p.events.push({ 
-        id: uid('event'), type: 'redistribution-executed', date: redistribution.effectiveDate, order: Date.now(), title: redistribution.title,
+        id: uid('event'), type: 'redistribution-executed', date: redistribution.effectiveDate, order: Date.now(), title: redistribution.title, financialMode: redistribution.financialMode,
         events: redistribution.changes.map(c => ({ id: uid('event_child'), type: 'shares-set', itemId: c.itemId, shares: normShares(c.shares), note: redistribution.title })) 
       });
       p.drafts = (p.drafts || []).filter(d => d.id !== redistribution.id);
@@ -99,6 +101,12 @@
       <div class="stack content-left">
         <section class="mini-card stack">
           <label>Titel <input bind:value={redistribution.title} placeholder="z. B. Auszug Anna"></label>
+          <label>Finanzielle Wirkung
+            <select bind:value={redistribution.financialMode}>
+              <option value="derived">Entgeltlich – Forderungen automatisch verrechnen</option>
+              <option value="none">Ohne Forderung – Korrektur / Schenkung</option>
+            </select>
+          </label>
           <strong>🛠️ Spezialaktionen</strong>
           <div class="row">
             <button class="small" on:click={() => { activeSubModal = 'special-transfer'; subModalData = { sourceId: dialog.sourcePersonId || '', targetId: '' }; }}>Alle Anteile übertragen</button>
@@ -140,7 +148,7 @@
               </table>
             {:else}<div class="empty-small">Keine Verschiebung.</div>{/if}
             
-            <div class="muted" style="margin-top:8px">Empfohlener Ausgleich</div>
+            <div class="muted" style="margin-top:8px">{redistribution.financialMode === 'derived' ? 'Neue Forderungen aus dieser Umverteilung' : 'Unverbindliche Wertverschiebung (keine Forderung)'}</div>
             {#if preview.payments.length}
               <table class="tight">
                 <tbody>

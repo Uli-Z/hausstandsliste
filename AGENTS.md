@@ -42,3 +42,8 @@ Dieses Dokument ist der kurze Einstieg für neue Entwicklungs-Sitzungen. **Zuers
 Die Dokumentation wurde anhand der Dateien im Branch `master` aktualisiert. In dieser Sitzung wurde kein Build ausgeführt und kein Anwendungscode geändert. Das Projekt besitzt bislang keine automatisierte Testsuite und keine eingerichtete GitHub-Pages-Veröffentlichung.
 
 **Geplante nächste Produktpunkte (20.11.2026):** (1) dynamisch aus Events abgeleitete Forderungen/Nettoschulden (ohne gespeicherten Ausgleichsstatus); (2) optionale verschlüsselte PHP-Online-Ablage mit Checkout, Revisionen und Versionshistorie; (3) verschlüsselte E-Mail-Kopie je Revision und lokal nutzbares Verschlüsselungsformat. Alle drei Spezifikationen sind geschrieben, keine der Funktionen ist bislang implementiert. [Roadmap](docs/ROADMAP.md).
+
+
+## Implementierung der Forderungsableitung (Branch `feature/event-derived-debts`, 20.11.2026)
+
+Neue Module: `src/lib/ledger.js`, `src/components/LedgerPanel.svelte`, `tests/ledger.test.js`, `.github/workflows/ci.yml`. Eigentums- und Finanzprojektion verwenden denselben `walkEvents`-Ablauf. Keine Postings/Checkboxen persistieren; die einzigen zusätzlichen Fachdaten sind optionale Felder `financialMode` und `financedByPersonId` an bestehenden Events. Neue Änderungen sind standardmäßig entgeltlich, Alt-Events ohne Marker finanziell neutral. CI- und Browserverifikation vor Produktivverwendung beachten. PHP/Krypto/E-Mail bleiben Planung.

@@ -52,3 +52,8 @@ Ein gespeicherter Browser-Arbeitsstand ist **keine Datensicherung**. Projekt-JSO
 ## Nächste Entwicklungsetappe (geplant)
 
 Fachlich: [Forderungen je Anteilsbewegung, Ausgleichsstatus und Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md). Technisch: [optionale Online-Ablage per PHP](../docs/FEATURE-COLLABORATIVE-STORAGE.md) und [lokale wie serverseitige verschlüsselte Dateien](../docs/SECURITY-AND-ENCRYPTION.md). Die gleiche Svelte-App soll zwei Artefakte erzeugen, `hausstand-standalone.html` und `hausstand.php`; die PHP-Datei ist **ein generiertes Release-Artefakt, keine separate UI**. Server-API und Mailversand sind noch nicht implementiert.
+
+
+## Forderungsprojektion (Feature-Branch)
+
+`src/lib/ledger.js` berechnet bei explizit entgeltlichen Anteilsänderungen die Forderungen automatisch aus der Ereignishistorie; Gegenforderungen werden in `LedgerPanel.svelte` saldiert. Alte Ereignisse ohne `financialMode` bleiben finanziell neutral. Die Fachlogik speichert keine Forderungsbeträge und keine Abhak-Statuswerte. `npm test` prüft die wichtigsten historischen Fälle. Echte Geldzahlungen bleiben bewusst außerhalb dieses Ausbauschritts.
