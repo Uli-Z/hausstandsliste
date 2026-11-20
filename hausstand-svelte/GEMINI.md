@@ -1,55 +1,37 @@
-# Hausstand (Svelte Version) - Context & Instructions
+# Svelte-Projekt: technische Hinweise
 
-Hausstand ist ein Werkzeug zur Verwaltung von Haushaltsinventaren und Personenanteilen basierend auf einem **Event-Sourcing-Modell**.
+Zuerst [`../AGENTS.md`](../AGENTS.md), [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md), [`../docs/ROADMAP.md`](../docs/ROADMAP.md) lesen. Diese Datei ergänzt die allgemeinen Regeln um Svelte-spezifische Konventionen.
 
-## 1. Kernprinzipien (Core Mandates)
+## Architekturentscheidungen
 
--   **Historische Rekonstruktion:** Der Zustand (Personenstatus, Gegenstandswerte, Anteile) wird deterministisch aus einer Timeline von Ereignissen bis zu einem **Stichtag** (`asOfDate`) berechnet.
--   **Single-File Architecture:** Das Ziel ist eine eigenständige HTML-Datei. Vermeide externe Abhängigkeiten oder komplexe Build-Strukturen, die dieses Ziel gefährden.
--   **JSON is Truth:** Das Projekt-JSON enthält alle relevanten Daten. Der Snapshot im JSON ist nur informativ.
--   **Keine Zahlungsverwaltung:** Die App berechnet **Ausgleichsempfehlungen** (Deltas), speichert aber keine Zahlungsflüsse oder Schuldenstände.
+- **Svelte/Vite, modularer Quellcode, eine fertige HTML-Datei.** Kein Pflicht-Backend; keine zweite parallele Umsetzung in `../vorlage.html`.
+- **Event-Sourcing:** `src/lib/projector.js` verarbeitet `project.events` anhand des Stichtags; nicht den projizierten Zustand als alleinige Wahrheit speichern.
+- **Datei ist Wahrheit:** `src/lib/persistence.js` exportiert JSON inkl. `humanReadableSnapshot`; dieser Snapshot ist nur abgeleitete Lesehilfe. `localStorage` ist temporäre Arbeitskopie.
+- **Store:** `src/stores/projectStore.js` mit `appState.mutateProject` für Datenänderungen und dem abgeleiteten Store `projection`. Keine direkte Mutation des Projektobjekts außerhalb der Store-Aktionen.
+- **Stammdaten vs. Ereignisse:** Namen, Tags und Notizen stehen in `people[]`/`items[]`; zeitabhängige Aktivität, Wert und Eigentumsanteile in `events[]`.
 
-## 2. Ubiquitous Language
+## Aktuelles Projekt-JSON (Schema-Version 1)
 
--   **Projekt:** Die gesamte Datenbasis.
--   **Person:** Stammdaten (ID, Name). Status (aktiv/inaktiv) ist zeitabhängig und wird aus Events berechnet.
--   **Gegenstand (Item):** Stammdaten (ID, Name, Tags, Notiz). Wert und Anteile sind zeitabhängig.
--   **Gegenstandsversion:** Bei massiven Änderungen wird ein Gegenstand beendet (`item-ended`) und ein neuer angelegt (`item-added`), ggf. mit `predecessorItemId`.
--   **Anteil (Share):** Relative Einheiten. Die Summe der Einheiten bildet die Basis für die prozentuale Aufteilung.
--   **Umverteilung (Redistribution):** Ein Container für mehrere Anteilsänderungen. Vor der Ausführung ein Arbeitsstand (`redistributions[]`), nach der Ausführung ein Event (`redistribution-executed`).
+`community`, `people[]`, `items[]`, `events[]`, `drafts[]`, `currency`, `humanReadableSnapshot`, `schemaVersion`, `appVersion`.
 
-## 3. Datenmodell & Ereignisse
+**Wichtige Korrektur zu älteren Dokumenten:** Entwürfe liegen aktuell in `drafts[]` (Item- und Umverteilungsentwürfe). Beim Import liest `normalize()` ersatzweise das historische Feld `redistributions[]` und entfernt es anschließend. Ein ausgeführter Umverteilungsentwurf wird als Event `redistribution-executed` mit `shares-set`-Kinderevents gespeichert.
 
-### Wichtige Ereignistypen
--   `person-added` / `person-deactivated` / `person-reactivated`: Steuern den Aktivitätsstatus.
--   `item-added`: Initialisiert Wert, Bewertungsmodell und Anteile.
--   `item-ended`: Entfernt Gegenstand aus dem aktiven Hausstand (Status: `ended`, `taken-private`, `disposed`, `succeeded`).
--   `shares-set`: Setzt den vollständigen Anteilssatz neu.
--   `redistribution-executed`: Container-Event, das Child-Events (meist `shares-set`) enthält.
+Ereignistypen: `person-added`, `person-deactivated`, `person-reactivated`, `item-added`, `item-ended`, `shares-set`, `redistribution-executed`.
 
-### Bewertungsmodelle (`valuation`)
--   `linear`: Abschreibung über `durationYears`.
--   `degressive`: Jährliche Rate `annualRate`.
--   `fixed`: Konstanter Wert.
--   Alle Modelle unterstützen einen `minimumValue`.
+Bewertungsmodelle: `linear` (`durationYears`), `degressive` (`annualRate`), `fixed`; alle optional mit `minimumValue`.
 
-## 4. Architektur (Module)
+Relative Anteilseinheiten verwenden, IDs statt Namen referenzieren, neue IDs mit `uid(prefix)` erzeugen. Ereignisse am selben Datum werden zusätzlich über `order` sortiert. Gleiche Eingaben und gleicher Stichtag müssen gleiche Projektionen erzeugen.
 
--   **`Projector` (`src/lib/projector.js`):** Die wichtigste Komponente. Sie iteriert über sortierte Events und baut den Zustand auf.
--   **`Store` (`src/stores/projectStore.js`):** Verwaltet das reaktive Projekt-Objekt und die aktuelle `projection`.
--   **`Valuation` (`src/lib/valuation.js`):** Berechnet den mathematischen Wert eines Gegenstands zu einem Datum.
--   **`Domain` (`src/lib/domain.js`):** Enthält Normalisierungslogik und fachliche Grundoperationen.
+## Umverteilung und Zahlung
 
-## 5. Entwicklungskonventionen
+`src/lib/redistribution.js` berechnet mit `redistributionPreview()` Wertdifferenzen und mit `settlementRecommendations()` **nicht persistierte** Zahlungsvorschläge. Die UI zeigt diese in `RedistributionDialog.svelte` und `ExecutedRedistributionEditDialog.svelte`. Es gibt bislang **keine** Datenstruktur für „offen“, „bezahlt“ oder Teilzahlungen und keinen tatsächlichen Geldfluss. Umsetzung erst nach Klärung stabiler Forderungs-IDs und des historischen Verhaltens (siehe Roadmap).
 
--   **State Mutation:** Niemals das Projekt direkt mutieren. Nutze `appState.mutateProject(mutator)`.
--   **Determinisimus:** Die Projektion muss bei gleichem Input (JSON + Datum) immer das gleiche Ergebnis liefern. Achte auf die `order` bei Ereignissen am selben Tag.
--   **Stammdaten vs. Events:** Redaktionelle Korrekturen (Namen, Tags, Notizen) sind Stammdatenänderungen. Fachliche Statusänderungen sind Events.
--   **Relative Anteile:** Speichere niemals Prozentwerte, nur relative Einheiten (Integer bevorzugt).
--   **IDs:** Nutze `uid(prefix)` für neue Entitäten. Referenziere immer über IDs, niemals über Namen.
+## Prüfregeln vor Änderungen
 
-## 6. UI-Struktur
+```bash
+npm ci
+npm run check:js
+npm run build:single
+```
 
--   **Timeline:** Chronologische Liste, markiert durch den Stichtag.
--   **Dashboard:** 3-Spalten-Layout (Timeline, Personen, Gegenstände).
--   **Umverteilungsworkflow:** Ein geführter Prozess, der erst beim "Ausführen" persistente Events erzeugt.
+Danach die manuellen Akzeptanzfälle aus [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) im Browser ausführen, besonders JSON-Roundtrip, historische Stichtage, Umverteilungen, Export und `file://`-Start der Standalone-Datei. Automatisierte Tests existieren derzeit nicht. Nicht verifizierte Builds/Tests nicht als erfolgreich dokumentieren.

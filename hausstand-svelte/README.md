@@ -1,55 +1,49 @@
 # Hausstand – Svelte-Quellprojekt
 
-Diese Version zerlegt die bisherige Single-HTML-App in viele kleinere Quelldateien und baut sie mit Svelte/Vite wieder zu einer einzelnen HTML-Datei zusammen.
+Dies ist die **maßgebliche** Anwendung im Repository [`hausstandsliste`](../README.md). Die frühere Ein-Datei-App `../vorlage.html` ist eine Referenz; die laufende Entwicklung findet hier statt.
 
-## Architektur- und Domänenübersicht
+Die Quelldateien werden mit Svelte/Vite modular gepflegt und bei Bedarf als **eigenständige Offline-HTML-Datei** gebündelt. Der verwendete Projektzustand lässt sich als JSON-Datei exportieren und wieder importieren.
 
-### Hausstand – historische Anteilsverwaltung für Gemeinschaften
+## Lokal starten
 
-**Ziel:** Verwaltung gemeinschaftlich finanzierter Gegenstände einer Wohngemeinschaft oder ähnlichen Gemeinschaft.
-
-### 1. Grundprinzipien
-
--   **Lokale Single-File-App:** Die App funktioniert dauerhaft als eine einzelne HTML-Datei (kein Server, keine Datenbank, keine API).
--   **JSON-Datei ist permanente Wahrheit:** Der maßgebliche Zustand liegt in der JSON-Projektdatei. Browser-Storage dient nur als Arbeitskopie.
--   **Historische Rekonstruktion:** Der Zustand wird aus Ereignissen bis zu einem wählbaren **Stichtag** rekonstruiert.
--   **Arbeitsdokument, keine Buchhaltung:** Ereignisse sind korrigierbar. Die App dokumentiert Wertanteile, aber **keine tatsächlichen Zahlungen**.
-
-### 2. Ubiquitous Language (Kernbegriffe)
-
--   **Projekt:** Gesamte Datenbasis (Metadaten, Personen, Gegenstände, Events).
--   **Person:** Kann aktiv oder inaktiv sein (rekonstruiert aus Events).
--   **Gegenstand:** Ein Objekt des Hausstands mit ID, Name und Tags.
--   **Anteil (Share):** Relative Einheit (z.B. 2:1:1 entspricht 50%:25%:25%).
--   **Stichtag:** Das Datum, zu dem der Zustand berechnet wird.
--   **Umverteilung:** Gebündelter Arbeitsmodus für Anteilsänderungen mit Ausgleichsempfehlung.
-
-### 3. Technischer Aufbau
-
-#### Verzeichnisse & Module
--   `src/lib/` – Fachlogik:
-    -   `domain.js`: Basisstrukturen & Normalisierung.
-    -   `projector.js`: Event-Sourcing-Logik (Zustandsrekonstruktion).
-    -   `valuation.js`: Bewertungsmodelle (Linear, Degressiv, Fixwert).
-    -   `persistence.js`: Import/Export & LocalStorage.
--   `src/stores/` – `projectStore.js`: Zentraler App-State (Svelte-Store).
--   `src/components/` – UI-Komponenten.
--   `scripts/inline-build.mjs` – Bündelt den Vite-Build zu `dist/hausstand-standalone.html`.
-
-### 4. Lokal starten & Bauen
+Node.js und npm vorausgesetzt:
 
 ```bash
-# Abhängigkeiten installieren
-npm install
-
-# Entwicklungsserver starten
+cd hausstand-svelte
+npm ci
 npm run dev
-
-# Einzelne HTML-Datei bauen
-npm run build:single
 ```
-Die fertige Datei liegt danach unter `dist/hausstand-standalone.html`.
 
----
+`npm run dev` startet den lokalen Vite-Server (konfiguriert mit `127.0.0.1`). Weitere Befehle:
 
-*Hinweis: Eine detaillierte fachliche Dokumentation der Ereignistypen und Bewertungsmodelle findet sich in der `GEMINI.md` für die AI-Unterstützung sowie in der internen Projektdokumentation.*
+```bash
+npm run check:js      # prüft Syntax des Inline-Build-Skripts
+npm run build         # Vite-Produktionsbuild nach dist/
+npm run build:single  # Build plus dist/hausstand-standalone.html
+```
+
+Die Datei `dist/hausstand-standalone.html` soll direkt im Browser und ohne Server funktionieren. Der Build ist dokumentiert, aber bei der Dokumentationsüberarbeitung vom 20.11.2026 **nicht erneut ausgeführt** worden. Für eine Veröffentlichung auf GitHub Pages ist aktuell noch kein Workflow eingerichtet.
+
+## Projektübersicht
+
+- `src/App.svelte`: Hauptoberfläche und Navigation
+- `src/components/`: Dashboard-Bausteine, Detailseiten, Timeline, Dialoge
+- `src/stores/projectStore.js`: zentrale reaktive Zustandsverwaltung
+- `src/lib/projector.js`: Rekonstruktion des Zustands aus Ereignissen
+- `src/lib/redistribution.js`: Anteilsänderungen und **empfohlene** Ausgleichszahlungen
+- `src/lib/valuation.js`: Bewertungsmodelle
+- `src/lib/persistence.js`: `localStorage`, Import-/Exportunterstützung und JSON-Ausgabe
+- `scripts/inline-build.mjs`: fügt Build-Assets in eine HTML-Datei ein
+
+## Fachliche Grenzen
+
+Die App verwaltet **Eigentums- und Wertanteile**, nicht die tatsächliche Bezahlung von Ausgleichsforderungen. Der Button „Umverteilung ausführen“ speichert Anteilsänderungen in der Ereignis-Timeline; er markiert keine Zahlung als beglichen. Ein eigener Zahlungsstatus ist als nächster Ausbauschritt geplant.
+
+Ein gespeicherter Browser-Arbeitsstand ist **keine Datensicherung**. Projekt-JSON regelmäßig exportieren und extern sichern. Keine echten persönlichen Hausgemeinschaftsdaten in Git committen.
+
+## Weitere Dokumentation
+
+- [Architektur und Datenmodell](../docs/ARCHITECTURE.md)
+- [Entwicklung, Tests und Build](../docs/DEVELOPMENT.md)
+- [Roadmap und offene Fragen](../docs/ROADMAP.md)
+- [KI- und Entwicklerregeln](../AGENTS.md), [lokale technische Hinweise](GEMINI.md)

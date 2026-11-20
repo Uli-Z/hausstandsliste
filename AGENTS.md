@@ -1,43 +1,42 @@
-# Repository Guidelines
+# Projektleitfaden für Entwicklungsagenten – Hausstandsliste
 
-## Project Structure & Module Organization
+Dieses Dokument ist der kurze Einstieg für neue Entwicklungs-Sitzungen. **Zuerst diese Dateien lesen**:
 
-The working app lives in `hausstand-svelte/`. Source code is under `hausstand-svelte/src/`, with the entry point in `src/main.js` and the main UI in `src/App.svelte`. Shared styling is in `src/styles.css`. Build helpers live in `hausstand-svelte/scripts/`, and generated output is written to `hausstand-svelte/dist/`.
+1. [README.md](README.md) – Ziel, Schnellstart, Funktionsumfang
+2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – Datenmodell und Ereignisprojektion
+3. [docs/ROADMAP.md](docs/ROADMAP.md) – tatsächlicher Stand, offene Produktentscheidungen
+4. [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) – Build und manuelle Prüfungen
+5. [hausstand-svelte/GEMINI.md](hausstand-svelte/GEMINI.md) – technische Regeln nahe am Code
 
-The project is intentionally a single-file Svelte/Vite app: the build produces `dist/hausstand-standalone.html` for offline use.
+## Wo wird entwickelt?
 
-Core domain logic is split across `src/lib/` for normalization, projection, valuation, and persistence, with app state managed in `src/stores/projectStore.js`. Keep event reconstruction logic deterministic and centralized.
+- Produktiver Quellcode: `hausstand-svelte/` (Svelte/Vite), Einstieg `src/App.svelte`
+- Zustand und Mutationen: `src/stores/projectStore.js`
+- Fachlogik: `src/lib/` (insbesondere `projector.js`, `redistribution.js`, `persistence.js`)
+- UI: `src/components/`; globale Styles: `src/styles.css`
+- `vorlage.html` ist eine **historische Referenz**, keine parallel zu pflegende App.
+- Build-Ergebnis `dist/hausstand-standalone.html` wird erzeugt, nicht versioniert.
 
-## Build, Test, and Development Commands
+## Unverrückbare Produktprinzipien
 
-Run commands from `hausstand-svelte/`:
+1. **Offline-first:** kein erforderlicher Server, keine API, keine serverseitige Datenbank; das Ziel ist eine einzige eigenständige HTML-Datei.
+2. **Projekt-JSON ist die dauerhafte Datenquelle**; `localStorage` ist nur eine Arbeitskopie. Import-/Exportfähigkeit und Rückwärtskompatibilität beachten.
+3. **Historische Ereignisse:** `projectAt(project, asOfDate)` muss bei gleicher Eingabe dasselbe Ergebnis liefern; Ereignisse nach `date` und `order` sortieren.
+4. **Entitäten per stabiler ID referenzieren**, Anteile als relative Einheiten speichern (nicht als gerundete Prozentangaben).
+5. **Datenänderungen nur über `appState.mutateProject(...)`** bzw. die Store-Aktionen; keine direkte Mutation von `$appState.project`.
+6. Die vorhandene Funktionsparität zur alten HTML-Version schützen. Bestehende Imports und historische Projektdateien nicht stillschweigend verändern.
+7. **Umverteilung ≠ Zahlung.** Die App errechnet derzeit nur Ausgleichsempfehlungen. Keine erfundene Funktion zur Schuldenbegleichung dokumentieren.
 
-- `npm install` installs dependencies from `package-lock.json`.
-- `npm run dev` starts the Vite dev server on `127.0.0.1`.
-- `npm run build` creates the production bundle in `dist/`.
-- `npm run build:single` builds and then inlines assets into `dist/hausstand-standalone.html`.
-- `npm run check:js` runs Node syntax checking on `scripts/inline-build.mjs`.
+## Bei jeder neuen Sitzung
 
-## Coding Style & Naming Conventions
+- Aktuelle Dateien und Branches abrufen; nie allein aus früheren Antworten auf den Arbeitsstand schließen.
+- `README.md`, `docs/ROADMAP.md` und betroffene Quelldateien lesen.
+- Änderungen gezielt und klein halten; Datenmodell-Änderungen auf Migration, Stichtage, JSON-Export und alte Ereignisse prüfen.
+- Nach Codeänderungen `npm ci`, `npm run check:js`, `npm run build:single` und die manuellen Tests aus [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) durchführen. Nicht ausgeführte Tests ausdrücklich nennen.
+- Dokumentation und Roadmap im selben Arbeitsschritt aktualisieren; **„umgesetzt“ nur nach Sichtung des Codes**, „getestet“ nur nach tatsächlichem Test.
 
-Use modern ES modules and Svelte components. Existing code uses 2-space indentation, single-quoted strings, and semicolon-terminated JavaScript. Keep component names in `PascalCase` (`Header.svelte`), utility modules in `camelCase` (`projectStore.js`), and prefer descriptive file names that match their purpose.
+## Status der Dokumentationsüberarbeitung (20.11.2026)
 
-CSS is centralized in `src/styles.css`; reuse existing utility classes and variables before adding new patterns.
+Die Dokumentation wurde anhand der Dateien im Branch `master` aktualisiert. In dieser Sitzung wurde kein Build ausgeführt und kein Anwendungscode geändert. Das Projekt besitzt bislang keine automatisierte Testsuite und keine eingerichtete GitHub-Pages-Veröffentlichung.
 
-Follow the domain conventions from `GEMINI.md`: do not mutate the project object directly, use `appState.mutateProject(...)`; keep IDs stable and reference entities by ID rather than name; store relative shares as integers, not percentages; and preserve event ordering for deterministic projections.
-
-## Testing Guidelines
-
-There is no automated test suite yet. Before opening a change, validate the app with `npm run build` and, for standalone packaging changes, `npm run build:single`. If you add tests, place them alongside the app’s source or in a dedicated `tests/` directory and use clear, feature-based names.
-
-When changing projection or valuation logic, verify the same JSON input and `asOfDate` still produce the same snapshot.
-
-## Commit & Pull Request Guidelines
-
-The Git history is compact and uses imperative commit subjects, often prefixed with `Fix:` or `Initial commit:`. Follow that style for consistency, keep commits focused, and mention the affected area in the subject.
-
-Pull requests should include a short summary, the user-facing impact, and verification steps. Add screenshots or exported HTML when UI or packaging output changes.
-
-## Configuration Notes
-
-This app is designed to run locally without a backend. Treat the JSON project file as the source of truth and avoid introducing server dependencies unless the architecture changes deliberately.
+**Nächster Produktpunkt:** persistente Begleichung einzelner Ausgleichszahlungen (offen/bezahlt) – erst Datenmodell und UI-Verhalten festlegen, dann umsetzen. Details in [docs/ROADMAP.md](docs/ROADMAP.md).
