@@ -25,7 +25,7 @@ Dieses Dokument ist der kurze Einstieg für neue Entwicklungs-Sitzungen. **Zuers
 4. **Entitäten per stabiler ID referenzieren**, Anteile als relative Einheiten speichern (nicht als gerundete Prozentangaben).
 5. **Datenänderungen nur über `appState.mutateProject(...)`** bzw. die Store-Aktionen; keine direkte Mutation von `$appState.project`.
 6. Die vorhandene Funktionsparität zur alten HTML-Version schützen. Bestehende Imports und historische Projektdateien nicht stillschweigend verändern.
-7. **Umverteilung ≠ Ausgleich.** Aktuell gibt es nur Ausgleichsempfehlungen. Für die geplante Forderungsverwaltung siehe `docs/FEATURE-DEBT-LEDGER.md`: Quellereignisse, fixierte Buchungen, eindeutige IDs, centgenaue Nettosalden und expliziter Boolean-Ausgleichsstatus.
+7. **Umverteilung ≠ Ausgleich.** Aktuell gibt es nur Ausgleichsempfehlungen. Für die geplante Forderungsverwaltung siehe `docs/FEATURE-DEBT-LEDGER.md`: Forderungen **ausschließlich aus Quellereignissen ableiten** (keine gespeicherten Postings/Checkboxen), Ereignis-ID als Herkunft, centgenaue Nettosalden und automatische Neuberechnung bei Datum-/Wertänderung oder Löschung.
 8. **Verschlüsselung/Backend nicht mit Fachlogik vermengen.** Projekt-JSON, Crypto-Container und lokaler/remote Speicheradapter sind getrennte Schichten. Die geplante Browser-Verschlüsselung darf niemals durch unverschlüsseltes lokales Caching unterlaufen werden; kein Passwort an PHP senden. Vor Umsetzung `docs/SECURITY-AND-ENCRYPTION.md` lesen.
 9. **Keine funktionslosen Versprechen:** PHP-Ablage, Checkout, Versionen, E-Mail und Verschlüsselung sind **geplant, nicht implementiert**.
 
@@ -41,4 +41,4 @@ Dieses Dokument ist der kurze Einstieg für neue Entwicklungs-Sitzungen. **Zuers
 
 Die Dokumentation wurde anhand der Dateien im Branch `master` aktualisiert. In dieser Sitzung wurde kein Build ausgeführt und kein Anwendungscode geändert. Das Projekt besitzt bislang keine automatisierte Testsuite und keine eingerichtete GitHub-Pages-Veröffentlichung.
 
-**Geplante nächste Produktpunkte (20.11.2026):** (1) persistente offene Forderungen/Nettoschulden; (2) optionale verschlüsselte PHP-Online-Ablage mit Checkout, Revisionen und Versionshistorie; (3) verschlüsselte E-Mail-Kopie je Revision und lokal nutzbares Verschlüsselungsformat. Alle drei Spezifikationen sind geschrieben, keine der Funktionen ist bislang implementiert. [Roadmap](docs/ROADMAP.md).
+**Geplante nächste Produktpunkte (20.11.2026):** (1) dynamisch aus Events abgeleitete Forderungen/Nettoschulden (ohne gespeicherten Ausgleichsstatus); (2) optionale verschlüsselte PHP-Online-Ablage mit Checkout, Revisionen und Versionshistorie; (3) verschlüsselte E-Mail-Kopie je Revision und lokal nutzbares Verschlüsselungsformat. Alle drei Spezifikationen sind geschrieben, keine der Funktionen ist bislang implementiert. [Roadmap](docs/ROADMAP.md).

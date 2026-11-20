@@ -39,7 +39,7 @@ Danach die manuellen Akzeptanzfälle aus [`../docs/DEVELOPMENT.md`](../docs/DEVE
 
 ## Geplante Architekturentwicklung (noch kein Code)
 
-- [Forderungsjournal/Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md): bevorzugt `finance.postings[]` und datierte `finance.settlementEvents[]`; angezeigter Status `settled:boolean`, centgenau. Keine Altereignisse stillschweigend in Forderungen umwandeln.
+- [Forderungsjournal/Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md): **neue Festlegung 20.11.2026:** keine gespeicherten Forderungslisten und kein `settled:boolean`; ausschließlich dynamisch aus `events[]` hergeleitete, über Quellereignis-IDs nachvollziehbare Cent-Forderungen und Netto-Salden. Jede historische Korrektur ändert die Projektion automatisch. Alte Events nicht stillschweigend zu Schulden machen.
 - [PHP-Ablage](../docs/FEATURE-COLLABORATIVE-STORAGE.md): eine Svelte-App, zwei Build-Artefakte, getrennte Speicheradapter und ein eigenes `documentStore` für Revision, Dirty-Flag und Checkout.
 - [Browser-Verschlüsselung](../docs/SECURITY-AND-ENCRYPTION.md): dasselbe verschlüsselte Containerformat für lokalen Export und Remote-Speicherung; aktuell vorhandene Klartext-`localStorage`-Arbeitskopie darf niemals bei verschlüsselten Projekten unverschlüsselt fortgeführt werden.
 

@@ -1,118 +1,135 @@
-# Fachkonzept: offene Forderungen und Nettoschulden
+# Fachkonzept: automatisch abgeleitete Forderungen und Nettoschulden
 
-**Status:** Geplant, noch nicht implementiert. **Stand:** 20.11.2026. Grundlage: Svelte-Version 0.7.0, `src/lib/projector.js`, `src/lib/redistribution.js` und die vorhandenen Anteilsevents.
+**Status: Planung, nicht implementiert. Fachliche Präzisierung: 20.11.2026.** Diese Fassung **ersetzt** den älteren Plan mit `finance.postings[]`, `settlementEvents[]` und einer Checkbox „bezahlt“. Es gibt **keinen** gespeicherten Boolean-Status und kein zweites, separat zu pflegendes Forderungsjournal.
 
-## Nutzerziel
+## 1. Gewünschtes Verhalten
 
-Eine Eigentumsänderung wirkt sofort, unabhängig davon, ob ein Geldbetrag schon bezahlt oder anderweitig ausgeglichen wurde. Alle noch offenen Vorgänge werden gesammelt und zu einer **vereinfachten Nettoausgleichsempfehlung** verdichtet. Eine Person kann Gegenstände einbringen, Anteile erwerben, übertragen oder beim Auszug abgeben, ohne bei jedem Schritt Geld überweisen zu müssen.
+Jede finanziell relevante Anteilsbewegung erzeugt aus den Eigentumsänderungen automatisch eine Forderung. Das Eigentum ändert sich sofort und unabhängig davon, ob Geld fließt.
 
-Der Nutzer will für **jede finanzielle Anteilsbewegung** ein einzeln umschaltbares **Ausgeglichen? Ja/Nein**. Ein Ausgleich kann durch direkte Zahlung, gemeinsames Verrechnen oder eine manuelle Abrechnung erfolgen; das Eigentum selbst darf davon nicht abhängen.
+Entgegengesetzte Forderungen werden in der Anzeige automatisch miteinander **saldiert**; sie brauchen **kein Abhaken**. Neue Anteilsänderungen können bestehende Verpflichtungen ganz oder teilweise ausgleichen. Beispiel:
 
-## Begriffe und fachliche Regeln
+| Ereignis | Bruttovorgang |
+| --- | --- |
+| Anna erwirbt Anteile von Ben | Anna → Ben: 200 € |
+| Ben erwirbt später Anteile von Anna | Ben → Anna: 75 € |
+| Ben erwirbt weitere Anteile | Ben → Anna: 45 € |
 
-- **Anteilsbewegung**: historisches `shares-set` (direkt oder im `redistribution-executed`-Event), ggf. eine aus `item-added` ausdrücklich finanzierte Einbringung. Jede fachliche Änderung hat eine stabile Ereignis-ID.
-- **Finanzielle Buchung / Forderung (Posting):** fester Betrag zwischen einem Schuldner und einem Gläubiger, eindeutig mit dem Ereignis und Gegenstand verknüpft; mehrere Buchungen können aus einer Anteilsbewegung entstehen.
-- **Ausgeglichen:** Status einer Buchung, **keine** Änderung des Anteils. In der UI eine Checkbox/Boolean; im JSON durch datierte Statusereignisse gespeichert und als `settled: boolean` für die Anzeige abgeleitet. Ein Rückgängigmachen erzeugt ein neues Statusereignis.
-- **Nettoausgleich:** Reine Rechenempfehlung über *alle nicht ausgeglichenen* Buchungen zum gewählten Stichtag, nicht selbst eine neue Schuld. Die ursprünglichen Gegenparteien und Forderungen bleiben nachvollziehbar.
+Damit ist Anna gegenüber Ben **netto 80 € im Soll**. Wird das erste Ereignis später auf 150 € korrigiert, beträgt der Saldo automatisch nur noch **30 €**. Wird es gelöscht, bleiben nur die anderen zwei gültigen Forderungen bestehen: **Ben schuldet Anna 120 €**.
 
-## Ermittlung der Forderungen
+Das Prinzip ist **„Events sind die einzige Wahrheit, Forderungen sind eine Projektion“**.
 
-1. Die Eigentumsprojektion unmittelbar **vor** dem jeweiligen Anteilsereignis ermitteln; Wert des betroffenen Gegenstands am Ereignisdatum fixieren.
-2. Relative Anteile vor/nach der Änderung in Euro-Beträge umrechnen. Zugänge sind wirtschaftliche Käufer (Schuldner), Abgänge wirtschaftliche Verkäufer (Gläubiger); ein Anteil, der ohne Ersatz verteilt wird, wird entsprechend der veränderten relativen Quoten von den verbleibenden Mitgliedern übernommen.
-3. Aus positiven und negativen Deltas eine nachvollziehbare, **deterministische** Schuldner-Gläubiger-Zuordnung bilden. Die Zuordnung wird **bei Ausführung einmalig als unveränderliche Buchung eingefroren**, nicht bei jedem Stichtagsaufruf neu berechnet. IDs und Gegenparteien bleiben stabil.
-4. Im ganzen Ereignis in **Integer-Cent** rechnen; Rundungsrest deterministisch nach stabiler ID verteilen. Pro Ereignis sind Summe der Abgänge und Zugänge identisch; kein Geld entsteht durch Rundungsfehler.
-5. **Null- und Sonderfälle:** Enthält eine Änderung keine Gegenpartei, wird keine fiktive Zahlung erzeugt. Ein vollständig wegfallender Gegenstand (`item-ended`) ist nicht automatisch ein Verkauf. Die Übernahme ins Private braucht explizit Person und Betrag oder eine eindeutige gesonderte Übertragung.
-6. **Einbringung:** `item-added` mit anfänglichen Anteilen alleine verrät nicht, wer den Gegenstand bezahlt oder mitgebracht hat. Der Dialog soll optional `financedByPersonId` bzw. explizite Einbringungs-/Kaufangaben erheben. Ohne solche Angaben **keine automatisch erfundene Forderung**. Wenn eine Person allein Eigentümer bleibt, ist keine andere Person automatisch zahlungspflichtig.
+## 2. Drei eindeutig getrennte Ebenen
 
-### Beispiel
+1. **Quellereignisse (persistiert):** z. B. `shares-set`, `redistribution-executed` mit seinen `shares-set`-Kinderevents, zusätzliche explizite Kauf-/Einbringungsinformationen, optional später dokumentierte tatsächliche Geldbewegungen oder manuelle Ausgleichsbuchungen.
+2. **Forderungseinträge (abgeleitet, NICHT persistiert):** Schuldner, Gläubiger, `amountCents`, Ereignisdatum, Gegenstand, `sourceEventId`, optional `childEventId`. Diese Werte werden aus allen bis zum Stichtag gültigen Quellereignissen **neu** rekonstruiert.
+3. **Saldo/vereinfachte Zahlungsempfehlung (abgeleitet, NICHT persistiert):** Netto aus den gültigen Forderungen, je Person und je Gegenpartei. Der Status „ausgeglichen“ heißt ausschließlich: **Saldo = 0** (ggf. zum angegebenen Stichtag).
 
-A kauft 200 € von B, B kauft später 75 € und 45 € von A. Alle drei Buchungen bleiben offen. Die Nettorechnung zeigt nur noch: **A zahlt B 80 €**. Nach einer gemeinsamen Verrechnung kann ein einzelner Ausgleichsvorgang alle drei Buchungen als ausgeglichen markieren. Die Originalbuchungen und ihre Beträge bleiben bestehen.
+**Keine** `settled:boolean`-Eigenschaft, keine gespeicherten `finance.postings[]`, keine `settlementEvents[]`. Kein eigenständiges Verändern einer Forderung; Änderungen erfolgen über ihr Quellereignis.
 
-Bei mehr als zwei Personen können aus mehreren Ursprungsforderungen neue **vereinfachte Zahlungswege** entstehen. Dies ist eine freiwillige gemeinsame Verrechnung; bei rechtlich eigenständigen Ansprüchen muss die Gruppe ihr zustimmen, bevor die App die ursprünglichen Forderungen als ausgeglichen markiert.
+## 3. Projizieren statt speichern
 
-## Vorgeschlagene JSON-Struktur (Schema-Version 2, Entwurf)
+Vorschlag für die reine Fachfunktion:
 
-```json
-{
-  "schemaVersion": 2,
-  "finance": {
-    "postings": [
-      {
-        "id": "posting_01",
-        "sourceEventId": "event_123",
-        "itemId": "item_42",
-        "date": "2026-11-20",
-        "debtorPersonId": "person_a",
-        "creditorPersonId": "person_b",
-        "amountCents": 20000,
-        "basis": "share-delta"
-      }
-    ],
-    "settlementEvents": [
-      {
-        "id": "settlement_01",
-        "date": "2026-11-20",
-        "postingIds": ["posting_01"],
-        "settled": true,
-        "method": "manual",
-        "note": ""
-      }
-    ]
-  }
-}
+```js
+const claims = deriveClaims(project.events, asOfDate, project);
+// [
+//   {
+//     sourceEventId: 'event_123',
+//     childEventId: 'event_child_456', // optional
+//     itemId: 'item_42',
+//     date: '2026-11-20',
+//     debtorPersonId: 'person_a',
+//     creditorPersonId: 'person_b',
+//     amountCents: 20000
+//   }
+// ]
+const balances = simplifyClaims(claims);
 ```
 
-`finance.postings[]` ist das dauerhaft gespeicherte **Forderungsjournal** mit Cent-Beträgen und unveränderlichen IDs. `finance.settlementEvents[]` speichert Zustandswechsel und Sammelabrechnungen. `settled` ist ein **persistiertes Boolean im Ausgleichsereignis** und der pro Posting angezeigte Boolean wird daraus berechnet. Das vermeidet eine zweite widersprüchliche, direkt mutierbare Statusquelle auf jeder Buchung. Es ist fachlich das gewünschte pro-Vorgang-Häkchen, auch wenn die interne Speicherung ereignisbasiert ist.
+**Verknüpfung:** Jede abgeleitete Forderung verweist auf das Fachereignis, aus dem sie errechnet wurde. Die IDs des Quellereignisses bleiben bei dessen Bearbeitung stabil. Bei einer Sammelumverteilung ist die Kombination aus Container-ID und Child-ID maßgeblich, damit einzelne Gegenstände/Übertragungen zuordenbar bleiben.
 
-Ein Ausgleichsereignis kann **mehrere** Postings enthalten. Zum Rückgängigmachen wird ein späteres Ereignis mit `settled:false` geschrieben. Stichtagsansichten beachten Posting-Datum und datierte Ausgleichsereignisse; Sortierung stabil nach Datum und ID.
+Die Zuordnung der Schuldner und Gläubiger bei komplexen Mehrpersonen-Umverteilungen erfolgt deterministisch, z. B. nach stabiler Personen-ID. Ein abgeleiteter Einzel-Eintrag darf bei Neuberechnung eine andere Paarung oder einen anderen Betrag haben: **nicht** als persistierte fremdreferenzierte Datensatz-ID behandeln. Manuelle Belege und Hinweise möglichst auf ein stabiles **Quellereignis**, nicht auf einen abgeleiteten Paarungseintrag, beziehen.
 
-**Alternativ** wäre ein direkt persistiertes `posting.settled` möglich. Das wäre zwar kürzer, würde aber Status- und Rücksetzungs-Historie verlieren. Der ereignisbasierte Ansatz ist deshalb die bevorzugte Architektur.
+### Beträge
 
-## Vereinfachter Saldo
+- Zeitwert des betroffenen Gegenstands **am Ereignisdatum** berechnen; die Verteilung unmittelbar **vor** und **nach** dem Ereignis vergleichen.
+- Anteilserhöhung ist wirtschaftlich ein Erwerb (Schuldner), Anteilsminderung eine Veräußerung (Gläubiger), sofern kein explizit anders modellierter Vorgang vorliegt.
+- Bei Anteilslöschung verteilt sich dessen Wert durch die neuen Quoten anteilig auf die verbleibenden Beteiligten. Die Forderung ergibt sich daraus automatisch.
+- Alle Nettorechnungen in **Integer-Cent**, mit dokumentierter, stabiler Rundung und ausgeglichener Summe je Ereignis.
+- Ein reines Umgewichten von Anteilseinheiten ohne Änderung der Quoten erzeugt **keine** Forderung.
+- Für einen neuen Gegenstand (`item-added`) sind die Anteile alleine nicht ausreichend, um festzustellen, wer die Anschaffung bezahlt/den Gegenstand eingebracht hat. Nur mit ausdrücklicher Information über Einbringer/Finanzierer und den wirtschaftlichen Empfänger eine Forderung ableiten. Ohne diese Angaben keine erfundenen Schuldner.
+- `item-ended` (z. B. Entsorgung) allein erzeugt keine Verkaufserlöse. Eine Privatübernahme oder ein realer Verkauf braucht einen expliziten wirtschaftlichen Empfänger und Preis/Zuordnungsregel.
 
-Aus den **offenen** Postings berechnen:
+## 4. Rückwirkende Änderungen – zentrale Invariante
 
-- `balance[debtor] -= amountCents`
-- `balance[creditor] += amountCents`
-- danach Schuldner (negativ) und Gläubiger (positiv) deterministisch paaren, bis alle Salden null sind.
+Die derzeitige App erlaubt Änderungen an historischen Events. Das soll erhalten bleiben:
 
-Die Empfehlungen werden **nicht** als neue ursprüngliche Forderungen gespeichert; erst beim tatsächlichen Abschließen einer gemeinsamen Nettoabrechnung werden die zugehörigen Posting-IDs als ausgeglichen gebucht. Ein personengefilterter Bericht zeigt Ursprung, Gegenpartei, Datum, Einzelbetrag, Ausgleichsstatus sowie Gesamtsaldo.
+- **Datum verschieben:** Das Event wird an seiner neuen historischen Position verarbeitet; Bewertung, vorherige Anteile und alle nachfolgenden von der Historie abhängigen Forderungen werden neu berechnet.
+- **Anteil/Höhe ändern:** Die Forderung dieses Ereignisses ändert sich automatisch; wenn sich die Referenzbasis für spätere Events ändert, auch deren abgeleitete Effekte.
+- **Event löschen:** Daraus abgeleitete Forderungen verschwinden automatisch. Keine verwaisten Posting-Datensätze können verbleiben, weil sie gar nicht gespeichert werden.
+- **Sammelumverteilung bearbeiten:** Nur die veränderten Child-Events beeinflussen die zugehörigen Forderungen; die geänderte Gesamtchronologie wird bei Bedarf neu projiziert.
+- **Stichtag ändern:** Nur bis zum Stichtag gültige Ereignisse und wirtschaftliche Gegenbewegungen berücksichtigen.
+- **Historische Stammdatenänderungen:** Stabile Personen-/Gegenstands-IDs beibehalten. Beim Löschen von Personen mit referenzierten historischen Transaktionen Integritätsprüfung verlangen; besser deaktivieren als vollständig löschen.
 
-## Einbau in die bestehende App
+Eine stabile, **eindeutige Ereignisreihenfolge** ist notwendig (Datum, `order`, abschließend ID). Derselbe Input und Stichtag ergeben exakt dieselben Ergebnisse. Berechnung der Forderungen muss denselben Ereignisverlauf wie die Eigentumsprojektion durchlaufen; bei gleicher Tagesordnung darf es keine unterschiedlichen Zustände geben.
 
-- `src/lib/ledger.js` **neu**: reine Funktionen für Erstellung von Postings, Prüfung auf Ausgleich, Saldierung, vereinfachte Transfers, Rundung.
-- `src/lib/projector.js`: bei historischen Rekonstruktionen Finanzstatus zum Stichtag berechnen oder separate `financeAt(project, date)`-Projektion verwenden; nicht mit Eigentumswerten vermischen.
-- `src/lib/domain.js`: Schema-2-Normalisierung und kontrollierte Migration aus Schema 1.
-- `src/stores/projectStore.js`: Aktionen für `settlePostings(ids)`, `reopenPostings(ids)` und Buchungserstellung; alle Datenänderungen zentral.
-- `src/lib/redistribution.js`: bestehende Vorschau behalten; beim **Ausführen** Postings fixieren. Einzelnes `shares-set` und Sammel-Umverteilung laufen durch denselben Codepfad.
-- `src/components/RedistributionDialog.svelte`: Vorschau offener Forderungen und Option „ohne sofortige Zahlung ausführen“.
-- `src/components/ExecutedRedistributionEditDialog.svelte`, `Timeline.svelte`: Ursprung/Forderungen/Status anzeigen.
-- **Neue** Finanzübersicht und personenbezogene Saldenansicht: offene Einzelvorgänge, vereinfachte Empfehlung, Sammel-Abschluss.
+### Kein doppelter Wahrheitsstand
 
-## Migration und Korrekturen
+Niemals gleichzeitig die Eigentumsereignisse **und** daraus materialisierte Forderungsbeträge mit separaten Änderungsregeln speichern. Falls später für Performance ein Cache eingeführt wird, muss er **vollständig verwerfbar** und eindeutig anhand des Event-Datenstands invalidierbar sein.
 
-**Schema-1-Altprojekte dürfen NICHT stillschweigend rückwirkend zu neuen Schulden führen.** Alte Events standardmäßig als historisch nicht verbuchte Ausgangslage behandeln. Optional später manuelle Übernahme einzelner historischer Vorgänge nach Bestätigung.
+## 5. Wie tatsächliche Zahlungen abgebildet werden könnten
 
-Bereits ausgeführte Buchungen bleiben eingefroren. Wenn eine historische Anteilsänderung nachträglich bearbeitet/gelöscht wird, zugehörige Postings **nicht stillschweigend verändern**, sondern Korrektur/Neuerstellung als expliziten Vorgang mit sichtbarer Prüfung, insbesondere bei bereits ausgeglichenen Buchungen. Physisches Komplettlöschen von Personen mit Referenzen auf Finanzpostings muss gesperrt oder mit geprüfter Migration behandelt werden.
+Die Nutzeridee funktioniert ohne echte Zahlungserfassung: Gegenläufige **Anteilsereignisse** schaffen bereits entgegengesetzte Forderungen.
 
-## Akzeptanzfälle / Tests
+Soll eine tatsächliche Zahlung dennoch dokumentiert werden, genügt später ein **explizites, datiertes Gegenbuchungsereignis**, z. B. `balance-adjustment` oder `cash-payment`. Beispiel: Anna schuldet Ben 80 €; eine tatsächlich geleistete Zahlung von Anna an Ben über 80 € wird im Saldo als Gegenbewegung zu Annas Schuld behandelt. Es ist **keine Checkbox** und verändert keine Eigentumsanteile.
 
-- Eigentumsänderung ohne Zahlung erzeugt offenes Posting; Besitz ändert sich sofort.
-- Erwerb, Verkauf, anteilige Auflösung unter Verbleibenden, Personenwechsel.
-- Mehrere entgegengesetzte Vorgänge liefern korrekten Cent-Nettoausgleich, ohne doppelte Schuld.
-- Einzel-Checkbox und Sammelabrechnung bleiben nach JSON-Export/Import erhalten; Rückgängig ist möglich.
-- Stichtag vor/nach Erwerb und Ausgleich zeigt fachlich konsistente Beträge und Status.
-- Zwei oder mehr Gläubiger/Schuldner, Dezimalwerte, 1-Cent-Rundungsfälle und deterministische Reihenfolge.
-- `item-added` ohne Finanzierer erzeugt **keine** erfundene Forderung.
-- Beendigung ohne Übernehmer erzeugt **keine** fiktive Forderung.
-- Korrektur eines bereits ausgeglichenen Quellereignisses führt zu sichtbarer Konflikt-/Prüfbehandlung.
-- Alte JSONs importieren unverändert und bekommen keine unerwarteten Forderungen.
+Eine solche Buchung darf **nicht** fälschlich als zweiter Eigentumsverkauf dargestellt werden. Sie enthält reale Beteiligte, Datum, Betrag in Cent und optional den referenzierten Quellvorgang. Die Zahlungssumme wird **nicht automatisch** angepasst, wenn eine historische Forderung später korrigiert wird: Ein tatsächlich geflossener Betrag bleibt real. Stattdessen ändert sich der Restsaldo und die UI kann auf widersprüchliche bzw. überholte Verweise hinweisen.
 
-## Noch zu entscheiden
+**Status dieser Ergänzung:** Nur optionale Erweiterungsplanung; zunächst reicht die Verrechnung der wirtschaftlichen Anteilsbewegungen. Keine Pflicht zur tatsächlichen Buchhaltung.
 
-1. Für die Anzeige zunächst „**Ausgeglichen**“ (Zahlung oder freiwillige Verrechnung) statt rechtlich enger „Bezahlt“? **Empfohlen: ja.**
-2. Teilzahlungen im ersten Release? **Empfohlen: nein**, zunächst ganzer Vorgang Boolean und Sammel-Verrechnung.
-3. Bei vollständiger Gegenstandsauflösung ohne verbleibenden Anteilseigner: expliziten Übernehmer/Veräußerung verlangen, statt einen Käufer anzunehmen.
-4. Beitrags-/Einbringungsdialog: Zahlende Person / Herkunft auswählen, falls aus der anfänglichen Verteilung eine Forderung entstehen soll.
+## 6. Bilateral gegen multilateral: wichtige Unterscheidung
 
-**Status:** Entwurf, keine Änderung des Datenmodells oder Quellcodes vorgenommen.
+- **Bilateral (sicherer Standard):** Nur Forderungen zwischen denselben zwei Personen gegeneinander rechnen. Anna → Ben und Ben → Anna werden saldiert. Originalverläufe bleiben nachvollziehbar.
+- **Multilateral (optionale Vorschau):** Die Nettopositionen einer ganzen Gemeinschaft können vereinfachte, neue Zahlungswege ergeben. Das ändert jedoch unter Umständen die Gegenpartei. Eine gemeinsame, verbindliche Verrechnung sollte nicht automatisch als rechtlich erfolgte Schuldbefreiung behandelt werden; sie setzt die Zustimmung der Beteiligten voraus.
+
+In der Oberfläche beide Rechenarten klar benennen: **„Offen je Gegenpartei“** und **„Vereinfachte Gesamtübersicht“**.
+
+## 7. Datenmodell / Migration
+
+**Bevorzugt kein neues `finance`-Journal.** Vorhandenes `project.events[]` bleibt die maßgebliche Datenquelle. Bei Bedarf erhalten vorhandene fachliche Events optionale Felder wie `financialMode`, `financedByPersonId` oder explizite Käufer-/Verkäuferbezüge, sodass die wirtschaftliche Bedeutung eindeutig ist. Ergänzende echte Zahlungs- oder Anpassungs-Events liegen ebenfalls in `events[]`; alle sind datiert.
+
+**Schema-Version:** Für neue optionale wirtschaftliche Felder kann Schema 2 eingeführt werden. Nur neue oder **ausdrücklich nachbearbeitete** ältere Anteilsereignisse als finanzielle Transaktionen auswerten, um beim Import eines Altprojekts nicht ohne Bestätigung rückwirkend Schulden zu erzeugen. Beispiel: Für alte Events ohne expliziten Marker standardmäßig **nur Eigentumswirkung**, neue Events `financialMode:'derived'`.
+
+Anders als im bisherigen Planungsvorschlag darf der finanzielle Teil der Daten **keinen** separaten Status/Posting-Katalog enthalten. `humanReadableSnapshot` bleibt eine abgeleitete Export-Zusammenfassung, nicht Quelle.
+
+## 8. Konkrete Änderungen an der Codearchitektur (geplant)
+
+- **Neu: `src/lib/ledger.js`** mit `deriveClaims(project, asOfDate)`, `pairwiseBalances(...)`, `communityNet(...)`, Cent-Rundung, optional Verarbeitung realer Gegenbuchungsereignisse.
+- **`src/lib/projector.js`**: Eigentumsprojektion und Forderungsableitung teilen sich **einen deterministischen Event-Walk** bzw. gemeinsame Zustandsübergänge. Eine doppelte, unterschiedlich sortierte Event-Rekonstruktion vermeiden.
+- **`src/lib/redistribution.js`**: Für Vorschau und tatsächlich ausgeführte Umverteilung dieselbe finanzielle Ableitung nutzen. Kein einmaliges Erzeugen persistenter Buchungszeilen.
+- **`src/lib/domain.js`**: Optionale `financialMode`-Metadaten bei Events, Migration/Validierung, Schema-Kompatibilität.
+- **`src/stores/projectStore.js`**: Aktionen bearbeiten weiterhin nur Fachereignisse. Kein `settlePostings()`, `reopenPostings()`, `postings[]` oder Statusstore.
+- **UI / Timeline / Personendetails:** Gekoppelte Ereignis-/Forderungsdarstellung, Herkunft anklickbar; Nettosaldo je Gegenpartei; bei Änderung sofortige Neuberechnung. Optional nur später eigener Dialog „Ausgleichsbuchung erfassen“.
+- **Speicheradapter / PHP / Verschlüsselung:** Keine besondere Behandlung; beide speichern dieselbe fachliche Event-JSON-Datei. [PHP-Plan](FEATURE-COLLABORATIVE-STORAGE.md).
+
+## 9. Akzeptanz- und Regressionstests
+
+- Kauf erzeugt Forderung automatisch und verändert Eigentumsanteile sofort.
+- Gegenläufige Übertragung reduziert den Saldo automatisch; mehrere Vorgänge werden ohne Checkbox verrechnet.
+- Änderung von 200 € auf 150 € im Beispiel verändert das Ergebnis von 80 € auf 30 €.
+- Löschen der ursprünglichen 200-€-Transaktion entfernt deren Forderung vollständig; danach schuldet Ben Anna 120 €.
+- Datumsänderungen mit unterschiedlichen Zeitwerten führen zu korrekter Neuberechnung einschließlich betroffener Folge-Events.
+- Anteilsauflösung auf mehrere verbleibende Personen erzeugt wertmäßige Gegenbuchungen nach Quoten.
+- Gleichwertige Anteile mit unveränderter Prozentquote erzeugen keine Schulden.
+- Rundungen in Cent, stabile Sortierung, mehrfache Events am selben Tag; kein Doppelzählen bei Sammelumverteilungen.
+- Alte JSON-Daten werden nicht unaufgefordert zu neuen Geldforderungen umgedeutet.
+- Personenlöschung mit finanziell referenzierten Ereignissen erzeugt Integritätswarnung.
+- Für optionale echte Zahlung: Zahlung bleibt bei Korrektur des zugrundeliegenden Kaufes in ihrer realen Höhe erhalten, Restforderung ändert sich.
+
+## 10. Noch offene Detailentscheidungen
+
+1. Welche neuen Ereignistypen/optionalen Felder kennzeichnen **entgeltliche** Anteilsänderung versus ausdrücklich unentgeltliche Schenkung/Korrektur? Empfehlung: explizite finanzielle Semantik, Default für neue entgeltliche Aktionen, keine stillen Altdaten-Schulden.
+2. Sollen später explizite **Geldzahlungen** als Gegenbuchungsereignis erfasst werden? Nicht nötig für die erste Umsetzung, aber architektonisch vorbereitet.
+3. Soll neben der bilateralen Saldierung eine **multilaterale Auszahlungsempfehlung** angezeigt werden? Ja als klar gekennzeichnete, unverbindliche Vorschau; keine Änderung der Forderungsgläubiger durch Anzeige allein.
+
+**Festlegung gegenüber Vorgängerversion:** Forderungen sind **ausschließlich Projektionen der Quellereignisse**; keine persistenten, abhakbaren Forderungen. Änderungen an Quellereignissen ändern automatisch die daraus abgeleiteten Forderungen.

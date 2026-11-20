@@ -97,10 +97,10 @@ Die 90-KB-Datei `vorlage.html` ist eine ältere Fassung. Neue Arbeiten gehören 
 
 Die bisherige Architektur wird **nicht ersetzt**. Sie soll zu drei weitgehend unabhängigen Schichten erweitert werden:
 
-1. **Fachschicht:** `projector.js` für Eigentumszustände und ein neues reines `ledger.js` für eingefrorene Forderungsbuchungen, Ausgleichsstatus und centgenaue Nettoausgleiche. JSON-Schema-Version-2-Entwurf sowie Alt-Datenmigration: [FEATURE-DEBT-LEDGER.md](FEATURE-DEBT-LEDGER.md).
+1. **Fachschicht:** `projector.js` für Eigentumszustände und ein neues reines `ledger.js` für **aus denselben historischen Ereignissen abgeleitete Forderungen** und centgenaue Nettoausgleiche. Keine dauerhaft gespeicherten Forderungsbeträge, keine Status-Checkbox; historische Änderungen und Löschungen ändern die abgeleiteten Forderungen automatisch. Event-Semantik und Alt-Datenmigration: [FEATURE-DEBT-LEDGER.md](FEATURE-DEBT-LEDGER.md).
 2. **Verschlüsselungsschicht:** `crypto.js` im Browser, dateiformatunabhängiger Projektzustand, gemeinsames verschlüsseltes Containerformat für lokale Dateien und Serverdateien. [SECURITY-AND-ENCRYPTION.md](SECURITY-AND-ENCRYPTION.md).
 3. **Speicherschicht:** getrennte lokale und remote Adapter, dazu ein `documentStore` (Datei-ID, Revision, Lock/Lease, Dirty). Ein modular testbares PHP-Backend wird beim Build als **eine PHP-Datei** inklusive HTML verpackt, die verschlüsselte Dateien versioniert ablegt und Mailversand übernimmt. [FEATURE-COLLABORATIVE-STORAGE.md](FEATURE-COLLABORATIVE-STORAGE.md).
 
 Die bisherige Architekturaufnahme oben beschreibt weiterhin den **Ist-Zustand**; keines dieser drei neuen Module oder das PHP-Backend existiert derzeit. Der neue optionale Webserver-Modus hebt den bisherigen Offline-HTML-Modus nicht auf.
 
-Zentrale Invarianten: Eigentumsveränderungen sind unabhängig von der Zahlung; historische Forderungen behalten fixierte Beträge; das Speichermedium ändert niemals die Bedeutung des Projekt-JSON; unbekannte Passwörter dürfen den Server nicht in die Lage versetzen, Klartext zu sehen; keine stillen Übertragungs-/Revisionskonflikte.
+Zentrale Invarianten: Eigentumsveränderungen sind unabhängig von der Zahlung; Forderungen sind **nicht persistierte** und bei Quellereignis-Korrekturen stets neu berechnete Projektionen zum Stichtag; das Speichermedium ändert niemals die Bedeutung des Projekt-JSON; unbekannte Passwörter dürfen den Server nicht in die Lage versetzen, Klartext zu sehen; keine stillen Übertragungs-/Revisionskonflikte.

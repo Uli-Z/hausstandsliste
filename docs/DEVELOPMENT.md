@@ -59,9 +59,14 @@ Es existieren aktuell **keine automatisierten Tests**, keine eingecheckten GitHu
 
 Bei den geplanten Funktionen die folgenden Schwerpunkte in automatisierte Tests aufnehmen:
 
-- **Forderungsjournal:** anteilige Übertragungen, anteilige Auflösung, neue Einbringung mit/ohne Finanzierer, saldierte Gegenschulden, Integer-Cent-Rundung, Ausgleichshaken und Sammelverrechnung, historische Korrektur, Schema-1-Migration.
+- **Forderungsjournal:** anteilige Übertragungen, anteilige Auflösung, neue Einbringung mit/ohne Finanzierer, automatisch saldierte Gegenschulden **ohne Checkbox**, Integer-Cent-Rundung, sourceEventId-/Child-Event-Verknüpfung, Änderung von Datum und Beträgen, Löschen von Quellereignissen, Einfluss auf Folge-Events, Schema-1-Migration.
 - **Verschlüsselung:** lokale Export-Import-Runde mit korrekter/falscher Passphrase, manipulierte Ciphertexte, KDF-Parameter, Nonce-Eindeutigkeit, altes Dateiformat, Passwortwechsel und Reverschlüsselung alter Versionen; `localStorage` enthält im verschlüsselten Modus keine Klartextdaten.
 - **PHP-API:** Lese-/Schreibberechtigung, Rate-Limits, zwei Browser, Checkout/Checkin, 2-h-Inaktivitätsablauf, Revision-409, Atomizität und Absturzsimulation, verschlüsselte Versionshistorie und Restore als neue Revision, Pfadüberquerung, Dateigrößen, E-Mail-Warteschlange und Wiederholung ohne doppelte Mails.
 - **Build:** neues `build:php`-Ziel prüfen, generierte `hausstand.php` neben `hausstand-standalone.html`; beide aus derselben Svelte-Quelle, Offline-HTML ohne Netzwerkanfragen und Remote-Betrieb nur unter HTTPS.
 
 Diese Tests/Befehle müssen vor einer künftigen Produktivfreigabe tatsächlich ausgeführt werden. Details siehe [Feature Forderungen](FEATURE-DEBT-LEDGER.md), [PHP-Modus](FEATURE-COLLABORATIVE-STORAGE.md), [Sicherheitsentwurf](SECURITY-AND-ENCRYPTION.md).
+
+
+### Zusätzliche Regressionstests zur präzisierten Forderungsarchitektur
+
+Mit den drei Ereignissen Anna → Ben 200 €, Ben → Anna 75 € und Ben → Anna 45 € muss Anna netto 80 € schulden. Bei rückwirkender Änderung des ersten Ereignisses auf 150 € muss das automatisch **30 €** ergeben; beim Löschen des ersten Ereignisses muss Ben netto **120 €** schulden. Kein Ausgleichs-Boolean, kein verwaistes Posting und kein eigener Finanzstatus darf im exportierten JSON zurückbleiben. `deriveClaims()` muss zu jedem Eintrag ein gültiges Quellereignis referenzieren, auch nach Datumsänderungen und bei Child-Events in Sammelumverteilungen. Beide Nettoformen (bilateral und fakultativ multilateral) ausdrücklich unterscheiden. Bei Zahlungen als späteren Gegenbuchungsereignissen dürfen tatsächlich geflossene Beträge nicht automatisch mit einem rückwirkend geänderten Kaufbetrag überschrieben werden.

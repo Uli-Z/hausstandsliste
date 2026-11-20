@@ -46,7 +46,7 @@ Der Quellcode ist öffentlich; **GitHub Pages ist für dieses Repository derzeit
 
 Für die nächste Entwicklungsphase sind **zwei Produktfunktionen** und eine Benachrichtigung vorgesehen:
 
-1. **Offene Forderungen aus Anteilsbewegungen:** Jede wirtschaftliche Eigentumsübertragung erhält fest zugeordnete finanzielle Buchungen mit Status **ausgeglichen/offen**; mehrere noch offene Buchungen können zu vereinfachten Nettoschulden verrechnet werden. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
+1. **Offene Forderungen aus Anteilsbewegungen:** Jede wirtschaftliche Eigentumsübertragung erzeugt **aus ihren historischen Ereignisdaten abgeleitete** Forderungen. Gegenläufige Forderungen werden automatisch verrechnet, **ohne Checkbox oder gespeicherten Zahlungsstatus**. Wird ein Quellereignis zeitlich oder wertmäßig verändert oder gelöscht, werden alle betroffenen Forderungen und Salden neu berechnet. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
 2. **Mehrere verschlüsselte Projektdateien auf einem PHP-Server:** Ein gemeinsamer Arbeitsordner mit sichtbaren Dateinamen, Passwort zum Entschlüsseln, Checkout/Checkin mit standardmäßig zwei Stunden Inaktivitätsfrist, Revisionsschutz und verschlüsselter Versionshistorie. Zusätzlich zur Offline-HTML-Version soll aus demselben Quellcode ein `hausstand.php`-Release gebaut werden.
 3. **Verschlüsselte E-Mail-Sicherung:** Nach jeder bestätigten Online-Speicherung eine Kopie der verschlüsselten Dateiversion an eine konfigurierte E-Mail-Adresse senden. Die Verschlüsselung muss genauso für lokale Dateien funktionieren.
 
