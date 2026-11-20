@@ -1,6 +1,6 @@
 # Fachkonzept: automatisch abgeleitete Forderungen und Nettoschulden
 
-**Status: Kernfunktionen auf `feature/event-derived-debts` implementiert am 20.11.2026; CI- und Browsertests noch zu überprüfen.** Diese Fassung **ersetzt** den älteren Plan mit `finance.postings[]`, `settlementEvents[]` und einer Checkbox „bezahlt“. Es gibt **keinen** gespeicherten Boolean-Status und kein zweites, separat zu pflegendes Forderungsjournal.
+**Status: Kernfunktionen in `master` übernommen am 20.11.2026; zehn Tests und Standalone-Build in GitHub Actions erfolgreich. Manueller Browsertest noch offen.** Diese Fassung **ersetzt** den älteren Plan mit `finance.postings[]`, `settlementEvents[]` und einer Checkbox „bezahlt“. Es gibt **keinen** gespeicherten Boolean-Status und kein zweites, separat zu pflegendes Forderungsjournal.
 
 ## 1. Gewünschtes Verhalten
 
@@ -142,6 +142,6 @@ Anders als im bisherigen Planungsvorschlag darf der finanzielle Teil der Daten *
 - `financialMode:'derived'` aktiviert die Ableitung bei neuen Anteilstransaktionen; `financialMode:'none'` und alte Events ohne Feld bleiben ohne Forderung.
 - `item-added` kann mit `financedByPersonId` eine Person als Finanzierer erfassen und bei mehreren Eigentümern daraus Ansprüche ableiten.
 - `LedgerPanel.svelte`: bilaterale Salden, unverbindliche Gesamtverrechnung, Herkunft der Einzelvorgänge und Editierlink.
-- `tests/ledger.test.js`, `.github/workflows/ci.yml`: automatische Test- und Buildprüfung ergänzt; Ergebnisse vor Merge überprüfen.
+- `tests/ledger.test.js`, `.github/workflows/ci.yml`: automatische Test- und Buildprüfung ergänzt; beide erfolgreich auf PR und `master`.
 
 **Noch nicht enthalten:** tatsächliche Geldzahlungen, Gegenbuchungsereignisse, PHP, Verschlüsselung oder E-Mail. Die Forderungsbeträge sind ausschließlich zur Laufzeit berechnet und werden nicht in der Projektdatei gespeichert.

@@ -34,3 +34,10 @@ jobs:
             echo "Uninlined assets remain" >&2
             exit 1
           fi
+      - name: Publish downloadable offline HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: hausstand-standalone
+          path: hausstand-svelte/dist/hausstand-standalone.html
+          if-no-files-found: error
+          retention-days: 14

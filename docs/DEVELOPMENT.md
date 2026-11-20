@@ -44,7 +44,7 @@ Erwartetes Verhalten bei Ausgleichsempfehlungen: **Keine** Zahlung wird automati
 
 Bei der Dokumentationspflege am **20.11.2026** wurden Code, Struktur und package-Skripte statisch geprüft. **Kein Build, keine Browser-Akzeptanzprüfung und kein Testlauf wurden tatsächlich ausgeführt**; die Umgebung konnte das öffentliche GitHub-Repository nicht klonen. Ein erfolgreicher Build darf erst nach wirklicher Ausführung behauptet werden.
 
-Es existieren aktuell **keine automatisierten Tests**, keine eingecheckten GitHub-Actions-Workflows und keine GitHub-Pages-Veröffentlichung. Ein erster sinnvoller Qualitätsschritt ist ein CI-Job für `npm ci`, `check:js`, `build:single` und einfache Fachlogiktests.
+Der GitHub-Actions-Workflow mit zehn Node-Fachlogiktests ist inzwischen vorhanden und hat auf Pull Request und `master` erfolgreich Tests sowie Standalone-Build ausgeführt. GitHub Pages bleibt deaktiviert. **Die manuelle Browser-/JSON-Roundtrip-Prüfung steht noch aus.**
 
 ## Änderungen sicher durchführen
 
@@ -75,4 +75,9 @@ Mit den drei Ereignissen Anna → Ben 200 €, Ben → Anna 75 € und Ben → A
 
 ## Testautomatisierung des Forderungsfeatures (20.11.2026)
 
-`hausstand-svelte/tests/ledger.test.js` enthält automatisierte Tests für Gegenforderungen, historische Änderungen/Löschungen, Stichtage, Anteilauflösung, Cent-Rundung, Legacy-Events und Sammelumverteilung. Mit `npm test` ausführen. `.github/workflows/ci.yml` startet bei Pull Requests nach `master` und führt `npm ci`, `npm run check:js`, `npm test` und `npm run build:single` aus. **Bis zur Bestätigung des ersten CI-Laufs nicht als grün bezeichnen.** Eine manuelle Browser- und JSON-Roundtrip-Prüfung ist zusätzlich erforderlich.
+`hausstand-svelte/tests/ledger.test.js` enthält automatisierte Tests für Gegenforderungen, historische Änderungen/Löschungen, Stichtage, Anteilauflösung, Cent-Rundung, Legacy-Events und Sammelumverteilung. Mit `npm test` ausführen. `.github/workflows/ci.yml` startet bei Pull Requests nach `master` und führt `npm ci`, `npm run check:js`, `npm test` und `npm run build:single` aus. **CI war bei Pull Request und Merge nach `master` erfolgreich.** Eine manuelle Browser- und JSON-Roundtrip-Prüfung ist zusätzlich erforderlich.
+
+
+### Download des geprüften Builds
+
+Ein erfolgreicher [GitHub-Actions-Lauf](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) liefert unter **Artifacts** die Datei `hausstand-standalone` (14 Tage Aufbewahrung). Sie enthält nur die eigenständige HTML-App und keine persönlichen Projektdaten. Der manuelle Offline-Browsertest bleibt erforderlich.

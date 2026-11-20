@@ -30,9 +30,10 @@ Das Ergebnis liegt unter `hausstand-svelte/dist/hausstand-standalone.html` und k
 - Ereignis-Timeline und stichtagsbezogene Rekonstruktion
 - Umverteilungen vorbereiten, als Entwurf speichern und ausführen
 - Wertverschiebungen und **empfohlene** Ausgleichszahlungen berechnen
+- Forderungen automatisch aus entgeltlichen Anteilsbewegungen ableiten, bilateral saldieren und gemeinschaftlich vereinfacht anzeigen
 - Projekt-JSON importieren/exportieren; lokale Browser-Arbeitskopie
 
-**Wichtig:** Eine ausgeführte Umverteilung dokumentiert eine Anteilsänderung, **keine beglichene Zahlung**. Offen-/Bezahlt-Status, Teilzahlungen und Schuldenübersicht sind noch nicht implementiert.
+**Wichtig:** Eine ausgeführte Umverteilung dokumentiert eine Anteilsänderung, **keine beglichene Zahlung**. Eine Schuldenübersicht ist vorhanden, tatsächliche Geldzahlungen und Zahlungsstatus werden jedoch nicht erfasst.
 
 ## Speicherung und Datenschutz
 
@@ -40,23 +41,23 @@ In der aktuellen implementierten Version gibt es noch keinen Backend-Server und 
 
 ## Veröffentlichungsstatus
 
-Der Quellcode ist öffentlich; **GitHub Pages ist für dieses Repository derzeit nicht aktiviert** (geprüft am 20.11.2026). Es gibt keine eingerichtete automatische Veröffentlichung und derzeit keine CI-Testpipeline. Das Standalone-Build-Ziel ist vorhanden; ein frischer Build wurde bei der Dokumentationsüberarbeitung nicht ausgeführt.
+Der Quellcode ist öffentlich; **GitHub Pages ist für dieses Repository derzeit nicht aktiviert** (geprüft am 20.11.2026). Eine öffentliche Web-App ist nicht eingerichtet. Ein GitHub-Actions-Workflow prüft automatisiert Tests und Standalone-Build und stellt die HTML-Datei als Workflow-Artefakt bereit.
 
-## Erweiterungen (Forderungslogik im Feature-Branch umgesetzt)
+## Erweiterungen (Forderungslogik umgesetzt, Servermodus geplant)
 
 Für die nächste Entwicklungsphase sind **zwei Produktfunktionen** und eine Benachrichtigung vorgesehen:
 
-1. **Forderungen aus Anteilsbewegungen (Feature-Branch):** Jede wirtschaftliche Eigentumsübertragung erzeugt **aus ihren historischen Ereignisdaten abgeleitete** Forderungen. Gegenläufige Forderungen werden automatisch verrechnet, **ohne Checkbox oder gespeicherten Zahlungsstatus**. Wird ein Quellereignis zeitlich oder wertmäßig verändert oder gelöscht, werden alle betroffenen Forderungen und Salden neu berechnet. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
+1. **Forderungen aus Anteilsbewegungen (implementiert):** Jede wirtschaftliche Eigentumsübertragung erzeugt **aus ihren historischen Ereignisdaten abgeleitete** Forderungen. Gegenläufige Forderungen werden automatisch verrechnet, **ohne Checkbox oder gespeicherten Zahlungsstatus**. Wird ein Quellereignis zeitlich oder wertmäßig verändert oder gelöscht, werden alle betroffenen Forderungen und Salden neu berechnet. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
 2. **Mehrere verschlüsselte Projektdateien auf einem PHP-Server:** Ein gemeinsamer Arbeitsordner mit sichtbaren Dateinamen, Passwort zum Entschlüsseln, Checkout/Checkin mit standardmäßig zwei Stunden Inaktivitätsfrist, Revisionsschutz und verschlüsselter Versionshistorie. Zusätzlich zur Offline-HTML-Version soll aus demselben Quellcode ein `hausstand.php`-Release gebaut werden.
 3. **Verschlüsselte E-Mail-Sicherung:** Nach jeder bestätigten Online-Speicherung eine Kopie der verschlüsselten Dateiversion an eine konfigurierte E-Mail-Adresse senden. Die Verschlüsselung muss genauso für lokale Dateien funktionieren.
 
-Detaillierte, noch nicht implementierte Fach- und Architekturentwürfe:
+Dokumentation zur umgesetzten Forderungslogik und den weiteren Planungen:
 
 - [Forderungsjournal und Nettoausgleich](docs/FEATURE-DEBT-LEDGER.md)
 - [Kollaborative PHP-Dateiablage](docs/FEATURE-COLLABORATIVE-STORAGE.md)
 - [Sicherheits- und Verschlüsselungsentwurf](docs/SECURITY-AND-ENCRYPTION.md)
 
-**Status:** Die Forderungsprojektion ist im Feature-Branch implementiert; CI-/Browsertests sind noch zu verifizieren. Es werden weiterhin keine realen Geldzahlungen erfasst. PHP, Verschlüsselung und E-Mail bleiben geplant.
+**Status:** Die Forderungsprojektion ist in `master` implementiert, zehn Unit-Tests und der Standalone-Build liefen in GitHub Actions erfolgreich. Der manuelle Browser-/JSON-Roundtrip steht noch aus. Es werden weiterhin keine realen Geldzahlungen erfasst. PHP, Verschlüsselung und E-Mail bleiben geplant.
 
 ## Projekt-Dokumentation
 
@@ -67,3 +68,8 @@ Detaillierte, noch nicht implementierte Fach- und Architekturentwürfe:
 - [Svelte-Projekt-README](hausstand-svelte/README.md) – Hinweise direkt beim Quellprojekt
 
 **Weiterentwicklung:** Maßgeblich ist der Branch `master`. Vor jeder Änderung aktuellen Branch, Git-Status und Dokumentation prüfen. Neue Funktionen zunächst im Datenmodell und in den Akzeptanzfällen durchdenken; die alte HTML-Vorlage nicht parallel als zweite Implementierung fortführen.
+
+
+## Offline-HTML herunterladen
+
+In [GitHub Actions – Svelte app checks](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) einen erfolgreichen Lauf öffnen und unter **Artifacts** `hausstand-standalone` herunterladen. Das Artefakt enthält die eigenständige HTML-App (14 Tage Aufbewahrung), aber keine Projektdateien. GitHub Pages ist nicht aktiviert.

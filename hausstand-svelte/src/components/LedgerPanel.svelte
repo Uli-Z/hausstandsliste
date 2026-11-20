@@ -43,7 +43,7 @@
             <tbody>
               {#each data.pairwise as row}
                 <tr>
-                  <td>{personName(row.fromPersonId)} → {personName(row.toPersonId)}</td>
+                  <td><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.fromPersonId })}>{personName(row.fromPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.toPersonId })}>{personName(row.toPersonId)}</button></td>
                   <td class="money">{money(row.amountCents / 100)}</td>
                 </tr>
               {/each}
@@ -62,7 +62,7 @@
             <tbody>
               {#each data.simplified as row}
                 <tr>
-                  <td>{personName(row.fromPersonId)} → {personName(row.toPersonId)}</td>
+                  <td><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.fromPersonId })}>{personName(row.fromPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.toPersonId })}>{personName(row.toPersonId)}</button></td>
                   <td class="money">{money(row.amountCents / 100)}</td>
                 </tr>
               {/each}
@@ -85,7 +85,7 @@
               <tr>
                 <td>{dateDE(claim.date)}</td>
                 <td>{itemName(claim.itemId)}</td>
-                <td>{personName(claim.debtorPersonId)} → {personName(claim.creditorPersonId)}</td>
+                <td><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: claim.debtorPersonId })}>{personName(claim.debtorPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: claim.creditorPersonId })}>{personName(claim.creditorPersonId)}</button></td>
                 <td class="money">{money(claim.amountCents / 100)}</td>
                 <td><button class="small ghost" on:click={() => editSource(claim)}>Ereignis bearbeiten</button></td>
               </tr>
@@ -100,4 +100,5 @@
 <style>
   .small-text { font-size: 0.85rem; }
   .tight td { padding: 4px 6px; }
+  .person-link { border: 0; background: transparent; color: var(--accent); text-decoration: underline; cursor: pointer; padding: 1px; font: inherit; }
 </style>

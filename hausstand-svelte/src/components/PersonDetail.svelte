@@ -6,6 +6,8 @@
   export let person;
   export let projection;
   export let asOfDate;
+  export let ledger = null;
+  $: balanceCents = ledger?.balances?.get(person.id) || 0;
   let transferDialogOpen = false;
   let transferTargetId = '';
 
@@ -31,7 +33,7 @@
   }
 
   function startDissolve() {
-    const changes = person.holdings.map(h => {
+    const changes = (person.holdings || []).map(h => {
       const shares = { ...(h.item.shares || {}) };
       delete shares[person.id];
       return { itemId: h.item.id, shares: normShares(shares) };
@@ -64,7 +66,7 @@
   <div class="detail-hero">
     <div class="stack">
       <div class="detail-title"><h2>👤 {person.name}</h2><span class="badge" class:ok={person.active} class:warn={!person.active}>{person.active ? 'aktiv' : 'inaktiv'}</span></div>
-      <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">Status</div><strong>{person.active ? 'aktiv' : 'inaktiv'}</strong></div></div>
+      <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">Netto-Forderungssaldo</div><strong>{money(Math.abs(balanceCents) / 100)}</strong><div class="muted">{balanceCents > 0 ? 'zu erhalten' : balanceCents < 0 ? 'zu zahlen' : 'ausgeglichen'}</div></div></div>
     </div>
     <div class="mini-card stack"><strong>⚡ Aktionen</strong><div class="action-grid">
       <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}>✏️ Stammdaten</button>

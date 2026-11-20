@@ -46,6 +46,6 @@ Danach die manuellen Akzeptanzfälle aus [`../docs/DEVELOPMENT.md`](../docs/DEVE
 **Noch nicht implementieren oder als vorhanden behaupten**, bevor die betreffenden Architekturentscheidungen bestätigt, getestet und in Code umgesetzt sind.
 
 
-## Implementiert (Feature-Branch 20.11.2026)
+## Implementiert (`master`, 20.11.2026)
 
-`src/lib/ledger.js` ist reine Fachlogik auf `walkEvents()` aus `projector.js`. `LedgerPanel.svelte` zeigt abgeleitete Brutto- und Nettoschulden. Direkt-/Sammelanteilsänderungen lassen `financialMode` wählen, `item-added` optional `financedByPersonId`. Bei alten Events ohne Marker **keine** automatische Schuld. Kein eigener Settlement-/Posting-Speicher. `npm test` ist für Regressionen ergänzt, Build und Browser müssen tatsächlich bestätigt werden.
+`src/lib/ledger.js` ist reine Fachlogik auf `walkEvents()` aus `projector.js`. `LedgerPanel.svelte` zeigt abgeleitete Brutto- und Nettoschulden. Direkt-/Sammelanteilsänderungen lassen `financialMode` wählen, `item-added` optional `financedByPersonId`. Bei alten Events ohne Marker **keine** automatische Schuld. Kein eigener Settlement-/Posting-Speicher. `npm test` ist für Regressionen ergänzt, CI-Tests und Standalone-Build sind erfolgreich; die manuelle Browser-/JSON-Abnahme steht noch aus.

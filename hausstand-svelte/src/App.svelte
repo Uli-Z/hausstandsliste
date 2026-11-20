@@ -24,7 +24,9 @@
   });
 
   $: route = $appState.route;
-  $: person = route.page === 'person' ? ($projection.people.find(p => p.id === route.id) || $projection.peopleById.get(route.id)) : null;
+  $: personEntry = route.page === 'person' ? ($projection.people.find(p => p.id === route.id) || $projection.peopleById.get(route.id)) : null;
+  // A former member may have debts despite not holding any active items.
+  $: person = personEntry ? { holdings: [], totalValue: 0, ...personEntry } : null;
   $: item = route.page === 'item' ? $projection.items.find(i => i.id === route.id) : null;
   $: drafts = $appState.project.drafts || [];
 
@@ -135,7 +137,7 @@
       </div>
     </section>
   {:else if route.page === 'person' && person}
-    <PersonDetail {person} projection={$projection} asOfDate={$appState.asOfDate} />
+    <PersonDetail {person} projection={$projection} asOfDate={$appState.asOfDate} ledger={$ledger} />
   {:else if route.page === 'item' && item}
     <ItemDetail {item} />
   {:else}

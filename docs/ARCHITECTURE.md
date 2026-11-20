@@ -6,7 +6,7 @@ Stand der statischen Quellcode-Sichtung: **20.11.2026**, Branch `master` vor den
 
 Hausstand verwaltet gemeinschaftliche Gegenstände, ihren errechneten Zeitwert und relative Eigentumsanteile. Personen kommen hinzu oder scheiden aus. Eine datierte Ereignis-Timeline erlaubt die Rekonstruktion eines historischen Stands.
 
-Die App hat derzeit **kein Backend, keine Anmeldung, keine Datenbank, keine Synchronisation und keine echte Zahlungsbuchhaltung**. Sie berechnet Ausgleichsempfehlungen, dokumentiert aber keine geleisteten Zahlungen.
+Die App hat derzeit **kein Backend, keine Anmeldung, keine Datenbank, keine Synchronisation und keine echte Zahlungsbuchhaltung**. Sie berechnet Ausgleichsempfehlungen und Nettoschulden aus Anteilsereignissen, dokumentiert aber keine geleisteten Zahlungen.
 
 ## Komponenten und Datenfluss
 
@@ -78,7 +78,7 @@ Die Bewertungsarten sind `linear` (Nutzungsdauer in Jahren), `degressive` (jähr
 
 Ein Entwurf in `drafts[]` verändert noch keine aktiven Anteile. Bei „Ausführen“ erstellt der Dialog ein `redistribution-executed`-Event mit den geänderten Anteilssätzen und entfernt den Entwurf. `redistributionPreview()` berechnet Wertdifferenzen und `settlementRecommendations()` daraus empfohlene Zahlungen zwischen Personen.
 
-**Es werden keine Zahlungsvorgänge gespeichert.** Der abgeleitete Zahlungsvorschlag ist keine Forderung mit stabiler ID, keinem Status und keinem Zahlungsdatum. Bevor „beglichen“ ergänzt werden kann, muss geklärt werden, wie Zahlungsvorgänge stabil auf ausgeführte Umverteilungen referenzieren, ohne historische Korrekturen oder Neuberechnungen zu beschädigen.
+**Es werden keine tatsächlichen Zahlungsvorgänge gespeichert.** Die frühere Vorschaufunktion `settlementRecommendations()` unterscheidet sich von der jetzt implementierten `deriveClaims()`-Forderungsprojektion. Diese rekonstruiert Salden aus Quellereignissen, statt einen zweiten Finanzstatus zu speichern.
 
 ## Speicherung und Offline-Ziel
 
@@ -106,6 +106,6 @@ Die bisherige Architekturaufnahme oben beschreibt weiterhin den **Ist-Zustand**;
 Zentrale Invarianten: Eigentumsveränderungen sind unabhängig von der Zahlung; Forderungen sind **nicht persistierte** und bei Quellereignis-Korrekturen stets neu berechnete Projektionen zum Stichtag; das Speichermedium ändert niemals die Bedeutung des Projekt-JSON; unbekannte Passwörter dürfen den Server nicht in die Lage versetzen, Klartext zu sehen; keine stillen Übertragungs-/Revisionskonflikte.
 
 
-## Implementierte Forderungsprojektion (Feature-Branch, 20.11.2026)
+## Implementierte Forderungsprojektion (`master`, 20.11.2026)
 
 `src/lib/ledger.js` rekonstruiert Cent-Forderungen durch `walkEvents` aus `projector.js`, synchron zum Eigentumszustand. Die Herkunft wird durch `sourceEventId` und bei Sammelumverteilungen `childEventId` nachvollziehbar. Es wird **kein** zweites Finanzjournal gespeichert: geänderte oder gelöschte Quellereignisse führen automatisch zu neu berechneten Salden. Neue entgeltliche Vorgänge setzen `financialMode:'derived'`, während alte Einträge ohne Kennzeichnung neutral bleiben. Neu hinzugefügte Gegenstände können optional `financedByPersonId` erfassen. Der bestehende Projekt-JSON-Aufbau bleibt kompatibel.

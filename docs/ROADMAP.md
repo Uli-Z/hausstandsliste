@@ -1,6 +1,6 @@
 # Projektstand und Umsetzungsplan
 
-**Stand 20.11.2026: Forderungsprojektion auf Feature-Branch implementiert, CI/Browsertests noch offen; PHP-/Krypto-/E-Mail-Funktionen weiter geplant.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
+**Stand 20.11.2026: Forderungsprojektion in `master` implementiert, zehn Tests und Standalone-Build in GitHub Actions erfolgreich; manueller Browsertest offen. PHP-/Krypto-/E-Mail-Funktionen weiter geplant.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
 
 ## Bereits vorhanden (statisch im Code geprüft)
 
@@ -10,7 +10,7 @@
 - Vorschau auf Wertverschiebung und **empfohlene** Zahlungen, aber keine tatsächlich gebuchten Zahlungen
 - Lokale JSON-Dateien, `localStorage`-Arbeitskopie, Vite-/Standalone-HTML-Build
 
-**Nicht vorhanden:** Erfassung tatsächlicher Geldzahlungen, Verschlüsselung, PHP-Dateispeicherung, Checkout/Checkin, Versionsarchiv, Passwortwechsel, E-Mail-Sicherung, automatisierte Tests und CI. GitHub Pages ist derzeit nicht aktiviert.
+**Nicht vorhanden:** Erfassung tatsächlicher Geldzahlungen, Verschlüsselung, PHP-Dateispeicherung, Checkout/Checkin, Versionsarchiv, Passwortwechsel und E-Mail-Sicherung. GitHub Pages ist derzeit nicht aktiviert.
 
 ## Zwei priorisierte Produktfeatures + E-Mail-Sicherung
 
@@ -25,7 +25,7 @@
 - [x] Bilaterale Salden, freiwillige multilaterale Vereinfachung und Einzelvorgänge im Dashboard.
 - [x] Rückwirkende Änderung/Löschung verändert Forderungsprojektion automatisch; keine zweite persistente Forderungsliste.
 - [x] Bei neuen Gegenständen optional finanzierende Person dokumentieren.
-- [x] Node-Testfälle und GitHub-Actions-Workflow ergänzt (Ausführung im PR prüfen).
+- [x] Zehn Node-Tests und GitHub-Actions-Workflow erfolgreich auf `master` ausgeführt.
 - [ ] Browser-/JSON-Roundtrip und reale End-to-End-Nutzung testen.
 - [ ] Optional später echte Zahlungen als datierte Gegenbuchungsereignisse erfassen.
 
@@ -58,7 +58,7 @@ Als Unterfunktion des Online-Modus:
 ## Vorgehensreihenfolge (Empfehlung)
 
 1. **Basis absichern:** `npm ci`, `npm run build:single`, fachliche Tests einrichten (bisher nicht ausgeführt); ältere JSON-Beispiele anonymisiert sichern.
-2. **Forderungen vor Online-Betrieb:** Grundfunktionen im Feature-Branch umgesetzt; CI und Browser-/Import-Export-Abnahme abschließen.
+2. **Forderungen vor Online-Betrieb:** Grundfunktionen in `master` umgesetzt; CI erfolgreich; Browser-/Import-Export-Abnahme abschließen.
 3. **Verschlüsselung unabhängig vom Speicher:** formatversioniertes Crypto-Modul, lokaler verschlüsselter Export/Import, keinen Klartext-Cache im Verschlüsselungsmodus, Sicherheits-/Dateiformat-Tests.
 4. **Speicheradapter und PHP-Server:** `documentStore`, API, eine Deploy-PHP-Datei, Mehrdateienliste, Checkout/Lease/Revisionsschutz und Versionshistorie.
 5. **Passwortwechsel und E-Mail:** historische Versionen reencrypten, Bearbeitungsberechtigung rotieren, Mail-Queue und Retries.
