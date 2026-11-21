@@ -19,15 +19,15 @@ Dieses Dokument ist der kurze Einstieg für neue Entwicklungs-Sitzungen. **Zuers
 
 ## Unverrückbare Produktprinzipien
 
-1. **Offline-first als dauerhafte Fähigkeit:** Die eigenständige HTML-Datei und der lokale JSON-Import/-Export müssen erhalten bleiben. **Geplant** ist ein optionaler PHP-Online-Modus aus demselben Svelte-Quellcode, kein verpflichtender Server und keine zweite UI. Siehe `docs/FEATURE-COLLABORATIVE-STORAGE.md`.
+1. **Offline-first als dauerhafte Fähigkeit:** Die eigenständige HTML-Datei und der lokale JSON-Import/-Export müssen erhalten bleiben. **Implementiert** ist ein optionaler PHP-Online-Modus aus demselben Svelte-Quellcode, kein verpflichtender Server und keine zweite UI. Siehe `docs/FEATURE-COLLABORATIVE-STORAGE.md`.
 2. **Projekt-JSON ist die dauerhafte Datenquelle**; `localStorage` ist nur eine Arbeitskopie. Import-/Exportfähigkeit und Rückwärtskompatibilität beachten.
 3. **Historische Ereignisse:** `projectAt(project, asOfDate)` muss bei gleicher Eingabe dasselbe Ergebnis liefern; Ereignisse nach `date` und `order` sortieren.
 4. **Entitäten per stabiler ID referenzieren**, Anteile als relative Einheiten speichern (nicht als gerundete Prozentangaben).
 5. **Datenänderungen nur über `appState.mutateProject(...)`** bzw. die Store-Aktionen; keine direkte Mutation von `$appState.project`.
 6. Die vorhandene Funktionsparität zur alten HTML-Version schützen. Bestehende Imports und historische Projektdateien nicht stillschweigend verändern.
 7. **Umverteilung ≠ Ausgleich.** Die App berechnet jetzt Forderungen und Nettosalden aus entgeltlichen Ereignissen, erfasst aber keine realen Geldzahlungen. Für die geplante Forderungsverwaltung siehe `docs/FEATURE-DEBT-LEDGER.md`: Forderungen **ausschließlich aus Quellereignissen ableiten** (keine gespeicherten Postings/Checkboxen), Ereignis-ID als Herkunft, centgenaue Nettosalden und automatische Neuberechnung bei Datum-/Wertänderung oder Löschung.
-8. **Verschlüsselung/Backend nicht mit Fachlogik vermengen.** Projekt-JSON, Crypto-Container und lokaler/remote Speicheradapter sind getrennte Schichten. Die geplante Browser-Verschlüsselung darf niemals durch unverschlüsseltes lokales Caching unterlaufen werden; kein Passwort an PHP senden. Vor Umsetzung `docs/SECURITY-AND-ENCRYPTION.md` lesen.
-9. **Keine funktionslosen Versprechen:** PHP-Ablage, Checkout, Versionen, E-Mail und Verschlüsselung sind **geplant, nicht implementiert**.
+8. **Verschlüsselung/Backend nicht mit Fachlogik vermengen.** Projekt-JSON, Crypto-Container und lokaler/remote Speicheradapter sind getrennte Schichten. Die implementierte Browser-Verschlüsselung darf niemals durch unverschlüsseltes lokales Caching unterlaufen werden; kein Passwort an PHP senden. Vor Umsetzung `docs/SECURITY-AND-ENCRYPTION.md` lesen.
+9. **Bereitstellung prüfen:** PHP-API, Checkout, Versionen, E-Mail-Anbindung und Verschlüsselung sind implementiert. Der PHP-Server muss separat installiert und konfiguriert werden; GitHub Pages benötigt einmalige Aktivierung. E-Mail-Versand und Browser-Verhalten sind nicht durch eine End-to-End-Abnahme belegt.
 
 ## Bei jeder neuen Sitzung
 
@@ -41,9 +41,21 @@ Dieses Dokument ist der kurze Einstieg für neue Entwicklungs-Sitzungen. **Zuers
 
 Die Dokumentation wurde anhand der Dateien im Branch `master` aktualisiert. In dieser Sitzung wurde kein Build ausgeführt und kein Anwendungscode geändert. Das Projekt besitzt bislang keine automatisierte Testsuite und keine eingerichtete GitHub-Pages-Veröffentlichung.
 
-**Geplante nächste Produktpunkte (20.11.2026):** (1) dynamisch aus Events abgeleitete Forderungen/Nettoschulden (ohne gespeicherten Ausgleichsstatus); (2) optionale verschlüsselte PHP-Online-Ablage mit Checkout, Revisionen und Versionshistorie; (3) verschlüsselte E-Mail-Kopie je Revision und lokal nutzbares Verschlüsselungsformat. Die Forderungsableitung ist implementiert; PHP-Ablage, Verschlüsselung und E-Mail sind noch nicht implementiert. [Roadmap](docs/ROADMAP.md).
+**Geplante nächste Produktpunkte (20.11.2026):** (1) dynamisch aus Events abgeleitete Forderungen/Nettoschulden (ohne gespeicherten Ausgleichsstatus); (2) optionale verschlüsselte PHP-Online-Ablage mit Checkout, Revisionen und Versionshistorie; (3) verschlüsselte E-Mail-Kopie je Revision und lokal nutzbares Verschlüsselungsformat. Forderungsableitung, Verschlüsselung, PHP-API und E-Mail-Anbindung sind implementiert; externes PHP-Hosting, Seitenfreischaltung und End-to-End-Abnahme sind offen. [Roadmap](docs/ROADMAP.md).
 
 
 ## Implementierung der Forderungsableitung (in `master`, 20.11.2026)
 
-Neue Module: `src/lib/ledger.js`, `src/components/LedgerPanel.svelte`, `tests/ledger.test.js`, `.github/workflows/ci.yml`. Eigentums- und Finanzprojektion verwenden denselben `walkEvents`-Ablauf. Keine Postings/Checkboxen persistieren; die einzigen zusätzlichen Fachdaten sind optionale Felder `financialMode` und `financedByPersonId` an bestehenden Events. Neue Änderungen sind standardmäßig entgeltlich, Alt-Events ohne Marker finanziell neutral. GitHub CI hat die zehn Fachlogiktests und den Standalone-Build erfolgreich ausgeführt. Manuelle Browser-/JSON-Tests stehen aus. PHP/Krypto/E-Mail bleiben Planung.
+Neue Module: `src/lib/ledger.js`, `src/components/LedgerPanel.svelte`, `tests/ledger.test.js`, `.github/workflows/ci.yml`. Eigentums- und Finanzprojektion verwenden denselben `walkEvents`-Ablauf. Keine Postings/Checkboxen persistieren; die einzigen zusätzlichen Fachdaten sind optionale Felder `financialMode` und `financedByPersonId` an bestehenden Events. Neue Änderungen sind standardmäßig entgeltlich, Alt-Events ohne Marker finanziell neutral. GitHub CI hat die zehn Fachlogiktests und den Standalone-Build erfolgreich ausgeführt. Manuelle Browser-/JSON-Tests stehen aus. PHP/Krypto/E-Mail sind im Code und separat auf einem PHP-Server zu betreiben.
+
+
+## Speicher-/Verschlüsselungsschicht (21.11.2026)
+
+- `hausstand-svelte/src/lib/crypto.js`: versioniertes AES-256-GCM-Containerformat mit PBKDF2-HMAC-SHA256 und 600.000 Iterationen; editToken bleibt im Ciphertext.
+- `hausstand-svelte/src/components/StoragePanel.svelte`: verschlüsselter lokaler Import/Export und Browser-UI für PHP-Speicher, Locks, Revisionen, Passwortwechsel.
+- `hausstand-svelte/src/stores/projectStore.js`: `secure` verhindert Klartext-`localStorage`, `readOnly` schützt gesperrte Online-Dokumente.
+- `hausstand-svelte/server-php/backend.php`: alleinige PHP-API-Vorlage; `scripts/build-php.mjs` fügt sie mit der gebündelten Svelte-HTML zur `dist/hausstand.php` zusammen.
+- `hausstand-svelte/server-php/smoke.mjs`: Integrationstest mit temporärem PHP-Server, Testdaten und Lease-/Revisionsprüfungen.
+- `.github/workflows/pages.yml` enthält die statische Veröffentlichung, die **einmalig in den GitHub-Reposettings aktiviert werden muss**, falls der CI-Token die Seitenanlage nicht autorisiert.
+- **Nicht behaupten:** PHP auf GitHub Pages, produktiv bestätigter E-Mail-Versand, durchgängig neu verschlüsselte Historie nach Passwortwechsel oder bereits erfolgte externe Sicherheitsprüfung.
+- [Installationsanleitung](docs/DEPLOYMENT.md) beachten; keine realen Passwörter/Konfigurationen in Repository committen.

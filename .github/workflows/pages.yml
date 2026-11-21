@@ -16,6 +16,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      pages_enabled: ${{ steps.pages.outcome }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,7 +25,10 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: hausstand-svelte/package-lock.json
-      - uses: actions/configure-pages@v5
+      - name: Configure Pages (first-time activation may require owner action)
+        id: pages
+        uses: actions/configure-pages@v5
+        continue-on-error: true
         with:
           enablement: true
       - name: Build standalone website
@@ -35,10 +40,20 @@ jobs:
           mkdir -p dist/pages
           cp dist/hausstand-standalone.html dist/pages/index.html
           touch dist/pages/.nojekyll
-      - uses: actions/upload-pages-artifact@v4
+      - name: Downloadable Pages preview (also if Pages not yet enabled)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hausstand-pages-preview
+          path: hausstand-svelte/dist/pages/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload Pages deployment artifact
+        if: steps.pages.outcome == 'success'
+        uses: actions/upload-pages-artifact@v4
         with:
           path: hausstand-svelte/dist/pages
   deploy:
+    if: needs.build.outputs.pages_enabled == 'success'
     needs: build
     runs-on: ubuntu-latest
     environment:

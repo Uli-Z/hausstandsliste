@@ -49,3 +49,8 @@ Danach die manuellen Akzeptanzfälle aus [`../docs/DEVELOPMENT.md`](../docs/DEVE
 ## Implementiert (`master`, 20.11.2026)
 
 `src/lib/ledger.js` ist reine Fachlogik auf `walkEvents()` aus `projector.js`. `LedgerPanel.svelte` zeigt abgeleitete Brutto- und Nettoschulden. Direkt-/Sammelanteilsänderungen lassen `financialMode` wählen, `item-added` optional `financedByPersonId`. Bei alten Events ohne Marker **keine** automatische Schuld. Kein eigener Settlement-/Posting-Speicher. `npm test` ist für Regressionen ergänzt, CI-Tests und Standalone-Build sind erfolgreich; die manuelle Browser-/JSON-Abnahme steht noch aus.
+
+
+## Implementiert am 21.11.2026
+
+`src/lib/crypto.js` und `src/components/StoragePanel.svelte` implementieren verschlüsselten lokalen Export/Import und die optionale PHP-Online-Ablage. `src/stores/projectStore.js` besitzt `secure` und `readOnly`. Die PHP-Vorlage liegt in `server-php/backend.php`; `scripts/build-php.mjs` erstellt die einzelne `hausstand.php`. PHP-Integrationstest: `node server-php/smoke.mjs`, Kryptotest: `npm test`. GitHub Pages stellt nur HTML/JS bereit. Beachte ausdrücklich: Historie nicht neu verschlüsselt nach Passwortwechsel, Mailzustellung noch nicht live getestet, vor produktiver Nutzung Sicherheitsprüfung nötig. [Deployment](../docs/DEPLOYMENT.md).

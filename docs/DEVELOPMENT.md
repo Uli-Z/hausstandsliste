@@ -19,6 +19,7 @@ Weitere Befehle:
 | `npm test` | Node-Bordmitteltests der Forderungslogik |
 | `npm run build` | Vite-Produktionsbuild in `dist/` |
 | `npm run build:single` | Vite-Build plus `dist/hausstand-standalone.html` |
+| `npm run build:php` | Standalone-Build plus komplette PHP-App `dist/hausstand.php` |
 | `npm run dev` | Lokaler Entwicklungsserver |
 
 Das Inline-Skript ersetzt Referenzen auf gebaute `/assets/*.js` und `/assets/*.css` durch Inline-Code. Nach Abhängigkeits- oder Vite-Updates unbedingt prüfen, dass im Standalone-Ergebnis **keine** erforderlichen externen Asset-URLs übrigbleiben.
@@ -81,3 +82,13 @@ Mit den drei Ereignissen Anna → Ben 200 €, Ben → Anna 75 € und Ben → A
 ### Download des geprüften Builds
 
 Ein erfolgreicher [GitHub-Actions-Lauf](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) liefert unter **Artifacts** die Datei `hausstand-standalone` (14 Tage Aufbewahrung). Sie enthält nur die eigenständige HTML-App und keine persönlichen Projektdaten. Der manuelle Offline-Browsertest bleibt erforderlich.
+
+
+## Ergänzte Tests für Verschlüsselung und PHP (21.11.2026)
+
+- `npm test`: zusätzliche Kryptotests in `tests/crypto.test.js` (Roundtrip, falsches Passwort/Manipulation, zufällige Salts/Nonces).
+- `npm run build:php`, `php -l dist/hausstand.php`: PHP-Release-Build und Syntaxcheck.
+- `node server-php/smoke.mjs`: startet kurz einen lokalen PHP-Testserver und kontrolliert die Verschlüsselungscontainer-API einschließlich Checkout, Konfliktsperre, Versionen und Wechsel des Bearbeitungstokens. Keine E-Mail wird tatsächlich verschickt, wenn keine Mailkonfiguration gesetzt ist.
+- `.github/workflows/pages.yml`: erstellt aus derselben Svelte-Anwendung das öffentliche statische Pages-Artefakt. Die automatische initiale Aktivierung war durch einen GitHub-Rechtefehler blockiert; Repository-Administrator muss Settings → Pages → GitHub Actions einmalig einstellen. [Deployment-Anleitung](DEPLOYMENT.md).
+
+Noch offen: manuelle Browser-End-to-End-Tests und Sicherheitsreview auf einem realen HTTPS-PHP-Host, tatsächliche E-Mail-Zustellung und vollständige Neuschlüsselung der Versionshistorie.

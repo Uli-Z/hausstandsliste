@@ -10,6 +10,7 @@ Die aktuelle Hausstandsliste wird unter `hausstand-svelte/` entwickelt. Bitte vo
 - [docs/FEATURE-DEBT-LEDGER.md](docs/FEATURE-DEBT-LEDGER.md) – Planung Forderungen/Nettoschulden
 - [docs/FEATURE-COLLABORATIVE-STORAGE.md](docs/FEATURE-COLLABORATIVE-STORAGE.md) – PHP-Kollaboration, Lock/Versionen/E-Mail
 - [docs/SECURITY-AND-ENCRYPTION.md](docs/SECURITY-AND-ENCRYPTION.md) – Browser-Verschlüsselung und Sicherheitsgrenzen
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) – GitHub Pages / PHP-Hosting
 
 Ergänzende Svelte-spezifische Hinweise stehen in [hausstand-svelte/GEMINI.md](hausstand-svelte/GEMINI.md).
 

@@ -20,9 +20,11 @@ npm run dev
 npm run check:js      # prüft Syntax des Inline-Build-Skripts
 npm run build         # Vite-Produktionsbuild nach dist/
 npm run build:single  # Build plus dist/hausstand-standalone.html
+npm run build:php     # Build plus dist/hausstand.php
+npm test              # Ledger- und Kryptotests
 ```
 
-Die Datei `dist/hausstand-standalone.html` soll direkt im Browser und ohne Server funktionieren. Der Build ist dokumentiert, aber bei der Dokumentationsüberarbeitung vom 20.11.2026 **nicht erneut ausgeführt** worden. Für eine Veröffentlichung auf GitHub Pages ist aktuell noch kein Workflow eingerichtet.
+Die Datei `dist/hausstand-standalone.html` soll direkt im Browser und ohne Server funktionieren. Der Build ist dokumentiert, aber bei der Dokumentationsüberarbeitung vom 20.11.2026 **nicht erneut ausgeführt** worden. Ein GitHub-Pages-Workflow existiert. Falls die automatische Aktivierung mangels GitHub-Permissions scheitert, unter Settings → Pages als Quelle GitHub Actions wählen und Workflow neu ausführen.
 
 ## Projektübersicht
 
@@ -51,7 +53,7 @@ Ein gespeicherter Browser-Arbeitsstand ist **keine Datensicherung**. Projekt-JSO
 
 ## Nächste Entwicklungsetappe (geplant)
 
-Fachlich: [Forderungen je Anteilsbewegung, Ausgleichsstatus und Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md). Technisch: [optionale Online-Ablage per PHP](../docs/FEATURE-COLLABORATIVE-STORAGE.md) und [lokale wie serverseitige verschlüsselte Dateien](../docs/SECURITY-AND-ENCRYPTION.md). Die gleiche Svelte-App soll zwei Artefakte erzeugen, `hausstand-standalone.html` und `hausstand.php`; die PHP-Datei ist **ein generiertes Release-Artefakt, keine separate UI**. Server-API und Mailversand sind noch nicht implementiert.
+Fachlich: [Forderungen je Anteilsbewegung, Ausgleichsstatus und Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md). Technisch: [optionale Online-Ablage per PHP](../docs/FEATURE-COLLABORATIVE-STORAGE.md) und [lokale wie serverseitige verschlüsselte Dateien](../docs/SECURITY-AND-ENCRYPTION.md). Die gleiche Svelte-App soll zwei Artefakte erzeugen, `hausstand-standalone.html` und `hausstand.php`; die PHP-Datei ist **ein generiertes Release-Artefakt, keine separate UI**. Server-API und Mailanbindung sind implementiert, benötigen aber einen separaten PHP-Webserver und ein funktionierendes PHP-Mailtransport-Setup; siehe [Deployment](../docs/DEPLOYMENT.md).
 
 
 ## Forderungsprojektion (`master`, implementiert)

@@ -1,6 +1,6 @@
 # Sicherheitsentwurf: verschlüsselte Projektdateien
 
-**Status:** Architekturvorschlag, **keine implementierte/überprüfte Verschlüsselung** (20.11.2026). Diese Datei ist eine Spezifikation, kein Sicherheitsversprechen.
+**Status:** Verschlüsselungsgrundfunktion seit 21.11.2026 implementiert und automatisiert getestet. **Kein externes Sicherheitsaudit** und noch keine Browser-/Produktivabnahme; einige Anforderungen dieses ursprünglichen Entwurfs sind bewusst noch offen.
 
 ## Sicherheitsziel
 
@@ -74,3 +74,15 @@ Heute enthält der `localStorage` die **Klartext-Arbeitskopie** (`hausstand_svel
 - [PHP Manual: rename](https://www.php.net/manual/en/function.rename.php)
 
 **Nicht als implementiert ausgeben.** Vor produktivem Betrieb unabhängige Sicherheitsdurchsicht erforderlich.
+
+
+## Tatsächlich implementiertes Format (21.11.2026)
+
+- Modul `hausstand-svelte/src/lib/crypto.js`, Container `format: hausstand-aesgcm-v1`, `version:1`.
+- WebCrypto-PBKDF2-HMAC-SHA-256, **600.000 Iterationen**, zufälliges 16-Byte-Salt; AES-256-GCM mit zufälligem 12-Byte-Nonce; Verschlüsselungsheader als Additional Authenticated Data.
+- Payload enthält Projekt-JSON plus zufälligen 256-Bit-`editToken`. Nur der SHA-256-Hash dieses Bearbeitungs-Tokens steht beim PHP-Server. Passwort wird nicht an PHP gesendet.
+- Für verschlüsselt geöffnete Projekte wird die bestehende Klartext-`localStorage`-Arbeitskopie gelöscht und nicht fortgesetzt. Speicher nicht per Browsercache absichern; ungespeicherte Daten vor Verlassen exportieren.
+- Falsche Passphrase, beschädigte Authentifizierungsdaten und beschädigte Container werden beim lokalen automatisierten Test erkannt.
+- Bei **Passwortwechsel** wird der aktuell gespeicherte Stand neu verschlüsselt und die Bearbeitungs-Capability rotiert. **Bereits archivierte Versionen und versandte E-Mails bleiben mit ihren alten Passwörtern zugänglich.** Das ist ein noch offener Sicherheitsunterschied zum ursprünglich gewünschten vollständigen History-Rekey. Alte Passwörter daher nicht als rückwirkend widerrufen betrachten.
+- JavaScript und PHP werden zusammen veröffentlicht; eine kompromittierte Auslieferung kann trotz Verschlüsselung Passwörter beim Eingeben abgreifen. Es gibt keine Identitätsprüfung pro Nutzer, sondern ein gemeinsames Dateipasswort.
+- Bei starken Datenschutzanforderungen vor produktivem Betrieb Codeprüfung, Browser-/CORS-/XSS-/Headerprüfung, Threat Modeling und ein von unabhängiger Stelle bestätigtes Testprotokoll einplanen.

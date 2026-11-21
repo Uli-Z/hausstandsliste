@@ -1,6 +1,6 @@
 # Projektstand und Umsetzungsplan
 
-**Stand 20.11.2026: Forderungsprojektion in `master` implementiert, zehn Tests und Standalone-Build in GitHub Actions erfolgreich; manueller Browsertest offen. PHP-/Krypto-/E-Mail-Funktionen weiter geplant.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
+**Stand 21.11.2026: Forderungsprojektion, lokale Verschlüsselung, PHP-Dateispeicherung, Checkout und Versionshistorie implementiert; automatisierte Tests und PHP-Integration bestanden. GitHub Pages erfordert noch die einmalige Aktivierung durch den Repository-Administrator; PHP-Hosting und echter Mailversand noch nicht eingerichtet.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
 
 ## Bereits vorhanden (statisch im Code geprüft)
 
@@ -10,7 +10,7 @@
 - Vorschau auf Wertverschiebung und **empfohlene** Zahlungen, aber keine tatsächlich gebuchten Zahlungen
 - Lokale JSON-Dateien, `localStorage`-Arbeitskopie, Vite-/Standalone-HTML-Build
 
-**Nicht vorhanden:** Erfassung tatsächlicher Geldzahlungen, Verschlüsselung, PHP-Dateispeicherung, Checkout/Checkin, Versionsarchiv, Passwortwechsel und E-Mail-Sicherung. GitHub Pages ist derzeit nicht aktiviert.
+**Nicht vorhanden:** Erfassung tatsächlicher Geldzahlungen, automatische Echtzeit-Synchronisierung, neu verschlüsselte Althistorie nach Passwortwechsel sowie produktiv eingerichtetes PHP-/Mailhosting. GitHub Pages ist derzeit nicht aktiviert.
 
 ## Zwei priorisierte Produktfeatures + E-Mail-Sicherung
 
@@ -35,14 +35,16 @@
 
 [Architektur & Workflow vollständig lesen](FEATURE-COLLABORATIVE-STORAGE.md).
 
-- [ ] Eine Svelte-Quellbasis mit **zwei Artefakten**: offline `hausstand-standalone.html` und optional `hausstand.php` (HTML + kleine PHP-Speicher-API).
-- [ ] Mehrere Dateien mit sichtbaren Anzeigenamen, pro Datei eigenes Entschlüsselungspasswort, gemeinsame Arbeitsordner-Ansicht.
-- [ ] Checkout/Checkin pro Datei; Lease nach standardmäßig **zwei Stunden Inaktivität** automatisch freigeben.
-- [ ] Jeder Speichervorgang verlangt gültige Lease und passende Basisrevision; fremde/abgelaufene Bearbeitung darf keine Änderungen überschreiben.
-- [ ] Jede bestätigte Speicherung erzeugt eine verschlüsselte Vorversion; Wiederherstellen erzeugt eine **neue** Revision.
-- [ ] Pro Datei Passwort setzen/ändern; bestehende Versionshistorie bei Schlüsselwechsel konsistent behandeln.
-- [ ] Webserver speichert nur **Ciphertext**, separate Datei-/Edit-Autorisierung, Datenordner außerhalb Webroot; HTTPS und Sicherheitsprüfung.
-- [ ] Lokaler verschlüsselter Export/Import nutzt **dasselbe** Format unabhängig vom Server.
+- [x] Zwei Artefakte aus einer Svelte-App: `hausstand-standalone.html` und `hausstand.php`.
+- [x] Mehrere Dateien, öffentliche Anzeigenamen, eigenes Passphrase-geschütztes Projekt pro Datei.
+- [x] Checkout/Checkin pro Datei mit **2-Stunden-Lease**, manuelle Verlängerung, automatische Ungültigkeit bei Fristende.
+- [x] Schreiboperationen mit Lease und `expectedRevision`; keine stillen Überschreibungen.
+- [x] Verschlüsselte Vorversionen und Wiederherstellung als neue Revision.
+- [x] Passwort für aktuelle Version ändern; **Bearbeitungsberechtigung rotieren**.
+- [ ] Historische Serverversionen bei Passwortwechsel ebenfalls vollständig neu verschlüsseln (aktuell alte Passphrase nötig).
+- [x] Datei-API sieht nur Ciphertext und Bearbeitungs-Token-Hash; Datenordner außerhalb des Webroots erforderlich.
+- [x] Gleiches verschlüsseltes Format für lokale Dateien und PHP-Ablage.
+- [ ] Server mit HTTPS produktiv einrichten, Zwei-Browser-Tests, Sicherheitsreview.
 
 [Sicherheits- und Verschlüsselungsmodell vollständig lesen](SECURITY-AND-ENCRYPTION.md). Wichtige Grenze: Ein kompromittierter Server, der Web-Code ausliefert, kann Browser-Passwörter trotz clientseitiger Datei-Verschlüsselung abgreifen.
 
@@ -50,18 +52,19 @@
 
 Als Unterfunktion des Online-Modus:
 
-- [ ] Nach jedem **bestätigten** neuen Revisionsstand eine E-Mail mit **verschlüsseltem Dateianhang** an konfigurierte Empfänger vorbereiten.
-- [ ] SMTP/Transport und Empfänger nur serverseitig konfigurieren, keine beliebige offene Mail-Relay-API.
-- [ ] Bei Mailfehler bleibt die Datei gespeichert; Versandstatus/Retry-Warteschlange, keine doppelten Mails je Revision.
-- [ ] Kein Passwort, keine Klartext-Daten im E-Mail-Inhalt; sichtbare Metadaten im Betreff bewusst minimieren.
+- [x] Nach jedem bestätigten Speichern verschlüsselten Mail-Anhang mit PHP `mail()` versuchen.
+- [x] Empfänger und Absender serverseitig per Umgebungsvariablen; PHP-Mailtransport des Hosts erforderlich.
+- [x] Mailfehler beeinflusst die gesicherte Datei nicht; fehlgeschlagene Versionen werden beim nächsten Speichern erneut versucht (max. 5 Versuche).
+- [ ] Eigenständige zeitgesteuerte Mail-Retry-Warteschlange und tatsächliche Zustellungsprüfung.
+- [x] Kein Passwort und keine Klartextprojektdaten in E-Mail; Betreff nennt nur Versionsnummer.
 
 ## Vorgehensreihenfolge (Empfehlung)
 
 1. **Basis absichern:** `npm ci`, `npm run build:single`, fachliche Tests einrichten (bisher nicht ausgeführt); ältere JSON-Beispiele anonymisiert sichern.
 2. **Forderungen vor Online-Betrieb:** Grundfunktionen in `master` umgesetzt; CI erfolgreich; Browser-/Import-Export-Abnahme abschließen.
-3. **Verschlüsselung unabhängig vom Speicher:** formatversioniertes Crypto-Modul, lokaler verschlüsselter Export/Import, keinen Klartext-Cache im Verschlüsselungsmodus, Sicherheits-/Dateiformat-Tests.
-4. **Speicheradapter und PHP-Server:** `documentStore`, API, eine Deploy-PHP-Datei, Mehrdateienliste, Checkout/Lease/Revisionsschutz und Versionshistorie.
-5. **Passwortwechsel und E-Mail:** historische Versionen reencrypten, Bearbeitungsberechtigung rotieren, Mail-Queue und Retries.
+3. **Verschlüsselung:** Crypto-Modul, lokaler Import/Export und Cache-Schutz umgesetzt; externe Sicherheitsabnahme und Passwortwechsel der Historie bleiben offen.
+4. **PHP-Server:** API, Mehrdateienliste, Checkout/Revisionsschutz und Versionen implementiert; reales Hosting und Browserabnahme noch offen.
+5. **Passwortwechsel und E-Mail:** Berechtigungsrotation und PHP-Mailversand umgesetzt; historische Versionen reencrypten und zuverlässige Zustellungs-/Retry-Tests ergänzen.
 6. **Integration/CI/Release:** Zwei-Browser- und Sicherheitstests, Offline-/Online-Abnahme, Deployment-Anleitung. GitHub Pages ist optional nur für statische Offline-Variante; **PHP läuft nicht auf GitHub Pages**.
 
 ## Noch offene Produktentscheidungen – vorgeschlagene Defaults
@@ -88,3 +91,15 @@ Als Unterfunktion des Online-Modus:
 Die Detailentwürfe sind **keine Funktionszusagen**, sondern der aktuelle Entwicklungsplan. Änderungen am Quellcode jeweils mit Tests, Schema-/Migrationsdokumentation und Aktualisierung dieser Roadmap begleiten. Erst dann „umgesetzt“ markieren.
 
 Ausführliche Akzeptanzfälle: [Entwicklung](DEVELOPMENT.md). Vor neuen Aufgaben stets [AGENTS.md](../AGENTS.md) lesen.
+
+
+## Deployment-Pflichtschritte (21.11.2026)
+
+- [ ] Unter Repository-Settings → Pages als Source **GitHub Actions** aktivieren (CI-Token darf die Seite nicht erstmalig erzeugen).
+- [ ] Pages-Workflow danach neu starten und tatsächliche URL prüfen.
+- [ ] Für Online-Ablage separaten PHP-Webserver mit HTTPS und privatem Datenordner einrichten.
+- [ ] Workspace-Schlüssel und optionale Backup-Mailkonfiguration als Server-Umgebungsvariablen setzen.
+- [ ] PHP-Dienst mit Browser von GitHub Pages aus testen (CORS `HAUSSTAND_ALLOW_ORIGIN`).
+- [ ] Vollständige Backup-, Passwortwechsel- und Konfliktprüfung mit Testdaten durchführen.
+
+[Konkrete Anleitung](DEPLOYMENT.md).

@@ -37,27 +37,28 @@ Das Ergebnis liegt unter `hausstand-svelte/dist/hausstand-standalone.html` und k
 
 ## Speicherung und Datenschutz
 
-In der aktuellen implementierten Version gibt es noch keinen Backend-Server und keine Datenbank. Die App speichert die Arbeitskopie im `localStorage` des verwendeten Browsers. Die **exportierte JSON-Projektdatei ist der dauerhaft aufzubewahrende Datenbestand**. Browserdaten können verloren gehen oder auf einem anderen Gerät fehlen – daher regelmäßig exportieren und gesichert ablegen. Persönliche Projektdaten nicht in dieses öffentliche Repository committen.
+Die App arbeitet weiterhin ohne verpflichtenden Server. Zusätzlich gibt es einen **optionalen PHP-Speichermodus** für verschlüsselte gemeinsame Dateien; GitHub Pages bietet nur die statische Oberfläche. Bei gewöhnlichen Klartext-Projekten speichert die App eine Arbeitskopie im `localStorage`. **Verschlüsselt geöffnete Projekte werden dagegen nicht als Klartext im Browser-Storage zwischengespeichert.** Die **exportierte JSON-Projektdatei ist der dauerhaft aufzubewahrende Datenbestand**. Browserdaten können verloren gehen oder auf einem anderen Gerät fehlen – daher regelmäßig exportieren und gesichert ablegen. Persönliche Projektdaten nicht in dieses öffentliche Repository committen.
 
 ## Veröffentlichungsstatus
 
-Der Quellcode ist öffentlich; **GitHub Pages ist für dieses Repository derzeit nicht aktiviert** (geprüft am 20.11.2026). Eine öffentliche Web-App ist nicht eingerichtet. Ein GitHub-Actions-Workflow prüft automatisiert Tests und Standalone-Build und stellt die HTML-Datei als Workflow-Artefakt bereit.
+Der Quellcode ist öffentlich. Die GitHub-Pages-Veröffentlichung ist vorbereitet; die erstmalige Freischaltung unter **Settings → Pages → Source: GitHub Actions** muss einmal durch den Repository-Administrator erfolgen. Der automatische Versuch war durch fehlende GitHub-Actions-Administrationsberechtigung blockiert. Die getestete HTML- und PHP-Datei stehen als CI-Artefakte bereit. [Deployment-Anleitung](docs/DEPLOYMENT.md).
 
-## Erweiterungen (Forderungslogik umgesetzt, Servermodus geplant)
+## Erweiterungen: Forderungen, Verschlüsselung und optionale Online-Ablage
 
-Für die nächste Entwicklungsphase sind **zwei Produktfunktionen** und eine Benachrichtigung vorgesehen:
+Der Implementierungsstand umfasst:
 
 1. **Forderungen aus Anteilsbewegungen (implementiert):** Jede wirtschaftliche Eigentumsübertragung erzeugt **aus ihren historischen Ereignisdaten abgeleitete** Forderungen. Gegenläufige Forderungen werden automatisch verrechnet, **ohne Checkbox oder gespeicherten Zahlungsstatus**. Wird ein Quellereignis zeitlich oder wertmäßig verändert oder gelöscht, werden alle betroffenen Forderungen und Salden neu berechnet. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
-2. **Mehrere verschlüsselte Projektdateien auf einem PHP-Server:** Ein gemeinsamer Arbeitsordner mit sichtbaren Dateinamen, Passwort zum Entschlüsseln, Checkout/Checkin mit standardmäßig zwei Stunden Inaktivitätsfrist, Revisionsschutz und verschlüsselter Versionshistorie. Zusätzlich zur Offline-HTML-Version soll aus demselben Quellcode ein `hausstand.php`-Release gebaut werden.
-3. **Verschlüsselte E-Mail-Sicherung:** Nach jeder bestätigten Online-Speicherung eine Kopie der verschlüsselten Dateiversion an eine konfigurierte E-Mail-Adresse senden. Die Verschlüsselung muss genauso für lokale Dateien funktionieren.
+2. **Mehrere verschlüsselte Projektdateien auf einem PHP-Server (implementiert, noch nicht extern gehostet):** Ein gemeinsamer Arbeitsordner mit sichtbaren Dateinamen, Passwort zum Entschlüsseln, Checkout/Checkin mit standardmäßig zwei Stunden Inaktivitätsfrist, Revisionsschutz und verschlüsselter Versionshistorie. Zusätzlich zur Offline-HTML-Version wird aus demselben Quellcode ein `hausstand.php`-Release gebaut.
+3. **Verschlüsselte E-Mail-Sicherung (implementiert, Versand noch nicht mit echtem Mailserver bestätigt):** Nach jeder bestätigten Online-Speicherung eine Kopie der verschlüsselten Dateiversion an eine konfigurierte E-Mail-Adresse senden. Die Verschlüsselung muss genauso für lokale Dateien funktionieren.
 
 Dokumentation zur umgesetzten Forderungslogik und den weiteren Planungen:
 
 - [Forderungsjournal und Nettoausgleich](docs/FEATURE-DEBT-LEDGER.md)
 - [Kollaborative PHP-Dateiablage](docs/FEATURE-COLLABORATIVE-STORAGE.md)
 - [Sicherheits- und Verschlüsselungsentwurf](docs/SECURITY-AND-ENCRYPTION.md)
+- [Installation, GitHub Pages und PHP-Server](docs/DEPLOYMENT.md)
 
-**Status:** Die Forderungsprojektion ist in `master` implementiert, zehn Unit-Tests und der Standalone-Build liefen in GitHub Actions erfolgreich. Der manuelle Browser-/JSON-Roundtrip steht noch aus. Es werden weiterhin keine realen Geldzahlungen erfasst. PHP, Verschlüsselung und E-Mail bleiben geplant.
+**Status:** Forderungsableitung, lokaler verschlüsselter Import/Export, PHP-Online-Ablage, Checkout, Revisionen und PHP-Mailanbindung sind im Code. Automatisierte Kryptotests und PHP-API-Integrationstests einschließlich PHP-Build waren erfolgreich; eine manuelle Browser-/Server-/E-Mail-Abnahme und unabhängige Sicherheitsprüfung stehen noch aus. Echte Geldzahlungen werden nicht erfasst.
 
 ## Projekt-Dokumentation
 
@@ -72,4 +73,7 @@ Dokumentation zur umgesetzten Forderungslogik und den weiteren Planungen:
 
 ## Offline-HTML herunterladen
 
-In [GitHub Actions – Svelte app checks](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) einen erfolgreichen Lauf öffnen und unter **Artifacts** `hausstand-standalone` herunterladen. Das Artefakt enthält die eigenständige HTML-App (14 Tage Aufbewahrung), aber keine Projektdateien. GitHub Pages ist nicht aktiviert.
+In [GitHub Actions – Svelte app checks](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) einen erfolgreichen Lauf öffnen und unter **Artifacts** `hausstand-standalone` herunterladen. Das Artefakt enthält die eigenständige HTML-App (14 Tage Aufbewahrung), aber keine Projektdateien. Für die automatische Web-Veröffentlichung die [Pages-Quelle einmalig aktivieren](docs/DEPLOYMENT.md#github-pages-veröffentlichung).
+
+
+**Wichtige Grenzen:** GitHub Pages führt selbst kein PHP aus. Die gemeinsame Online-Ablage benötigt einen separaten PHP-Webserver mit HTTPS; Dateinamen und Revisionsmetadaten sind dort öffentlich sichtbar. Das Ändern des Dateipassworts schützt die aktuelle Revision und rotiert das Schreibrecht, **verschlüsselt aber alte Versionen und bereits versandte E-Mails nicht rückwirkend neu**. Eine produktive Nutzung sensibler Daten setzt eine Server- und Sicherheitsprüfung voraus.

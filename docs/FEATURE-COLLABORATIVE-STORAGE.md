@@ -1,6 +1,6 @@
 # Fach- und Technikentwurf: PHP-Online-Ablage
 
-**Status:** Geplant, nicht implementiert (20.11.2026).
+**Status:** Kernfunktionen implementiert und PHP-API-Smoke-Test bestanden (21.11.2026). Noch kein externer PHP-Server eingerichtet und keine echte E-Mail-Zustellung bestätigt.
 
 ## Ziel
 
@@ -140,3 +140,19 @@ Ein fehlgeschlagener E-Mail-Versand darf die bereits gespeicherte Revision **nic
 - Pfadüberquerung, API-Fuzzing, gleichzeitige POSTs, korrupte Metadaten und Schreibrechte geprüft.
 
 **Noch nicht implementiert:** Alle oben genannten Server-/Crypto-Funktionen.
+
+
+## Tatsächliche erste Implementierung (21.11.2026)
+
+Die ursprüngliche Quellstruktur oben ist ein Designentwurf. Der aktuelle Code verwendet:
+
+- `src/components/StoragePanel.svelte`: Datei-Aktionen, Passwortfeld, Dateiliste, Checkout, Revisionen.
+- `src/lib/crypto.js`: verschlüsselter lokaler Import/Export und identischer Ciphertext für PHP.
+- `src/stores/projectStore.js`: sichere/readonly Projektmodi, kein Klartext-Cache bei verschlüsselten Projekten.
+- `server-php/backend.php`: PHP-API mit kleinem Dateispeicher, Hash-Bearbeitungsberechtigung, Gesamt-`flock` für API-Operationen, 2-h-Lease und Revision-409.
+- `scripts/build-php.mjs`: packt den PHP-Quelltext und die fertig eingebettete Svelte-HTML in `dist/hausstand.php`.
+- `server-php/smoke.mjs`: automatisierte reale PHP-Server-Integration mit Anlage, read, checkout, gesperrtem zweiten checkout, save, Konflikt, version, Passwort-/Tokenwechsel.
+
+Server-Konfiguration und Pages-Betrieb: [DEPLOYMENT.md](DEPLOYMENT.md). `HAUSSTAND_DATA_DIR` muss **außerhalb** des Webroots liegen, `HAUSSTAND_WORKSPACE_KEY` schützt neue Dateien, `HAUSSTAND_ALLOW_ORIGIN` gibt die GitHub-Pages-Origin frei. Mailkonfiguration `HAUSSTAND_BACKUP_EMAIL` und `HAUSSTAND_MAIL_FROM` ist optional. PHP benötigt dafür eine funktionierende lokale Mail-Transportkonfiguration (`mail()`).
+
+**Abweichungen vom ursprünglichen Soll:** kein eigener `documentStore.js` (Readonly/Secure liegen im bestehenden Store, Revisions-/Lease-Zustand in der StoragePanel-Komponente); kein vollständig atomarer Neuverschlüsselungsvorgang für sämtliche historischen Versionen beim Passwortwechsel; keine eigenständige Hintergrund-Mailwarteschlange oder automatische Prüfung der tatsächlichen Mailzustellung; noch keine produktive Benutzer-/Browser- oder externe Sicherheitsabnahme. Die nicht implementierten Aspekte der früheren Abschnitte nicht als fertig deklarieren.
