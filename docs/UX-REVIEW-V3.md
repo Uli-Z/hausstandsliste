@@ -37,3 +37,11 @@
 
 ## Zweite UX-Runde
 Die V3-Varianten der Personen- und Gegenstandsdetails, Verlaufsdarstellung und Bearbeitungsdialoge nutzen handlungsorientierte Beschriftungen. Der Fachcode einschließlich Store, Ledger und Zeitprojektion bleibt unverändert; Änderungen sind nur auf der Vorschauunterseite.
+
+## Mobile UX – November 2026
+- Feste Fünfer-Navigation am Bildschirmrand: Start, Dinge, Personen, Geld und Mehr. Die anderen Bereiche sind im aufklappbaren Mehr-Menü erreichbar, ohne horizontalen Menü-Scroll.
+- Datumsauswahl in zwei vollständigen Touch-Zeilen; alle bisherigen Sprünge bleiben erhalten.
+- Buttons 44–46 px, Eingabefelder mindestens 16 px Schrift für iOS, Safe-Area-Insets an Bottom-Bar und Dialogaktionen.
+- Vollbild-Bearbeitungsdialoge mit vertikal scrollendem Inhalt und ständig sichtbaren Speichern-/Abbrechen-Aktionen. Umverteilung führt auf Smartphones durch eine einzelne Spalte; Liste und Vorschau bleiben erreichbar.
+- Geldbeträge nutzen statt breiter Tabellen beschriftete Zeilenkarten auf schmalen Displays.
+- Unter 360 px eine einspaltige Aktionsliste, lesbare Kennzahlen und reduzierte Bewegung. Separate Browser-/Hardware- und Accessibility-Tests weiterhin empfohlen.
