@@ -321,3 +321,45 @@ tr.clickable-row:hover td{background:#eef7f8}
   html{scroll-behavior:auto}
   *,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}
 }
+
+/* Compact dialog forms: no oversized field when the modal has only one input. */
+.modal-body.stack {
+  align-content:start;
+  grid-auto-rows:max-content;
+  justify-items:stretch;
+}
+.modal-body.stack > label {
+  align-self:start;
+  align-content:start;
+  grid-auto-rows:max-content;
+  max-width:100%;
+}
+.modal-body .person-name-field {
+  width:min(100%,440px);
+  max-height:110px;
+}
+.modal-body .person-name-field input {
+  width:100%;
+  min-height:46px;
+  height:46px;
+  max-height:46px;
+}
+.modal-body input:not([type="checkbox"]):not([type="radio"]),
+.modal-body select,
+.modal-body textarea {
+  min-width:0;
+  max-width:100%;
+}
+.modal-body input[type="number"] {
+  min-height:44px;
+  height:44px;
+  max-height:46px;
+  font-variant-numeric:tabular-nums;
+}
+.modal-body .share-row button {
+  min-height:44px;
+}
+@media(max-width:780px) {
+  .modal-body.stack { align-content:start; grid-auto-rows:max-content; }
+  .modal-body .person-name-field { width:100%; max-width:min(100%,440px); }
+}

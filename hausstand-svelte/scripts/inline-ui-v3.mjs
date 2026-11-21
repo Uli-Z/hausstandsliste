@@ -17,6 +17,8 @@ assert.match(html,/mobile-bottom-nav/,'Mobile bottom navigation missing');
 assert.match(html,/mobile-more-menu/,'Mobile more menu missing');
 assert.match(html,/safe-area-inset-bottom/,'Mobile safe-area CSS missing');
 assert.match(html,/data-label="Betrag"/,'Mobile finance row labels missing');
+assert.match(html,/person-name-field/,'Person name field must be layout-bounded');
+assert.match(await readFile(path.join(root,'ui-v3','DialogRouter.svelte'),'utf8'),/confirmFromInput/,'Dialog Enter handling missing');
 
 const out=path.join(root,'dist','pages','ui-v3');await mkdir(out,{recursive:true});await writeFile(path.join(out,'index.html'),html,'utf8');
 console.log('Standalone UI V3 validated: dist/pages/ui-v3/index.html');

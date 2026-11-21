@@ -10,7 +10,8 @@
     buildAddPersonChanges,
     sharesEqual
   } from '../src/lib/redistribution.js';
-  import ShareEditor from '../src/components/ShareEditor.svelte';
+  import ShareEditor from './ShareEditor.svelte';
+  import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
   import { uid, clone, dateDE } from '../src/lib/util.js';
   
@@ -68,6 +69,13 @@
     activeSubModal = null;
   }
 
+  function confirmFromInput(event) {
+    if (!isEnterForSubmit(event)) return;
+    if (activeSubModal) return; // Unterdialog hat eine eigene Bestätigung.
+    event.preventDefault();
+    if (redistribution?.changes?.length) execute();
+  }
+
   function saveAsDraft() {
     appState.upsertDraft(redistribution);
     appState.closeDialog();
@@ -87,7 +95,7 @@
 </script>
 
 <div class="modal-backdrop">
-  <div class="modal large-modal">
+  <div class="modal large-modal" role="dialog" aria-modal="true" aria-label="Anteile übertragen" on:keydown={confirmFromInput}>
     <div class="modal-header">
       <div class="stack">
         <h3>Anteile übertragen oder neu verteilen</h3>
@@ -176,7 +184,7 @@
 <!-- Sub-Modals -->
 {#if activeSubModal}
   <div class="modal-backdrop sub-modal">
-    <div class="modal" style="max-width: 600px">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Anteile ändern" style="max-width: 600px">
       <div class="modal-header">
         <h3>
           {#if activeSubModal === 'item'}Eigentumsanteile ändern: {subModalData.item.name}{/if}

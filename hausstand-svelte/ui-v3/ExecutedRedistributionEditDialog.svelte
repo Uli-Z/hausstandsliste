@@ -2,7 +2,8 @@
   import { appState } from '../src/stores/projectStore.js';
   import { money, normShares } from '../src/lib/domain.js';
   import { redistributionPreview, redistributionMarkdown, buildRedistributionItemRows, sharesEqual } from '../src/lib/redistribution.js';
-  import ShareEditor from '../src/components/ShareEditor.svelte';
+  import ShareEditor from './ShareEditor.svelte';
+  import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
   import { clone, dateDE } from '../src/lib/util.js';
   
@@ -66,6 +67,13 @@
     if (editingChildId === childId) editingChildId = null;
   }
 
+  function confirmFromInput(event) {
+    if (!isEnterForSubmit(event)) return;
+    event.preventDefault();
+    if (editingChildId) saveChild();
+    else save();
+  }
+
   function save() {
     appState.mutateProject(p => {
       const idx = p.events.findIndex(e => e.id === edited.id);
@@ -94,7 +102,7 @@
 </script>
 
 <div class="modal-backdrop">
-  <div class="modal large-modal">
+  <div class="modal large-modal" role="dialog" aria-modal="true" aria-label="Anteilsänderung bearbeiten" on:keydown={confirmFromInput}>
     <div class="modal-header">
       <div class="stack">
         <h3>Frühere Anteilsänderung bearbeiten</h3>

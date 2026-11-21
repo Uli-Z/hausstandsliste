@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
   import { money } from '../src/lib/domain.js';
@@ -101,7 +102,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window on:keydown={handleKeydown} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
 
 <div class="app-shell">
   <aside class="sidebar" aria-label="Hauptnavigation">

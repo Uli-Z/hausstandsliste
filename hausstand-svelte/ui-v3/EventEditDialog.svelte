@@ -2,7 +2,8 @@
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE, uid, clone } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';
-  import ShareEditor from '../src/components/ShareEditor.svelte';
+  import ShareEditor from './ShareEditor.svelte';
+  import { isEnterForSubmit } from './form-behavior.js';
 
   export let dialog;
   export let project;
@@ -14,6 +15,12 @@
   $: if (event && !edited) {
     edited = clone(event);
     if (edited.type === 'shares-set' && !edited.financialMode) edited.financialMode = 'none';
+  }
+
+  function confirmFromInput(event) {
+    if (!isEnterForSubmit(event)) return;
+    event.preventDefault();
+    save();
   }
 
   function save() {
@@ -38,7 +45,7 @@
 </script>
 
 <div class="modal-backdrop">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Änderung bearbeiten" on:keydown={confirmFromInput}>
     <div class="modal-header">
       <h3>Änderung bearbeiten</h3>
       <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>

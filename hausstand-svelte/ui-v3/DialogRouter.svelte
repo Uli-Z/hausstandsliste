@@ -5,7 +5,8 @@
   import RedistributionDialog from './RedistributionDialog.svelte';
   import EventEditDialog from './EventEditDialog.svelte';
   import ExecutedRedistributionEditDialog from './ExecutedRedistributionEditDialog.svelte';
-  import ShareEditor from '../src/components/ShareEditor.svelte';
+  import ShareEditor from './ShareEditor.svelte';
+  import { isEnterForSubmit } from './form-behavior.js';
   export let dialog;
   export let project;
   export let projection;
@@ -77,6 +78,24 @@
       annualRate = projectedItem.runtime.valuation.annualRate || 0.2;
       minimumValue = projectedItem.runtime.valuation.minimumValue || 0;
     }
+  }
+
+  // Enter bestätigt den primären Dialog-Button; Textbereiche und Auswahlfelder bleiben unbeeinflusst.
+  function confirmFromInput(event) {
+    if (!isEnterForSubmit(event)) return;
+    const action = {
+      personAdd: addPerson,
+      personMeta: savePersonMeta,
+      itemAdd: addItem,
+      itemContinue: continueItem,
+      itemMeta: saveItemMeta,
+      shareSet: saveShareSet,
+      itemEnd: endItem
+    }[dialog?.type];
+    if (!action) return;
+    event.preventDefault();
+    if (['personAdd', 'personMeta'].includes(dialog.type) && !canSavePersonName) return;
+    action();
   }
 
   function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; shareFinancialMode = 'derived'; financedByPersonId = ''; reason = ''; initialValue = 0; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
@@ -264,7 +283,7 @@
   <ExecutedRedistributionEditDialog {dialog} {project} {projection} />
 {:else if dialog}
   <div class="modal-backdrop">
-    <div class="modal" style="max-width:720px">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Bearbeiten" style="max-width:720px" on:keydown={confirmFromInput}>
       <div class="modal-header">
         <h3>{
           dialog.type === 'personAdd' ? 'Person hinzufügen' : 
@@ -280,7 +299,7 @@
       </div>
       <div class="modal-body stack">
         {#if dialog.type === 'personAdd' || dialog.type === 'personMeta'}
-          <label>Name <input bind:value={name} placeholder="Name"></label>
+          <label class="person-name-field">Name <input bind:value={name} placeholder="Vor- und Nachname" autocomplete="name" enterkeyhint="done"></label>
           {#if duplicatePerson}
             <div class="notice warn">
               Eine Person mit diesem Namen existiert bereits: <strong>{duplicatePerson.name}</strong>
@@ -305,20 +324,20 @@
           {/if}
         {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
           <div class="form-grid">
-            <label>Name <input bind:value={itemName}></label>
+            <label>Name <input bind:value={itemName} enterkeyhint="done"></label>
             <label>Kategorien <input bind:value={tags} placeholder="Küche, Elektro"></label>
-            <label>Anschaffungswert in Euro <input type="number" step="0.01" bind:value={initialValue}></label>
+            <label>Anschaffungswert in Euro <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}></label>
             <label>Wie verändert sich der Wert? <select bind:value={valuationType}>
               <option value="linear">Wert sinkt gleichmäßig</option>
               <option value="degressive">Wert sinkt jährlich prozentual</option>
               <option value="fixed">Wert bleibt gleich</option>
             </select></label>
             {#if valuationType === 'linear'}
-              <label>Nutzungsdauer (Jahre) <input type="number" bind:value={durationYears}></label>
+              <label>Nutzungsdauer (Jahre) <input type="number" min="0" step="1" inputmode="numeric" bind:value={durationYears}></label>
             {:else if valuationType === 'degressive'}
-              <label>Jährlicher Wertverlust (0,2 = 20 %) <input type="number" step="0.01" bind:value={annualRate}></label>
+              <label>Jährlicher Wertverlust (0,2 = 20 %) <input type="number" min="0" max="1" step="0.01" inputmode="decimal" bind:value={annualRate}></label>
             {/if}
-            <label>Mindestwert <input type="number" step="0.01" bind:value={minimumValue}></label>
+            <label>Mindestwert <input type="number" min="0" step="0.01" inputmode="decimal" bind:value={minimumValue}></label>
             <label class="wide">Notiz <textarea bind:value={note}></textarea></label>
             <section class="wide mini-card stack">
               <strong>Wem gehört der Gegenstand?</strong>
@@ -337,7 +356,7 @@
             </section>
           </div>
         {:else if dialog.type === 'itemMeta'}
-          <div class="form-grid"><label>Name <input bind:value={itemName}></label><label>Kategorien <input bind:value={tags}></label><label class="wide">Notiz <textarea bind:value={note}></textarea></label></div>
+          <div class="form-grid"><label>Name <input bind:value={itemName} enterkeyhint="done"></label><label>Kategorien <input bind:value={tags}></label><label class="wide">Notiz <textarea bind:value={note}></textarea></label></div>
         {:else if dialog.type === 'shareSet'}
           <ShareEditor people={projection.people} bind:shares />
           <label>Sollen Geldforderungen entstehen?
