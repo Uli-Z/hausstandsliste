@@ -4,10 +4,10 @@
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
   import { money } from '../src/lib/domain.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
-  import Timeline from '../src/components/Timeline.svelte';
-  import PersonDetail from '../src/components/PersonDetail.svelte';
-  import ItemDetail from '../src/components/ItemDetail.svelte';
-  import DialogRouter from '../src/components/DialogRouter.svelte';
+  import Timeline from './Timeline.svelte';
+  import PersonDetail from './PersonDetail.svelte';
+  import ItemDetail from './ItemDetail.svelte';
+  import DialogRouter from './DialogRouter.svelte';
   import InventoryView from './InventoryView.svelte';
   import PeopleView from './PeopleView.svelte';
   import LedgerView from './LedgerView.svelte';
@@ -67,7 +67,7 @@
     appState.setRoute({ page: 'dashboard' });
   }
   function handleKeydown(e) {
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || $appState.activeDialog) return;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable || e.target?.closest?.('button, a, [role="tab"]') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || $appState.activeDialog) return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); appState.setAsOfDate(addDays($appState.asOfDate, -1)); }
     if (e.key === 'ArrowRight') { e.preventDefault(); appState.setAsOfDate(addDays($appState.asOfDate, 1)); }
   }

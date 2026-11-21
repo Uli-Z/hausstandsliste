@@ -142,3 +142,16 @@ tr.clickable-row:hover td{background:#eef7f8}
 @media(max-width:1100px){.app-shell{grid-template-columns:204px minmax(0,1fr)}.overview-layout,.save-top-grid,.storage-choices{grid-template-columns:1fr}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.storage-form .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:780px){.app-shell{grid-template-columns:1fr}.sidebar{position:relative;height:auto;overflow:visible;padding:12px 16px;gap:11px}.brand{padding:3px 0 10px;border-bottom:0}.sidebar-section-title,.sidebar-note{display:none}.sidebar-links{display:flex;overflow-x:auto;gap:5px;scrollbar-width:thin;padding-bottom:3px}.sidebar-links button,.sidebar-bottom button{white-space:nowrap;padding:9px 12px;min-height:38px;font-size:12px}.nav-glyph{font-size:17px;width:16px}.sidebar-bottom{display:flex;border-top:1px solid #ffffff17;padding-top:8px;margin-top:0}.sidebar-bottom button{flex:0 1 auto}.app-header{min-height:63px;padding:12px 18px}.work-content{padding:20px 16px 60px}.overview-layout{grid-template-columns:1fr}.item-grid,.people-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.date-explanation{margin-left:0}.ledger-v3 .grid-2{grid-template-columns:1fr}}
 @media(max-width:540px){.app-header{align-items:start}.header-actions{gap:6px}.working-indicator{max-width:95px;font-size:10px}.header-save{padding:7px 10px}.date-toolbar{padding:12px;gap:9px}.date-toolbar-controls{gap:3px}.date-toolbar-controls button{padding:4px 7px;font-size:16px;min-width:27px}.date-toolbar-controls input{width:133px;font-size:11px}.metric-grid{gap:9px}.metric strong{font-size:21px}.metric small{font-size:10px}.metric{padding:14px}.ux-panel{padding:16px}.page-heading{margin-bottom:18px}.page-heading h1{font-size:27px}.task-grid{grid-template-columns:1fr 1fr;gap:8px}.task-grid button{padding:13px;min-height:122px}.item-grid,.people-grid{grid-template-columns:1fr}.list-tools .filter-wrap{flex:1 1 150px}.list-tools .result-count{width:100%;margin-left:0}.storage-form .form-grid{grid-template-columns:1fr}.storage-form .form-grid .wide{grid-column:auto}.section-header{flex-wrap:wrap}.getting-started{flex-direction:column;align-items:start}.save-basic-actions,.storage-action-row{display:grid;grid-template-columns:1fr}.shared-file{align-items:start;flex-direction:column}.panel-body{overflow-x:auto;padding:15px}.modal{max-height:94vh}.project-metadata div{display:grid;gap:6px}.project-metadata dd{text-align:left}}
+
+/* Clearer editing modals for V3 */
+.modal-header h3{font-size:18px;letter-spacing:-.02em;margin:0}
+.modal-footer .primary{min-height:41px}
+.modal label{color:#597183;font-weight:560}
+.modal .grid-redistribution{gap:18px}
+@media(max-width:850px){
+ .modal.large-modal{width:calc(100vw - 28px);height:calc(100dvh - 28px);max-height:calc(100dvh - 28px)}
+ .modal .grid-redistribution{grid-template-columns:1fr;overflow:auto;align-content:start}
+ .modal .grid-redistribution .content-left{overflow:visible}
+ .modal .grid-redistribution .content-left>.stack{overflow:visible!important}
+ .modal .grid-redistribution .content-right{overflow:visible}
+}

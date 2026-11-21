@@ -34,3 +34,6 @@
 - Geführte, verständliche Umverteilungsdialoge und sauberere Fehlertexte in den komplexen Detailformularen.
 - Echte Browser-E2E-Tests inklusive mobiler Bedienung, Screenreader und Tastatursteuerung.
 - Gemeinsame Ablage inkl. Locking, Konfliktfällen, Versionen und echter E-Mail-Benachrichtigung gegen realen Server prüfen.
+
+## Zweite UX-Runde
+Die V3-Varianten der Personen- und Gegenstandsdetails, Verlaufsdarstellung und Bearbeitungsdialoge nutzen handlungsorientierte Beschriftungen. Der Fachcode einschließlich Store, Ledger und Zeitprojektion bleibt unverändert; Änderungen sind nur auf der Vorschauunterseite.

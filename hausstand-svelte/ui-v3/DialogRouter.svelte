@@ -1,0 +1,373 @@
+<script>
+  import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
+  import { uid, parseTags } from '../src/lib/util.js';
+  import { normShares } from '../src/lib/domain.js';
+  import RedistributionDialog from './RedistributionDialog.svelte';
+  import EventEditDialog from './EventEditDialog.svelte';
+  import ExecutedRedistributionEditDialog from './ExecutedRedistributionEditDialog.svelte';
+  import ShareEditor from '../src/components/ShareEditor.svelte';
+  export let dialog;
+  export let project;
+  export let projection;
+  export let asOfDate;
+
+  let name = '';
+  let reason = '';
+  let itemName = '';
+  let tags = '';
+  let note = '';
+  let initialValue = 0;
+  let valuationType = 'linear';
+  let durationYears = 6;
+  let annualRate = 0.2;
+  let minimumValue = 0;
+  let shares = {};
+  let shareFinancialMode = 'derived';
+  let financedByPersonId = '';
+  const normalizePersonName = value => String(value || '').trim().toLocaleLowerCase('de');
+
+  $: normalizedName = normalizePersonName(name);
+  $: duplicatePerson = dialog?.type === 'personAdd'
+    ? (project.people || []).find(p => normalizePersonName(p.name) === normalizedName)
+    : (dialog?.type === 'personMeta'
+      ? (project.people || []).find(p => String(p.id) !== String(person?.id) && normalizePersonName(p.name) === normalizedName)
+      : null);
+  $: duplicateProjection = duplicatePerson ? projection.peopleById.get(duplicatePerson.id) : null;
+  $: duplicateIsActive = !!duplicateProjection?.active;
+  $: duplicateAddedEvent = duplicatePerson
+    ? (project.events || []).find(e => e.type === 'person-added' && String(e.personId) === String(duplicatePerson.id))
+    : null;
+  $: duplicateIsFutureMoveIn = !!(duplicateAddedEvent?.date && duplicateAddedEvent.date > asOfDate);
+  $: duplicateLatestDeactivation = duplicatePerson
+    ? [...(project.events || [])]
+      .reverse()
+      .find(e => e.type === 'person-deactivated' && String(e.personId) === String(duplicatePerson.id))
+    : null;
+  $: canSavePersonName = !!normalizedName && !duplicatePerson;
+
+  $: person = dialog?.personId ? project.people.find(p => p.id === dialog.personId) : null;
+  $: item = dialog?.itemId ? project.items.find(i => i.id === dialog.itemId) : null;
+  $: projectedItem = dialog?.itemId ? projection.items.find(i => i.id === dialog.itemId) : null;
+  $: if (dialog?.type === 'personMeta' && person && !name) name = person.name;
+  $: if (dialog?.type === 'itemMeta' && item && !itemName) { itemName = item.name; tags = (item.tags || []).join(', '); note = item.note || ''; }
+  $: if (dialog?.type === 'itemAdd' && dialog.id && !itemName) {
+    const draft = (project.drafts || []).find(d => d.id === dialog.id);
+    if (draft && draft.type === 'item') {
+      itemName = draft.data.name;
+      tags = (draft.data.tags || []).join(', ');
+      note = draft.data.note;
+      initialValue = draft.data.initialValue;
+      valuationType = draft.data.valuation.type;
+      durationYears = draft.data.valuation.durationYears || 6;
+      annualRate = draft.data.valuation.annualRate || 0.2;
+      minimumValue = draft.data.valuation.minimumValue || 0;
+      shares = { ...(draft.data.shares || {}) };
+      financedByPersonId = draft.data.financedByPersonId || '';
+    }
+  }
+  $: if ((dialog?.type === 'shareSet' || (dialog?.type === 'itemAdd' && !dialog.id) || dialog?.type === 'itemContinue') && projectedItem && Object.keys(shares).length === 0) {
+    shares = { ...(projectedItem.shares || {}) };
+    if (dialog?.type === 'itemContinue') {
+      itemName = projectedItem.name + ' (neu)';
+      tags = (projectedItem.tags || []).join(', ');
+      note = projectedItem.note || '';
+      initialValue = Math.round(projectedItem.value * 100) / 100;
+      valuationType = projectedItem.runtime.valuation.type;
+      durationYears = projectedItem.runtime.valuation.durationYears || 6;
+      annualRate = projectedItem.runtime.valuation.annualRate || 0.2;
+      minimumValue = projectedItem.runtime.valuation.minimumValue || 0;
+    }
+  }
+
+  function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; shareFinancialMode = 'derived'; financedByPersonId = ''; reason = ''; initialValue = 0; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
+  function addPerson() {
+    if (!canSavePersonName) return;
+    const personId = uid('person');
+    appState.mutateProject(p => { 
+      p.people.push({ id: personId, name: name || 'Neue Person' }); 
+      p.events.push(createEvent('person-added', asOfDate, { personId, name: name || 'Neue Person' })); 
+    });
+    close();
+  }
+  function savePersonMeta() {
+    if (!canSavePersonName) return;
+    appState.mutateProject(p => { const x = p.people.find(y => y.id === person.id); if (x) x.name = name || x.name; });
+    close();
+  }
+
+  function pullMoveInForward(existingPerson) {
+    if (!existingPerson) return;
+    appState.mutateProject(p => {
+      const event = p.events.find(e => e.type === 'person-added' && String(e.personId) === String(existingPerson.id));
+      if (event) event.date = asOfDate;
+    });
+    close();
+  }
+
+  function deleteMoveOut(existingPerson) {
+    if (!existingPerson) return;
+    appState.mutateProject(p => {
+      const index = [...p.events].map((e, i) => ({ e, i }))
+        .reverse()
+        .find(x => x.e.type === 'person-deactivated' && String(x.e.personId) === String(existingPerson.id))?.i;
+      if (index === undefined) return;
+      p.events.splice(index, 1);
+    });
+    close();
+  }
+
+  function stripPersonFromEvent(event, personId) {
+    if (!event) return null;
+    if (
+      (event.type === 'person-added' || event.type === 'person-deactivated' || event.type === 'person-reactivated')
+      && String(event.personId) === String(personId)
+    ) {
+      return null;
+    }
+    if ((event.type === 'item-added' || event.type === 'shares-set') && event.shares) {
+      const shares = { ...event.shares };
+      delete shares[personId];
+      return { ...event, shares: normShares(shares) };
+    }
+    if (event.type === 'redistribution-executed' && Array.isArray(event.events)) {
+      const childEvents = event.events
+        .map(child => stripPersonFromEvent(child, personId))
+        .filter(Boolean);
+      return { ...event, events: childEvents };
+    }
+    return event;
+  }
+
+  function deletePersonCompletely() {
+    if (!person) return;
+    const ok = confirm(
+      `Person "${person.name}" wirklich komplett löschen?\n\n` +
+      'Dabei werden Stammdaten, Einzugs-/Auszugsereignisse und alle Beteiligungen entfernt.\n' +
+      'Achtung: Dadurch können sich Werte und Verteilungen deutlich verschieben.'
+    );
+    if (!ok) return;
+    appState.mutateProject(p => {
+      p.people = (p.people || []).filter(x => String(x.id) !== String(person.id));
+      p.events = (p.events || [])
+        .map(e => stripPersonFromEvent(e, person.id))
+        .filter(Boolean);
+      p.drafts = (p.drafts || []).map(draft => {
+        if (draft?.type !== 'item' || !draft?.data?.shares) return draft;
+        const shares = { ...draft.data.shares };
+        delete shares[person.id];
+        return { ...draft, data: { ...draft.data, shares: normShares(shares) } };
+      });
+    });
+    close();
+    appState.setRoute({ page: 'dashboard' });
+  }
+  
+  function saveItemDraft() {
+    const draftId = dialog.id || uid('draft_item');
+    const activePeople = projection.people.filter(p => p.active);
+    const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
+    appState.upsertDraft({
+      id: draftId,
+      type: 'item',
+      title: itemName || 'Neuer Gegenstand (Entwurf)',
+      createdAt: new Date().toISOString(),
+      data: {
+        name: itemName || 'Neuer Gegenstand',
+        tags: parseTags(tags),
+        note,
+        initialValue: Number(initialValue) || 0,
+        valuation: {
+          type: valuationType,
+          durationYears: valuationType === 'linear' ? Number(durationYears) : undefined,
+          annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
+          minimumValue: Number(minimumValue) || 0
+        },
+        shares: initialShares,
+        financedByPersonId: financedByPersonId || undefined
+      }
+    });
+    close();
+  }
+
+  function addItem() {
+    const itemId = uid('item');
+    const activePeople = projection.people.filter(p => p.active);
+    const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
+    appState.mutateProject(p => {
+      p.items.push({ id: itemId, name: itemName || 'Neuer Gegenstand', tags: parseTags(tags), note });
+      p.events.push(createEvent('item-added', asOfDate, { 
+        itemId, 
+        name: itemName || 'Neuer Gegenstand', 
+        initialValue: Number(initialValue) || 0, 
+        valuation: { 
+          type: valuationType, 
+          durationYears: valuationType === 'linear' ? Number(durationYears) : undefined, 
+          annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
+          minimumValue: Number(minimumValue) || 0 
+        }, 
+        shares: initialShares,
+        financedByPersonId: financedByPersonId || undefined,
+        financialMode: financedByPersonId ? 'derived' : 'none'
+      }));
+      if (dialog.id) {
+        p.drafts = (p.drafts || []).filter(d => d.id !== dialog.id);
+      }
+    }); 
+    close();
+  }
+
+  function continueItem() {
+    const newItemId = uid('item');
+    appState.mutateProject(p => {
+      // 1. Altes Item beenden
+      p.events.push(createEvent('item-ended', asOfDate, { 
+        itemId: projectedItem.id, 
+        statusAfter: 'succeeded', 
+        reason: 'Als neue Version fortgeführt' 
+      }));
+      // 2. Neues Item Stammdaten
+      p.items.push({ 
+        id: newItemId, 
+        name: itemName || projectedItem.name, 
+        tags: parseTags(tags), 
+        note,
+        predecessorItemId: projectedItem.id
+      });
+      // 3. Neues Item Event
+      p.events.push(createEvent('item-added', asOfDate, { 
+        itemId: newItemId, 
+        name: itemName || projectedItem.name, 
+        initialValue: Number(initialValue) || 0, 
+        valuation: { 
+          type: valuationType, 
+          durationYears: valuationType === 'linear' ? Number(durationYears) : undefined, 
+          annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
+          minimumValue: Number(minimumValue) || 0 
+        }, 
+        shares: normShares(shares) 
+      }));
+    });
+    close();
+    appState.setRoute({ page: 'item', id: newItemId });
+  }
+
+  function saveItemMeta() { appState.mutateProject(p => { const x = p.items.find(y => y.id === item.id); if (x) { x.name = itemName || x.name; x.tags = parseTags(tags); x.note = note; } }); close(); }
+  function saveShareSet() { appState.mutateProject(p => p.events.push(createEvent('shares-set', asOfDate, { itemId: projectedItem.id, shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert' }))); close(); }
+  function endItem() { appState.mutateProject(p => p.events.push(createEvent('item-ended', asOfDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }))); close(); }
+</script>
+
+{#if dialog?.type === 'redistributionEdit'}
+  <RedistributionDialog {dialog} {project} {projection} />
+{:else if dialog?.type === 'eventEdit'}
+  <EventEditDialog {dialog} {project} {projection} />
+{:else if dialog?.type === 'executedRedistributionEdit'}
+  <ExecutedRedistributionEditDialog {dialog} {project} {projection} />
+{:else if dialog}
+  <div class="modal-backdrop">
+    <div class="modal" style="max-width:720px">
+      <div class="modal-header">
+        <h3>{
+          dialog.type === 'personAdd' ? 'Person hinzufügen' : 
+          dialog.type === 'personMeta' ? 'Person bearbeiten' : 
+          dialog.type === 'itemAdd' ? 'Neuen Gegenstand erfassen' : 
+          dialog.type === 'itemContinue' ? 'Gegenstand ersetzen' :
+          dialog.type === 'itemMeta' ? 'Gegenstand bearbeiten' : 
+          dialog.type === 'shareSet' ? 'Eigentumsanteile ändern' : 
+          dialog.type === 'itemEnd' ? 'Gegenstand beenden' : 
+          dialog.type === 'options' ? '⚙️ Optionen' : 'Dialog'
+        }</h3>
+        <button class="ghost" on:click={close}>✕</button>
+      </div>
+      <div class="modal-body stack">
+        {#if dialog.type === 'personAdd' || dialog.type === 'personMeta'}
+          <label>Name <input bind:value={name} placeholder="Name"></label>
+          {#if duplicatePerson}
+            <div class="notice warn">
+              Eine Person mit diesem Namen existiert bereits: <strong>{duplicatePerson.name}</strong>
+              ({duplicateIsActive ? 'aktiv' : 'inaktiv'}).
+            </div>
+            {#if !duplicateIsActive}
+              <div class="row">
+                {#if duplicateIsFutureMoveIn}
+                  <button class="small" on:click={() => pullMoveInForward(duplicatePerson)}>Einzug auf Stichtag vorziehen</button>
+                {/if}
+                {#if duplicateLatestDeactivation}
+                  <button class="small danger" on:click={() => deleteMoveOut(duplicatePerson)}>Letzten Auszug löschen</button>
+                {/if}
+              </div>
+            {/if}
+          {/if}
+          {#if dialog.type === 'personMeta'}
+            <div class="notice warn">
+              Komplett löschen entfernt die Person aus den Stammdaten sowie Einzugs-/Auszugsereignisse und alle Beteiligungen.
+              Das kann bestehende Verteilungen stark verändern.
+            </div>
+          {/if}
+        {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
+          <div class="form-grid">
+            <label>Name <input bind:value={itemName}></label>
+            <label>Kategorien <input bind:value={tags} placeholder="Küche, Elektro"></label>
+            <label>Anschaffungswert in Euro <input type="number" step="0.01" bind:value={initialValue}></label>
+            <label>Wie verändert sich der Wert? <select bind:value={valuationType}>
+              <option value="linear">Wert sinkt gleichmäßig</option>
+              <option value="degressive">Wert sinkt jährlich prozentual</option>
+              <option value="fixed">Wert bleibt gleich</option>
+            </select></label>
+            {#if valuationType === 'linear'}
+              <label>Nutzungsdauer (Jahre) <input type="number" bind:value={durationYears}></label>
+            {:else if valuationType === 'degressive'}
+              <label>Jährlicher Wertverlust (0,2 = 20 %) <input type="number" step="0.01" bind:value={annualRate}></label>
+            {/if}
+            <label>Mindestwert <input type="number" step="0.01" bind:value={minimumValue}></label>
+            <label class="wide">Notiz <textarea bind:value={note}></textarea></label>
+            <section class="wide mini-card stack">
+              <strong>Wem gehört der Gegenstand?</strong>
+              <ShareEditor people={projection.people} bind:shares />
+              {#if dialog.type === 'itemAdd'}
+                <label>Wer hat den Gegenstand bezahlt?
+                  <select bind:value={financedByPersonId}>
+                    <option value="">Keine Finanzierung zuordnen (keine Forderung)</option>
+                    {#each project.people || [] as person}
+                      <option value={person.id}>{person.name}</option>
+                    {/each}
+                  </select>
+                </label>
+                <div class="muted">Wenn eine Person den ganzen Gegenstand finanziert hat, schulden andere Anteilseigner ihr automatisch ihren Anteil am Startwert.</div>
+              {/if}
+            </section>
+          </div>
+        {:else if dialog.type === 'itemMeta'}
+          <div class="form-grid"><label>Name <input bind:value={itemName}></label><label>Kategorien <input bind:value={tags}></label><label class="wide">Notiz <textarea bind:value={note}></textarea></label></div>
+        {:else if dialog.type === 'shareSet'}
+          <ShareEditor people={projection.people} bind:shares />
+          <label>Sollen Geldforderungen entstehen?
+            <select bind:value={shareFinancialMode}>
+              <option value="derived">Ja – automatisch ermitteln</option>
+              <option value="none">Nein – Schenkung oder Korrektur</option>
+            </select>
+          </label>
+        {:else if dialog.type === 'itemEnd'}
+          <label>Grund <input bind:value={reason} placeholder="kaputt, verkauft, privat übernommen …"></label>
+        {:else if dialog.type === 'options'}
+          <div class="notice">Optionen sind bewusst klein gehalten: Projekt öffnen, speichern und neues Projekt liegen rechts im Header. Weitere Einstellungen können hier später ergänzt werden.</div>
+        {:else}
+          <div class="notice warn">Dieser Dialogtyp ist noch nicht implementiert: {dialog.type}</div>
+        {/if}
+      </div>
+      <div class="modal-footer"><button on:click={close}>Abbrechen</button>
+        <div style="flex:1"></div>
+        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName}>Anlegen</button>{/if}
+        {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>💾 Speichern</button>{/if}
+        {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely}>Person endgültig löschen</button>{/if}
+        {#if dialog.type === 'itemAdd'}
+          <button on:click={saveItemDraft}>Als Entwurf sichern</button>
+          <button class="primary" on:click={addItem}>Anlegen</button>
+        {/if}
+        {#if dialog.type === 'itemContinue'}<button class="primary" on:click={continueItem}>🔄 Neu anlegen & alt beenden</button>{/if}
+        {#if dialog.type === 'itemMeta'}<button class="primary" on:click={saveItemMeta}>💾 Speichern</button>{/if}
+        {#if dialog.type === 'shareSet'}<button class="primary" on:click={saveShareSet}>Änderung übernehmen</button>{/if}
+        {#if dialog.type === 'itemEnd'}<button class="danger" on:click={endItem}>📦 Beenden</button>{/if}
+      </div>
+    </div>
+  </div>
+{/if}
