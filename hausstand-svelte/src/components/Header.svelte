@@ -18,7 +18,9 @@
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     try {
-      appState.importProject(JSON.parse(await file.text()), file.name);
+      const data = JSON.parse(await file.text());
+      if (data?.format?.startsWith('hausstand-aesgcm')) throw new Error('Verschlüsselte Dateien bitte unter „Dateien & Online“ öffnen.');
+      appState.importProject(data, file.name, false);
     } catch (err) {
       alert(`Importfehler: ${err.message}`);
     } finally {
@@ -26,6 +28,7 @@
     }
   }
   function exportNow() {
+    if ($appState.secure && !confirm('Dies exportiert die entschlüsselten Projektdaten als Klartext-JSON. Trotzdem fortfahren?')) return;
     downloadProject($appState.project, $appState.asOfDate);
     appState.markExported();
   }
@@ -35,7 +38,7 @@
   <div class="topbar">
     <div class="brand">
       <h1>🏠 Hausstand – Anteilsverwaltung</h1>
-      <p>{$appState.project.community?.name || 'Hausgemeinschaft'} · {$appState.fileName || 'keine Datei geladen'} · {$appState.dirty ? 'ungespeicherte Änderungen' : 'gespeichert/exportiert'}</p>
+      <p>{$appState.project.community?.name || 'Hausgemeinschaft'} · {$appState.fileName || 'keine Datei geladen'} · {$appState.secure ? 'verschlüsselt geöffnet (kein Klartext-Browsercache)' : 'lokale Arbeitskopie'} · {$appState.dirty ? 'ungespeicherte Änderungen' : 'gespeichert/exportiert'}</p>
     </div>
 
     <div class="datebar">

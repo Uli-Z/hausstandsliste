@@ -3,13 +3,14 @@ import { emptyProject, normalize } from '../lib/domain.js';
 import { clone, todayISO, uid } from '../lib/util.js';
 import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
-import { saveWorkingCopy } from '../lib/persistence.js';
+import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 
 const initial = {
   project: emptyProject(),
   asOfDate: todayISO(),
   fileName: null,
   dirty: false,
+  secure: false,
   route: { page: 'dashboard' },
   activeDialog: null
 };
@@ -17,7 +18,9 @@ const initial = {
 function createStore() {
   const { subscribe, set, update } = writable(initial);
   const persist = state => {
-    saveWorkingCopy({ project: state.project, asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty });
+    // Never persist a decrypted protected project into browser localStorage.
+    if (state.secure) clearWorkingCopy();
+    else saveWorkingCopy({ project: state.project, asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty });
     return state;
   };
   return {
@@ -26,8 +29,8 @@ function createStore() {
     setRoute: route => update(s => ({ ...s, route })),
     setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
     closeDialog: () => update(s => ({ ...s, activeDialog: null })),
-    importProject: (raw, fileName = null) => update(s => persist({ ...s, project: normalize(raw), fileName, dirty: false })),
-    newProject: name => update(s => persist({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, fileName: null, dirty: true, route: { page: 'dashboard' } })),
+    importProject: (raw, fileName = null, secure = false) => update(s => persist({ ...s, project: normalize(raw), fileName, secure, dirty: false, route: { page: 'dashboard' } })),
+    newProject: name => update(s => persist({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, fileName: null, secure: false, dirty: true, route: { page: 'dashboard' } })),
     mutateProject: mutator => update(s => {
       const project = clone(s.project);
       mutator(project);

@@ -10,6 +10,7 @@ export const loadWorkingCopy = () => {
   return raw ? JSON.parse(raw) : null;
 };
 export const saveWorkingCopy = payload => localStorage.setItem(KEY, JSON.stringify({ ...payload, savedAt: nowISO() }));
+export const clearWorkingCopy = () => localStorage.removeItem(KEY);
 
 export const exportProject = (project, asOfDate) => {
   const projection = projectAt(project, asOfDate);
