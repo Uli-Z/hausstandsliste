@@ -16,7 +16,7 @@ test('authenticated local encrypted round-trip', async () => {
 test('incorrect password and tampering fail authentication', async () => {
   const encrypted = await encryptProject(project, 'correct-horse-battery');
   await assert.rejects(() => decryptProject(encrypted, 'incorrect-password'));
-  await assert.rejects(() => decryptProject({ ...encrypted, nonce: encrypted.nonce.replace(/^./, 'A') }, 'correct-horse-battery'));
+  await assert.rejects(() => decryptProject({ ...encrypted, nonce: encrypted.nonce.replace(/^./, first => first === 'A' ? 'B' : 'A') }, 'correct-horse-battery'));
   await assert.rejects(() => decryptProject({ ...encrypted, ciphertext: 'AAAA' }, 'correct-horse-battery'));
 });
 
