@@ -43,8 +43,8 @@
             <tbody>
               {#each data.pairwise as row}
                 <tr>
-                  <td><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.fromPersonId })}>{personName(row.fromPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.toPersonId })}>{personName(row.toPersonId)}</button></td>
-                  <td class="money">{money(row.amountCents / 100)}</td>
+                  <td data-label="Personen"><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.fromPersonId })}>{personName(row.fromPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.toPersonId })}>{personName(row.toPersonId)}</button></td>
+                  <td data-label="Betrag" class="money">{money(row.amountCents / 100)}</td>
                 </tr>
               {/each}
             </tbody>
@@ -62,8 +62,8 @@
             <tbody>
               {#each data.simplified as row}
                 <tr>
-                  <td><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.fromPersonId })}>{personName(row.fromPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.toPersonId })}>{personName(row.toPersonId)}</button></td>
-                  <td class="money">{money(row.amountCents / 100)}</td>
+                  <td data-label="Personen"><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.fromPersonId })}>{personName(row.fromPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: row.toPersonId })}>{personName(row.toPersonId)}</button></td>
+                  <td data-label="Betrag" class="money">{money(row.amountCents / 100)}</td>
                 </tr>
               {/each}
             </tbody>
@@ -83,11 +83,11 @@
           <tbody>
             {#each data.claims as claim, index (claim.sourceEventId + ':' + (claim.childEventId || '') + ':' + claim.debtorPersonId + ':' + claim.creditorPersonId + ':' + index)}
               <tr>
-                <td>{dateDE(claim.date)}</td>
-                <td>{itemName(claim.itemId)}</td>
-                <td><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: claim.debtorPersonId })}>{personName(claim.debtorPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: claim.creditorPersonId })}>{personName(claim.creditorPersonId)}</button></td>
-                <td class="money">{money(claim.amountCents / 100)}</td>
-                <td><button class="small ghost" on:click={() => editSource(claim)}>Ereignis bearbeiten</button></td>
+                <td data-label="Datum">{dateDE(claim.date)}</td>
+                <td data-label="Gegenstand">{itemName(claim.itemId)}</td>
+                <td data-label="Von → an"><button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: claim.debtorPersonId })}>{personName(claim.debtorPersonId)}</button> → <button class="person-link" on:click={() => appState.setRoute({ page: 'person', id: claim.creditorPersonId })}>{personName(claim.creditorPersonId)}</button></td>
+                <td data-label="Betrag" class="money">{money(claim.amountCents / 100)}</td>
+                <td data-label="Ursprung"><button class="small ghost" on:click={() => editSource(claim)}>Ereignis bearbeiten</button></td>
               </tr>
             {/each}
           </tbody>

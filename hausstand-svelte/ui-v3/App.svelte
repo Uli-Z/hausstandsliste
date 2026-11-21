@@ -23,6 +23,7 @@
   let activeSection = 'overview';
   let showJson = false;
   let showDanger = false;
+  let mobileMoreOpen = false;
 
   onMount(() => {
     const copy = loadWorkingCopy();
@@ -59,6 +60,7 @@
     return e.title || e.note || 'Änderung';
   }
   function navigate(id) {
+    mobileMoreOpen = false;
     activeSection = id;
     if ($appState.route.page !== 'dashboard') appState.setRoute({ page: 'dashboard' });
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -67,6 +69,7 @@
     appState.setRoute({ page: 'dashboard' });
   }
   function handleKeydown(e) {
+    if (e.key === 'Escape' && mobileMoreOpen) { mobileMoreOpen = false; return; }
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable || e.target?.closest?.('button, a, [role="tab"]') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || $appState.activeDialog) return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); appState.setAsOfDate(addDays($appState.asOfDate, -1)); }
     if (e.key === 'ArrowRight') { e.preventDefault(); appState.setAsOfDate(addDays($appState.asOfDate, 1)); }
@@ -125,7 +128,7 @@
     <header class="app-header">
       <div class="header-context">
         <span class="context-kicker">HAUSGEMEINSCHAFT</span>
-        <strong>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
+        <strong><span class="mobile-header-brand">Hausstand · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
       </div>
       <div class="header-actions">
         <span class="working-indicator" title={$appState.secure ? 'Passwortgeschütztes Projekt: keine Klartext-Arbeitskopie im Browser' : 'Nicht verschlüsselte Projekte haben eine lokale Arbeitskopie im Browser'}>
@@ -143,12 +146,12 @@
           <strong>{dateMode === 'today' ? 'Heute' : dateMode === 'past' ? 'Vergangener Stand' : 'Geplanter Stand'}</strong>
         </div>
         <div class="date-toolbar-controls">
-          <button title="Zum ersten Ereignis" aria-label="Zum ersten Ereignis" disabled={!firstDate} on:click={() => appState.setAsOfDate(firstDate)}>⇤</button>
+          <button title="Zum ersten Ereignis" aria-label="Zum ersten Ereignis" disabled={!firstDate} on:click={() => appState.setAsOfDate(firstDate)}>⇤<span class="mobile-jump-text">Anfang</span></button>
           <button title="Einen Tag zurück" aria-label="Einen Tag zurück" on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, -1))}>‹</button>
           <label class="sr-only" for="state-date">Datum wählen</label>
           <input id="state-date" type="date" value={$appState.asOfDate} on:change={e => appState.setAsOfDate(e.currentTarget.value || todayISO())}>
           <button title="Einen Tag vor" aria-label="Einen Tag vor" on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, 1))}>›</button>
-          <button title="Zum letzten Ereignis" aria-label="Zum letzten Ereignis" disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>⇥</button>
+          <button title="Zum letzten Ereignis" aria-label="Zum letzten Ereignis" disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>⇥<span class="mobile-jump-text">Ende</span></button>
           <button class="today-button" on:click={() => appState.setAsOfDate(todayISO())}>Heute</button>
         </div>
         {#if dateMode !== 'today'}<span class="date-explanation">{dateMode === 'past' ? 'Du siehst den früheren Besitzstand.' : 'Du siehst den Stand für ein zukünftiges Datum.'}</span>{/if}
@@ -296,4 +299,30 @@
     </main>
   </div>
 </div>
+<!-- Mobile quick navigation: a stable bottom bar with all other areas in Mehr. -->
+<nav class="mobile-bottom-nav" aria-label="Navigation auf dem Smartphone">
+  {#each navigation.slice(0,4) as nav (nav.id)}
+    <button type="button" class:nav-active={activeSection === nav.id}
+      aria-current={activeSection === nav.id ? 'page' : undefined} on:click={() => navigate(nav.id)}>
+      <span class="mobile-nav-icon" aria-hidden="true">{nav.glyph}</span>
+      <span class="mobile-nav-label">{nav.id === 'overview' ? 'Start' : nav.id === 'items' ? 'Dinge' : nav.id === 'people' ? 'Personen' : 'Geld'}</span>
+    </button>
+  {/each}
+  <div class="mobile-more-slot">
+    {#if mobileMoreOpen}
+      <div class="mobile-more-menu" id="mobile-more-menu">
+        <button type="button" class:nav-active={activeSection === 'activity'} on:click={() => navigate('activity')}><span aria-hidden="true">◷</span> Änderungen</button>
+        <button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><span aria-hidden="true">⇩</span> Sichern & Teilen</button>
+        <button type="button" class:nav-active={activeSection === 'settings'} on:click={() => navigate('settings')}><span aria-hidden="true">⚙</span> Einstellungen</button>
+      </div>
+    {/if}
+    <button type="button" class:nav-active={['activity','save','settings'].includes(activeSection)}
+      aria-expanded={mobileMoreOpen} aria-controls="mobile-more-menu"
+      aria-label={mobileMoreOpen ? 'Weitere Bereiche schließen' : 'Weitere Bereiche öffnen'}
+      on:click={() => mobileMoreOpen = !mobileMoreOpen}>
+      <span class="mobile-nav-icon" aria-hidden="true">{mobileMoreOpen ? '×' : '⋯'}</span>
+      <span class="mobile-nav-label">Mehr</span>
+    </button>
+  </div>
+</nav>
 <DialogRouter dialog={$appState.activeDialog} project={$appState.project} projection={$projection} asOfDate={$appState.asOfDate}/>

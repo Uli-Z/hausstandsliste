@@ -13,5 +13,10 @@ assert.match(html,/<script\s+type=["']module["']>/i,'Deferred module script miss
 assert.match(html,/<style>/i,'Inline CSS missing');
 assert.doesNotMatch(html,/<(?:script|link)[^>]+(?:src|href)=["']\/assets\//i,'Uninlined assets');
 for(const label of ['Gegenstände','Personen','Geld & Ausgleich','Änderungen','Sichern & Teilen'])assert.ok(html.includes(label),'Navigation missing: '+label);
+assert.match(html,/mobile-bottom-nav/,'Mobile bottom navigation missing');
+assert.match(html,/mobile-more-menu/,'Mobile more menu missing');
+assert.match(html,/safe-area-inset-bottom/,'Mobile safe-area CSS missing');
+assert.match(html,/data-label="Betrag"/,'Mobile finance row labels missing');
+
 const out=path.join(root,'dist','pages','ui-v3');await mkdir(out,{recursive:true});await writeFile(path.join(out,'index.html'),html,'utf8');
 console.log('Standalone UI V3 validated: dist/pages/ui-v3/index.html');
