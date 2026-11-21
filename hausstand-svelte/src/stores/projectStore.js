@@ -3,13 +3,15 @@ import { emptyProject, normalize } from '../lib/domain.js';
 import { clone, todayISO, uid } from '../lib/util.js';
 import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
-import { saveWorkingCopy } from '../lib/persistence.js';
+import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 
 const initial = {
   project: emptyProject(),
   asOfDate: todayISO(),
   fileName: null,
   dirty: false,
+  secure: false,
+  readOnly: false,
   route: { page: 'dashboard' },
   activeDialog: null
 };
@@ -17,7 +19,9 @@ const initial = {
 function createStore() {
   const { subscribe, set, update } = writable(initial);
   const persist = state => {
-    saveWorkingCopy({ project: state.project, asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty });
+    // Never persist a decrypted protected project into browser localStorage.
+    if (state.secure) clearWorkingCopy();
+    else saveWorkingCopy({ project: state.project, asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty });
     return state;
   };
   return {
@@ -26,9 +30,11 @@ function createStore() {
     setRoute: route => update(s => ({ ...s, route })),
     setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
     closeDialog: () => update(s => ({ ...s, activeDialog: null })),
-    importProject: (raw, fileName = null) => update(s => persist({ ...s, project: normalize(raw), fileName, dirty: false })),
-    newProject: name => update(s => persist({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, fileName: null, dirty: true, route: { page: 'dashboard' } })),
+    importProject: (raw, fileName = null, secure = false, readOnly = false) => update(s => persist({ ...s, project: normalize(raw), fileName, secure, readOnly, dirty: false, route: { page: 'dashboard' } })),
+    setReadOnly: readOnly => update(s => ({ ...s, readOnly })),
+    newProject: name => update(s => persist({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, fileName: null, secure: false, readOnly: false, dirty: true, route: { page: 'dashboard' } })),
     mutateProject: mutator => update(s => {
+      if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
       const project = clone(s.project);
       mutator(project);
       return persist({ ...s, project, dirty: true });
@@ -38,6 +44,7 @@ function createStore() {
       return { ...s, activeDialog: { type: 'redistributionEdit', redistribution: r, ...extraDialog } };
     }),
     upsertDraft: draft => update(s => {
+      if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
       const project = clone(s.project);
       project.drafts = project.drafts || [];
       const idx = project.drafts.findIndex(d => d.id === draft.id);
@@ -46,6 +53,7 @@ function createStore() {
       return persist({ ...s, project, dirty: true });
     }),
     deleteDraft: id => update(s => {
+      if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
       const project = clone(s.project);
       project.drafts = (project.drafts || []).filter(d => d.id !== id);
       return persist({ ...s, project, dirty: true });

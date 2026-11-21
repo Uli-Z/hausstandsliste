@@ -7,6 +7,7 @@
   import ItemDetail from './components/ItemDetail.svelte';
   import DialogRouter from './components/DialogRouter.svelte';
   import LedgerPanel from './components/LedgerPanel.svelte';
+  import StoragePanel from './components/StoragePanel.svelte';
   import { appState, projection, ledger } from './stores/projectStore.js';
   import { exportProject, loadWorkingCopy } from './lib/persistence.js';
   import { money } from './lib/domain.js';
@@ -94,6 +95,7 @@
       <ItemsPanel items={$projection.activeItems} tags={$projection.allTags} />
     </section>
     <LedgerPanel project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate} />
+    <StoragePanel />
     <section class="panel" style="margin-top:16px">
       <div class="tabs">
         <button class="tab" class:active={tab==='archive'} on:click={() => tab='archive'}>📦 Archiv</button>

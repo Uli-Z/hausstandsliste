@@ -26,6 +26,15 @@ jobs:
       - name: Build offline HTML
         working-directory: hausstand-svelte
         run: npm run build:single
+      - name: Build PHP release and lint
+        working-directory: hausstand-svelte
+        run: |
+          npm run build:php
+          php -l dist/hausstand.php
+          php -l server-php/backend.php
+      - name: Integration test for PHP API
+        working-directory: hausstand-svelte
+        run: node server-php/smoke.mjs
       - name: Confirm standalone artifact
         working-directory: hausstand-svelte
         run: |
@@ -39,5 +48,12 @@ jobs:
         with:
           name: hausstand-standalone
           path: hausstand-svelte/dist/hausstand-standalone.html
+          if-no-files-found: error
+          retention-days: 14
+      - name: Downloadable PHP release
+        uses: actions/upload-artifact@v4
+        with:
+          name: hausstand-php
+          path: hausstand-svelte/dist/hausstand.php
           if-no-files-found: error
           retention-days: 14
