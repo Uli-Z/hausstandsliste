@@ -77,3 +77,8 @@ In [GitHub Actions – Svelte app checks](https://github.com/Uli-Z/hausstandslis
 
 
 **Wichtige Grenzen:** GitHub Pages führt selbst kein PHP aus. Die gemeinsame Online-Ablage benötigt einen separaten PHP-Webserver mit HTTPS; Dateinamen und Revisionsmetadaten sind dort öffentlich sichtbar. Das Ändern des Dateipassworts schützt die aktuelle Revision und rotiert das Schreibrecht, **verschlüsselt aber alte Versionen und bereits versandte E-Mails nicht rückwirkend neu**. Eine produktive Nutzung sensibler Daten setzt eine Server- und Sicherheitsprüfung voraus.
+
+
+## Fehlerbehebung GitHub Pages (21.11.2026)
+
+Bei der ersten Pages-Veröffentlichung konnte der Build erfolgreich deployen, obwohl die Anwendung nur eine leere Seite zeigte. Ursache: `scripts/inline-build.mjs` hatte das JavaScript aus dem Vite-Bundle mit einem synchronen `<script>` im HTML-`<head>` eingebettet; die App versuchte `#app` zu verwenden, bevor dieses DOM-Element existierte. Der Generator bewahrt jetzt `<script type="module">` bei, damit die Ausführung nach dem HTML-Parsing startet. Der zusätzliche CI-/Pages-Check `scripts/check-standalone.mjs` sichert dieses Verhalten ab. Das reparierte Artefakt wird bei jedem Push auf `master` neu auf GitHub Pages veröffentlicht.

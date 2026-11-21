@@ -37,6 +37,7 @@ jobs:
           npm ci
           npm test
           npm run build:single
+          node scripts/check-standalone.mjs
           mkdir -p dist/pages
           cp dist/hausstand-standalone.html dist/pages/index.html
           touch dist/pages/.nojekyll

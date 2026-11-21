@@ -35,6 +35,9 @@ jobs:
       - name: Integration test for PHP API
         working-directory: hausstand-svelte
         run: node server-php/smoke.mjs
+      - name: Verify standalone HTML bootstrap
+        working-directory: hausstand-svelte
+        run: node scripts/check-standalone.mjs
       - name: Confirm standalone artifact
         working-directory: hausstand-svelte
         run: |

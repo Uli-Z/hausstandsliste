@@ -14,7 +14,8 @@ for (const file of files) {
   const p = path.join(assetsDir, file);
   if (file.endsWith('.js')) {
     const js = await readFile(p, 'utf8');
-    html = html.replace(new RegExp(`<script[^>]+src=["']/assets/${file.replace('.', '\\.')}["'][^>]*></script>`), `<script>${js}</script>`);
+    // Preserve Vite's deferred module execution: a plain <script> in <head> runs before #app exists.
+    html = html.replace(new RegExp(`<script[^>]+src=["']/assets/${file.replace('.', '\\.')}["'][^>]*></script>`), `<script type="module">${js}</script>`);
   }
   if (file.endsWith('.css')) {
     const css = await readFile(p, 'utf8');
