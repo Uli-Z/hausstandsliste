@@ -155,3 +155,5 @@ tr.clickable-row:hover td{background:#eef7f8}
  .modal .grid-redistribution .content-left>.stack{overflow:visible!important}
  .modal .grid-redistribution .content-right{overflow:visible}
 }
+/* Preserve secure remote editing session while navigating between screens. */
+.storage-not-visible{display:none!important}

@@ -269,7 +269,6 @@
             <div class="status-definition"><span class="status-symbol">{ $appState.dirty ? '!' : '✓' }</span><div><strong>{$appState.dirty ? 'Änderungen noch nicht exportiert' : 'Keine neuen Änderungen seit der letzten Sicherung'}</strong><p>Für zuverlässige Backups speichere regelmäßig eine Datei oder nutze eine eingerichtete gemeinsame Ablage.</p></div></div>
           </section>
         </div>
-        <StorageView/>
       {:else if activeSection === 'settings'}
         <div class="page-heading"><div><span class="overline">VERWALTUNG</span><h1>Einstellungen</h1><p>Technische Informationen und selten benötigte Aktionen für dieses Projekt.</p></div></div>
         <section class="ux-panel setting-panel">
@@ -289,6 +288,11 @@
           {#if showDanger}<div class="inline-info warning"><strong>Der aktuelle Stand kann verloren gehen.</strong> Nach dem Zurücksetzen lässt er sich nur aus einer vorhandenen Sicherung wiederherstellen.</div><button class="dangerous-button" on:click={newProject}>Ja, neues Projekt beginnen</button>{/if}
         </section>
       {/if}
+      <!-- Keep the collaborative-storage component mounted: the server lease, edit token,
+           selected remote file and password must survive tab/detail navigation. -->
+      <div class:storage-not-visible={route.page !== 'dashboard' || activeSection !== 'save'}>
+        <StorageView/>
+      </div>
     </main>
   </div>
 </div>
