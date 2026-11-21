@@ -10,7 +10,8 @@
     "build:php": "npm run build:single && node scripts/build-php.mjs",
     "check:js": "node --check scripts/inline-build.mjs",
     "test": "node --test tests/*.test.js",
-    "build:ui-v2": "vite build --config vite.ui-v2.config.js && node scripts/inline-ui-v2.mjs"
+    "build:ui-v2": "vite build --config vite.ui-v2.config.js && node scripts/inline-ui-v2.mjs",
+    "build:ui-v3": "vite build --config vite.ui-v3.config.js && node scripts/inline-ui-v3.mjs"
   },
   "dependencies": {
     "@sveltejs/vite-plugin-svelte": "latest",
