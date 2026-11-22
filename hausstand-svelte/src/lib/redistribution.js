@@ -136,7 +136,7 @@ export function redistributionPreview(project, redistribution) {
   return {
     base,
     rows,
-    payments: settlementRecommendations(rows),
+    payments: redistribution.financialMode === 'derived' ? settlementRecommendations(rows) : [],
     itemRows: buildRedistributionItemRows(base, redistribution.changes || [])
   };
 }
@@ -180,7 +180,7 @@ export function settlementRecommendations(deltas) {
  */
 export function redistributionMarkdown(redistribution, preview) {
   const lines = [
-    `# Ausgleichsempfehlung: ${redistribution.title}`,
+    `# Umverteilung: ${redistribution.title}`,
     '',
     `Stichtag: ${redistribution.effectiveDate}`,
     '',
@@ -191,14 +191,18 @@ export function redistributionMarkdown(redistribution, preview) {
     lines.push(`- ${row.personName}: ${row.delta > 0 ? '+' : ''}${money(row.delta)}`);
   }
   
-  lines.push('', '## Empfohlener Ausgleich');
-  
-  if (preview.payments.length === 0) {
-    lines.push('Kein Ausgleich erforderlich.');
+  if (redistribution.financialMode !== 'derived') {
+    lines.push('', '## Finanzielle Wirkung', 'Unentgeltliche Anteilsänderung (Schenkung/Korrektur): Es entsteht keine Forderung und es wird keine Zahlung erfasst.');
   } else {
-    for (const p of preview.payments) {
-      lines.push(`- ${p.from} zahlt ${money(p.amount)} an ${p.to}`);
+    lines.push('', '## Rechnerischer Ausgleichsvorschlag');
+    if (preview.payments.length === 0) {
+      lines.push('Kein Ausgleich vorgeschlagen.');
+    } else {
+      for (const p of preview.payments) {
+        lines.push(`- ${p.from} würde ${money(p.amount)} an ${p.to} zahlen`);
+      }
     }
+    lines.push('', 'Dies ist keine Dokumentation einer erfolgten Zahlung.');
   }
   
   return lines.join('\n');
