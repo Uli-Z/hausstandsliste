@@ -1,6 +1,7 @@
 import { byDateOrder } from './util.js';
 import { normShares, shareTotal } from './domain.js';
 import { valueAt } from './valuation.js';
+import { CLAIM_SETTLEMENT_TYPE, claimSettlementErrors } from './claimSettlement.js';
 
 const ensurePerson = (state, id, name = id) => {
   if (!state.peopleById.has(id)) state.peopleById.set(id, { id, name, active: false, synthetic: true });
@@ -61,6 +62,12 @@ export const applyEvent = (state, event, beforeApply = null, parent = null) => {
   } else if (event.type === 'redistribution-executed') {
     for (const child of event.events || []) {
       applyEvent(state, { ...child, date: event.date, order: event.order }, beforeApply, event);
+    }
+  } else if (event.type === CLAIM_SETTLEMENT_TYPE) {
+    // A recorded payment/external handoff never changes ownership. Recognition
+    // and structural validation belong here; allocation to claims is B02/B03.
+    for (const problem of claimSettlementErrors(event)) {
+      state.warnings.push(`Ungültiger Forderungsausgleich (${event.id || 'ohne ID'}): ${problem}`);
     }
   } else {
     state.warnings.push(`Unbekannter Ereignistyp: ${event.type}`);
