@@ -165,7 +165,7 @@
                   {/each}
                 </tbody>
               </table>
-            {:else}<div class="notice-small">Kein Ausgleich empfohlen.</div>{/if}
+            {:else}<div class="notice-small">{redistribution.financialMode === 'derived' ? 'Kein Ausgleich vorgeschlagen.' : 'Unentgeltlich: Es entsteht keine Forderung und es wird keine Zahlung erfasst.'}</div>{/if}
           </div>
         </section>
         <div class="notice small-text">Du kannst die Änderung zuerst als Entwurf speichern. Erst nach „Änderung übernehmen“ werden die neuen Anteile wirksam.</div>
