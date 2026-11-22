@@ -47,6 +47,7 @@
 
   function eventAffectsPerson(event) {
     if (event.personId === personId) return true;
+    if (event.type === 'claim-settlement-recorded') return event.debtorPersonId === personId || event.creditorPersonId === personId;
     if ((event.events || []).some(child => child.personId === personId)) return true;
     if (event.type === 'item-added' && Number(event.shares?.[personId] || 0) > 0) return true;
 
@@ -66,7 +67,7 @@
   }
 
   $: events = allEvents.filter(e => {
-    if (itemId) return e.itemId === itemId || (e.events || []).some(c => c.itemId === itemId);
+    if (itemId) return e.type !== 'claim-settlement-recorded' && (e.itemId === itemId || (e.events || []).some(c => c.itemId === itemId));
     if (personId) return eventAffectsPerson(e);
     return true;
   });
@@ -81,10 +82,16 @@
     'person-deactivated': 'Auszug',
     'person-reactivated': 'Wiedereinzug',
     'item-added': 'Neuanschaffung',
-    'item-ended': 'Ausbuchung'
+    'item-ended': 'Ausbuchung',
+    'claim-settlement-recorded': 'Gegenbuchung'
   };
 
   function summary(event) {
+    if (event.type === 'claim-settlement-recorded') {
+      const kind = event.settlementKind === 'paid' ? 'Zahlung dokumentiert'
+        : event.settlementKind === 'external' ? 'Extern verbucht' : 'Erlass/Gegenbuchung';
+      return `${kind}: ${personName(event.debtorPersonId)} → ${personName(event.creditorPersonId)} · ${money(event.amountCents / 100)} · als Gegenforderung verrechnet${event.note ? ' · ' + event.note : ''}`;
+    }
     if (event.type === 'redistribution-executed') {
       const affectedItems = [...new Set((event.events || []).filter(e => e.type === 'shares-set').map(e => itemName(e.itemId)).filter(Boolean))];
       const itemInfo = affectedItems.length ? ` · ${affectedItems.join(', ')}` : '';
@@ -175,7 +182,7 @@
               {/if}
             </div>
             <div class="event-actions">
-              <button class="small ghost edit-button" title="Ereignis bearbeiten" on:click={() => openEdit(event)}>⚙️</button>
+              {#if event.type !== 'claim-settlement-recorded'}<button class="small ghost edit-button" title="Ereignis bearbeiten" on:click={() => openEdit(event)}>⚙️</button>{/if}
             </div>
           </div>
         {/each}
@@ -228,7 +235,7 @@
             {/if}
           </div>
           <div class="event-actions">
-            <button class="small ghost edit-button" title="Ereignis bearbeiten" on:click={() => openEdit(event)}>⚙️</button>
+            {#if event.type !== 'claim-settlement-recorded'}<button class="small ghost edit-button" title="Ereignis bearbeiten" on:click={() => openEdit(event)}>⚙️</button>{/if}
           </div>
         </div>
       {/each}
