@@ -68,6 +68,31 @@ Das aktuell erzeugte Grundprojekt (`schemaVersion: 1`) enthält:
 
 `projectAt(project, asOfDate)` berücksichtigt nur Ereignisse mit `event.date <= asOfDate`. Das Ergebnis enthält aktuelle Personen/Gegenstände, aktive/archivierte Gegenstände, Anteilwerte und Warnungen zu unbekannten Ereignistypen. Bei einem `item-ended` sinkt der aktive Wert auf null; archivierte Gegenstände bleiben nachvollziehbar.
 
+### Ausgleichsereignis (B01, 22.11.2026)
+
+Ein bereits geleisteter Ausgleich wird künftig **nicht** als editierbarer Forderungsstatus, sondern als eigenes Ereignis in `project.events[]` dokumentiert. Der neue Typ `claim-settlement-recorded` enthält:
+
+```json
+{
+  "id": "settlement_...",
+  "type": "claim-settlement-recorded",
+  "date": "2026-11-22",
+  "order": 123456,
+  "amountCents": 6000,
+  "debtorPersonId": "ben",
+  "creditorPersonId": "anna",
+  "settlementKind": "paid",
+  "sourceEventId": "purchase_123",
+  "childEventId": null,
+  "itemId": "fridge",
+  "note": "Überweisung bereits erfolgt"
+}
+```
+
+`settlementKind` unterscheidet `paid` (Zahlung dokumentiert), `external` (extern weiterverfolgt, **nicht bezahlt**) und `waived` (Erlass/anderer Abschluss). Betrag wird ausschließlich in positiven, sicheren Integer-Cent gespeichert. `src/lib/claimSettlement.js` erzeugt und prüft die Struktur inklusive gültigem Kalenderdatum und verschiedenen Parteien; fehlendes `childEventId` wird als `null` geschrieben. Die Projektdatei bleibt `schemaVersion: 1`; `normalize()` bewahrt neue Events unverändert.
+
+Der Eigentumsprojektor erkennt solche Einträge als eigentumsneutral und meldet ungültige importierte Einträge als Warnung, ohne sie zu löschen. **B01 ist nur die Datenstruktur:** Die Herkunfts- und Ausgleichszuordnung (B02), Verringerung offener Forderungen (B03) sowie Speicherung über UI-Aktionen sind **noch nicht** implementiert. Deshalb verändern diese Events aktuell **keine** berechneten Forderungen oder Salden; sie dürfen bis zur folgenden Umsetzung nicht als abgeschlossene Buchung behandelt werden.
+
 ### Anteilssätze und Bewertung
 
 Anteile werden als positive relative Einheiten gespeichert, z. B. `{personA: 2, personB: 1}`; daraus ergeben sich 2/3 bzw. 1/3 des Zeitwerts. Keine Prozentwerte als Primärdaten speichern.
