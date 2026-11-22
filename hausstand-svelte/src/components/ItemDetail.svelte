@@ -6,6 +6,9 @@
   import Timeline from './Timeline.svelte';
   export let item;
   $: itemClaims = ($ledger.claims || []).filter(claim => claim.itemId === item.id);
+  $: fundingEvents = ($appState.project.events || []).filter(event =>
+    event.type === 'item-added' && event.itemId === item.id && event.date <= $appState.asOfDate &&
+    event.financialMode === 'derived' && event.financedByPersonId);
   const personName = id => $appState.project.people.find(p => p.id === id)?.name || id;
 </script>
 
@@ -76,6 +79,12 @@
 <section class="panel" style="margin-top:16px">
   <div class="panel-header"><h2>Finanzierung &amp; Wertausgleich</h2></div>
   <div class="panel-body stack">
+    {#each fundingEvents as event (event.id)}
+      <div class="funding-fact">
+        <strong>Beim Kauf eingebracht</strong>
+        <span>{personName(event.financedByPersonId)} · {money(event.initialValue)} · {dateDE(event.date)}</span>
+      </div>
+    {/each}
     <p class="muted">Diese beim Kauf oder bei Anteilsübertragungen entstandenen Wertverschiebungen gehen in die persönlichen Ausgleichssalden ein. Tatsächliche Zahlungen werden gemeinschaftlich verrechnet und sind deshalb keinem einzelnen Gegenstand als „bezahlt“ zugeordnet.</p>
     {#if itemClaims.length}
       <div style="overflow-x:auto">
@@ -96,5 +105,7 @@
 
 <style>
   .item-status-text{color:var(--muted);font-size:12px}
+  .funding-fact{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border)}
+  .funding-fact span{color:var(--muted)}
   .item-categories,.item-description{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
 </style>
