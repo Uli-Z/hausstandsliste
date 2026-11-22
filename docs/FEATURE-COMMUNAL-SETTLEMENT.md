@@ -17,6 +17,29 @@ Die App speichert dafür **keine zusätzliche Wertkontobuchung**. Sie berechnet 
 
 Bei entgeltlicher Eigentumsübertragung wird der Wert der abgegebenen/erworbenen Anteile **zum Zeitpunkt des Vorgangs** verrechnet. Eine Schenkung oder Korrektur mit `financialMode: 'none'` erzeugt keinen Ausgleichsbedarf.
 
+## Verständliche Saldo-Aufschlüsselung (UI-Überarbeitung 22.11.2026)
+
+Jedes Personenprofil und die aufklappbaren persönlichen Salden zeigen nun die historische Herleitung aus genau einem Datenmodell. `ledgerAt().details` ist **nur eine zusätzliche, zur Laufzeit berechnete Sicht** auf die gleichen Forderungen und Zahlungen:
+
+- **Finanzierte Anschaffungen:** voller historischer Anschaffungswert, den die Person eingebracht hat
+- **Erhaltene Anteile beim Kauf:** ihr eigener Anteil am selben Anschaffungswert, auch wenn sie selbst die finanzierende Person ist
+- **Abgegebene/übernommene Anteile:** Wert einer späteren entgeltlichen Anteilsübertragung zum Ereignisdatum
+- **Geleistete/erhaltene Zahlungen:** historische tatsächliche Geldflüsse
+- **Sonstige Verrechnungen:** separat ausgewiesene `external`- und `waived`-Ereignisse, nicht als Cash bezeichnet
+
+Formel in Cent:
+
+```text
+Saldo = finanzierte Anschaffungen – erhaltene Kaufanteile
+      + abgegebene Anteile – übernommene Anteile
+      + geleistete Zahlungen – empfangene Zahlungen
+      + sonstige Gutschriften – sonstige Belastungen
+```
+
+Bei 300 € Finanzierung durch Anna, drei gleichen Anteilen und einer späteren Zahlung von Ben an Anna über 60 € zeigt Annas Bilanz: **300 € − 100 € − 60 € = +140 €**. Dieser Wert muss centgenau mit `ledgerAt().balances.get(personId)` übereinstimmen. Tests prüfen vollständige Finanzierung, selbst gehaltene Anteile, Transfers, historische Stichtage, nichtbare Verrechnungen und Cent-Rundung.
+
+Die Hauptansicht setzt die **vorgeschlagenen Ausgleichswege nach oben**, danach aufklappbare persönliche Salden und erst dann die Herkunfts- und Zahlungshistorie. Eine bereits erfolgte Zahlung wird mit Richtung, Betrag, Datum und Hinweis auf ihre Saldoänderung vor der Bestätigung angezeigt. Beim Speichern einer Zahlung nach dem betrachteten Stichtag wechselt die Ansicht auf das Zahlungsdatum, damit die Wirkung unmittelbar sichtbar ist. Die UI verzichtet auf redundante Status- und Kategorie-Badges, behält Kategorien jedoch als Filter- und Stammdatenfelder.
+
 ## Dokumentierte Zahlungen
 
 Ein bereits erfolgter Geldfluss wird als datiertes Ereignis `claim-settlement-recorded` erfasst. Wer zahlt, erhält eine positive Saldoänderung; wer das Geld erhält, eine negative. Der Betrag ist ein historischer Fakt, unabhängig von Anschaffung und Eigentum, und wird auch bei einer nachträglichen Änderung des Kaufwertes nicht automatisch überschrieben.
