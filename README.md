@@ -33,7 +33,7 @@ Das Ergebnis liegt unter `hausstand-svelte/dist/hausstand-standalone.html` und k
 - Forderungen automatisch aus entgeltlichen Anteilsbewegungen ableiten, bilateral saldieren und gemeinschaftlich vereinfacht anzeigen
 - Projekt-JSON importieren/exportieren; lokale Browser-Arbeitskopie
 
-**Wichtig:** Eine ausgeführte Umverteilung dokumentiert eine Anteilsänderung, **keine beglichene Zahlung**. Eine Schuldenübersicht ist vorhanden, tatsächliche Geldzahlungen und Zahlungsstatus werden jedoch nicht erfasst.
+**Wichtig:** Eine ausgeführte Umverteilung dokumentiert eine Anteilsänderung, **keine beglichene Zahlung**. Eine Schuldenübersicht ist vorhanden, tatsächliche Zahlungen sind als Ereignisse im Datenmodell möglich und verändern den Saldo als Gegenforderung; ein Eingabedialog ist noch nicht implementiert.
 
 ## Speicherung und Datenschutz
 
@@ -58,7 +58,7 @@ Dokumentation zur umgesetzten Forderungslogik und den weiteren Planungen:
 - [Sicherheits- und Verschlüsselungsentwurf](docs/SECURITY-AND-ENCRYPTION.md)
 - [Installation, GitHub Pages und PHP-Server](docs/DEPLOYMENT.md)
 
-**Status:** Forderungsableitung, lokaler verschlüsselter Import/Export, PHP-Online-Ablage, Checkout, Revisionen und PHP-Mailanbindung sind im Code. Automatisierte Kryptotests und PHP-API-Integrationstests einschließlich PHP-Build waren erfolgreich; eine manuelle Browser-/Server-/E-Mail-Abnahme und unabhängige Sicherheitsprüfung stehen noch aus. Echte Geldzahlungen werden nicht erfasst.
+**Status:** Forderungsableitung, lokaler verschlüsselter Import/Export, PHP-Online-Ablage, Checkout, Revisionen und PHP-Mailanbindung sind im Code. Automatisierte Kryptotests und PHP-API-Integrationstests einschließlich PHP-Build waren erfolgreich; eine manuelle Browser-/Server-/E-Mail-Abnahme und unabhängige Sicherheitsprüfung stehen noch aus. Eine freie, datierte Zahlung wird als Gegenforderung im Bilanzmodell berücksichtigt; eine UI zum Erfassen fehlt noch.
 
 ## Projekt-Dokumentation
 
@@ -86,3 +86,7 @@ Bei der ersten Pages-Veröffentlichung konnte der Build erfolgreich deployen, ob
 ## Getrennte Builds (22.11.2026)
 
 Die aktuelle mobile UI V3 bleibt als eigenständige statische Seite auf GitHub Pages erhalten. Die PHP-Datei wird dagegen **manuell** mit `npm run build:php` oder über [GitHub Actions → Build PHP single-file release (manual)](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml) erstellt. Sie enthält die mobile UI V3 und einen konfigurierbaren privaten Speicherordner. Die Einstellungen befinden sich ausschließlich oben in der PHP-Datei und nicht in der Endnutzer-Oberfläche. [Anleitung](docs/BUILD-VARIANTS.md).
+
+## Einheitliches Forderungsjournal (22.11.2026)
+
+Eine dokumentierte Zahlung wird als selbständige **Gegenforderung** derselben Personen mit umgekehrter Richtung in den bilateralen Saldo eingerechnet. Sie muss weder einem Gegenstand noch einer ursprünglichen Forderung zugeordnet werden. Überzahlungen erzeugen rechnerische Guthaben; die Zahlung bleibt bei späteren Änderungen am Kaufdatum oder Kaufwert erhalten. `external` und `waived` sind keine tatsächlichen Überweisungen und werden getrennt gekennzeichnet. `src/lib/claimSettlement.js` enthält die Fachlogik. **Nicht verfügbar:** UI zum Erstellen und Korrigieren solcher Ereignisse (B04 ff.), vollständige Browser-/CI-Abnahme.
