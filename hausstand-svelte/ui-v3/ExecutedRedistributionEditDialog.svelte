@@ -92,7 +92,7 @@
     const saved = appState.mutateProject(p => {
       p.events = p.events.filter(e => e.id !== event.id);
     });
-    appState.closeDialog();
+    if (saved) appState.closeDialog();
   }
 
   $: people = projection.people;
