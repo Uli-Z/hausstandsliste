@@ -264,7 +264,7 @@
 </script>
 
 {#if dialog?.type === 'settlementAdd' || dialog?.type === 'settlementEdit'}
-  <SettlementDialog {dialog} {project} />
+  <SettlementDialog {dialog} {project} {asOfDate} />
 {:else if dialog?.type === 'redistributionEdit'}
   <RedistributionDialog {dialog} {project} {projection} />
 {:else if dialog?.type === 'eventEdit'}
