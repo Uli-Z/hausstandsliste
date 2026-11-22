@@ -1,9 +1,11 @@
 <script>
+  import { normShares } from '../lib/domain.js';
   export let people = [];
   export let shares = {};
   function setShare(personId, value) { shares = { ...shares, [personId]: Number(value) || 0 }; }
   function removeShare(personId) { const next = { ...shares }; delete next[personId]; shares = next; }
   function addPerson(personId) { if (!personId) return; shares = { ...shares, [personId]: shares[personId] || 1 }; }
+  $: positiveOwnerCount = Object.keys(normShares(shares)).length;
   $: available = people.filter(p => !(p.id in shares));
 </script>
 <div class="stack">
@@ -11,7 +13,9 @@
     <div class="share-row">
       <label>Person <select disabled><option>{people.find(p=>p.id===personId)?.name || personId}</option></select></label>
       <label>Einheiten <input type="number" min="0" step="0.01" value={units} on:input={e => setShare(personId, e.currentTarget.value)}></label>
-      <button class="danger" on:click={() => removeShare(personId)}>🗑️</button>
+      <button class="danger" type="button" on:click={() => removeShare(personId)}
+        disabled={positiveOwnerCount === 1 && Number(units) > 0}
+        title={positiveOwnerCount === 1 && Number(units) > 0 ? 'Letzten Eigentümer erst übertragen oder Gegenstand beenden' : 'Anteil entfernen'}>🗑️</button>
     </div>
   {/each}
   {#if available.length}
