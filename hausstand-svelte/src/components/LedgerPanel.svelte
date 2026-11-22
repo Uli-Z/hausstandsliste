@@ -1,6 +1,7 @@
 <script>
   import { appState } from '../stores/projectStore.js';
   import { money } from '../lib/domain.js';
+  import { PAYMENT_STATUS_NOTICE, BILATERAL_BALANCE_DESCRIPTION, MULTILATERAL_SUGGESTION_DESCRIPTION, DERIVED_CLAIMS_DESCRIPTION } from '../lib/financialLabels.js';
   import { dateDE } from '../lib/util.js';
 
   export let project;
@@ -25,18 +26,19 @@
 
 <section class="panel" style="margin-top:16px">
   <div class="panel-header">
-    <h2>💶 Forderungen und Nettoschulden</h2>
+    <h2>Rechnerische Forderungen &amp; Salden</h2>
     <span class="hint">Stichtag {dateDE(asOfDate)}</span>
   </div>
   <div class="panel-body stack">
     <div class="notice">
-      Forderungen entstehen aus entgeltlichen Anteilsänderungen. Gegenläufige Ansprüche
-      werden automatisch verrechnet; reale Geldzahlungen werden derzeit nicht erfasst.
-      Ältere Ereignisse ohne finanzielle Kennzeichnung erzeugen keine Schulden.
+      {PAYMENT_STATUS_NOTICE} Forderungen entstehen aus entgeltlichen Anteilsänderungen.
+      Gegenläufige Ansprüche werden rechnerisch verrechnet, nicht als überwiesen markiert.
+      Ältere Ereignisse ohne finanzielle Kennzeichnung erzeugen keine Forderungen.
     </div>
     <div class="grid-2">
       <section class="mini-card stack">
-        <strong>Offen je Gegenpartei</strong>
+        <strong>Bilaterale Forderungssalden</strong>
+        <div class="muted small-text">{BILATERAL_BALANCE_DESCRIPTION}</div>
         {#if data.pairwise.length}
           <table class="tight">
             <thead><tr><th>Von → an</th><th class="money">Saldo</th></tr></thead>
@@ -50,12 +52,12 @@
             </tbody>
           </table>
         {:else}
-          <div class="muted">Keine gegenseitigen Nettoschulden zum Stichtag.</div>
+          <div class="muted">Kein rechnerischer Nettosaldo aus den erfassten Forderungen. Das bestätigt keine Zahlung.</div>
         {/if}
       </section>
       <section class="mini-card stack">
-        <strong>Vereinfachte Gesamtübersicht</strong>
-        <div class="muted small-text">Rechnerischer Vorschlag für eine gemeinsame Verrechnung; dabei können sich die Zahlungsempfänger ändern.</div>
+        <strong>Unverbindlicher Überweisungsvorschlag</strong>
+        <div class="muted small-text">{MULTILATERAL_SUGGESTION_DESCRIPTION}</div>
         {#if data.simplified.length}
           <table class="tight">
             <thead><tr><th>Von → an</th><th class="money">Betrag</th></tr></thead>
@@ -69,17 +71,18 @@
             </tbody>
           </table>
         {:else}
-          <div class="muted">Alle Forderungen sind rechnerisch ausgeglichen.</div>
+          <div class="muted">Kein Überweisungsvorschlag aus dem aktuellen Nettosaldo. Das bedeutet nicht, dass Forderungen bezahlt wurden.</div>
         {/if}
       </section>
     </div>
     <button class="small" on:click={() => showDetails = !showDetails}>
-      {showDetails ? 'Einzelvorgänge ausblenden' : 'Einzelvorgänge anzeigen'} ({data.claims.length})
+      {showDetails ? 'Entstandene Forderungen ausblenden' : 'Entstandene Forderungen anzeigen'} ({data.claims.length})
     </button>
     {#if showDetails && data.claims.length}
+      <p class="muted small-text">{DERIVED_CLAIMS_DESCRIPTION}</p>
       <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>Datum</th><th>Gegenstand</th><th>Schuldner → Gläubiger</th><th class="money">Betrag</th><th>Quelle</th></tr></thead>
+          <thead><tr><th>Datum</th><th>Gegenstand</th><th>Schuldner → Gläubiger</th><th class="money">Forderung</th><th>Quelle</th></tr></thead>
           <tbody>
             {#each data.claims as claim, index (claim.sourceEventId + ':' + (claim.childEventId || '') + ':' + claim.debtorPersonId + ':' + claim.creditorPersonId + ':' + index)}
               <tr>
