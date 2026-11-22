@@ -86,10 +86,10 @@
 
   function summary(event) {
     if (event.type === 'redistribution-executed') {
-      const preview = redistributionPreview(project, { title: event.title, effectiveDate: event.date, changes: (event.events || []).filter(e => e.type === 'shares-set') });
+      const preview = redistributionPreview(project, { title: event.title, effectiveDate: event.date, financialMode: event.financialMode, changes: (event.events || []).filter(e => e.type === 'shares-set') });
       const affectedItems = [...new Set((event.events || []).filter(e => e.type === 'shares-set').map(e => itemName(e.itemId)).filter(Boolean))];
       const itemInfo = affectedItems.length ? ` · ${affectedItems.join(', ')}` : '';
-      return `${event.title || 'Umverteilung'} · ${(event.events || []).length} Änderungen · ${preview.payments.length} Zahlungen${itemInfo}`;
+      return `${event.title || 'Umverteilung'} · ${(event.events || []).length} Änderungen · ${event.financialMode === 'derived' ? preview.payments.length + ' Ausgleichsvorschläge' : 'keine Forderung'}${itemInfo}`;
     }
     if (event.type === 'shares-set') {
       const before = projectBeforeEvent(project, event.id, event.date);
@@ -116,6 +116,7 @@
     const preview = redistributionPreview(project, {
       title: event.title,
       effectiveDate: event.date,
+      financialMode: event.financialMode,
       changes: shareEvents
     });
     const affectedItems = [...new Set(shareEvents.map(e => e.itemId).filter(Boolean))];
@@ -147,7 +148,7 @@
             <div class="event-summary">
               {#if event.type === 'redistribution-executed'}
                 {@const data = redistributionData(event)}
-                <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {data.preview.payments.length} Zahlungen</span>
+                <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {event.financialMode === 'derived' ? data.preview.payments.length + ' Ausgleichsvorschläge' : 'keine Forderung'}</span>
                 {#if data.affectedItems.length}
                   <span> · </span>
                   {#each data.affectedItems as currentItemId, index}
@@ -199,7 +200,7 @@
           <div class="event-summary">
             {#if event.type === 'redistribution-executed'}
               {@const data = redistributionData(event)}
-              <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {data.preview.payments.length} Zahlungen</span>
+              <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {event.financialMode === 'derived' ? data.preview.payments.length + ' Ausgleichsvorschläge' : 'keine Forderung'}</span>
               {#if data.affectedItems.length}
                 <span> · </span>
                 {#each data.affectedItems as currentItemId, index}
