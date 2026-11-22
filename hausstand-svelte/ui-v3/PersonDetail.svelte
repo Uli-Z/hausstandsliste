@@ -1,5 +1,6 @@
 <script>
   import { appState, createEvent } from '../src/stores/projectStore.js';
+  import { PERSON_BALANCE_NOTE } from '../src/lib/financialLabels.js';
   import { money, normShares } from '../src/lib/domain.js';
   import { dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
@@ -66,7 +67,7 @@
   <div class="detail-hero">
     <div class="stack">
       <div class="detail-title"><h2>{person.name}</h2><span class="badge" class:ok={person.active} class:warn={!person.active}>{person.active ? 'aktiv' : person.inactiveFrom ? 'ausgezogen' : 'inaktiv'}</span></div>
-      <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">Geldbilanz</div><strong>{money(Math.abs(balanceCents) / 100)}</strong><div class="muted">{balanceCents > 0 ? 'zu erhalten' : balanceCents < 0 ? 'zu zahlen' : 'ausgeglichen'}</div></div></div>
+      <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">Rechnerischer Forderungssaldo</div><strong>{money(Math.abs(balanceCents) / 100)}</strong><div class="muted">{PERSON_BALANCE_NOTE(balanceCents)}</div></div></div>
     </div>
     <div class="mini-card stack"><strong>Mögliche Aktionen</strong><div class="action-grid">
       <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}>Person bearbeiten</button>
