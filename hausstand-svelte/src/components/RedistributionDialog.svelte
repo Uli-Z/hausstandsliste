@@ -251,9 +251,6 @@
   .negative { color: var(--warn); }
   .sub-modal { z-index: 100; }
   .content-left { overflow: hidden; display: flex; flex-direction: column; }
-</style>
-
-<style>
   .financial-help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .financial-help-heading strong{font-size:13px}
   .workflow-help{display:flex;justify-content:flex-end}
