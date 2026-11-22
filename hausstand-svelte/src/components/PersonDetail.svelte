@@ -71,7 +71,7 @@
     </div>
     <div class="mini-card stack"><strong>⚡ Aktionen</strong><div class="action-grid">
       <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}>✏️ Stammdaten</button>
-      {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' })))}>🚪 Deaktivieren</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' })))}>🔄 Reaktivieren</button>{/if}
+      {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' }, p)))}>🚪 Deaktivieren</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' }, p)))}>🔄 Reaktivieren</button>{/if}
       <button on:click={startTransfer}>🔁 Alle Anteile übertragen</button>
       <button on:click={startDissolve}>🧹 Alle Anteile auflösen</button>
     </div><div class="notice">Übertragen/Auflösen startet eine neue Umverteilung und öffnet direkt den Prüf-Dialog.</div></div>
