@@ -1,10 +1,12 @@
 <script>
-  import { appState } from '../stores/projectStore.js';
+  import { appState, ledger } from '../stores/projectStore.js';
   import { money, pct } from '../lib/domain.js';
   import { label as valuationLabel } from '../lib/valuation.js';
   import { dateDE } from '../lib/util.js';
   import Timeline from './Timeline.svelte';
   export let item;
+  $: itemClaims = ($ledger.claims || []).filter(claim => claim.itemId === item.id);
+  const personName = id => $appState.project.people.find(p => p.id === id)?.name || id;
 </script>
 
 <section class="panel">
@@ -75,4 +77,25 @@
   <section class="panel">
     <Timeline project={$appState.project} asOfDate={$appState.asOfDate} itemId={item.id} title="🕒 Gegenstands-Timeline" />
   </section>
+</section>
+
+<section class="panel" style="margin-top:16px">
+  <div class="panel-header"><h2>Finanzierung &amp; Wertausgleich</h2></div>
+  <div class="panel-body stack">
+    <p class="muted">Diese beim Kauf oder bei Anteilsübertragungen entstandenen Wertverschiebungen gehen in die persönlichen Ausgleichssalden ein. Tatsächliche Zahlungen werden gemeinschaftlich verrechnet und sind deshalb keinem einzelnen Gegenstand als „bezahlt“ zugeordnet.</p>
+    {#if itemClaims.length}
+      <div style="overflow-x:auto">
+        <table class="tight">
+          <thead><tr><th>Datum</th><th>Wert abgegeben von</th><th>Wert erhalten durch</th><th class="money">Wert</th></tr></thead>
+          <tbody>
+            {#each itemClaims as claim, index (claim.sourceEventId + ':' + index)}
+              <tr><td>{dateDE(claim.date)}</td><td>{personName(claim.creditorPersonId)}</td><td>{personName(claim.debtorPersonId)}</td><td class="money">{money(claim.amountCents / 100)}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {:else}
+      <div class="muted">Für diesen Gegenstand ist zum gewählten Stichtag kein finanzieller Ausgleich hinterlegt.</div>
+    {/if}
+  </div>
 </section>
