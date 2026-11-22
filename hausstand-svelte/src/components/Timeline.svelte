@@ -4,6 +4,7 @@
   import { money } from '../lib/domain.js';
   import { projectBeforeEvent, shareDeltasForChange } from '../lib/projector.js';
   import { FINANCIAL_EVENT_NOTE, ITEM_FUNDING_NOTE } from '../lib/financialLabels.js';
+  import HelpTip from './HelpTip.svelte';
   export let project;
   export let asOfDate;
   export let itemId = null;
@@ -90,7 +91,7 @@
     if (event.type === 'claim-settlement-recorded') {
       const kind = event.settlementKind === 'paid' ? 'Zahlung dokumentiert'
         : event.settlementKind === 'external' ? 'Extern verbucht' : 'Erlass';
-      return `${kind}: ${personName(event.debtorPersonId)} → ${personName(event.creditorPersonId)} · ${money(event.amountCents / 100)} · im Ausgleichssaldo berücksichtigt${event.note ? ' · ' + event.note : ''}`;
+      return `${kind}: ${personName(event.debtorPersonId)} → ${personName(event.creditorPersonId)} · ${money(event.amountCents / 100)}${event.note ? ' · ' + event.note : ''}`;
     }
     if (event.type === 'redistribution-executed') {
       const affectedItems = [...new Set((event.events || []).filter(e => e.type === 'shares-set').map(e => itemName(e.itemId)).filter(Boolean))];
@@ -148,7 +149,7 @@
             <div class="event-summary">
               {#if event.type === 'redistribution-executed'}
                 {@const data = redistributionData(event)}
-                <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {FINANCIAL_EVENT_NOTE(event)}</span>
+                <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen</span><HelpTip label="Finanzielle Wirkung">{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
                 {#if data.affectedItems.length}
                   <span> · </span>
                   {#each data.affectedItems as currentItemId, index}
@@ -166,7 +167,7 @@
                     <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
                   {/each}
                 {/if}
-                <span> · {FINANCIAL_EVENT_NOTE(event)}</span>
+                <HelpTip label="Finanzielle Wirkung der Anteilsänderung">{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
               {:else if event.type === 'person-added'}
                 <span>Willkommen, </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
               {:else if event.type === 'person-deactivated'}
@@ -174,7 +175,7 @@
               {:else if event.type === 'person-reactivated'}
                 <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Rückkehr'}</span>
               {:else if event.type === 'item-added'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)} · {ITEM_FUNDING_NOTE(event)}</span>
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span><HelpTip label="Finanzierung dieser Anschaffung">{ITEM_FUNDING_NOTE(event)}</HelpTip>
               {:else if event.type === 'item-ended'}
                 <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
               {:else}
@@ -201,7 +202,7 @@
           <div class="event-summary">
             {#if event.type === 'redistribution-executed'}
               {@const data = redistributionData(event)}
-              <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {FINANCIAL_EVENT_NOTE(event)}</span>
+              <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen</span><HelpTip label="Finanzielle Wirkung">{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
               {#if data.affectedItems.length}
                 <span> · </span>
                 {#each data.affectedItems as currentItemId, index}
@@ -219,7 +220,7 @@
                   <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
                 {/each}
               {/if}
-              <span> · {FINANCIAL_EVENT_NOTE(event)}</span>
+              <HelpTip label="Finanzielle Wirkung der Anteilsänderung">{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
             {:else if event.type === 'person-added'}
               <span>Willkommen, </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
             {:else if event.type === 'person-deactivated'}
@@ -227,7 +228,7 @@
             {:else if event.type === 'person-reactivated'}
               <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Rückkehr'}</span>
             {:else if event.type === 'item-added'}
-              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)} · {ITEM_FUNDING_NOTE(event)}</span>
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span><HelpTip label="Finanzierung dieser Anschaffung">{ITEM_FUNDING_NOTE(event)}</HelpTip>
             {:else if event.type === 'item-ended'}
               <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
             {:else}
