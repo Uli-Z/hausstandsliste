@@ -21,14 +21,14 @@ export const DERIVED_CLAIMS_DESCRIPTION =
 
 export const FINANCIAL_EVENT_NOTE = event => {
   if (event?.financialMode === 'derived') {
-    return 'entgeltlich · Forderungen rechnerisch abgeleitet · keine Zahlung gebucht';
+    return 'entgeltlich · mögliche Forderungen werden abgeleitet · keine Zahlung gebucht';
   }
   return 'unentgeltlich/Altvorgang · keine neue Forderung · keine Zahlung gebucht';
 };
 
 export const ITEM_FUNDING_NOTE = event => (
   event?.financialMode === 'derived' && event?.financedByPersonId
-    ? 'Finanzierung zugeordnet · Forderungen abgeleitet · keine Zahlung gebucht'
+    ? 'Finanzierung zugeordnet · mögliche Forderungen werden abgeleitet · keine Zahlung gebucht'
     : 'Keine Forderung aus der Anschaffung erfasst'
 );
 
