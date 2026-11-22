@@ -124,14 +124,14 @@
     <div class="sidebar-bottom">
       <button class:nav-active={route.page === 'dashboard' && activeSection === 'save'} on:click={() => navigate('save')} aria-current={route.page === 'dashboard' && activeSection === 'save' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⇩</span> Sichern & Teilen</button>
       <button class:nav-active={route.page === 'dashboard' && activeSection === 'settings'} on:click={() => navigate('settings')} aria-current={route.page === 'dashboard' && activeSection === 'settings' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⚙</span> Einstellungen</button>
-      <div class="sidebar-note">Hausstand · gemeinschaftlich verwalten</div>
+      
     </div>
   </aside>
 
   <div class="main-column">
     <header class="app-header">
       <div class="header-context">
-        <span class="context-kicker">HAUSGEMEINSCHAFT</span>
+        
         <strong><span class="mobile-header-brand">Hausstand · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
       </div>
       <div class="header-actions">
@@ -224,7 +224,7 @@
             {#if latestEvents.length}
               <div class="recent-list">
                 {#each latestEvents as event (event.id)}
-                  <div class="recent-row"><span class="event-dot"></span><div><strong>{eventName(event)}</strong><small>{dateDE(event.date)}</small></div></div>
+                  <div class="recent-row"><div><strong>{eventName(event)}</strong><small>{dateDE(event.date)}</small></div></div>
                 {/each}
               </div>
             {:else}
@@ -277,8 +277,8 @@
           </section>
           <section class="ux-panel save-help">
             <div class="section-header"><div><h2>Wo liegen deine Daten?</h2></div></div>
-            <div class="status-definition"><span class="status-symbol">●</span><div><strong>{$appState.secure ? 'Passwortgeschütztes Projekt' : 'Arbeitskopie in diesem Browser'}</strong><p>{$appState.secure ? 'Aus Sicherheitsgründen wird keine unverschlüsselte Arbeitskopie im Browser abgelegt.' : SERVER_MODE ? 'Solange kein gemeinsames Projekt geöffnet wurde, liegt dein Arbeitsstand nur in diesem Browser. Nutze „Online-Projekte“ zum gemeinsamen Speichern.' : 'Deine Änderungen werden lokal in diesem Browser vorgehalten. Sie sind nicht automatisch auf anderen Geräten verfügbar.'}</p></div></div>
-            <div class="status-definition"><span class="status-symbol">{ $appState.dirty ? '!' : '✓' }</span><div><strong>{$appState.dirty ? 'Änderungen noch nicht exportiert' : 'Keine neuen Änderungen seit der letzten Sicherung'}</strong><p>{SERVER_MODE ? 'Für zuverlässige Backups sichere regelmäßig eine Datei oder speichere deine Änderungen am Online-Projekt.' : 'Für zuverlässige Backups speichere regelmäßig eine Datei.'}</p></div></div>
+            <div class="status-definition"><div><strong>{$appState.secure ? 'Passwortgeschütztes Projekt' : 'Arbeitskopie in diesem Browser'}</strong><p>{$appState.secure ? 'Aus Sicherheitsgründen wird keine unverschlüsselte Arbeitskopie im Browser abgelegt.' : SERVER_MODE ? 'Solange kein gemeinsames Projekt geöffnet wurde, liegt dein Arbeitsstand nur in diesem Browser. Nutze „Online-Projekte“ zum gemeinsamen Speichern.' : 'Deine Änderungen werden lokal in diesem Browser vorgehalten. Sie sind nicht automatisch auf anderen Geräten verfügbar.'}</p></div></div>
+            <div class="status-definition"><div><strong>{$appState.dirty ? 'Änderungen noch nicht exportiert' : 'Keine neuen Änderungen seit der letzten Sicherung'}</strong><p>{SERVER_MODE ? 'Für zuverlässige Backups sichere regelmäßig eine Datei oder speichere deine Änderungen am Online-Projekt.' : 'Für zuverlässige Backups speichere regelmäßig eine Datei.'}</p></div></div>
           </section>
         </div>
       {:else if activeSection === 'settings'}
