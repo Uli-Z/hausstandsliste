@@ -68,38 +68,15 @@ Das aktuell erzeugte Grundprojekt (`schemaVersion: 1`) enthält:
 
 `projectAt(project, asOfDate)` berücksichtigt nur Ereignisse mit `event.date <= asOfDate`. Das Ergebnis enthält aktuelle Personen/Gegenstände, aktive/archivierte Gegenstände, Anteilwerte und Warnungen zu unbekannten Ereignistypen. Bei einem `item-ended` sinkt der aktive Wert auf null; archivierte Gegenstände bleiben nachvollziehbar.
 
-### Ausgleichsereignis (B01, 22.11.2026)
+### Ein Geldjournal mit Gegenforderungen (neue Entscheidung 22.11.2026)
 
-Ein bereits geleisteter Ausgleich wird künftig **nicht** als editierbarer Forderungsstatus, sondern als eigenes Ereignis in `project.events[]` dokumentiert. Der neue Typ `claim-settlement-recorded` enthält:
+Alle Geldpositionen haben dieselbe Struktur: Schuldner, Gläubiger, positiver Integer-Cent-Betrag und Datum. `deriveClaims()` leitet Forderungen aus Anschaffungen und Anteilsänderungen ab. Eine dokumentierte Zahlung Ben → Anna wird als gleichwertige **Gegenforderung** Anna → Ben in den Saldo aufgenommen. `ledgerAt()` berechnet den Saldo aus beiden Positionen. Damit bleibt z. B. bei 100 € Schuld und 120 € Zahlung ein rechnerischer Anspruch Ben gegenüber Anna von 20 €. Ändert sich der Anschaffungswert nachträglich, ändert das nicht den tatsächlich dokumentierten Zahlungsbetrag.
 
-```json
-{
-  "id": "settlement_...",
-  "type": "claim-settlement-recorded",
-  "date": "2026-11-22",
-  "order": 123456,
-  "amountCents": 6000,
-  "debtorPersonId": "ben",
-  "creditorPersonId": "anna",
-  "settlementKind": "paid",
-  "sourceEventId": "purchase_123",
-  "childEventId": null,
-  "itemId": "fridge",
-  "note": "Überweisung bereits erfolgt"
-}
-```
+Die persistierte Gegenbuchung heißt aus Import-Kompatibilität weiterhin `claim-settlement-recorded` und speichert `id`, `date`, `order`, `amountCents`, `debtorPersonId` (**zahlende Person**), `creditorPersonId` (**empfangende Person**), `settlementKind` (`paid`, `external`, `waived`) und eine optionale `note`. Sie benötigt **keine** `sourceEventId`, `childEventId` oder `itemId`. Solche Felder aus bereits erzeugten Projektdateien bleiben erhalten, werden für den Saldo aber ignoriert. Bei `external` oder `waived` handelt es sich um ausdrücklich **nicht tatsächlich überwiesene** Gegenbuchungen.
 
-`settlementKind` unterscheidet `paid` (Zahlung dokumentiert), `external` (extern weiterverfolgt, **nicht bezahlt**) und `waived` (Erlass/anderer Abschluss). Betrag wird ausschließlich in positiven, sicheren Integer-Cent gespeichert. `src/lib/claimSettlement.js` erzeugt und prüft die Struktur inklusive gültigem Kalenderdatum und verschiedenen Parteien; fehlendes `childEventId` wird als `null` geschrieben. Die Projektdatei bleibt `schemaVersion: 1`; `normalize()` bewahrt neue Events unverändert.
+`src/lib/claimSettlement.js` validiert und erzeugt die Einträge; `deriveSettlementCounterclaims(project, asOfDate)` nimmt nur gültige Buchungen mit eindeutiger ID und bekannten Personen auf. `paymentForBalance(project, balance, date)` erzeugt einen Vorgang für eine spätere Ein-Klick-Aktion. `ledgerAt()` gibt `claims` (Brutto-Eigentumsforderungen), `counterclaims` (umgekehrte Gegenbuchungen), `entries` (gemeinsames Journal), `pairwise`, `balances`, `simplified` und `warnings` zurück. Keine persistierten Bezahlhäkchen und keine zweite frei editierbare Schuldenliste. Keine bezahlten Beträge je Gegenstand behaupten: Zahlungen gelten für Personenpaare, nicht für bestimmte Käufe.
 
-Der Eigentumsprojektor erkennt solche Einträge als eigentumsneutral und meldet ungültige importierte Einträge als Warnung, ohne sie zu löschen. **B01 ist die Datenstruktur; B02 ist die Referenzzuordnung.** Verringerung offener Forderungen (B03) und Speicherung über UI-Aktionen sind **noch nicht** implementiert. Deshalb verändern diese Events aktuell **keine** berechneten Forderungen oder Salden.
-
-### Herkunftsgebundene Ausgleichszuordnung (B02, 22.11.2026)
-
-`src/lib/claimMatching.js` verwendet den eindeutigen Schlüssel `JSON.stringify([sourceEventId, childEventId ?? null, itemId, debtorPersonId, creditorPersonId])`. Betrag und Datum sind keine Schlüsselbestandteile, damit eine historische Wertkorrektur keinen neuen Anspruchsidentifikator erzeugt. Unterschiede der Schuldner/Gläubiger und der Herkunft (auch innerhalb einer Sammelumverteilung) bleiben hingegen strikt unterscheidbar.
-
-`matchClaimSettlements(project, asOfDate)` rekonstruiert mit `deriveClaims()` die Forderungen und ordnet nur eindeutig passende, datierte Ereignisse zu. Rückgabe: `{ claims, matched: [{ event, claim, claimKey }], unmatched: [{ event, code, message }] }`. Fehler wie gelöschte/finanziell deaktivierte Quelle, veränderte Partei, unbekannter Child-Event, doppelte IDs oder Buchung vor der Forderungsquelle werden **nicht** stillschweigend zugeordnet. `createClaimSettlementForClaim(project, claim, options)` kopiert die Referenzfelder einer ausgewählten Forderung und prüft vor Rückgabe die eindeutige Zuordenbarkeit.
-
-Diese Ebene verändert weder Eigentum noch Geldsaldo. **B03 fehlt weiterhin:** Rest-/Teilschulden und die Anrechnung von `paid`, `external`, `waived` sind noch nicht implementiert. Abnahme: `tests/claim-matching.test.js` plus bestehende B01-/Ledger-Tests, gezielt ausgeführt; vollständiger CI-/Browserlauf offen.
+`claimMatching.js` und `settlementBalances.js` wurden aus der früheren, zu komplizierten B02-/B03-Implementierung entfernt. Tests: `tests/payment-counterclaims.test.js` und die angepassten `tests/claim-settlement.test.js`. Gezielte fachliche Tests bestanden; vollständige npm-/Browser-/PHP-Abnahme steht noch aus.
 
 ### Anteilssätze und Bewertung
 
