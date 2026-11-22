@@ -81,3 +81,68 @@ test('a dated payment is visible only from its own date onward', () => {
   assert.equal(balance(p,'2026-02-28').balances.get('ben'),-10000);
   assert.equal(balance(p,'2026-03-01').balances.get('ben'),0);
 });
+
+test('personal explanation shows full financing, own shares and received payment', () => {
+  const p = project();
+  buy(p, 'fridge', 300, { anna: 1, ben: 1, clara: 1 }, 'anna');
+  pay(p, 'ben', 'anna', 6000);
+  const l = balance(p);
+  const anna = l.details.get('anna');
+  const ben = l.details.get('ben');
+  assert.equal(anna.fundedCents, 30000);
+  assert.equal(anna.initialSharesCents, 10000);
+  assert.equal(anna.receivedPaymentsCents, 6000);
+  assert.equal(anna.balanceCents, 14000);
+  assert.equal(ben.initialSharesCents, 10000);
+  assert.equal(ben.paidCents, 6000);
+  assert.equal(ben.balanceCents, -4000);
+});
+
+test('transferred shares are explained separately from initial ownership and cash', () => {
+  const p = project(['anna', 'ben']);
+  buy(p, 'fridge', 100, { anna: 1 }, 'anna');
+  p.events.push({
+    id: 'share-transfer', type: 'shares-set', date: '2026-04-01',
+    order: 1, itemId: 'fridge', shares: { ben: 1 }, financialMode: 'derived'
+  });
+  const l = balance(p);
+  const anna = l.details.get('anna');
+  assert.equal(anna.fundedCents, 10000);
+  assert.equal(anna.initialSharesCents, 10000);
+  assert.equal(anna.sharesGivenCents, 10000);
+  assert.equal(anna.balanceCents, 10000);
+  assert.equal(l.details.get('ben').sharesTakenCents, 10000);
+  assert.equal(l.details.get('ben').balanceCents, -10000);
+});
+
+test('noncash offsets are not shown as real payments', () => {
+  const p = project(['anna', 'ben']);
+  buy(p, 'fridge', 100, { ben: 1 }, 'anna');
+  p.events.push(createClaimSettlementEvent(p, {
+    date: '2026-01-02', debtorPersonId: 'ben', creditorPersonId: 'anna',
+    amountCents: 4000, settlementKind: 'waived'
+  }));
+  const l = balance(p);
+  const ben = l.details.get('ben');
+  assert.equal(ben.paidCents, 0);
+  assert.equal(ben.adjustmentsPlusCents, 4000);
+  assert.equal(ben.balanceCents, -6000);
+});
+
+test('every personal breakdown reconciles to the same single ledger, including historic cutoffs', () => {
+  const p = project();
+  buy(p, 'fridge', 300.01, { anna: 1, ben: 1, clara: 1 }, 'anna');
+  p.events.push({
+    id: 'share-transfer', type: 'shares-set', date: '2026-03-01',
+    order: 1, itemId: 'fridge', shares: { anna: 2, clara: 1 }, financialMode: 'derived'
+  });
+  pay(p, 'ben', 'clara', 1700, '2026-04-01');
+  for (const day of ['2026-01-01', '2026-02-02', '2026-03-01', '2026-04-01']) {
+    const l = ledgerAt(p, day);
+    for (const [id, detail] of l.details) {
+      assert.equal(detail.balanceCents, l.balances.get(id) || 0,
+        `Balance breakdown diverges for ${id} at ${day}`);
+    }
+    assert.equal([...l.balances.values()].reduce((a,b) => a+b,0), 0);
+  }
+});
