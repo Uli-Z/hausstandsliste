@@ -11,8 +11,10 @@
   let showRecords = false;
   $: people = new Map((project.people || []).map(person => [person.id, person.name || person.id]));
   $: items = new Map((project.items || []).map(item => [item.id, item.name || item.id]));
-  $: peopleWithBalance = [...(data.balances || new Map())].filter(([, amount]) => amount !== 0)
-    .sort((a, b) => (b[1] - a[1]) || (people.get(a[0]) || a[0]).localeCompare(people.get(b[0]) || b[0], 'de'));
+  $: peopleWithBalance = [...(data.balances || new Map())]
+    .filter(([, cents]) => cents !== 0)
+    .map(([id, cents]) => ({ id, cents }))
+    .sort((a, b) => (b.cents - a.cents) || (people.get(a.id) || a.id).localeCompare(people.get(b.id) || b.id, 'de'));
   $: proposed = data.simplified || [];
   const personName = id => people.get(id) || id;
   const itemName = id => items.get(id) || id;
@@ -48,11 +50,11 @@
         <table class="tight">
           <thead><tr><th>Person</th><th>Ergebnis</th><th class="money">Betrag</th></tr></thead>
           <tbody>
-            {#each peopleWithBalance as [personId, cents] (personId)}
+            {#each peopleWithBalance as balance (balance.id)}
               <tr>
-                <td><button class="person-link" on:click={() => appState.setRoute({page:'person',id:personId})}>{personName(personId)}</button></td>
-                <td>{cents > 0 ? 'Soll erhalten' : 'Soll ausgleichen'}</td>
-                <td class="money">{money(Math.abs(cents) / 100)}</td>
+                <td><button class="person-link" on:click={() => appState.setRoute({page:'person',id:balance.id})}>{personName(balance.id)}</button></td>
+                <td>{balance.cents > 0 ? 'Soll erhalten' : 'Soll ausgleichen'}</td>
+                <td class="money">{money(Math.abs(balance.cents) / 100)}</td>
               </tr>
             {/each}
           </tbody>
