@@ -48,6 +48,7 @@
   $: latestEvents = [...($appState.project.events || [])].filter(e => e.date && e.date <= $appState.asOfDate).sort((a,b)=>String(b.date).localeCompare(String(a.date)) || (b.order || 0) - (a.order || 0)).slice(0,5);
   $: futureEventCount = ($appState.project.events || []).filter(e => e.date > $appState.asOfDate).length;
   $: balances = $ledger.simplified || [];
+  $: outstandingCents = balances.reduce((sum, transfer) => sum + transfer.amountCents, 0);
 
   function personName(id) { return $appState.project.people.find(p => p.id === id)?.name || 'Unbekannt'; }
   function itemName(id) { return $appState.project.items.find(i => i.id === id)?.name || 'Gegenstand'; }
@@ -112,7 +113,7 @@
       <span class="brand-mark" aria-hidden="true">H</span>
       <div class="brand-name"><strong>Hausstand</strong><span>Gemeinsam verwalten</span></div>
     </div>
-    <div class="sidebar-section-title">ARBEITSBEREICHE</div>
+    
     <nav class="sidebar-links" aria-label="Arbeitsbereiche">
       {#each navigation as nav (nav.id)}
         <button class:nav-active={route.page === 'dashboard' && activeSection === nav.id} aria-current={route.page === 'dashboard' && activeSection === nav.id ? 'page' : undefined} on:click={() => navigate(nav.id)}>
@@ -170,13 +171,13 @@
         <div class="blank-card"><p>Diese Detailansicht wurde nicht gefunden.</p><button on:click={() => navigate('overview')}>Zur Übersicht</button></div>
       {:else if activeSection === 'overview'}
         <section class="page-heading">
-          <div><span class="overline">ÜBERBLICK</span><h1>Was gibt es Neues?</h1><p>Das Wichtigste zu eurem gemeinsamen Besitz, auf einen Blick.</p></div>
+          <div><h1>Überblick</h1><p>Gemeinsame Gegenstände, Eigentumsanteile und offener Wertausgleich.</p></div>
           <button class="solid-action" on:click={() => appState.setDialog({ type: 'itemAdd' })}>＋ Gegenstand hinzufügen</button>
         </section>
 
         {#if $appState.project.people.length === 0 && $appState.project.items.length === 0}
           <section class="getting-started">
-            <div><span class="overline">DER EINSTIEG</span><h2>Beginne mit den Personen.</h2><p>Lege zuerst die Mitbewohnerinnen und Mitbewohner an, danach eure gemeinsamen Gegenstände. Ihre Anteile kannst du dabei direkt festlegen.</p></div>
+            <div><h2>Beginne mit den Personen.</h2><p>Lege zuerst die Mitbewohnerinnen und Mitbewohner an, danach eure gemeinsamen Gegenstände. Ihre Anteile kannst du dabei direkt festlegen.</p></div>
             <button class="solid-action" on:click={() => appState.setDialog({ type: 'personAdd' })}>Erste Person hinzufügen</button>
           </section>
         {/if}
@@ -185,37 +186,41 @@
           <div class="metric"><span>Gemeinsamer Bestandswert</span><strong>{money($projection.totalValue)}</strong><small>Wert aller aktiven Gegenstände</small></div>
           <div class="metric"><span>Gegenstände</span><strong>{$projection.activeItems.length}</strong><small>im aktuellen Bestand</small></div>
           <div class="metric"><span>Personen</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>aktuell dabei</small></div>
-          <div class="metric"><span>Offene Ausgleichswege</span><strong>{balances.length}</strong><small>rechnerische Vorschläge</small></div>
+          <div class="metric"><span>Noch auszugleichen</span><strong>{money(outstandingCents / 100)}</strong><small>gemeinsamer Ausgleichssaldo</small></div>
         </div>
 
         <div class="overview-layout">
           <section class="ux-panel quick-actions">
-            <div class="section-header"><div><span class="section-eyebrow">DIREKT ERLEDIGEN</span><h2>Was möchtest du tun?</h2></div></div>
+            <div class="section-header"><div><h2>Was möchtest du tun?</h2></div></div>
             <div class="task-grid">
-              <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><span class="task-icon">＋</span><strong>Etwas hinzufügen</strong><small>Neuen Gegenstand erfassen</small></button>
-              <button on:click={() => appState.startRedistribution()}><span class="task-icon">⇄</span><strong>Anteile übertragen</strong><small>Besitz neu aufteilen</small></button>
-              <button on:click={() => appState.setDialog({ type: 'personAdd' })}><span class="task-icon">♙</span><strong>Person hinzufügen</strong><small>Einzug oder neue Beteiligung</small></button>
-              <button on:click={() => navigate('save')}><span class="task-icon">⇩</span><strong>Daten sichern</strong><small>Sicherung erstellen oder gemeinsam arbeiten</small></button>
+              <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><strong>Etwas hinzufügen</strong><small>Neuen Gegenstand erfassen</small></button>
+              <button on:click={() => appState.startRedistribution()}><strong>Anteile übertragen</strong><small>Besitz neu aufteilen</small></button>
+              <button on:click={() => appState.setDialog({ type: 'personAdd' })}><strong>Person hinzufügen</strong><small>Einzug oder neue Beteiligung</small></button>
+              <button on:click={() => navigate('save')}><strong>Daten sichern</strong><small>Sicherung erstellen oder gemeinsam arbeiten</small></button>
             </div>
           </section>
           <section class="ux-panel financial-overview">
-            <div class="section-header"><div><span class="section-eyebrow">GELD</span><h2>Möglicher Ausgleich</h2></div><button class="text-action" on:click={() => navigate('money')}>Alle Beträge ansehen →</button></div>
-            <p class="muted">Aus dem eingebrachten Wert und den Anteilsänderungen entstehen persönliche Ausgleichssalden. Die Zahlungen sind nur Vorschläge.</p>
+            <div class="section-header"><div><h2>Ausgleichsvorschläge</h2></div><button class="text-action" on:click={() => navigate('money')}>Alle Beträge ansehen →</button></div>
+            <p class="muted">Aus dem finanzierten Wert und den Eigentumsanteilen ergibt sich, wer noch Geld erhalten oder ausgleichen kann.</p>
             {#if balances.length}
               <div class="simple-debts">
                 {#each balances.slice(0,5) as b}
-                  <div class="debt-row"><span>{personName(b.fromPersonId)} <span class="muted">an</span> {personName(b.toPersonId)}</span><strong>{money(b.amountCents / 100)}</strong></div>
+                  <div class="debt-row">
+                  <span>{personName(b.fromPersonId)} an {personName(b.toPersonId)}</span>
+                  <strong>{money(b.amountCents / 100)}</strong>
+                  <button class="debt-action" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})} disabled={$appState.readOnly}>Ausgleichen</button>
+                </div>
                 {/each}
               </div>
               {#if balances.length > 5}<p class="muted">Weitere {balances.length - 5} Verbindungen im Bereich „Geld & Ausgleich“.</p>{/if}
             {:else}
-              <div class="gentle-empty"><span class="empty-symbol">✓</span><strong>Kein offener Ausgleichssaldo</strong><p>Zum Stichtag gibt es keinen Wert, der noch ausgeglichen werden müsste.</p></div>
+              <div class="gentle-empty"><strong>Alles ausgeglichen</strong><p>Zum Stichtag gibt es keinen Wert, der noch ausgeglichen werden müsste.</p></div>
             {/if}
           </section>
         </div>
         <div class="overview-layout second-row">
           <section class="ux-panel">
-            <div class="section-header"><div><span class="section-eyebrow">ZULETZT</span><h2>Was hat sich verändert?</h2></div><button class="text-action" on:click={() => navigate('activity')}>Alle Änderungen →</button></div>
+            <div class="section-header"><div><h2>Was hat sich verändert?</h2></div><button class="text-action" on:click={() => navigate('activity')}>Alle Änderungen →</button></div>
             {#if latestEvents.length}
               <div class="recent-list">
                 {#each latestEvents as event (event.id)}
@@ -227,7 +232,7 @@
             {/if}
           </section>
           <section class="ux-panel">
-            <div class="section-header"><div><span class="section-eyebrow">IN BEARBEITUNG</span><h2>Entwürfe</h2></div><span class="count-pill">{drafts.length}</span></div>
+            <div class="section-header"><div><h2>Entwürfe</h2></div></div>
             {#if drafts.length}
               <div class="draft-list">
                 {#each drafts as draft (draft.id)}
@@ -246,23 +251,23 @@
           </section>
         </div>
       {:else if activeSection === 'items'}
-        <div class="page-heading"><div><span class="overline">BESTAND</span><h1>Gegenstände</h1><p>Welche Dinge gehören zur Gemeinschaft – und wem gehören welche Anteile?</p></div><button class="solid-action" on:click={() => appState.setDialog({type:'itemAdd'})}>＋ Gegenstand hinzufügen</button></div>
+        <div class="page-heading"><div><h1>Gegenstände</h1><p>Welche Dinge gehören zur Gemeinschaft – und wem gehören welche Anteile?</p></div><button class="solid-action" on:click={() => appState.setDialog({type:'itemAdd'})}>＋ Gegenstand hinzufügen</button></div>
         <InventoryView items={$projection.activeItems} archived={$projection.archivedItems} tags={$projection.allTags}/>
       {:else if activeSection === 'people'}
-        <div class="page-heading"><div><span class="overline">MITGLIEDER</span><h1>Personen</h1><p>Alle Beteiligten, ihre Gegenstände und ihr jeweiliger Wertanteil.</p></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ Person hinzufügen</button></div>
+        <div class="page-heading"><div><h1>Personen</h1><p>Alle Beteiligten, ihre Gegenstände und ihr jeweiliger Wertanteil.</p></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ Person hinzufügen</button></div>
         <PeopleView people={$projection.people} ledger={$ledger}/>
       {:else if activeSection === 'money'}
-        <div class="page-heading"><div><span class="overline">FINANZEN</span><h1>Geld & Ausgleich</h1><p>Wertausgleich aus euren Gegenständen und Anteilen. Dokumentiere hier nur Zahlungen, die bereits stattgefunden haben.</p></div><button class="outline-action" on:click={() => appState.setDialog({type:'settlementAdd'})} disabled={$appState.readOnly}>Zahlung erfassen</button></div>
+        <div class="page-heading"><div><h1>Geld & Ausgleich</h1><p>Wer hat welchen Wert eingebracht, übernommen oder bereits ausgeglichen?</p></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Anteile übertragen</button></div>
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
-        <div class="page-heading"><div><span class="overline">NACHVOLLZIEHBAR</span><h1>Änderungen</h1><p>Einzüge, Anschaffungen, Übertragungen und andere Vorgänge im zeitlichen Verlauf.</p></div></div>
+        <div class="page-heading"><div><h1>Änderungen</h1><p>Einzüge, Anschaffungen, Übertragungen und andere Vorgänge im zeitlichen Verlauf.</p></div></div>
         {#if futureEventCount}<div class="inline-info">{futureEventCount} Vorgang/Vorgänge liegen nach dem aktuell gewählten Datum. Sie können im Verlauf eingeblendet werden.</div>{/if}
         <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title="Alle Änderungen nach Datum"/>
       {:else if activeSection === 'save'}
-        <div class="page-heading"><div><span class="overline">DATEN & ZUSAMMENARBEIT</span><h1>Sichern & Teilen</h1><p>{SERVER_MODE ? 'Erstelle Sicherungskopien oder verwalte eure gemeinsamen Online-Projekte.' : 'Erstelle eine Sicherungskopie oder öffne eine Datei. Diese HTML-Version speichert ausschließlich lokal.'}</p></div></div>
+        <div class="page-heading"><div><h1>Sichern & Teilen</h1><p>{SERVER_MODE ? 'Erstelle Sicherungskopien oder verwalte eure gemeinsamen Online-Projekte.' : 'Erstelle eine Sicherungskopie oder öffne eine Datei. Diese HTML-Version speichert ausschließlich lokal.'}</p></div></div>
         <div class="save-top-grid">
           <section class="ux-panel save-basic">
-            <div class="section-header"><div><span class="section-eyebrow">EINFACH</span><h2>Sicherungskopie erstellen</h2></div></div>
+            <div class="section-header"><div><h2>Sicherungskopie erstellen</h2></div></div>
             <p>Speichere deinen aktuellen Stand als Datei auf diesem Gerät. Du kannst die Datei jederzeit wieder öffnen.</p>
             <div class="save-basic-actions">
               <button class="solid-action" on:click={exportNow}>Sicherung herunterladen</button>
@@ -271,25 +276,25 @@
             <div class="inline-info warning">Diese einfache Sicherung ist <strong>nicht verschlüsselt</strong>. Bewahre sie an einem geschützten Ort auf.</div>
           </section>
           <section class="ux-panel save-help">
-            <div class="section-header"><div><span class="section-eyebrow">DEIN ARBEITSSTAND</span><h2>Wo liegen deine Daten?</h2></div></div>
+            <div class="section-header"><div><h2>Wo liegen deine Daten?</h2></div></div>
             <div class="status-definition"><span class="status-symbol">●</span><div><strong>{$appState.secure ? 'Passwortgeschütztes Projekt' : 'Arbeitskopie in diesem Browser'}</strong><p>{$appState.secure ? 'Aus Sicherheitsgründen wird keine unverschlüsselte Arbeitskopie im Browser abgelegt.' : SERVER_MODE ? 'Solange kein gemeinsames Projekt geöffnet wurde, liegt dein Arbeitsstand nur in diesem Browser. Nutze „Online-Projekte“ zum gemeinsamen Speichern.' : 'Deine Änderungen werden lokal in diesem Browser vorgehalten. Sie sind nicht automatisch auf anderen Geräten verfügbar.'}</p></div></div>
             <div class="status-definition"><span class="status-symbol">{ $appState.dirty ? '!' : '✓' }</span><div><strong>{$appState.dirty ? 'Änderungen noch nicht exportiert' : 'Keine neuen Änderungen seit der letzten Sicherung'}</strong><p>{SERVER_MODE ? 'Für zuverlässige Backups sichere regelmäßig eine Datei oder speichere deine Änderungen am Online-Projekt.' : 'Für zuverlässige Backups speichere regelmäßig eine Datei.'}</p></div></div>
           </section>
         </div>
       {:else if activeSection === 'settings'}
-        <div class="page-heading"><div><span class="overline">VERWALTUNG</span><h1>Einstellungen</h1><p>Technische Informationen und selten benötigte Aktionen für dieses Projekt.</p></div></div>
+        <div class="page-heading"><div><h1>Einstellungen</h1><p>Technische Informationen und selten benötigte Aktionen für dieses Projekt.</p></div></div>
         <section class="ux-panel setting-panel">
-          <div class="section-header"><div><span class="section-eyebrow">PROJEKT</span><h2>Aktuelles Projekt</h2></div></div>
+          <div class="section-header"><div><h2>Aktuelles Projekt</h2></div></div>
           <dl class="project-metadata"><div><dt>Hausgemeinschaft</dt><dd>{$appState.project.community?.name || 'Hausgemeinschaft'}</dd></div><div><dt>Geöffnete Datei</dt><dd>{$appState.fileName || 'Keine Datei ausgewählt'}</dd></div><div><dt>Bearbeitung</dt><dd>{$appState.readOnly ? 'Schreibgeschützt' : 'Bearbeitbar'}</dd></div></dl>
         </section>
         <section class="ux-panel setting-panel">
-          <div class="section-header"><div><span class="section-eyebrow">FÜR FORTGESCHRITTENE</span><h2>Projektdaten ansehen</h2></div></div>
+          <div class="section-header"><div><h2>Projektdaten ansehen</h2></div></div>
           <p>Technische Datenstruktur zur Fehlersuche oder zum Austausch mit anderen Programmen.</p>
           <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? 'Technische Ansicht schließen' : 'JSON-Daten anzeigen'}</button>
           {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
         </section>
         <section class="ux-panel setting-panel dangerous-settings">
-          <div class="section-header"><div><span class="section-eyebrow">VORSICHT</span><h2>Neues Projekt beginnen</h2></div></div>
+          <div class="section-header"><div><h2>Neues Projekt beginnen</h2></div></div>
           <p>Diese Funktion ersetzt die bisherige Arbeitskopie in diesem Browser. Erstelle vorher unbedingt eine Sicherungskopie.</p>
           <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? 'Abbrechen' : 'Projekt zurücksetzen …'}</button>
           {#if showDanger}<div class="inline-info warning"><strong>Der aktuelle Stand kann verloren gehen.</strong> Nach dem Zurücksetzen lässt er sich nur aus einer vorhandenen Sicherung wiederherstellen.</div><button class="dangerous-button" on:click={newProject}>Ja, neues Projekt beginnen</button>{/if}
