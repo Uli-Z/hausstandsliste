@@ -73,3 +73,7 @@ Oberflächen: `ui-v3/LedgerView.svelte` und `src/components/LedgerPanel.svelte`.
 Tests: `tests/community-balances.test.js`, `tests/payment-counterclaims.test.js` und `tests/ledger.test.js`.
 
 Die gemeinsame Abrechnung erfordert noch einen vollständigen CI-Build und manuelle Browser-/Mobilabnahme; produktive Speicherung sensibler Daten setzt die separat dokumentierte Sicherheitsprüfung voraus.
+
+## Progressive Hilfe statt dauerhafter Erklärungstexte
+
+Die App zeigt im Normalzustand nur Eingabefelder, Salden, Vorschläge und Aktionen. Hintergrundinformationen – etwa zur gemeinschaftlichen Saldierung, historischen Finanzierung, Anteilsänderungen oder Nicht-Bar-Verrechnungen – sind über kleine, zugängliche `?`-Hilfe-Schaltflächen aufrufbar. Der Hilfetext erscheint nur nach Klick, ist auch mit der Tastatur erreichbar und wird bei Escape bzw. Klick außerhalb wieder geschlossen. Sicherheits- und Validierungshinweise sowie die Zahlungsbestätigung bleiben sichtbar. Umsetzung in `src/components/HelpTip.svelte`; regressionstests in `tests/settlement-ui.test.js`.
