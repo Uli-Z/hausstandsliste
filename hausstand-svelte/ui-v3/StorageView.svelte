@@ -1,17 +1,27 @@
 <script>
   import { onMount } from 'svelte';
+  // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
+  const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   import { appState } from '../src/stores/projectStore.js';
   import { exportProject } from '../src/lib/persistence.js';
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
   let showProtected = false, showShared = false, busy = false, error = '', message = '';
-  let password = '', newPassword = '', apiUrl = '', workspaceKey = '', fileName = '';
+  let password = '', newPassword = '', fileName = '';
+  let serverCanCreate = false, serverReady = false;
   let files = [], versions = [], selectedVersion = '';
   let openedId = '', revision = 0, editToken = '', leaseToken = '', leaseExpires = 0;
   let activePassword = '';
 
   onMount(() => {
-    if (location.pathname.endsWith('.php')) apiUrl = location.origin + location.pathname;
+    if (!SERVER_MODE) return;
+    // Gleiche PHP-Datei = Oberfläche und API. Keine URL vom Benutzer nötig.
+    run(async () => {
+      const config = await api('config');
+      serverCanCreate = config.canCreate === true;
+      serverReady = true;
+      await refreshFiles();
+    });
   });
   const report = e => { error = e?.message || String(e); message = ''; };
   async function run(job) {
@@ -29,11 +39,11 @@
     return !$appState.dirty || confirm('Ungespeicherte Änderungen vorhanden. Vorher verschlüsselt exportieren? Trotzdem öffnen?');
   }
   function apiEndpoint(action, params = {}) {
-    if (!apiUrl.trim()) throw new Error('Bitte die URL der PHP-Ablage eingeben.');
-    const endpoint = new URL(apiUrl.trim(), location.href);
+    if (!SERVER_MODE) throw new Error('Diese Offline-Version besitzt keine Server-Anbindung.');
+    const endpoint = new URL(location.pathname, location.origin);
     if (endpoint.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(endpoint.hostname))
-      throw new Error('Für die Server-Ablage ist HTTPS erforderlich.');
-    if (!endpoint.pathname.endsWith('.php')) throw new Error('Die Adresse muss auf die PHP-Datei enden.');
+      throw new Error('Die Server-Version muss über HTTPS aufgerufen werden.');
+    if (!endpoint.pathname.endsWith('.php')) throw new Error('Die Server-Version muss aus der PHP-Datei geöffnet werden.');
     endpoint.searchParams.set('api', action);
     for (const [key, value] of Object.entries(params)) endpoint.searchParams.set(key, value);
     return endpoint.toString();
@@ -46,7 +56,6 @@
       headers['X-File-Token'] = editToken;
     }
     if (leaseToken) headers['X-Lease-Token'] = leaseToken;
-    if (workspaceKey) headers['X-Workspace-Key'] = workspaceKey;
     const response = await fetch(apiEndpoint(action, params), {
       method: body ? 'POST' : 'GET', headers,
       body: body ? JSON.stringify(body) : undefined, cache: 'no-store'
@@ -102,7 +111,8 @@
   }
   async function createRemote() {
     if (!fileName.trim()) throw new Error('Dateiname fehlt.');
-    if (!workspaceKey) throw new Error('Zum Anlegen ist der Workspace-Schlüssel erforderlich.');
+    if (!serverCanCreate) throw new Error('Neue Projekte sind auf diesem Server nicht freigegeben.');
+    if (!password || password.length < 8) throw new Error('Bitte ein Projektpasswort mit mindestens acht Zeichen eingeben.');
     if (!ensureNoOverwrite()) return;
     const id = crypto.randomUUID(), token = randomSecret();
     const envelope = await encryptProject(exportProject($appState.project, $appState.asOfDate), password, token);
@@ -189,22 +199,23 @@
       </div>
     {/if}
   </section>
+  {#if SERVER_MODE}
   <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><span class="choice-icon" aria-hidden="true">⇆</span><div><span class="section-eyebrow">FÜR MEHRERE PERSONEN</span><h2>Gemeinsam bearbeiten</h2><p>Teilt euch eine geschützte Datei auf einem eigens eingerichteten Server. Die App verhindert gleichzeitige widersprüchliche Änderungen.</p></div></div>
-    <button class="outline-action" aria-expanded={showShared} on:click={() => showShared = !showShared}>{showShared ? 'Weniger anzeigen' : 'Gemeinsame Ablage einrichten oder öffnen'} <span aria-hidden="true">{showShared ? '↑' : '↓'}</span></button>
+    <div class="storage-choice-top"><span class="choice-icon" aria-hidden="true">⇆</span><div><span class="section-eyebrow">FÜR MEHRERE PERSONEN</span><h2>Online-Projekte</h2><p>Gemeinsam auf diesem Server arbeiten. Die Verbindung ist bereits eingerichtet; du benötigst nur das Passwort deines Projekts.</p></div></div>
+    <button class="outline-action" aria-expanded={showShared} on:click={() => showShared = !showShared}>{showShared ? 'Weniger anzeigen' : 'Online-Projekte anzeigen'} <span aria-hidden="true">{showShared ? '↑' : '↓'}</span></button>
     {#if showShared}
       <div class="storage-form stack">
-        <div class="inline-info">Hierfür ist ein eigener HTTPS-Webserver mit dem Hausstand-PHP-Backend nötig. GitHub Pages allein kann gemeinsame Dateien nicht speichern.</div>
         <div class="form-grid">
-          <label class="wide">Adresse eurer gemeinsamen Ablage<input type="url" bind:value={apiUrl} placeholder="https://dein-server.de/hausstand.php"/><small>Die URL muss mit <code>.php</code> enden.</small></label>
           <label>Passwort der Projektdatei<input type="password" autocomplete="off" bind:value={password} placeholder="Passwort"/></label>
           <label>Projektname (für neue Datei)<input bind:value={fileName} placeholder="Hausgemeinschaft"/></label>
-          <label class="wide">Gruppenschlüssel zum Anlegen neuer Dateien<input type="password" autocomplete="off" bind:value={workspaceKey} placeholder="Nur erforderlich, wenn du eine neue Datei anlegst"/></label>
         </div>
         <div class="storage-action-row">
           <button class="solid-action" disabled={busy} on:click={() => run(refreshFiles)}>Verfügbare Dateien anzeigen</button>
-          <button disabled={busy} on:click={() => run(createRemote)}>Neues gemeinsames Projekt anlegen</button>
+          {#if serverCanCreate}<button disabled={busy || !serverReady} on:click={() => run(createRemote)}>Aktuellen Stand als Online-Projekt anlegen</button>{/if}
         </div>
+        {#if serverReady && !serverCanCreate && !files.length}
+          <p class="muted">Hier sind noch keine Projekte vorhanden. Das Anlegen neuer Projekte ist für diese Installation deaktiviert.</p>
+        {/if}
         {#if files.length}
           <div class="shared-files">
             <h3>Verfügbare Projekte</h3>
@@ -243,4 +254,5 @@
       </div>
     {/if}
   </section>
+  {/if}
 </div>

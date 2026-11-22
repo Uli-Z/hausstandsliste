@@ -13,6 +13,7 @@
   import PeopleView from './PeopleView.svelte';
   import LedgerView from './LedgerView.svelte';
   import StorageView from './StorageView.svelte';
+  const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
 
   const navigation = [
     { id: 'overview', label: 'Überblick', glyph: '⌂' },
@@ -256,7 +257,7 @@
         {#if futureEventCount}<div class="inline-info">{futureEventCount} Vorgang/Vorgänge liegen nach dem aktuell gewählten Datum. Sie können im Verlauf eingeblendet werden.</div>{/if}
         <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title="Alle Änderungen nach Datum"/>
       {:else if activeSection === 'save'}
-        <div class="page-heading"><div><span class="overline">DATEN & ZUSAMMENARBEIT</span><h1>Sichern & Teilen</h1><p>Erstelle eine Sicherungskopie, öffne vorhandene Daten oder arbeite gemeinsam an einem Projekt.</p></div></div>
+        <div class="page-heading"><div><span class="overline">DATEN & ZUSAMMENARBEIT</span><h1>Sichern & Teilen</h1><p>{SERVER_MODE ? 'Erstelle Sicherungskopien oder verwalte eure gemeinsamen Online-Projekte.' : 'Erstelle eine Sicherungskopie oder öffne eine Datei. Diese HTML-Version speichert ausschließlich lokal.'}</p></div></div>
         <div class="save-top-grid">
           <section class="ux-panel save-basic">
             <div class="section-header"><div><span class="section-eyebrow">EINFACH</span><h2>Sicherungskopie erstellen</h2></div></div>
@@ -269,8 +270,8 @@
           </section>
           <section class="ux-panel save-help">
             <div class="section-header"><div><span class="section-eyebrow">DEIN ARBEITSSTAND</span><h2>Wo liegen deine Daten?</h2></div></div>
-            <div class="status-definition"><span class="status-symbol">●</span><div><strong>{$appState.secure ? 'Passwortgeschütztes Projekt' : 'Arbeitskopie in diesem Browser'}</strong><p>{$appState.secure ? 'Aus Sicherheitsgründen wird keine unverschlüsselte Arbeitskopie im Browser abgelegt.' : 'Deine Änderungen werden lokal in diesem Browser vorgehalten. Sie sind nicht automatisch auf anderen Geräten verfügbar.'}</p></div></div>
-            <div class="status-definition"><span class="status-symbol">{ $appState.dirty ? '!' : '✓' }</span><div><strong>{$appState.dirty ? 'Änderungen noch nicht exportiert' : 'Keine neuen Änderungen seit der letzten Sicherung'}</strong><p>Für zuverlässige Backups speichere regelmäßig eine Datei oder nutze eine eingerichtete gemeinsame Ablage.</p></div></div>
+            <div class="status-definition"><span class="status-symbol">●</span><div><strong>{$appState.secure ? 'Passwortgeschütztes Projekt' : 'Arbeitskopie in diesem Browser'}</strong><p>{$appState.secure ? 'Aus Sicherheitsgründen wird keine unverschlüsselte Arbeitskopie im Browser abgelegt.' : SERVER_MODE ? 'Solange kein gemeinsames Projekt geöffnet wurde, liegt dein Arbeitsstand nur in diesem Browser. Nutze „Online-Projekte“ zum gemeinsamen Speichern.' : 'Deine Änderungen werden lokal in diesem Browser vorgehalten. Sie sind nicht automatisch auf anderen Geräten verfügbar.'}</p></div></div>
+            <div class="status-definition"><span class="status-symbol">{ $appState.dirty ? '!' : '✓' }</span><div><strong>{$appState.dirty ? 'Änderungen noch nicht exportiert' : 'Keine neuen Änderungen seit der letzten Sicherung'}</strong><p>{SERVER_MODE ? 'Für zuverlässige Backups sichere regelmäßig eine Datei oder speichere deine Änderungen am Online-Projekt.' : 'Für zuverlässige Backups speichere regelmäßig eine Datei.'}</p></div></div>
           </section>
         </div>
       {:else if activeSection === 'settings'}

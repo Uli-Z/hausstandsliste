@@ -73,7 +73,7 @@
       <div class="summary-card"><span>Einzelforderungen</span><strong>{$ledger.claims.length}</strong><small>automatisch abgeleitet</small></div>
     </section>
     <nav class="workspace-nav" aria-label="Bereiche">
-      <a href="#personen">Personen</a><a href="#gegenstaende">Gegenstände</a><a href="#zeitverlauf">Zeitverlauf</a><a href="#forderungen">Forderungen</a><a href="#dateien">Dateien & Online</a><a href="#archiv">Archiv & Daten</a>
+      <a href="#personen">Personen</a><a href="#gegenstaende">Gegenstände</a><a href="#zeitverlauf">Zeitverlauf</a><a href="#forderungen">Forderungen</a><a href="#dateien">Dateien & Sicherung</a><a href="#archiv">Archiv & Daten</a>
     </nav>
     <section class="workspace-grid">
       <div class="workspace-activity" id="zeitverlauf">
