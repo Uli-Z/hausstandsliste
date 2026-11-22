@@ -91,7 +91,15 @@ Ein bereits geleisteter Ausgleich wird künftig **nicht** als editierbarer Forde
 
 `settlementKind` unterscheidet `paid` (Zahlung dokumentiert), `external` (extern weiterverfolgt, **nicht bezahlt**) und `waived` (Erlass/anderer Abschluss). Betrag wird ausschließlich in positiven, sicheren Integer-Cent gespeichert. `src/lib/claimSettlement.js` erzeugt und prüft die Struktur inklusive gültigem Kalenderdatum und verschiedenen Parteien; fehlendes `childEventId` wird als `null` geschrieben. Die Projektdatei bleibt `schemaVersion: 1`; `normalize()` bewahrt neue Events unverändert.
 
-Der Eigentumsprojektor erkennt solche Einträge als eigentumsneutral und meldet ungültige importierte Einträge als Warnung, ohne sie zu löschen. **B01 ist nur die Datenstruktur:** Die Herkunfts- und Ausgleichszuordnung (B02), Verringerung offener Forderungen (B03) sowie Speicherung über UI-Aktionen sind **noch nicht** implementiert. Deshalb verändern diese Events aktuell **keine** berechneten Forderungen oder Salden; sie dürfen bis zur folgenden Umsetzung nicht als abgeschlossene Buchung behandelt werden.
+Der Eigentumsprojektor erkennt solche Einträge als eigentumsneutral und meldet ungültige importierte Einträge als Warnung, ohne sie zu löschen. **B01 ist die Datenstruktur; B02 ist die Referenzzuordnung.** Verringerung offener Forderungen (B03) und Speicherung über UI-Aktionen sind **noch nicht** implementiert. Deshalb verändern diese Events aktuell **keine** berechneten Forderungen oder Salden.
+
+### Herkunftsgebundene Ausgleichszuordnung (B02, 22.11.2026)
+
+`src/lib/claimMatching.js` verwendet den eindeutigen Schlüssel `JSON.stringify([sourceEventId, childEventId ?? null, itemId, debtorPersonId, creditorPersonId])`. Betrag und Datum sind keine Schlüsselbestandteile, damit eine historische Wertkorrektur keinen neuen Anspruchsidentifikator erzeugt. Unterschiede der Schuldner/Gläubiger und der Herkunft (auch innerhalb einer Sammelumverteilung) bleiben hingegen strikt unterscheidbar.
+
+`matchClaimSettlements(project, asOfDate)` rekonstruiert mit `deriveClaims()` die Forderungen und ordnet nur eindeutig passende, datierte Ereignisse zu. Rückgabe: `{ claims, matched: [{ event, claim, claimKey }], unmatched: [{ event, code, message }] }`. Fehler wie gelöschte/finanziell deaktivierte Quelle, veränderte Partei, unbekannter Child-Event, doppelte IDs oder Buchung vor der Forderungsquelle werden **nicht** stillschweigend zugeordnet. `createClaimSettlementForClaim(project, claim, options)` kopiert die Referenzfelder einer ausgewählten Forderung und prüft vor Rückgabe die eindeutige Zuordenbarkeit.
+
+Diese Ebene verändert weder Eigentum noch Geldsaldo. **B03 fehlt weiterhin:** Rest-/Teilschulden und die Anrechnung von `paid`, `external`, `waived` sind noch nicht implementiert. Abnahme: `tests/claim-matching.test.js` plus bestehende B01-/Ledger-Tests, gezielt ausgeführt; vollständiger CI-/Browserlauf offen.
 
 ### Anteilssätze und Bewertung
 
