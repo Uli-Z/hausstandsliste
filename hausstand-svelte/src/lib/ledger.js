@@ -122,6 +122,72 @@ export function personBalances(claims) {
   return balances;
 }
 
+/**
+ * Explain a person's communal net position without persisting another ledger.
+ * Gross initial financing includes the financier's OWN share; earlier claims
+ * omit that self-owned part because no person can owe themselves money.
+ * Transfer claims are shown as acquired/relinquished shares, not new cash.
+ * All amounts are integer cents and must reconcile with personBalances(entries).
+ */
+export function personBalanceDetails(project, asOfDate, claims, counterclaims) {
+  const details = new Map((project.people || []).map(person => [person.id, {
+    fundedCents: 0, initialSharesCents: 0,
+    sharesGivenCents: 0, sharesTakenCents: 0,
+    paidCents: 0, receivedPaymentsCents: 0,
+    adjustmentsPlusCents: 0, adjustmentsMinusCents: 0
+  }]));
+  const rowFor = id => {
+    if (!details.has(id)) details.set(id, {
+      fundedCents: 0, initialSharesCents: 0,
+      sharesGivenCents: 0, sharesTakenCents: 0,
+      paidCents: 0, receivedPaymentsCents: 0,
+      adjustmentsPlusCents: 0, adjustmentsMinusCents: 0
+    });
+    return details.get(id);
+  };
+  const sourceTypes = new Map((project.events || []).map(event => [event.id, event.type]));
+  for (const claim of claims) {
+    const purchase = sourceTypes.get(claim.sourceEventId) === 'item-added';
+    if (purchase) {
+      rowFor(claim.creditorPersonId).fundedCents += claim.amountCents;
+      rowFor(claim.debtorPersonId).initialSharesCents += claim.amountCents;
+    } else {
+      rowFor(claim.creditorPersonId).sharesGivenCents += claim.amountCents;
+      rowFor(claim.debtorPersonId).sharesTakenCents += claim.amountCents;
+    }
+  }
+  // An initial purchase where the contributor owns a portion of the item
+  // must show the full amount financed AND the full portion received.
+  for (const event of project.events || []) {
+    if (event.type !== 'item-added' || event.date > asOfDate ||
+        event.financialMode !== 'derived' || !event.financedByPersonId) continue;
+    const valueCents = Math.round((Number(event.initialValue) || 0) * 100);
+    if (!Number.isSafeInteger(valueCents) || valueCents <= 0) continue;
+    const share = allocateCents(valueCents, event.shares)[event.financedByPersonId] || 0;
+    if (!share) continue;
+    rowFor(event.financedByPersonId).fundedCents += share;
+    rowFor(event.financedByPersonId).initialSharesCents += share;
+  }
+  for (const entry of counterclaims) {
+    const payer = rowFor(entry.creditorPersonId);
+    const recipient = rowFor(entry.debtorPersonId);
+    if (entry.entryKind === 'paid') {
+      payer.paidCents += entry.amountCents;
+      recipient.receivedPaymentsCents += entry.amountCents;
+    } else {
+      payer.adjustmentsPlusCents += entry.amountCents;
+      recipient.adjustmentsMinusCents += entry.amountCents;
+    }
+  }
+  for (const row of details.values()) {
+    row.balanceCents = row.fundedCents + row.sharesGivenCents +
+      row.paidCents + row.adjustmentsPlusCents -
+      row.initialSharesCents - row.sharesTakenCents -
+      row.receivedPaymentsCents - row.adjustmentsMinusCents;
+  }
+  return details;
+}
+
 // Optional group-level simplification, not a legally binding change of creditor.
 export function simplifiedTransfers(claims) {
   const balances = personBalances(claims);
@@ -159,6 +225,7 @@ export function ledgerAt(project, asOfDate) {
     warnings,
     pairwise: pairwiseBalances(entries),
     simplified: simplifiedTransfers(entries),
-    balances: personBalances(entries)
+    balances: personBalances(entries),
+    details: personBalanceDetails(project, asOfDate, claims, counterclaims)
   };
 }
