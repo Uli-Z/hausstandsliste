@@ -159,7 +159,7 @@ export function personBalanceDetails(project, asOfDate, claims, counterclaims) {
   // An initial purchase where the contributor owns a portion of the item
   // must show the full amount financed AND the full portion received.
   for (const event of project.events || []) {
-    if (event.type !== 'item-added' || event.date > asOfDate ||
+    if (event.type !== 'item-added' || !event.date || event.date > asOfDate ||
         event.financialMode !== 'derived' || !event.financedByPersonId) continue;
     const valueCents = Math.round((Number(event.initialValue) || 0) * 100);
     if (!Number.isSafeInteger(valueCents) || valueCents <= 0) continue;
