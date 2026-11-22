@@ -91,7 +91,9 @@ export const projectAt = (project, asOfDate) => {
     items.push({ ...base, runtime: rt, status: rt.status, value: currentValue, shares: rt.shares, shareRows });
   }
 
-  const activeItems = items.filter(item => item.status === 'active' && item.value > 0.0001);
+  // A fully depreciated item still exists and can still be owned or transferred.
+  // Only its monetary value, not its presence in the inventory, is zero.
+  const activeItems = items.filter(item => item.status === 'active');
   const archivedItems = items.filter(item => item.status !== 'active');
   const people = [...state.peopleById.values()].map(person => {
     const holdings = activeItems.flatMap(item => item.shareRows.filter(row => row.personId === person.id).map(row => ({ item, ...row })));
