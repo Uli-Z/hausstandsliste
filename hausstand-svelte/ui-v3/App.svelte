@@ -248,7 +248,7 @@
         <InventoryView items={$projection.activeItems} archived={$projection.archivedItems} tags={$projection.allTags}/>
       {:else if activeSection === 'people'}
         <div class="page-heading"><div><span class="overline">MITGLIEDER</span><h1>Personen</h1><p>Alle Beteiligten, ihre Gegenstände und ihr jeweiliger Wertanteil.</p></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ Person hinzufügen</button></div>
-        <PeopleView people={$projection.people}/>
+        <PeopleView people={$projection.people} ledger={$ledger}/>
       {:else if activeSection === 'money'}
         <div class="page-heading"><div><span class="overline">FINANZEN</span><h1>Geld & Ausgleich</h1><p>Auf einen Blick: Wer schuldet wem etwas, und wie ergeben sich diese Beträge?</p></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Anteile übertragen</button></div>
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
