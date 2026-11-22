@@ -61,9 +61,11 @@ Neue Module: `src/lib/ledger.js`, `src/components/LedgerPanel.svelte`, `tests/le
 - [Installationsanleitung](docs/DEPLOYMENT.md) beachten; keine realen Passwörter/Konfigurationen in Repository committen.
 
 
-## Forderungsausgleich: aktueller Zwischenstand (22.11.2026)
+## Forderungsjournal – verbindliches Modell (22.11.2026)
 
-- **B01 implementiert:** `src/lib/claimSettlement.js` definiert das eigentumsneutrale `claim-settlement-recorded`-Ereignis mit Centbetrag, Datum, Parteien, Ausgleichsart und Herkunfts-ID. Es wird bereits als gültiger Ereignistyp erkannt, aber noch nicht in Geldsalden verrechnet.
-- **B02 implementiert:** `src/lib/claimMatching.js` ordnet dieses Ereignis über Quellereignis, optionalen Child-Event, Gegenstand und beide Parteien einer aus `deriveClaims()` rekonstruierten Forderungsposition zu. `createClaimSettlementForClaim()` ist die bevorzugte API für spätere UI-Erfassungen. Mehrdeutige oder ungültige Referenzen niemals automatisch auf andere Forderungen umhängen.
-- **B03 offen:** `ledgerAt()` enthält weiter Brutto-Forderungen; die Anrechnung von Zahlungen, externen Buchungen und Erlass sowie Reststände wird erst danach implementiert. Bis dahin keine UI-Formulierung „bezahlt“ oder „ausgeglichen“ aus den bisherigen Salden ableiten.
-- **Prüfungen:** Zielgerichtete B02-, B01- und Ledger-Fachtests in isolierter JavaScript-Ausführung erfolgreich. Vollständiges `npm test`, Svelte-Build und manuelle Browserprüfung sind noch gesondert durchzuführen.
+- **Eine Geldprojektion, keine Zahlung-zu-Kauf-Verknüpfung.** `deriveClaims()` leitet ursprüngliche Forderungen aus Anschaffungen/Anteilsbewegungen ab. `deriveSettlementCounterclaims()` erzeugt aus jeder unabhängig dokumentierten Zahlung eine Gegenforderung mit umgekehrter Richtung. `ledgerAt()` saldiert alle Buchungen bilateral, ohne Gegenbuchungen zu deckeln.
+- Der Zahlungsbetrag bleibt auch nach Rückdatierung, Änderung oder Löschung eines Kaufes unverändert. Ein Überschuss ist ein Anspruch in Gegenrichtung.
+- `src/lib/claimSettlement.js` validiert `claim-settlement-recorded`; `sourceEventId`, `childEventId`, `itemId` sind optional und wirken **nie** auf die Zahlung. Frühere Module `claimMatching.js` und `settlementBalances.js` wurden entfernt.
+- Ein-Klick-„Als beglichen“ erzeugt künftig über `paymentForBalance()` lediglich ein unabhängiges `paid`-Ereignis für den **bilateralen Nettobetrag**. Eine Einzelgegenstandszuordnung, Bezahlflag oder weitere Schuldenliste sind ausdrücklich nicht vorgesehen.
+- `external` und `waived` sind eigene **nicht-bar**-Kennzeichnungen im selben Geldjournal. Nicht als Geldüberweisung darstellen.
+- Aktuell sind die Saldenberechnung und Timeline-/Geld-Anzeigen angepasst; Erfassungs- und Editierdialoge sind noch nicht vorhanden. Gezielte Tests in isolierter JavaScript-Ausführung erfolgreich, npm-/Build-/Browserabnahme offen. [To-do](docs/WG-PRAXIS-TODO.md).
