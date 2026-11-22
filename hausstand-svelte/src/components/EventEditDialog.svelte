@@ -18,19 +18,19 @@
 
   function save() {
     if (!edited) return;
-    appState.mutateProject(p => {
+    const saved = appState.mutateProject(p => {
       const idx = p.events.findIndex(e => e.id === edited.id);
       if (idx >= 0) p.events[idx] = { ...edited };
     });
-    appState.closeDialog();
+    if (saved) appState.closeDialog();
   }
 
   function remove() {
     if (!confirm('Ereignis wirklich löschen?')) return;
-    appState.mutateProject(p => {
+    const saved = appState.mutateProject(p => {
       p.events = p.events.filter(e => e.id !== event.id);
     });
-    appState.closeDialog();
+    if (saved) appState.closeDialog();
   }
 
   $: people = projection.people;
