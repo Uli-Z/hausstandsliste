@@ -28,7 +28,7 @@
   }
 </script>
 
-<svelte:window on:click={onWindowClick} on:keydown={onWindowKeydown} />
+<svelte:window on:click={onWindowClick} on:keydown={onWindowKeydown} on:scroll|capture={() => open = false} on:resize={() => open = false} />
 
 <span class="help-wrap" bind:this={root}>
   <button
@@ -57,7 +57,7 @@
   .help-wrap{display:inline-flex;align-items:center;vertical-align:middle;flex:none}
   .help-trigger{
     display:inline-flex;justify-content:center;align-items:center;
-    width:25px;height:25px;min-width:25px;min-height:25px;padding:0;
+    width:32px;height:32px;min-width:32px;min-height:32px;padding:0;
     border:1px solid var(--border);border-radius:50%;
     background:transparent;color:var(--muted);font-size:12px;font-weight:700;
     line-height:1;box-shadow:none;cursor:pointer
