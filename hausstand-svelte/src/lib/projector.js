@@ -1,4 +1,4 @@
-import { byDateOrder, clone } from './util.js';
+import { byDateOrder } from './util.js';
 import { normShares, shareTotal } from './domain.js';
 import { valueAt } from './valuation.js';
 
@@ -119,10 +119,29 @@ export const projectAt = (project, asOfDate) => {
   };
 };
 
-export const projectBeforeEvent = (project, eventId, date) => {
-  const copy = clone(project);
-  copy.events = (copy.events || []).filter(event => event.id !== eventId);
-  return projectAt(copy, date);
+/**
+ * Reconstruct ownership immediately BEFORE an existing event at its effective
+ * date/order. Unlike "remove event, then project at end of day", this excludes
+ * every later same-day event. Date/order overrides let historical editors show
+ * the position where the edited event would actually be replayed.
+ *
+ * Tied date/order values retain array position, matching stable sort in
+ * walkEvents(). The input project and its event history remain untouched.
+ */
+export const projectBeforeEvent = (project, eventId, date = null, order = null) => {
+  const all = project.events || [];
+  const index = all.findIndex(event => event.id === eventId);
+  if (index < 0) return projectAt(project, date);
+  const target = all[index];
+  const effectiveDate = date ?? target.date;
+  const effectiveOrder = order ?? target.order;
+  const position = { date: effectiveDate, order: effectiveOrder };
+  const events = all.filter((event, eventIndex) => {
+    if (eventIndex === index || !event?.date) return false;
+    const relative = byDateOrder(event, position);
+    return relative < 0 || (relative === 0 && eventIndex < index);
+  });
+  return projectAt({ ...project, events }, effectiveDate);
 };
 
 export const shareDeltasForChange = (baseProjection, change) => {
