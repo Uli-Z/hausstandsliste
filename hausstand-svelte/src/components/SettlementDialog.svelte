@@ -97,7 +97,7 @@
 <div class="modal-backdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-label={editing ? 'Ausgleich bearbeiten' : 'Ausgleich dokumentieren'} style="max-width:560px" on:keydown={event => { if (event.key === 'Escape') close(); }}>
     <div class="modal-header">
-      <div class="dialog-title"><h3>{editing ? 'Ausgleich bearbeiten' : kind === 'paid' ? 'Zahlung dokumentieren' : 'Ausgleich dokumentieren'}</h3><HelpTip label="Was passiert beim Dokumentieren?">{kind === 'paid' ? 'Hier hältst du eine Zahlung fest, die bereits stattgefunden hat. Die Anwendung überweist kein Geld.' : 'Hier hältst du eine Verrechnung ohne neue Überweisung fest.'} Eigentumsanteile ändern sich dadurch nicht. Die Buchung bleibt im Verlauf bearbeitbar und löschbar.</HelpTip></div>
+      <div class="dialog-title"><h3>{editing ? 'Ausgleich bearbeiten' : kind === 'paid' ? 'Zahlung dokumentieren' : 'Ausgleich dokumentieren'}</h3><HelpTip label="Was passiert beim Dokumentieren?">{kind === 'paid' ? 'Hier hältst du eine Zahlung fest, die bereits stattgefunden hat. Die App überweist selbst kein Geld.' : 'Hier hältst du eine Verrechnung ohne neue Überweisung fest.'} Eigentumsanteile ändern sich dadurch nicht. Die Buchung bleibt im Verlauf bearbeitbar und löschbar.</HelpTip></div>
       <button class="ghost" type="button" aria-label="Schließen" on:click={close}>×</button>
     </div>
     <form class="settlement-form" on:submit|preventDefault={save}>
