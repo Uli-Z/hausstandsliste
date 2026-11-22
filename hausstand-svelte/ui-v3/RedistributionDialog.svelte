@@ -15,7 +15,7 @@
   import ShareEditor from './ShareEditor.svelte';
   import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
-  import { uid, clone, dateDE } from '../src/lib/util.js';
+  import { uid, clone, dateDE, nextEventOrder } from '../src/lib/util.js';
   
   export let dialog;
   export let project;
@@ -98,7 +98,7 @@
     if (!confirm('Umverteilung jetzt ausführen?')) return;
     const saved = appState.mutateProject(p => {
       p.events.push({ 
-        id: uid('event'), type: 'redistribution-executed', date: redistribution.effectiveDate, order: Date.now(), title: redistribution.title, financialMode: redistribution.financialMode,
+        id: uid('event'), type: 'redistribution-executed', date: redistribution.effectiveDate, order: nextEventOrder(p, redistribution.effectiveDate), title: redistribution.title, financialMode: redistribution.financialMode,
         events: redistribution.changes.map(c => ({ id: uid('event_child'), type: 'shares-set', itemId: c.itemId, shares: normShares(c.shares), note: redistribution.title })) 
       });
       p.drafts = (p.drafts || []).filter(d => d.id !== redistribution.id);
