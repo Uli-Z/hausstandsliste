@@ -2,6 +2,7 @@
   import { appState } from '../stores/projectStore.js';
   import { createClaimSettlementEvent, claimSettlementErrors } from '../lib/claimSettlement.js';
   import { money } from '../lib/domain.js';
+  import HelpTip from './HelpTip.svelte';
   import { nextEventOrder, todayISO, dateDE } from '../lib/util.js';
 
   export let dialog;
@@ -96,13 +97,12 @@
 <div class="modal-backdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-label={editing ? 'Ausgleich bearbeiten' : 'Ausgleich dokumentieren'} style="max-width:560px" on:keydown={event => { if (event.key === 'Escape') close(); }}>
     <div class="modal-header">
-      <h3>{editing ? 'Ausgleich bearbeiten' : kind === 'paid' ? 'Zahlung dokumentieren' : 'Ausgleich dokumentieren'}</h3>
+      <div class="dialog-title"><h3>{editing ? 'Ausgleich bearbeiten' : kind === 'paid' ? 'Zahlung dokumentieren' : 'Ausgleich dokumentieren'}</h3><HelpTip label="Was passiert beim Dokumentieren?">{kind === 'paid' ? 'Hier hältst du eine Zahlung fest, die bereits stattgefunden hat. Die Anwendung überweist kein Geld.' : 'Hier hältst du eine Verrechnung ohne neue Überweisung fest.'} Eigentumsanteile ändern sich dadurch nicht. Die Buchung bleibt im Verlauf bearbeitbar und löschbar.</HelpTip></div>
       <button class="ghost" type="button" aria-label="Schließen" on:click={close}>×</button>
     </div>
     <form class="settlement-form" on:submit|preventDefault={save}>
       <div class="modal-body stack">
-        <p class="settlement-intro">{kind === 'paid' ? 'Hier erfasst du eine Zahlung, die bereits stattgefunden hat. Die App überweist selbst kein Geld.' : 'Hier dokumentierst du eine Verrechnung ohne neue Überweisung.'} Die Eigentumsanteile bleiben unverändert.</p>
-        {#if date > asOfDate}<p class="settlement-date-note">Du betrachtest den Stand vom {dateDE(asOfDate)}. Nach dem Speichern wechselt die Ansicht zum {dateDE(date)}, damit du die Wirkung des Ausgleichs siehst.</p>{/if}
+        {#if date > asOfDate}<p class="settlement-date-note">Datum nach dem Stichtag: Die Ansicht wechselt beim Speichern zum {dateDE(date)}.</p>{/if}
         <div class="form-grid">
           <label>{kind === 'paid' ? 'Wer hat bezahlt?' : 'Von wem geht der Ausgleich aus?'}
             <select bind:value={payer}>
@@ -143,10 +143,10 @@
         </details>
         <div class="settlement-confirmation">
           <strong>{kind === 'paid' ? 'Ist diese Zahlung bereits erfolgt?' : 'Ist dieser Ausgleich vereinbart und erfolgt?'}</strong>
-          <p>Mit dem Speichern dokumentierst du diesen Vorgang verbindlich im Änderungsverlauf. Der Betrag kann später korrigiert oder die Buchung gelöscht werden.</p>
+          <HelpTip label="Was bedeutet die Bestätigung?">Beim Speichern wird der Vorgang im Änderungsverlauf dokumentiert. Du kannst den Betrag später ändern oder die Buchung wieder löschen.</HelpTip>
         </div>
         {#if Number.isSafeInteger(cents) && cents > 0 && payer !== recipient && payer && recipient}
-          <p class="settlement-effect">Danach ändert sich der Ausgleichssaldo um <strong>+{money(cents / 100)}</strong> für {people.find(p => p.id === payer)?.name} und <strong>−{money(cents / 100)}</strong> für {people.find(p => p.id === recipient)?.name}.</p>
+          <p class="settlement-effect">Saldo: {people.find(p => p.id === payer)?.name} <strong>+{money(cents / 100)}</strong> · {people.find(p => p.id === recipient)?.name} <strong>−{money(cents / 100)}</strong></p>
         {/if}
       </div>
       <div class="modal-footer">
@@ -162,6 +162,9 @@
 
 <style>
   .settlement-form{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;overflow:hidden}
+  .dialog-title{display:flex;gap:8px;align-items:center;flex:1;min-width:0}
+  .dialog-title h3{margin:0}
+  .settlement-confirmation{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .settlement-form .modal-body{min-height:0;overflow-y:auto}
   .settlement-form .modal-footer{min-width:0}
   .settlement-intro{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
