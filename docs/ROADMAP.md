@@ -1,3 +1,5 @@
+**Aktueller Stand, 22.11.2026:** Die führende Geldansicht wurde auf persönliche Gemeinschaftssalden und vorgeschlagene Ausgleichszahlungen umgestellt. Datierte Zahlungen, Teil- und Überzahlungen sowie externe Buchungen/Erlass können über die Dialoge dokumentiert, in der Timeline bearbeitet und gelöscht werden. Herkunft der Wertverschiebung bleibt in Gegenstandsdetails nachvollziehbar. [Aktuelles Fachkonzept](FEATURE-COMMUNAL-SETTLEMENT.md). **CI-Build und manuelle Browser-/Mobilabnahme sind noch nicht als bestanden bestätigt.**
+
 # Projektstand und Umsetzungsplan
 
 **Neue Produktpriorität (22.11.2026):** Zuerst die bereits vorhandenen Fach-/UI-Fehler beheben, dann **ein einheitliches Forderungsjournal mit unabhängigen Gegenbuchungen für tatsächliche Zahlungen, externe Buchungen und Erlass** ergänzen. Keine vollständige WG-Buchhaltung, keine dauerhaften Boolean-Bezahlstatus; der Klick auf „Als bezahlt erfassen“ erzeugt ein datiertes Ausgleichsereignis. Maßgebliche nach Priorität sortierte Aufgaben und Abnahmekriterien: [WG-Praxis-To-do](WG-PRAXIS-TODO.md). Das beschreibt eine **neue Vorgabe**, nicht bereits umgesetzten Code.
@@ -16,7 +18,7 @@
 - [x] **B01:** Datenmodell für frei datierte, mit Cent-Betrag und Personen versehene Gegenbuchungen (`claim-settlement-recorded`). Herkunfts- und Gegenstands-ID sind nur optionale Altmetadaten; sie sind keine Voraussetzung.
 - [x] **B02 bewusst gestrichen:** Keine Einzelverknüpfung von Zahlung und ursprünglicher Forderung. Frühere Module `claimMatching.js` und `settlementBalances.js` wurden entfernt.
 - [x] **B03:** Alle Finanzbewegungen sind gleichartige Forderungsbuchungen: automatisch aus Eigentumsereignissen abgeleitet oder als umgekehrte Forderung aus dokumentierter Zahlung. `ledgerAt()` addiert `claims` und `counterclaims`, bilanziert bilateral, erkennt Überzahlungen als umgekehrten Anspruch und bewahrt Zahlungsbeträge bei Änderungen/Löschungen von Anschaffungen. Gezielte Fachtests erfolgreich; `npm test`/Build/Browserabnahme offen.
-- [ ] **Als Nächstes B04:** Ein-Klick-Aktion in der UI legt eine Gegenbuchung für den aktuellen bilateralen Nettobetrag an; keine Gegenstandszuordnung oder Bezahl-Checkbox. Erfassungs-/Editierdialoge folgen.
+- [x] **B04–B13 (UI-Ausgleich):** Gruppensaldierung als Primäransicht; Zahlungen aus Vorschlägen heraus oder manuell erfassen, ändern und löschen; Details und Verlauf. Die abschließende Browser-/CI-Prüfung ist noch offen.
 
 
 ## Bereits vorhanden (statisch im Code geprüft)
@@ -27,7 +29,7 @@
 - Vorschau auf Wertverschiebung und **empfohlene** Zahlungen, aber keine tatsächlich gebuchten Zahlungen
 - Lokale JSON-Dateien, `localStorage`-Arbeitskopie, Vite-/Standalone-HTML-Build
 
-**Nicht vorhanden:** Eingabemaske und Korrekturansicht für tatsächliche Geldzahlungen, automatische Echtzeit-Synchronisierung, neu verschlüsselte Althistorie nach Passwortwechsel sowie produktiv eingerichtetes PHP-/Mailhosting. GitHub Pages ist derzeit nicht aktiviert.
+**Nicht vorhanden:** automatische Echtzeit-Synchronisierung, neu verschlüsselte Althistorie nach Passwortwechsel sowie produktiv eingerichtetes PHP-/Mailhosting. **Vorhanden, aber noch nicht vollständig abgenommen:** Zahlungserfassung, Korrektur und Löschung. GitHub Pages ist derzeit nicht aktiviert.
 
 ## Zwei priorisierte Produktfeatures + E-Mail-Sicherung
 
@@ -44,7 +46,7 @@
 - [x] Bei neuen Gegenständen optional finanzierende Person dokumentieren.
 - [x] Zehn Node-Tests und GitHub-Actions-Workflow erfolgreich auf `master` ausgeführt.
 - [ ] Browser-/JSON-Roundtrip und reale End-to-End-Nutzung testen.
-- [ ] **Neu priorisiert:** datierte, konkreten Forderungspositionen/Gegenständen zugeordnete Zahlungen, Teilzahlungen und externe Buchungen als Ausgleichsereignisse erfassen ([WG-Praxis-To-do](WG-PRAXIS-TODO.md)).
+- [x] **Neu umgesetzt:** datierte, **keiner einzelnen Forderung zugeordnete** Zahlungen, Teilzahlungen und externe Buchungen als Ausgleichsereignisse erfassen; gemeinsame Salden und Vorschlagsrouten ([WG-Praxis-To-do](WG-PRAXIS-TODO.md)).
 
 **Implementierung:** `src/lib/ledger.js`, `src/lib/projector.js` (`walkEvents`), `src/components/LedgerPanel.svelte`, `tests/ledger.test.js`. Keine persistenten `finance.postings[]`, keine Checkboxen und keine gesonderten Statusaktionen.
 
@@ -90,8 +92,8 @@ Als Unterfunktion des Online-Modus:
 | --- | --- |
 | Muss eine Forderung abgehakt werden? | **Nicht als gespeicherte Checkbox.** Ein Klick auf „Als bezahlt erfassen“ schreibt ein datiertes Ausgleichsereignis; offen/bezahlt/extern verbucht wird daraus abgeleitet. |
 | Müssen Forderungen gespeichert werden? | **Nein.** Fachereignisse sind Quelle, Forderungen werden live rekonstruiert |
-| Tatsächliche Zahlungen zusätzlich erfassen? | **Ja, priorisiert**; mit Verbindung zur Quellforderung und zum Gegenstand. Auch Teilzahlungen und externe Buchungen unterscheiden. |
-| Multilaterale Vereinfachung? | Als Vorschau zusätzlich zur sicheren bilateralen Saldierung, nicht automatisch rechtliche Erfüllung |
+| Tatsächliche Zahlungen zusätzlich erfassen? | **Ja, umgesetzt**; ohne erzwungene Verbindung zur Quellforderung oder zum Gegenstand, als Ereignis im gemeinschaftlichen Wertausgleich. |
+| Multilaterale Vereinfachung? | Primärer Ausgleichsvorschlag aus persönlichen Gemeinschaftssalden; eine gruppenweite Abrechnungsvereinbarung ist Voraussetzung, keine automatisch rechtliche Erfüllung ursprünglicher Einzelansprüche |
 | Neue Gegenstände ohne bekannten Finanzierer? | Keine automatisch generierten Geldforderungen |
 | Alte Anteilsereignisse nach Update? | Ohne ausdrückliche Aktivierung keine automatische rückwirkende Schuldenerzeugung |
 | Historische Korrektur/Löschung? | Quellereignis ändern; alle betroffenen Forderungen/Saldos neu berechnen, keine separate Synchronisierung |
