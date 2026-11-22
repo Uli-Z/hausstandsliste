@@ -49,7 +49,7 @@
     if (event.personId === personId) return true;
     if (event.type === 'claim-settlement-recorded') return event.debtorPersonId === personId || event.creditorPersonId === personId;
     if ((event.events || []).some(child => child.personId === personId)) return true;
-    if (event.type === 'item-added' && Number(event.shares?.[personId] || 0) > 0) return true;
+    if (event.type === 'item-added' && (event.financedByPersonId === personId || Number(event.shares?.[personId] || 0) > 0)) return true;
 
     if (event.type === 'shares-set') {
       const before = projectBeforeEvent(project, event.id, event.date);
