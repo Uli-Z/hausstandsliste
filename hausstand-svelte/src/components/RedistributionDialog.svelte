@@ -116,7 +116,7 @@
           <label>Titel <input bind:value={redistribution.title} placeholder="z. B. Auszug Anna"></label>
           <label>Finanzielle Wirkung
             <select bind:value={redistribution.financialMode}>
-              <option value="derived">Entgeltlich – Forderungen automatisch verrechnen</option>
+              <option value="derived">Entgeltlich – Forderungen ableiten (keine Zahlung)</option>
               <option value="none">Ohne Forderung – Korrektur / Schenkung</option>
             </select>
           </label>
