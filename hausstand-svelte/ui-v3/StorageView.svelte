@@ -183,7 +183,7 @@
 </script>
 <div class="storage-choices">
   <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><span class="choice-icon" aria-hidden="true">◇</span><div><span class="section-eyebrow">MEHR SCHUTZ</span><h2>Mit Passwort sichern</h2><p>Erstelle eine verschlüsselte Datei oder öffne eine bereits verschlüsselte Sicherung.</p></div></div>
+    <div class="storage-choice-top"><div><h2>Mit Passwort sichern</h2><p>Erstelle eine verschlüsselte Datei oder öffne eine bereits verschlüsselte Sicherung.</p></div></div>
     <button class="outline-action" aria-expanded={showProtected} on:click={() => showProtected = !showProtected}>{showProtected ? 'Weniger anzeigen' : 'Passwortgeschützte Dateien verwalten'} <span aria-hidden="true">{showProtected ? '↑' : '↓'}</span></button>
     {#if showProtected}
       <div class="storage-form">
@@ -201,7 +201,7 @@
   </section>
   {#if SERVER_MODE}
   <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><span class="choice-icon" aria-hidden="true">⇆</span><div><span class="section-eyebrow">FÜR MEHRERE PERSONEN</span><h2>Online-Projekte</h2><p>Gemeinsam auf diesem Server arbeiten. Die Verbindung ist bereits eingerichtet; du benötigst nur das Passwort deines Projekts.</p></div></div>
+    <div class="storage-choice-top"><div><h2>Online-Projekte</h2><p>Gemeinsam auf diesem Server arbeiten. Die Verbindung ist bereits eingerichtet; du benötigst nur das Passwort deines Projekts.</p></div></div>
     <button class="outline-action" aria-expanded={showShared} on:click={() => showShared = !showShared}>{showShared ? 'Weniger anzeigen' : 'Online-Projekte anzeigen'} <span aria-hidden="true">{showShared ? '↑' : '↓'}</span></button>
     {#if showShared}
       <div class="storage-form stack">
@@ -226,7 +226,7 @@
         {/if}
         {#if openedId}
           <div class="current-shared">
-            <span class="section-eyebrow">GEÖFFNETE GEMEINSAME DATEI</span>
+            
             <h3>{fileName}</h3><p>Version {revision} · {leaseToken ? 'Du bearbeitest dieses Projekt. Reserviert bis ' + new Date(leaseExpires * 1000).toLocaleString('de-DE') : 'Zurzeit nur lesbar'}</p>
             <div class="storage-action-row">
               {#if !leaseToken}
