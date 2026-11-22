@@ -2,7 +2,7 @@
   import { appState } from '../stores/projectStore.js';
   import { createClaimSettlementEvent, claimSettlementErrors } from '../lib/claimSettlement.js';
   import { money } from '../lib/domain.js';
-  import { nextEventOrder, todayISO } from '../lib/util.js';
+  import { nextEventOrder, todayISO, dateDE } from '../lib/util.js';
 
   export let dialog;
   export let project;
@@ -68,8 +68,12 @@
           p.events[i] = updated;
         } else p.events.push(updated);
       });
-      if (saved) close();
-      else busy = false;
+      if (saved) {
+        // If a newly documented payment happens after the viewed cutoff,
+        // reveal its effect instead of leaving an apparently unchanged balance.
+        if (date > asOfDate) appState.setAsOfDate(date);
+        close();
+      } else busy = false;
     } catch (error) {
       busy = false;
       alert('Ausgleich nicht gespeichert: ' + error.message);
@@ -92,15 +96,15 @@
 <div class="modal-backdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-label={editing ? 'Ausgleich bearbeiten' : 'Ausgleich dokumentieren'} style="max-width:560px" on:keydown={event => { if (event.key === 'Escape') close(); }}>
     <div class="modal-header">
-      <h3>{editing ? 'Ausgleich bearbeiten' : 'Ausgleich dokumentieren'}</h3>
+      <h3>{editing ? 'Ausgleich bearbeiten' : 'Zahlung dokumentieren'}</h3>
       <button class="ghost" type="button" aria-label="Schließen" on:click={close}>×</button>
     </div>
     <form on:submit|preventDefault={save}>
       <div class="modal-body stack">
-        <p class="muted">Hier dokumentierst du einen bereits erfolgten Ausgleich. Es wird kein Geld überwiesen und kein Eigentumsanteil geändert.</p>
-        {#if date > asOfDate}<p class="notice">Das Zahlungsdatum liegt nach dem betrachteten Stichtag {asOfDate}. Die Zahlung wird erst ab ihrem Datum in der Saldenansicht sichtbar.</p>{/if}
+        <p class="settlement-intro">Hier trägst du eine Zahlung ein, die bereits stattgefunden hat. Es wird kein Geld überwiesen und kein Eigentumsanteil geändert.</p>
+        {#if date > asOfDate}<p class="settlement-date-note">Du betrachtest den Stand vom {dateDE(asOfDate)}. Nach dem Speichern wechselt die Ansicht auf {dateDE(date)}, damit du die Wirkung der Zahlung siehst.</p>{/if}
         <div class="form-grid">
-          <label>Von wem?
+          <label>Wer hat bezahlt?
             <select bind:value={payer}>
               <option value="">Person auswählen</option>
               {#each people as person (person.id)}
@@ -108,7 +112,7 @@
               {/each}
             </select>
           </label>
-          <label>An wen?
+          <label>Wer hat das Geld erhalten?
             <select bind:value={recipient}>
               <option value="">Person auswählen</option>
               {#each people as person (person.id)}
@@ -116,10 +120,10 @@
               {/each}
             </select>
           </label>
-          <label>Betrag in Euro
+          <label>{kind === 'paid' ? 'Gezahlter Betrag in Euro' : 'Ausgleichsbetrag in Euro'}
             <input type="text" inputmode="decimal" placeholder="0,00" bind:value={amount} autocomplete="off"/>
           </label>
-          <label>Datum der Zahlung
+          <label>Datum des Ausgleichs
             <input type="date" bind:value={date}/>
           </label>
           <label class="wide">Notiz (optional)
@@ -137,8 +141,12 @@
           </label>
           <p class="muted">„Extern abgerechnet“ und „Erlassen“ verringern nur den hier angezeigten Saldo. Sie belegen keine Überweisung.</p>
         </details>
+        <div class="settlement-confirmation">
+          <strong>{kind === 'paid' ? 'Ist diese Zahlung bereits erfolgt?' : 'Ist dieser Ausgleich vereinbart und erfolgt?'}</strong>
+          <p>Mit dem Speichern dokumentierst du diesen Vorgang verbindlich im Änderungsverlauf. Der Betrag kann später korrigiert oder die Buchung gelöscht werden.</p>
+        </div>
         {#if Number.isSafeInteger(cents) && cents > 0 && payer !== recipient && payer && recipient}
-          <p class="muted">Der Ausgleich verändert die persönliche Bilanz: {people.find(p => p.id === payer)?.name} +{money(cents / 100)}, {people.find(p => p.id === recipient)?.name} −{money(cents / 100)}.</p>
+          <p class="settlement-effect">Danach ändert sich der Ausgleichssaldo um <strong>+{money(cents / 100)}</strong> für {people.find(p => p.id === payer)?.name} und <strong>−{money(cents / 100)}</strong> für {people.find(p => p.id === recipient)?.name}.</p>
         {/if}
       </div>
       <div class="modal-footer">
@@ -146,8 +154,20 @@
           <button class="danger" type="button" disabled={busy || $appState.readOnly} on:click={remove}>Löschen</button>
         {/if}
         <button type="button" on:click={close}>Abbrechen</button>
-        <button class="primary" type="submit" disabled={!valid || busy || $appState.readOnly}>{editing ? 'Änderungen speichern' : 'Ausgleich eintragen'}</button>
+        <button class="primary" type="submit" disabled={!valid || busy || $appState.readOnly}>{editing ? 'Änderungen speichern' : kind === 'paid' ? 'Zahlung als erfolgt erfassen' : 'Ausgleich dokumentieren'}</button>
       </div>
     </form>
   </div>
 </div>
+
+<style>
+  .settlement-intro{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+  .settlement-date-note{font-size:12px;line-height:1.6;color:var(--muted);border-left:3px solid var(--accent);padding:8px 12px;margin:0}
+  .settlement-confirmation{border-top:1px solid var(--border);padding-top:15px;display:grid;gap:5px}
+  .settlement-confirmation strong{font-size:14px}
+  .settlement-confirmation p{font-size:12px;color:var(--muted);line-height:1.55;margin:0}
+  .settlement-effect{font-size:12px;color:var(--muted);line-height:1.55;margin:0}
+  .settlement-effect strong{font-variant-numeric:tabular-nums;color:var(--text)}
+  details summary{cursor:pointer;font-size:12px;color:var(--muted);padding:8px 0}
+  details label{margin-top:12px}
+</style>
