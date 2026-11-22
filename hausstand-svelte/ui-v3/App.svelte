@@ -123,7 +123,7 @@
     <div class="sidebar-bottom">
       <button class:nav-active={route.page === 'dashboard' && activeSection === 'save'} on:click={() => navigate('save')} aria-current={route.page === 'dashboard' && activeSection === 'save' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⇩</span> Sichern & Teilen</button>
       <button class:nav-active={route.page === 'dashboard' && activeSection === 'settings'} on:click={() => navigate('settings')} aria-current={route.page === 'dashboard' && activeSection === 'settings' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⚙</span> Einstellungen</button>
-      <div class="sidebar-note">UI-Entwurf 3 · Original unverändert</div>
+      <div class="sidebar-note">Hausstand · gemeinschaftlich verwalten</div>
     </div>
   </aside>
 
