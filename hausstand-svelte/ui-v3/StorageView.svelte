@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import HelpTip from '../src/components/HelpTip.svelte';
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   import { appState } from '../src/stores/projectStore.js';
@@ -183,7 +184,7 @@
 </script>
 <div class="storage-choices">
   <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><div><h2>Mit Passwort sichern</h2><p>Erstelle eine verschlüsselte Datei oder öffne eine bereits verschlüsselte Sicherung.</p></div></div>
+    <div class="storage-choice-top"><div class="storage-help-heading"><h2>Mit Passwort sichern</h2><HelpTip label="Wie funktioniert eine verschlüsselte Sicherung?">Du kannst eine verschlüsselte Datei erstellen oder wieder öffnen. Ohne das Passwort kann sie nicht entschlüsselt werden; eine unverschlüsselte Browserkopie wird bei geschützten Projekten nicht gespeichert.</HelpTip></div></div>
     <button class="outline-action" aria-expanded={showProtected} on:click={() => showProtected = !showProtected}>{showProtected ? 'Weniger anzeigen' : 'Passwortgeschützte Dateien verwalten'} <span aria-hidden="true">{showProtected ? '↑' : '↓'}</span></button>
     {#if showProtected}
       <div class="storage-form">
@@ -195,13 +196,13 @@
           <button class="solid-action" disabled={busy} on:click={() => run(exportEncrypted)}>Verschlüsselte Datei herunterladen</button>
           <label class="file-button">Verschlüsselte Datei öffnen<input type="file" accept=".json,.enc" on:change={importEncrypted}/></label>
         </div>
-        <p class="muted">Ohne das Passwort kannst du eine verschlüsselte Datei nicht öffnen. Bei geschützten Projekten wird keine unverschlüsselte Browserkopie gespeichert.</p>
+
       </div>
     {/if}
   </section>
   {#if SERVER_MODE}
   <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><div><h2>Online-Projekte</h2><p>Gemeinsam auf diesem Server arbeiten. Die Verbindung ist bereits eingerichtet; du benötigst nur das Passwort deines Projekts.</p></div></div>
+    <div class="storage-choice-top"><div class="storage-help-heading"><h2>Online-Projekte</h2><HelpTip label="Wie funktionieren Online-Projekte?">Hier kannst du gemeinsame Projektdateien auf dem bereits konfigurierten Server öffnen und bearbeiten. Dafür benötigst du das Projektpasswort.</HelpTip></div></div>
     <button class="outline-action" aria-expanded={showShared} on:click={() => showShared = !showShared}>{showShared ? 'Weniger anzeigen' : 'Online-Projekte anzeigen'} <span aria-hidden="true">{showShared ? '↑' : '↓'}</span></button>
     {#if showShared}
       <div class="storage-form stack">
@@ -256,3 +257,8 @@
   </section>
   {/if}
 </div>
+
+<style>
+  .storage-help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .storage-help-heading h2{margin:0}
+</style>
