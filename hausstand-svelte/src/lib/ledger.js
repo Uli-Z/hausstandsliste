@@ -1,6 +1,8 @@
 import { normShares } from './domain.js';
 import { walkEvents } from './projector.js';
 import { valueAt } from './valuation.js';
+import { matchClaimSettlements } from './claimMatching.js';
+import { applyClaimSettlements } from './settlementBalances.js';
 
 // Monetary calculations use integer cents. Largest-remainder allocation preserves
 // the total even for uneven shares (e.g. 10.00 EUR split in thirds).
@@ -146,10 +148,20 @@ export function simplifiedTransfers(claims) {
 
 export function ledgerAt(project, asOfDate) {
   const claims = deriveClaims(project, asOfDate);
+  // Claim matching imports the pure deriveClaims function from this module.
+  // The function exports are hoisted, so the ES module cycle is safe; passing
+  // the existing projection avoids a second chronological event walk.
+  const matching = matchClaimSettlements(project, asOfDate, claims);
+  const settlementProjection = applyClaimSettlements(claims, matching.matched, matching.unmatched);
+  const { openClaims } = settlementProjection;
   return {
-    claims,
-    pairwise: pairwiseBalances(claims),
-    simplified: simplifiedTransfers(claims),
-    balances: personBalances(claims)
+    claims, // Original gross claims remain available for history/detail views.
+    ...settlementProjection,
+    // These reflect locally outstanding claims, including dated payments,
+    // externally tracked amounts and waived amounts. Opposing claims are
+    // netted only bilaterally; cross-person simplification remains a proposal.
+    pairwise: pairwiseBalances(openClaims),
+    simplified: simplifiedTransfers(openClaims),
+    balances: personBalances(openClaims)
   };
 }
