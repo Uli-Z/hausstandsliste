@@ -99,7 +99,7 @@
       <h3>{editing ? 'Ausgleich bearbeiten' : kind === 'paid' ? 'Zahlung dokumentieren' : 'Ausgleich dokumentieren'}</h3>
       <button class="ghost" type="button" aria-label="Schließen" on:click={close}>×</button>
     </div>
-    <form on:submit|preventDefault={save}>
+    <form class="settlement-form" on:submit|preventDefault={save}>
       <div class="modal-body stack">
         <p class="settlement-intro">{kind === 'paid' ? 'Hier erfasst du eine Zahlung, die bereits stattgefunden hat. Die App überweist selbst kein Geld.' : 'Hier dokumentierst du eine Verrechnung ohne neue Überweisung.'} Die Eigentumsanteile bleiben unverändert.</p>
         {#if date > asOfDate}<p class="settlement-date-note">Du betrachtest den Stand vom {dateDE(asOfDate)}. Nach dem Speichern wechselt die Ansicht zum {dateDE(date)}, damit du die Wirkung des Ausgleichs siehst.</p>{/if}
@@ -161,6 +161,9 @@
 </div>
 
 <style>
+  .settlement-form{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;overflow:hidden}
+  .settlement-form .modal-body{min-height:0;overflow-y:auto}
+  .settlement-form .modal-footer{min-width:0}
   .settlement-intro{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
   .settlement-date-note{font-size:12px;line-height:1.6;color:var(--muted);border-left:3px solid var(--accent);padding:8px 12px;margin:0}
   .settlement-confirmation{border-top:1px solid var(--border);padding-top:15px;display:grid;gap:5px}
