@@ -96,15 +96,15 @@
 <div class="modal-backdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-label={editing ? 'Ausgleich bearbeiten' : 'Ausgleich dokumentieren'} style="max-width:560px" on:keydown={event => { if (event.key === 'Escape') close(); }}>
     <div class="modal-header">
-      <h3>{editing ? 'Ausgleich bearbeiten' : 'Zahlung dokumentieren'}</h3>
+      <h3>{editing ? 'Ausgleich bearbeiten' : kind === 'paid' ? 'Zahlung dokumentieren' : 'Ausgleich dokumentieren'}</h3>
       <button class="ghost" type="button" aria-label="Schließen" on:click={close}>×</button>
     </div>
     <form on:submit|preventDefault={save}>
       <div class="modal-body stack">
-        <p class="settlement-intro">Hier trägst du eine Zahlung ein, die bereits stattgefunden hat. Es wird kein Geld überwiesen und kein Eigentumsanteil geändert.</p>
-        {#if date > asOfDate}<p class="settlement-date-note">Du betrachtest den Stand vom {dateDE(asOfDate)}. Nach dem Speichern wechselt die Ansicht auf {dateDE(date)}, damit du die Wirkung der Zahlung siehst.</p>{/if}
+        <p class="settlement-intro">{kind === 'paid' ? 'Hier erfasst du eine Zahlung, die bereits stattgefunden hat. Die App überweist selbst kein Geld.' : 'Hier dokumentierst du eine Verrechnung ohne neue Überweisung.'} Die Eigentumsanteile bleiben unverändert.</p>
+        {#if date > asOfDate}<p class="settlement-date-note">Du betrachtest den Stand vom {dateDE(asOfDate)}. Nach dem Speichern wechselt die Ansicht zum {dateDE(date)}, damit du die Wirkung des Ausgleichs siehst.</p>{/if}
         <div class="form-grid">
-          <label>Wer hat bezahlt?
+          <label>{kind === 'paid' ? 'Wer hat bezahlt?' : 'Von wem geht der Ausgleich aus?'}
             <select bind:value={payer}>
               <option value="">Person auswählen</option>
               {#each people as person (person.id)}
@@ -112,7 +112,7 @@
               {/each}
             </select>
           </label>
-          <label>Wer hat das Geld erhalten?
+          <label>{kind === 'paid' ? 'Wer hat das Geld erhalten?' : 'Wessen Saldo wird ausgeglichen?'}
             <select bind:value={recipient}>
               <option value="">Person auswählen</option>
               {#each people as person (person.id)}
@@ -123,7 +123,7 @@
           <label>{kind === 'paid' ? 'Gezahlter Betrag in Euro' : 'Ausgleichsbetrag in Euro'}
             <input type="text" inputmode="decimal" placeholder="0,00" bind:value={amount} autocomplete="off"/>
           </label>
-          <label>Datum des Ausgleichs
+          <label>{kind === 'paid' ? 'Zahlungsdatum' : 'Datum des Ausgleichs'}
             <input type="date" bind:value={date}/>
           </label>
           <label class="wide">Notiz (optional)
