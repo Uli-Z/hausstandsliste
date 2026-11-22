@@ -20,7 +20,7 @@ test('A06: labels always separate derived claims, payment suggestions and booked
   assert.match(MULTILATERAL_SUGGESTION_DESCRIPTION, /Keine Zahlung/i);
   assert.match(REDISTRIBUTION_SUGGESTION_TITLE, /nicht gebucht/i);
   assert.match(REDISTRIBUTION_SUGGESTION_NOTICE, /keine gebuchte Zahlung/i);
-  assert.match(DERIVED_CLAIMS_DESCRIPTION, /keine Zahlungen/i);
+  assert.match(DERIVED_CLAIMS_DESCRIPTION, /dokumentierten Ausgleiche/i);
 });
 
 test('A06: historical ownership event never displays a payment as having taken place', () => {
