@@ -8,6 +8,7 @@
   import ExecutedRedistributionEditDialog from './ExecutedRedistributionEditDialog.svelte';
   import ShareEditor from './ShareEditor.svelte';
   import SettlementDialog from '../src/components/SettlementDialog.svelte';
+  import HelpTip from '../src/components/HelpTip.svelte';
   import { isEnterForSubmit } from './form-behavior.js';
   export let dialog;
   export let project;
@@ -342,7 +343,7 @@
                     {/each}
                   </select>
                 </label>
-                <div class="muted">Die finanzierende Person bringt den Startwert ein. Ihre eigenen Anteile werden berücksichtigt; die übrigen Anteile erhöhen den Ausgleichsbedarf der anderen Personen.</div>
+                <HelpTip label="Wie wird die Finanzierung berücksichtigt?">Die finanzierende Person bringt den Startwert ein. Die Eigentumsanteile der Beteiligten gehen in den gemeinsamen Ausgleichssaldo ein. Ohne zugeordnete Finanzierung entstehen beim Kauf keine automatischen Geldforderungen.</HelpTip>
               {/if}
             </section>
           </div>
@@ -359,7 +360,7 @@
         {:else if dialog.type === 'itemEnd'}
           <label>Grund <input bind:value={reason} placeholder="kaputt, verkauft, privat übernommen …"></label>
         {:else if dialog.type === 'options'}
-          <div class="notice">Optionen sind bewusst klein gehalten: Projekt öffnen, speichern und neues Projekt liegen rechts im Header. Weitere Einstellungen können hier später ergänzt werden.</div>
+          <p class="muted">Projektdatei und Sicherung findest du im Bereich „Sichern & Teilen“.</p>
         {:else}
           <div class="notice warn">Dieser Dialogtyp ist noch nicht implementiert: {dialog.type}</div>
         {/if}
