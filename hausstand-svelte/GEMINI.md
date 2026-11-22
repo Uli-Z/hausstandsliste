@@ -54,3 +54,8 @@ Danach die manuellen Akzeptanzfälle aus [`../docs/DEVELOPMENT.md`](../docs/DEVE
 ## Implementiert am 21.11.2026
 
 `src/lib/crypto.js` und `src/components/StoragePanel.svelte` implementieren verschlüsselten lokalen Export/Import und die optionale PHP-Online-Ablage. `src/stores/projectStore.js` besitzt `secure` und `readOnly`. Die PHP-Vorlage liegt in `server-php/backend.php`; `scripts/build-php.mjs` erstellt die einzelne `hausstand.php`. PHP-Integrationstest: `node server-php/smoke.mjs`, Kryptotest: `npm test`. GitHub Pages stellt nur HTML/JS bereit. Beachte ausdrücklich: Historie nicht neu verschlüsselt nach Passwortwechsel, Mailzustellung noch nicht live getestet, vor produktiver Nutzung Sicherheitsprüfung nötig. [Deployment](../docs/DEPLOYMENT.md).
+
+
+## Entscheidung 22.11.2026: Zahlung ist Gegenforderung
+
+Die ältere Formulierung „Zahlungen noch nicht implementiert“ bezieht sich nur noch auf fehlende Eingabedialoge. `ledgerAt()` saldiert die aus Käufen abgeleiteten `claims` mit unabhängig gespeicherten `counterclaims` aus Zahlungsevents. **Kein Pflichtbezug auf einzelne Gegenstände oder Forderungen, keine Deckelung bei Überzahlung.** `claimMatching.js` und `settlementBalances.js` wurden gelöscht. API: `claimSettlement.js`, insbesondere `paymentForBalance()`. Aktuelle Tests: `tests/payment-counterclaims.test.js`. Alte importierte Zusatzreferenzen bleiben erhalten, ändern den Saldo aber nicht.
