@@ -21,10 +21,10 @@
     <div class="item-grid">
       {#each filtered as item (item.id)}
         <article class="item-tile">
-          <div class="item-top"><span class="object-icon" aria-hidden="true">▦</span><span class="item-worth">{money(item.value)}</span></div>
+          <div class="item-top"><span class="item-worth">{money(item.value)}</span></div>
           <h2>{item.name}</h2>
           {#if item.note}<p class="item-note">{item.note}</p>{/if}
-          <div class="item-tags">{#each (item.tags || []).slice(0,3) as t}<span>{t}</span>{/each}</div>
+          {#if item.tags?.length}<p class="item-categories">{item.tags.join(', ')}</p>{/if}
           <div class="item-facts"><span>{item.shareRows.length} Beteiligte</span><span>{valuationLabel(item.runtime.valuation)}</span></div>
           <button class="tile-open" on:click={() => appState.setRoute({page:'item',id:item.id})}>Anteile & Details ansehen <span aria-hidden="true">→</span></button>
         </article>
@@ -35,14 +35,19 @@
   {/if}
 </section>
 <section class="ux-panel inventory-bottom">
-  <div class="section-header"><div><span class="section-eyebrow">WEITERE AKTIONEN</span><h2>Anteile ändern</h2></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Übertragung vorbereiten</button></div>
+  <div class="section-header"><div><h2>Anteile ändern</h2></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Übertragung vorbereiten</button></div>
   <p>Wenn jemand Anteile übernimmt, abgibt oder die Aufteilung angepasst werden soll, kannst du alle Änderungen gemeinsam prüfen.</p>
 </section>
 <section class="ux-panel archive-view">
-  <div class="section-header"><div><span class="section-eyebrow">NICHT MEHR AKTIV</span><h2>Frühere Gegenstände <span class="count-pill">{archived.length}</span></h2></div><button class="text-action" aria-expanded={showArchive} on:click={() => showArchive = !showArchive}>{showArchive ? 'Ausblenden' : 'Ansehen'} {showArchive ? '↑' : '↓'}</button></div>
+  <div class="section-header"><div><h2>Frühere Gegenstände{#if archived.length} ({archived.length}){/if}</h2></div><button class="text-action" aria-expanded={showArchive} on:click={() => showArchive = !showArchive}>{showArchive ? 'Ausblenden' : 'Ansehen'} {showArchive ? '↑' : '↓'}</button></div>
   {#if showArchive}
     {#if archived.length}
       <div class="archive-list">{#each archived as item (item.id)}<div class="archive-row"><div><strong>{item.name}</strong><small>{item.runtime.endedAt || 'Datum unbekannt'} · {item.runtime.endReason || item.status || 'Archiviert'}</small></div><button on:click={() => appState.setRoute({page:'item',id:item.id})}>Details ansehen →</button></div>{/each}</div>
     {:else}<p class="muted">Noch keine früheren Gegenstände.</p>{/if}
   {/if}
 </section>
+
+<style>
+  .item-top{justify-content:flex-end}
+  .item-categories{font-size:11px;color:var(--muted);margin:0;line-height:1.5}
+</style>
