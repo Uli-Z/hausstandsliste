@@ -60,6 +60,7 @@
     if (e.type === 'person-reactivated') return 'Person wieder aufgenommen: ' + personName(e.personId);
     if (e.type === 'redistribution-executed') return 'Anteile verändert: ' + (e.title || 'Übertragung');
     if (e.type === 'shares-set') return 'Anteile verändert: ' + itemName(e.itemId);
+    if (e.type === 'claim-settlement-recorded') return (e.settlementKind === 'paid' ? 'Zahlung' : e.settlementKind === 'external' ? 'Extern verbucht' : 'Erlass') + ': ' + personName(e.debtorPersonId) + ' an ' + personName(e.creditorPersonId) + ' (' + money(e.amountCents / 100) + ')';
     return e.title || e.note || 'Änderung';
   }
   function navigate(id) {
@@ -185,7 +186,7 @@
           <div class="metric"><span>Gemeinsamer Bestandswert</span><strong>{money($projection.totalValue)}</strong><small>Wert aller aktiven Gegenstände</small></div>
           <div class="metric"><span>Gegenstände</span><strong>{$projection.activeItems.length}</strong><small>im aktuellen Bestand</small></div>
           <div class="metric"><span>Personen</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>aktuell dabei</small></div>
-          <div class="metric"><span>Bilaterale Nettosalden</span><strong>{balances.length}</strong><small>aus Forderungen, ohne Zahlungserfassung</small></div>
+          <div class="metric"><span>Bilaterale Nettosalden</span><strong>{balances.length}</strong><small>inklusive dokumentierter Gegenbuchungen</small></div>
         </div>
 
         <div class="overview-layout">
@@ -252,7 +253,7 @@
         <div class="page-heading"><div><span class="overline">MITGLIEDER</span><h1>Personen</h1><p>Alle Beteiligten, ihre Gegenstände und ihr jeweiliger Wertanteil.</p></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ Person hinzufügen</button></div>
         <PeopleView people={$projection.people} ledger={$ledger}/>
       {:else if activeSection === 'money'}
-        <div class="page-heading"><div><span class="overline">FINANZEN</span><h1>Geld & Ausgleich</h1><p>Entstandene Forderungen, rechnerische Nettosalden und unverbindliche Überweisungsvorschläge. Tatsächliche Zahlungen werden noch nicht erfasst.</p></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Anteile übertragen</button></div>
+        <div class="page-heading"><div><span class="overline">FINANZEN</span><h1>Geld & Ausgleich</h1><p>Forderungen und dokumentierte Gegenbuchungen ergeben bilaterale Nettosalden. Eine Eingabemaske für Zahlungen folgt.</p></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Anteile übertragen</button></div>
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
         <div class="page-heading"><div><span class="overline">NACHVOLLZIEHBAR</span><h1>Änderungen</h1><p>Einzüge, Anschaffungen, Übertragungen und andere Vorgänge im zeitlichen Verlauf.</p></div></div>
