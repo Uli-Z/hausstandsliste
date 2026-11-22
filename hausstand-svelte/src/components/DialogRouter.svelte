@@ -2,6 +2,7 @@
   import { appState, createEvent, createRedistribution } from '../stores/projectStore.js';
   import { uid, parseTags } from '../lib/util.js';
   import { normShares } from '../lib/domain.js';
+  import { personDeletionEligibility, deleteUnusedPerson } from '../lib/personDeletion.js';
   import RedistributionDialog from './RedistributionDialog.svelte';
   import EventEditDialog from './EventEditDialog.svelte';
   import ExecutedRedistributionEditDialog from './ExecutedRedistributionEditDialog.svelte';
@@ -46,6 +47,7 @@
   $: canSavePersonName = !!normalizedName && !duplicatePerson;
 
   $: person = dialog?.personId ? project.people.find(p => p.id === dialog.personId) : null;
+  $: deleteEligibility = person ? personDeletionEligibility(project, person.id) : { allowed: false, reason: 'Keine Person ausgewählt.' };
   $: item = dialog?.itemId ? project.items.find(i => i.id === dialog.itemId) : null;
   $: projectedItem = dialog?.itemId ? projection.items.find(i => i.id === dialog.itemId) : null;
   $: if (dialog?.type === 'personMeta' && person && !name) name = person.name;
@@ -116,52 +118,31 @@
     close();
   }
 
-  function stripPersonFromEvent(event, personId) {
-    if (!event) return null;
-    if (
-      (event.type === 'person-added' || event.type === 'person-deactivated' || event.type === 'person-reactivated')
-      && String(event.personId) === String(personId)
-    ) {
-      return null;
-    }
-    if ((event.type === 'item-added' || event.type === 'shares-set') && event.shares) {
-      const shares = { ...event.shares };
-      delete shares[personId];
-      return { ...event, shares: normShares(shares) };
-    }
-    if (event.type === 'redistribution-executed' && Array.isArray(event.events)) {
-      const childEvents = event.events
-        .map(child => stripPersonFromEvent(child, personId))
-        .filter(Boolean);
-      return { ...event, events: childEvents };
-    }
-    return event;
-  }
-
   function deletePersonCompletely() {
     if (!person) return;
-    const ok = confirm(
-      `Person "${person.name}" wirklich komplett löschen?\n\n` +
-      'Dabei werden Stammdaten, Einzugs-/Auszugsereignisse und alle Beteiligungen entfernt.\n' +
-      'Achtung: Dadurch können sich Werte und Verteilungen deutlich verschieben.'
-    );
-    if (!ok) return;
+    if ($appState.readOnly) {
+      alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.');
+      return;
+    }
+    const eligibility = personDeletionEligibility(project, person.id);
+    if (!eligibility.allowed) {
+      alert(`Löschen nicht möglich: ${eligibility.reason}`);
+      return;
+    }
+    if (!confirm(`Die unbeteiligte Person "${person.name}" endgültig löschen? Ihr Eintragsereignis wird ebenfalls entfernt.`)) return;
+
+    let deleted = false;
     appState.mutateProject(p => {
-      p.people = (p.people || []).filter(x => String(x.id) !== String(person.id));
-      p.events = (p.events || [])
-        .map(e => stripPersonFromEvent(e, person.id))
-        .filter(Boolean);
-      p.drafts = (p.drafts || []).map(draft => {
-        if (draft?.type !== 'item' || !draft?.data?.shares) return draft;
-        const shares = { ...draft.data.shares };
-        delete shares[person.id];
-        return { ...draft, data: { ...draft.data, shares: normShares(shares) } };
-      });
+      deleted = deleteUnusedPerson(p, person.id).allowed;
     });
+    if (!deleted) {
+      alert('Löschen nicht möglich: Es bestehen inzwischen Verknüpfungen mit der Person.');
+      return;
+    }
     close();
     appState.setRoute({ page: 'dashboard' });
   }
-  
+
   function saveItemDraft() {
     const draftId = dialog.id || uid('draft_item');
     const activePeople = projection.people.filter(p => p.active);
@@ -298,10 +279,11 @@
             {/if}
           {/if}
           {#if dialog.type === 'personMeta'}
-            <div class="notice warn">
-              Komplett löschen entfernt die Person aus den Stammdaten sowie Einzugs-/Auszugsereignisse und alle Beteiligungen.
-              Das kann bestehende Verteilungen stark verändern.
-            </div>
+            {#if deleteEligibility.allowed}
+              <div class="notice">Endgültiges Löschen ist nur möglich, solange eine Person noch an keinem Gegenstand, Ereignis oder Entwurf beteiligt war.</div>
+            {:else}
+              <div class="notice warn">Endgültiges Löschen gesperrt: {deleteEligibility.reason} Bei einem Auszug die Person stattdessen über ihr Profil als ausgezogen markieren.</div>
+            {/if}
           {/if}
         {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
           <div class="form-grid">
@@ -358,7 +340,7 @@
         <div style="flex:1"></div>
         {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName}>✅ Anlegen</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>💾 Speichern</button>{/if}
-        {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely}>🗑️ Komplett löschen</button>{/if}
+        {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely} disabled={!deleteEligibility.allowed || $appState.readOnly}>🗑️ Komplett löschen</button>{/if}
         {#if dialog.type === 'itemAdd'}
           <button on:click={saveItemDraft}>💾 Als Entwurf speichern</button>
           <button class="primary" on:click={addItem}>✅ Anlegen</button>
