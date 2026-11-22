@@ -3,6 +3,7 @@
   import { money } from '../src/lib/domain.js';
   import { dateDE } from '../src/lib/util.js';
   import BalanceBreakdown from '../src/components/BalanceBreakdown.svelte';
+  import HelpTip from '../src/components/HelpTip.svelte';
 
   export let project;
   export let data;
@@ -40,16 +41,14 @@
 
 <section class="panel ledger-v3 settlement-screen">
   <div class="panel-header">
-    <h2>Wertausgleich</h2>
+    <div class="help-heading"><h2>Wertausgleich</h2><HelpTip label="Was bedeutet Wertausgleich?">Wenn Personen Gegenstände finanzieren oder Eigentumsanteile übernehmen, entstehen persönliche Ausgleichssalden. Das Programm schlägt Zahlungswege zum Ausgleich vor; es überweist selbst kein Geld.</HelpTip></div>
     <span class="hint">Stand {dateDE(asOfDate)}</span>
   </div>
   <div class="panel-body settlement-content">
-    <p class="intro">Wenn jemand Gegenstände finanziert oder Anteile übernimmt, entsteht ein persönlicher Ausgleichssaldo. Hier seht ihr, wie ihr diese Werte ausgleichen könnt.</p>
 
     <section class="settlement-section">
-      <h3>So könnt ihr ausgleichen</h3>
+      <div class="help-heading"><h3>So könnt ihr ausgleichen</h3><HelpTip label="Wie funktionieren die Zahlungsvorschläge?">Die Vorschläge gleichen alle persönlichen Salden aus. Sie sind keine bereits erfolgten Zahlungen und gelten für eine Hausgemeinschaft, die gemeinsame Saldierung vereinbart hat. Erst wenn du eine tatsächlich erfolgte Zahlung bestätigst, wird sie dokumentiert.</HelpTip></div>
       {#if suggestions.length}
-        <p class="section-description">Diese Zahlungswege gleichen alle persönlichen Salden aus. Sie sind Vorschläge, keine bereits erfolgten Zahlungen.</p>
         <div class="transfer-list">
           {#each suggestions as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
             <div class="transfer-row">
@@ -61,15 +60,13 @@
             </div>
           {/each}
         </div>
-        <p class="section-footnote">„Ausgleichen“ dokumentiert eine Zahlung erst nach deiner Bestätigung. Die App überweist kein Geld.</p>
       {:else}
         <p class="settled-message">Es gibt zum gewählten Stichtag keine offenen Ausgleichssalden.</p>
       {/if}
     </section>
 
     <section class="settlement-section">
-      <h3>Salden der Personen</h3>
-      <p class="section-description">Ein positiver Saldo bedeutet, dass die Person noch Geld erhalten kann. Öffne eine Person, um zu sehen, wie sich ihr Saldo zusammensetzt.</p>
+      <div class="help-heading"><h3>Salden der Personen</h3><HelpTip label="Was bedeutet ein persönlicher Saldo?">Wer mehr Wert eingebracht als übernommen hat, kann Geld erhalten; wer mehr Wert übernommen hat, muss ausgleichen. Die einzelnen Beträge findest du beim Aufklappen einer Person.</HelpTip></div>
       {#if balances.length}
         <div class="person-balance-list">
           {#each balances as balance (balance.id)}
@@ -92,8 +89,7 @@
 
     <div class="manual-payment">
       <div>
-        <strong>Eine Zahlung unabhängig vom Vorschlag eintragen</strong>
-        <p>Für Teilzahlungen, andere Zahlungswege oder nachträglich erfasste Zahlungen.</p>
+        <strong>Andere Zahlung?</strong>
       </div>
       <button type="button" on:click={() => addSettlement()} disabled={$appState.readOnly}>Zahlung erfassen</button>
     </div>
@@ -105,7 +101,6 @@
     <div class="audit-area">
       <details class="audit-disclosure">
         <summary>Dokumentierte Ausgleiche <span class="disclosure-count">{recorded.length}</span></summary>
-        <p class="section-description">Hier stehen tatsächlich dokumentierte Zahlungen und andere verrechnete Ausgleiche. Jede Buchung bleibt bearbeitbar.</p>
         {#if recorded.length}
           <div class="audit-list">
             {#each recorded as entry (entry.sourceEventId)}
@@ -126,7 +121,6 @@
       </details>
       <details class="audit-disclosure">
         <summary>Herkunft der Wertverschiebungen <span class="disclosure-count">{data.claims.length}</span></summary>
-        <p class="section-description">Diese Beträge ergeben sich automatisch aus Anschaffungen und Anteilsänderungen. Zahlungen werden keinem einzelnen Gegenstand zugeordnet.</p>
         {#if data.claims.length}
           <div class="audit-list">
             {#each data.claims as claim, index (claim.sourceEventId + ':' + index)}
@@ -149,7 +143,9 @@
 </section>
 
 <style>
-  .settlement-content{display:grid;gap:27px}
+  .settlement-content{display:grid;gap:19px}
+  .help-heading{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+  .panel-header .help-heading h2{margin:0}
   .intro{margin:0;color:var(--muted);font-size:13px;line-height:1.65;max-width:760px}
   .settlement-section{display:grid;gap:12px;min-width:0}
   .settlement-section h3{font-size:16px;letter-spacing:-.018em;margin:0}
