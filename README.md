@@ -37,7 +37,7 @@ Das Ergebnis liegt unter `hausstand-svelte/dist/hausstand-standalone.html` und k
 
 ## Speicherung und Datenschutz
 
-Die App arbeitet weiterhin ohne verpflichtenden Server. Zusätzlich gibt es einen **optionalen PHP-Speichermodus** für verschlüsselte gemeinsame Dateien; GitHub Pages bietet nur die statische Oberfläche. Bei gewöhnlichen Klartext-Projekten speichert die App eine Arbeitskopie im `localStorage`. **Verschlüsselt geöffnete Projekte werden dagegen nicht als Klartext im Browser-Storage zwischengespeichert.** Die **exportierte JSON-Projektdatei ist der dauerhaft aufzubewahrende Datenbestand**. Browserdaten können verloren gehen oder auf einem anderen Gerät fehlen – daher regelmäßig exportieren und gesichert ablegen. Persönliche Projektdaten nicht in dieses öffentliche Repository committen.
+Die Anwendung hat **zwei klar getrennte Varianten**: Offline-HTML/GitHub Pages mit ausschließlich lokalem Import/Export sowie eine **separat gebaute, vorkonfigurierte PHP-Datei** mit integrierter verschlüsselter Serverablage. Die Offline-Version kann nicht über die PHP-API speichern. Für die PHP-Variante müssen Endanwender weder API-Adressen noch Server-Schlüssel eingeben. [Build und Konfiguration](docs/BUILD-VARIANTS.md). Bei gewöhnlichen Klartext-Projekten speichert die App eine Arbeitskopie im `localStorage`. **Verschlüsselt geöffnete Projekte werden dagegen nicht als Klartext im Browser-Storage zwischengespeichert.** Die **exportierte JSON-Projektdatei ist der dauerhaft aufzubewahrende Datenbestand**. Browserdaten können verloren gehen oder auf einem anderen Gerät fehlen – daher regelmäßig exportieren und gesichert ablegen. Persönliche Projektdaten nicht in dieses öffentliche Repository committen.
 
 ## Veröffentlichungsstatus
 
@@ -71,7 +71,7 @@ Dokumentation zur umgesetzten Forderungslogik und den weiteren Planungen:
 **Weiterentwicklung:** Maßgeblich ist der Branch `master`. Vor jeder Änderung aktuellen Branch, Git-Status und Dokumentation prüfen. Neue Funktionen zunächst im Datenmodell und in den Akzeptanzfällen durchdenken; die alte HTML-Vorlage nicht parallel als zweite Implementierung fortführen.
 
 
-## Offline-HTML herunterladen
+## Offline-HTML oder PHP-Datei herunterladen
 
 In [GitHub Actions – Svelte app checks](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) einen erfolgreichen Lauf öffnen und unter **Artifacts** `hausstand-standalone` herunterladen. Das Artefakt enthält die eigenständige HTML-App (14 Tage Aufbewahrung), aber keine Projektdateien. Für die automatische Web-Veröffentlichung die [Pages-Quelle einmalig aktivieren](docs/DEPLOYMENT.md#github-pages-veröffentlichung).
 
@@ -82,3 +82,7 @@ In [GitHub Actions – Svelte app checks](https://github.com/Uli-Z/hausstandslis
 ## Fehlerbehebung GitHub Pages (21.11.2026)
 
 Bei der ersten Pages-Veröffentlichung konnte der Build erfolgreich deployen, obwohl die Anwendung nur eine leere Seite zeigte. Ursache: `scripts/inline-build.mjs` hatte das JavaScript aus dem Vite-Bundle mit einem synchronen `<script>` im HTML-`<head>` eingebettet; die App versuchte `#app` zu verwenden, bevor dieses DOM-Element existierte. Der Generator bewahrt jetzt `<script type="module">` bei, damit die Ausführung nach dem HTML-Parsing startet. Der zusätzliche CI-/Pages-Check `scripts/check-standalone.mjs` sichert dieses Verhalten ab. Das reparierte Artefakt wird bei jedem Push auf `master` neu auf GitHub Pages veröffentlicht.
+
+## Getrennte Builds (22.11.2026)
+
+Die aktuelle mobile UI V3 bleibt als eigenständige statische Seite auf GitHub Pages erhalten. Die PHP-Datei wird dagegen **manuell** mit `npm run build:php` oder über [GitHub Actions → Build PHP single-file release (manual)](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml) erstellt. Sie enthält die mobile UI V3 und einen konfigurierbaren privaten Speicherordner. Die Einstellungen befinden sich ausschließlich oben in der PHP-Datei und nicht in der Endnutzer-Oberfläche. [Anleitung](docs/BUILD-VARIANTS.md).

@@ -1,0 +1,40 @@
+name: Build PHP single-file release (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-php-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: hausstand-svelte/package-lock.json
+      - name: Install dependencies
+        working-directory: hausstand-svelte
+        run: npm ci
+      - name: Domain and crypto tests
+        working-directory: hausstand-svelte
+        run: npm test
+      - name: Build PHP app with integrated server UI V3
+        working-directory: hausstand-svelte
+        run: npm run build:php
+      - name: Validate PHP syntax and exercise API
+        working-directory: hausstand-svelte
+        run: |
+          php -l dist/hausstand.php
+          php -l server-php/backend.php
+          node server-php/smoke.mjs
+      - name: Download a single PHP file
+        uses: actions/upload-artifact@v4
+        with:
+          name: hausstand-php-manual
+          path: hausstand-svelte/dist/hausstand.php
+          if-no-files-found: error
+          retention-days: 30

@@ -20,7 +20,7 @@ npm run dev
 npm run check:js      # prüft Syntax des Inline-Build-Skripts
 npm run build         # Vite-Produktionsbuild nach dist/
 npm run build:single  # Build plus dist/hausstand-standalone.html
-npm run build:php     # Build plus dist/hausstand.php
+npm run build:php     # MANUELL: mobile V3 mit PHP-API, dist/hausstand.php
 npm test              # Ledger- und Kryptotests
 ```
 
@@ -59,3 +59,10 @@ Fachlich: [Forderungen je Anteilsbewegung, Ausgleichsstatus und Nettoschulden](.
 ## Forderungsprojektion (`master`, implementiert)
 
 `src/lib/ledger.js` berechnet bei explizit entgeltlichen Anteilsänderungen die Forderungen automatisch aus der Ereignishistorie; Gegenforderungen werden in `LedgerPanel.svelte` saldiert. Alte Ereignisse ohne `financialMode` bleiben finanziell neutral. Die Fachlogik speichert keine Forderungsbeträge und keine Abhak-Statuswerte. `npm test` prüft die wichtigsten historischen Fälle. Echte Geldzahlungen bleiben bewusst außerhalb dieses Ausbauschritts.
+
+## Build-Trennung (22.11.2026)
+
+- HTML-/Pages-Build: ausschließlich lokale Speicherung und Datei-Import/-Export. Keine PHP-API-URL, keine Online-Speicherung.
+- PHP-Build: `npm run build:php`; erzeugt `dist/hausstand.php` aus der **aktuellen V3-UI** plus PHP-Backend. Datenordner und Berechtigungen werden **oben in der PHP-Datei** durch den Betreiber eingestellt. Endanwender brauchen keine Serverdaten einzugeben.
+- Manueller GitHub-Workflow: [PHP-Datei bauen](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml).
+- Details: [Getrennte Buildvarianten](../docs/BUILD-VARIANTS.md).
