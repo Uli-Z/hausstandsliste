@@ -2,12 +2,24 @@
 declare(strict_types=1);
 
 /**
- * Hausstand storage API. Distributed as one PHP file with inlined Svelte HTML.
- * Configuration: HAUSSTAND_DATA_DIR (required, outside webroot);
- * HAUSSTAND_WORKSPACE_KEY (required for creating new files);
- * HAUSSTAND_ALLOW_ORIGIN (optional, exact HTTPS frontend origin);
- * HAUSSTAND_BACKUP_EMAIL and HAUSSTAND_MAIL_FROM (optional, PHP mail transport).
+ * Hausstand: Diese PHP-Datei ist die vollständige Server-App inklusive Oberfläche.
+ * Nur der Serverbetreiber bearbeitet den folgenden Konfigurationsblock.
+ * Keine Konfiguration/kein Workspace-Schlüssel wird an den Browser ausgegeben.
+ *
+ * data_dir: privater Ordner außerhalb des öffentlich erreichbaren Webverzeichnisses.
+ * allow_create: true = Besucher dieser Installation dürfen neue Projekte anlegen.
+ *   ACHTUNG: Ohne vorgeschaltete Zugangsbeschränkung kann jede Person mit der URL
+ *   Projekte anlegen und Serverspeicher verbrauchen. Sicherer Standard: false.
+ * backup_email / mail_from: optional, verschlüsselte Versionsdateien per PHP mail().
+ *
+ * Alternativ sind die gleichnamigen HAUSSTAND_* Umgebungsvariablen nutzbar.
  */
+$HAUSSTAND_CONFIG = [
+    'data_dir' => __DIR__ . '/../hausstand-private-data',
+    'allow_create' => false,
+    'backup_email' => '',
+    'mail_from' => '',
+];
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('Cache-Control: no-store');
@@ -88,8 +100,9 @@ if ($api !== '') {
             fail(409, 'Eine neuere Revision existiert. Nicht überschrieben; bitte neu öffnen.');
     }
     function mailConfig(): array {
-        $email = (string) (getenv('HAUSSTAND_BACKUP_EMAIL') ?: '');
-        $from = (string) (getenv('HAUSSTAND_MAIL_FROM') ?: '');
+        global $HAUSSTAND_CONFIG;
+        $email = (string) (getenv('HAUSSTAND_BACKUP_EMAIL') ?: ($HAUSSTAND_CONFIG['backup_email'] ?? ''));
+        $from = (string) (getenv('HAUSSTAND_MAIL_FROM') ?: ($HAUSSTAND_CONFIG['mail_from'] ?? ''));
         if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !filter_var($from, FILTER_VALIDATE_EMAIL)) return ['', ''];
         return [$email, $from];
     }
@@ -120,27 +133,33 @@ if ($api !== '') {
         atomicJson($dir . '/meta.json', $meta);
     }
     $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
-    $allowed = (string) (getenv('HAUSSTAND_ALLOW_ORIGIN') ?: '');
     $originHost = $origin !== '' ? (string) (parse_url($origin, PHP_URL_HOST) ?: '') : '';
     $originPort = $origin !== '' ? parse_url($origin, PHP_URL_PORT) : null;
     $originAuthority = $originHost . ($originPort ? ':' . $originPort : '');
     $sameOrigin = $originAuthority !== '' && strcasecmp($originAuthority, (string) ($_SERVER['HTTP_HOST'] ?? '')) === 0;
-    $allowExternal = $allowed !== '' && $origin === $allowed;
-    $originAccepted = $origin === '' || $sameOrigin || $allowExternal;
+    // Die integrierte PHP-Oberfläche kommuniziert ausschließlich mit der eigenen Origin.
+    $originAccepted = $origin === '' || $sameOrigin;
     if ($origin !== '' && $originAccepted) {
         header('Access-Control-Allow-Origin: ' . $origin);
         header('Vary: Origin');
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, X-File-Token, X-Lease-Token, X-Workspace-Key');
+        header('Access-Control-Allow-Headers: Content-Type, X-File-Token, X-Lease-Token');
     }
     if (!$originAccepted) fail(403, 'Origin nicht freigegeben.');
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204);
         exit;
     }
-    $rootEnv = (string) (getenv('HAUSSTAND_DATA_DIR') ?: '');
-    $root = $rootEnv ? realpath($rootEnv) : false;
+    $rootEnv = (string) (getenv('HAUSSTAND_DATA_DIR') ?: ($HAUSSTAND_CONFIG['data_dir'] ?? ''));
+    if ($rootEnv === '') fail(503, 'Privates Serverdatenverzeichnis nicht konfiguriert.');
+    if (!is_dir($rootEnv) && !@mkdir($rootEnv, 0700, true) && !is_dir($rootEnv))
+        fail(503, 'Privates Serverdatenverzeichnis kann nicht angelegt werden.');
+    $root = realpath($rootEnv);
     if (!$root || !is_dir($root) || !is_writable($root)) fail(503, 'Serverdatenverzeichnis fehlt oder ist nicht beschreibbar.');
+    $allowCreateEnv = getenv('HAUSSTAND_ALLOW_CREATE');
+    $allowCreate = $allowCreateEnv === false
+        ? (bool) ($HAUSSTAND_CONFIG['allow_create'] ?? false)
+        : filter_var($allowCreateEnv, FILTER_VALIDATE_BOOLEAN);
     $webroot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__FILE__)));
     if ($webroot && ($root === $webroot || str_starts_with($root, $webroot . DIRECTORY_SEPARATOR)))
         fail(503, 'Serverdaten dürfen nicht im öffentlichen Webverzeichnis liegen.');
@@ -148,9 +167,10 @@ if ($api !== '') {
     $lockHandle = fopen($root . '/.mutex', 'c');
     if (!$lockHandle || !flock($lockHandle, LOCK_EX)) fail(503, 'Server-Sperre nicht verfügbar.');
     $method = $_SERVER['REQUEST_METHOD'];
-    $readActions = ['files', 'read', 'versions', 'version'];
+    $readActions = ['config', 'files', 'read', 'versions', 'version'];
     if (in_array($api, $readActions, true)) {
         if ($method !== 'GET') fail(405, 'GET erforderlich.');
+        if ($api === 'config') reply(['canCreate' => $allowCreate]);
         if ($api === 'files') {
             $files = [];
             foreach (glob($root . '/files/*/meta.json') ?: [] as $path) {
@@ -172,9 +192,7 @@ if ($api !== '') {
     $body = submitted();
     $id = requireId($body['id'] ?? '');
     if ($api === 'create') {
-        $key = (string) (getenv('HAUSSTAND_WORKSPACE_KEY') ?: '');
-        $provided = (string) ($_SERVER['HTTP_X_WORKSPACE_KEY'] ?? '');
-        if (strlen($key) < 16 || !hash_equals($key, $provided)) fail(403, 'Workspace-Schlüssel fehlt oder ist ungültig.');
+        if (!$allowCreate) fail(403, 'Das Anlegen neuer Projekte wurde vom Serverbetreiber deaktiviert.');
         $name = trim((string) ($body['name'] ?? ''));
         if ($name === '' || strlen($name) > 240) fail(400, 'Dateiname ungültig.');
         $envelope = requireEnvelope($body['envelope'] ?? null);

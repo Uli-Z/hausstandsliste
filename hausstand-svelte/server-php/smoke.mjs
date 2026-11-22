@@ -8,10 +8,9 @@ import { encryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 const root = await mkdtemp(join(tmpdir(), 'hausstand-test-'));
 const port = 18743;
 const url = 'http://127.0.0.1:' + port + '/hausstand.php';
-const workspaceKey = 'test-workspace-key-at-least-16-chars';
 const server = spawn('php', ['-S', '127.0.0.1:' + port, '-t', 'dist'], {
   cwd: process.cwd(),
-  env: { ...process.env, HAUSSTAND_DATA_DIR: root, HAUSSTAND_WORKSPACE_KEY: workspaceKey },
+  env: { ...process.env, HAUSSTAND_DATA_DIR: root, HAUSSTAND_ALLOW_CREATE: 'true' },
   stdio: ['ignore', 'pipe', 'pipe']
 });
 let log = '';
@@ -37,12 +36,15 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   if (!ready) throw new Error('PHP server not ready: ' + log);
+  const config = await call('config');
+  assert.equal(config.status, 200);
+  assert.equal(config.canCreate, true);
+  assert.equal('data_dir' in config, false);
   const id = 'cafecafe-1234-4567-8888-aabbccddeeff';
   const token = randomSecret();
   const project = { people: [], items: [], events: [] };
   const envelope = await encryptProject(project, 'integration-password', token);
-  let r = await call('create', { id, name: 'Integrationstest', envelope, tokenHash: await hashSecret(token) },
-    {}, { 'X-Workspace-Key': workspaceKey });
+  let r = await call('create', { id, name: 'Integrationstest', envelope, tokenHash: await hashSecret(token) });
   assert.equal(r.status, 200, JSON.stringify(r));
   assert.equal(r.revision, 1);
   r = await call('files');

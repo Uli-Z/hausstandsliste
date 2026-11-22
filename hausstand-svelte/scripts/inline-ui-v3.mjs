@@ -20,5 +20,9 @@ assert.match(html,/data-label="Betrag"/,'Mobile finance row labels missing');
 assert.match(html,/person-name-field/,'Person name field must be layout-bounded');
 assert.match(await readFile(path.join(root,'ui-v3','DialogRouter.svelte'),'utf8'),/confirmFromInput/,'Dialog Enter handling missing');
 
-const out=path.join(root,'dist','pages','ui-v3');await mkdir(out,{recursive:true});await writeFile(path.join(out,'index.html'),html,'utf8');
-console.log('Standalone UI V3 validated: dist/pages/ui-v3/index.html');
+const phpMode=process.argv.includes('--php');
+const out=phpMode ? path.join(root,'dist') : path.join(root,'dist','pages','ui-v3');
+const filename=phpMode?'php-ui.html':'index.html';
+await mkdir(out,{recursive:true});
+await writeFile(path.join(out,filename),html,'utf8');
+console.log((phpMode?'PHP UI V3':'Standalone UI V3')+' validated: '+path.join(out,filename));
