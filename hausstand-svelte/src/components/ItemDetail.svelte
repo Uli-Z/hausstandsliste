@@ -85,7 +85,7 @@
         <span>{personName(event.financedByPersonId)} · {money(event.initialValue)} · {dateDE(event.date)}</span>
       </div>
     {/each}
-    <p class="muted">Diese beim Kauf oder bei Anteilsübertragungen entstandenen Wertverschiebungen gehen in die persönlichen Ausgleichssalden ein. Tatsächliche Zahlungen werden gemeinschaftlich verrechnet und sind deshalb keinem einzelnen Gegenstand als „bezahlt“ zugeordnet.</p>
+    <p class="muted">Diese Werte entstanden beim Kauf und bei entgeltlichen Anteilsänderungen. Spätere Zahlungen werden im gemeinsamen Ausgleichssaldo verrechnet, nicht bei einzelnen Gegenständen als „bezahlt“ markiert.</p>
     {#if itemClaims.length}
       <div style="overflow-x:auto">
         <table class="tight">
