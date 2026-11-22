@@ -2,6 +2,7 @@
   import { appState } from '../src/stores/projectStore.js';
   import { money } from '../src/lib/domain.js';
   import { label as valuationLabel } from '../src/lib/valuation.js';
+  import HelpTip from '../src/components/HelpTip.svelte';
   export let items = [];
   export let archived = [];
   export let tags = [];
@@ -35,8 +36,7 @@
   {/if}
 </section>
 <section class="ux-panel inventory-bottom">
-  <div class="section-header"><div><h2>Anteile ändern</h2></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Übertragung vorbereiten</button></div>
-  <p>Wenn jemand Anteile übernimmt, abgibt oder die Aufteilung angepasst werden soll, kannst du alle Änderungen gemeinsam prüfen.</p>
+  <div class="section-header"><div class="inventory-help-heading"><h2>Anteile ändern</h2><HelpTip label="Wie funktioniert eine Anteilsübertragung?">Wenn jemand Anteile übernimmt oder abgibt, kannst du die Änderungen gemeinsam prüfen. Entgeltliche Änderungen verändern die persönlichen Ausgleichssalden; eine tatsächliche Zahlung wird separat dokumentiert.</HelpTip></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Übertragung vorbereiten</button></div>
 </section>
 <section class="ux-panel archive-view">
   <div class="section-header"><div><h2>Frühere Gegenstände{#if archived.length} ({archived.length}){/if}</h2></div><button class="text-action" aria-expanded={showArchive} on:click={() => showArchive = !showArchive}>{showArchive ? 'Ausblenden' : 'Ansehen'} {showArchive ? '↑' : '↓'}</button></div>
@@ -48,6 +48,7 @@
 </section>
 
 <style>
+  .inventory-help-heading{display:flex;align-items:center;gap:8px}
   .item-top{justify-content:flex-end}
   .item-categories{font-size:11px;color:var(--muted);margin:0;line-height:1.5}
 </style>
