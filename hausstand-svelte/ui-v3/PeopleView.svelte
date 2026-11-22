@@ -2,6 +2,7 @@
   import { appState } from '../src/stores/projectStore.js';
   import { money } from '../src/lib/domain.js';
   export let people = [];
+  export let ledger = null;
   let search = '';
   $: filtered = people.filter(p => p.name.toLowerCase().includes(search.toLowerCase().trim())).sort((a,b)=>Number(b.active)-Number(a.active) || a.name.localeCompare(b.name, 'de'));
 </script>
@@ -11,9 +12,12 @@
     <div class="people-grid">
       {#each filtered as person (person.id)}
         <article class="person-tile">
-          <div class="person-heading"><span class="avatar" aria-hidden="true">{person.name.trim().charAt(0).toUpperCase()}</span><span class:inactive={!person.active} class="person-status">{person.active ? 'Dabei' : 'Nicht mehr dabei'}</span></div>
+          <div class="person-heading"><span class="avatar" aria-hidden="true">{person.name.trim().charAt(0).toUpperCase()}</span><span class:inactive={!person.active} class="person-status">{person.active ? 'Dabei' : person.inactiveFrom ? 'Ausgezogen' : 'Nicht mehr dabei'}</span></div>
           <h2>{person.name}</h2>
           <div class="person-value"><span>Wert der eigenen Anteile</span><strong>{money(person.totalValue || 0)}</strong></div>
+          {#if ledger?.balances?.get(person.id)}
+            <div class="person-value"><span>Netto-Forderungssaldo</span><strong>{money(Math.abs(ledger.balances.get(person.id)) / 100)} {ledger.balances.get(person.id) > 0 ? 'zu erhalten' : 'zu zahlen'}</strong></div>
+          {/if}
           <div class="person-bottom"><span>{person.holdings?.length || 0} Gegenstände</span><button on:click={() => appState.setRoute({page:'person',id:person.id})}>Profil öffnen →</button></div>
         </article>
       {/each}
