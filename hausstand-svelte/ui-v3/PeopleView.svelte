@@ -17,7 +17,7 @@
           <h2>{person.name}</h2>
           <div class="person-value"><span>Wert der eigenen Anteile</span><strong>{money(person.totalValue || 0)}</strong></div>
           {#if ledger?.balances?.get(person.id)}
-            <div class="person-value"><span>Rechnerischer Netto-Forderungssaldo</span><strong>{money(Math.abs(ledger.balances.get(person.id)) / 100)}</strong><small>{PERSON_BALANCE_NOTE(ledger.balances.get(person.id))}</small></div>
+            <div class="person-value"><span>Persönlicher Ausgleichssaldo</span><strong>{money(Math.abs(ledger.balances.get(person.id)) / 100)}</strong><small>{PERSON_BALANCE_NOTE(ledger.balances.get(person.id))}</small></div>
           {/if}
           <div class="person-bottom"><span>{person.holdings?.length || 0} Gegenstände</span><button on:click={() => appState.setRoute({page:'person',id:person.id})}>Profil öffnen →</button></div>
         </article>
