@@ -41,3 +41,29 @@ test('ordinary person and item views do not use decorative badges and empty cate
   assert.match(source('ui-v3/InventoryView.svelte'), /bind:value=\{tag\}/);
   assert.match(source('ui-v3/PersonDetail.svelte'), /BalanceBreakdown/);
 });
+
+
+test('contextual help does not occupy the main layout until requested', () => {
+  const help = source('src/components/HelpTip.svelte');
+  assert.match(help, /aria-label=\{label\}/);
+  assert.match(help, /aria-expanded=\{open\}/);
+  assert.match(help, /\{#if open\}/);
+  assert.match(help, /event\.key === 'Escape'/);
+  assert.match(help, /onWindowClick/);
+
+  for (const file of ['ui-v3/LedgerView.svelte', 'src/components/LedgerPanel.svelte']) {
+    const s = source(file);
+    assert.match(s, /import HelpTip/);
+    assert.match(s, /<HelpTip label="Wie funktionieren die Zahlungsvorschläge\?"/);
+    assert.doesNotMatch(s, /<p class="intro">/);
+    assert.doesNotMatch(s, /<p class="section-footnote">/);
+  }
+  for (const file of ['ui-v3/PersonDetail.svelte', 'ui-v3/ItemDetail.svelte',
+    'ui-v3/Timeline.svelte', 'ui-v3/RedistributionDialog.svelte',
+    'ui-v3/ExecutedRedistributionEditDialog.svelte', 'src/components/SettlementDialog.svelte']) {
+    assert.match(source(file), /<HelpTip/);
+  }
+  const dialog = source('src/components/SettlementDialog.svelte');
+  assert.match(dialog, /Ist diese Zahlung bereits erfolgt/);
+  assert.doesNotMatch(dialog, /<p class="settlement-intro">/);
+});
