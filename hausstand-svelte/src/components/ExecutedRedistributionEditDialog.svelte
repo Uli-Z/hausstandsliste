@@ -31,10 +31,11 @@
     }))
   } : null;
 
-  // Für die Berechnung der Wertverschiebung muss das Original-Event aus dem Projekt entfernt werden,
-  // damit die Basis-Projektion den Stand DAVOR korrekt wiedergibt.
-  $: projectBefore = project.events.filter(e => e.id !== event?.id);
-  $: preview = redistributionForPreview ? redistributionPreview({ ...project, events: projectBefore }, redistributionForPreview) : { rows: [], payments: [] };
+  // A07: Die Historienvorschau muss am bearbeiteten Datum exakt VOR diesem
+  // Ereignis stoppen, auch wenn am selben Tag weitere Änderungen folgen.
+  $: preview = redistributionForPreview
+    ? redistributionPreview(project, redistributionForPreview, { beforeEventId: edited.id, order: edited.order })
+    : { rows: [], payments: [] };
 
   let editingChildId = null;
   let editedChildShares = {};
