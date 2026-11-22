@@ -1,3 +1,5 @@
+import { claimReferenceKey } from './claimMatching.js';
+
 /**
  * B03: calculate the locally outstanding part of each derived claim from
  * matched dated settlement events. No second persistent balance or paid flag.
@@ -9,7 +11,7 @@
 export function applyClaimSettlements(claims, matched, unmatched = []) {
   const positions = claims.map(claim => ({
     claim,
-    claimKey: null,
+    claimKey: claimReferenceKey(claim),
     amountCents: claim.amountCents,
     paidCents: 0,
     externalCents: 0,
