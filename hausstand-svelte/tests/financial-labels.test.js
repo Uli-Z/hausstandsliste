@@ -69,10 +69,11 @@ test('A06: both interfaces use the same semantic labels and timelines never show
     assert.doesNotMatch(timeline, /preview\.payments\.length/);
     assert.doesNotMatch(timeline, /\} Zahlungen/);
     const panel = source(flavor + (flavor.startsWith('ui-') ? 'LedgerView.svelte' : 'LedgerPanel.svelte'));
-    assert.match(panel, /Ausgleich pro Person/);
+    assert.match(panel, /Salden der Personen/);
     assert.match(panel, /Ausgleichen/);
-    assert.match(panel, /Zahlung manuell erfassen/);
-    assert.match(panel, /Herkunft der Salden anzeigen/);
+    assert.match(panel, /BalanceBreakdown/);
+    assert.match(panel, /Zahlung erfassen/);
+    assert.match(panel, /Herkunft der Wertverschiebungen/);
     const prefix = flavor.startsWith('ui-') ? 'ui-v3/' : 'src/components/';
     for (const name of ['RedistributionDialog.svelte', 'ExecutedRedistributionEditDialog.svelte']) {
       const dialog = source(prefix + name);
@@ -81,7 +82,7 @@ test('A06: both interfaces use the same semantic labels and timelines never show
     }
   }
   const dashboard = source('ui-v3/App.svelte');
-  assert.match(dashboard, /Möglicher Ausgleich/);
-  assert.match(dashboard, /Ausgleichssalden/);
+  assert.match(dashboard, /Ausgleichsvorschläge/);
+  assert.match(dashboard, /outstandingCents/);
   assert.doesNotMatch(dashboard, /Keine offenen Beträge/);
 });
