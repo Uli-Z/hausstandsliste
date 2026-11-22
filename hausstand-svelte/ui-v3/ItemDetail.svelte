@@ -19,16 +19,10 @@
       <div class="stack">
         <div class="detail-title">
           <h2>{item.name}</h2>
-          <span class="badge" class:ok={item.status==='active'} class:warn={item.status!=='active'}>{item.status}</span>
+          {#if item.status !== 'active'}<span class="item-status-text">Nicht mehr im Bestand</span>{/if}
         </div>
-        <div>
-          {#if item.tags?.length}
-            {#each item.tags as tag}<span class="tag">{tag}</span>{/each}
-          {:else}
-            <span class="muted">keine Tags</span>
-          {/if}
-        </div>
-        {#if item.note}<div class="notice">{item.note}</div>{/if}
+        {#if item.tags?.length}<p class="item-categories">Kategorien: {item.tags.join(', ')}</p>{/if}
+        {#if item.note}<p class="item-description">{item.note}</p>{/if}
         <div class="grid-3">
           <div class="mini-card"><div class="muted">Wert</div><strong>{money(item.value)}</strong></div>
           <div class="mini-card"><div class="muted">Anteilseigner</div><strong>{item.shareRows.length}</strong></div>
@@ -99,3 +93,8 @@
     {/if}
   </div>
 </section>
+
+<style>
+  .item-status-text{color:var(--muted);font-size:12px}
+  .item-categories,.item-description{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+</style>
