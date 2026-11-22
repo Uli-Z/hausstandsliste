@@ -92,3 +92,7 @@ Ein erfolgreicher [GitHub-Actions-Lauf](https://github.com/Uli-Z/hausstandsliste
 - `.github/workflows/pages.yml`: erstellt aus derselben Svelte-Anwendung das öffentliche statische Pages-Artefakt. Die automatische initiale Aktivierung war durch einen GitHub-Rechtefehler blockiert; Repository-Administrator muss Settings → Pages → GitHub Actions einmalig einstellen. [Deployment-Anleitung](DEPLOYMENT.md).
 
 Noch offen: manuelle Browser-End-to-End-Tests und Sicherheitsreview auf einem realen HTTPS-PHP-Host, tatsächliche E-Mail-Zustellung und vollständige Neuschlüsselung der Versionshistorie.
+
+## Regression A04: Keine Zahlungen bei unentgeltlichen Umverteilungen (22.11.2026)
+
+`tests/redistribution.test.js` kontrolliert, dass Schenkungen/Korrekturen trotz berechneter Wertverschiebung **keine** Ausgleichszahlung empfehlen und keine Forderung erzeugen. Der Test deckt auch entgeltliche Vorgänge, alte Entwürfe ohne Finanzmodus sowie die Vorschau historisch ausgeführter Umverteilungen ab. Das gemeinsame Fachmodul und beide UI-Varianten zeigen in diesen Fällen den Hinweis auf die fehlende Forderung; der Markdown-Bericht beschreibt keinen erfolgten Geldfluss. Browser-Klicktest und CI-Lauf nach dem Commit sind separat zu prüfen.
