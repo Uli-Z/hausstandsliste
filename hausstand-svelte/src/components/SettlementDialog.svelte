@@ -6,6 +6,7 @@
 
   export let dialog;
   export let project;
+  export let asOfDate;
 
   let initializedFor;
   let date = '';
@@ -80,7 +81,8 @@
     if (!confirm('Diesen dokumentierten Ausgleich wirklich löschen? Der Ausgleichssaldo wird danach neu berechnet.')) return;
     busy = true;
     const saved = appState.mutateProject(p => {
-      p.events = p.events.filter(e => e.id !== original.id);
+      const i = p.events.findIndex(e => e.id === original.id && e.type === 'claim-settlement-recorded');
+      if (i !== -1) p.events.splice(i, 1);
     });
     if (saved) close();
     else busy = false;
@@ -96,6 +98,7 @@
     <form on:submit|preventDefault={save}>
       <div class="modal-body stack">
         <p class="muted">Hier dokumentierst du einen bereits erfolgten Ausgleich. Es wird kein Geld überwiesen und kein Eigentumsanteil geändert.</p>
+        {#if date > asOfDate}<p class="notice">Das Zahlungsdatum liegt nach dem betrachteten Stichtag {asOfDate}. Die Zahlung wird erst ab ihrem Datum in der Saldenansicht sichtbar.</p>{/if}
         <div class="form-grid">
           <label>Von wem?
             <select bind:value={payer}>
