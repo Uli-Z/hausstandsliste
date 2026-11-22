@@ -14,10 +14,10 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('A06: labels always separate derived claims, payment suggestions and booked payments', () => {
-  assert.match(PAYMENT_STATUS_NOTICE, /keine tatsächlichen Zahlungen erfasst/i);
-  assert.match(BILATERAL_BALANCE_DESCRIPTION, /keine tatsächlich geleisteten Zahlungen/i);
+  assert.match(PAYMENT_STATUS_NOTICE, /Dokumentierte Ausgleichsereignisse/i);
+  assert.match(BILATERAL_BALANCE_DESCRIPTION, /gegenläufigen Ansprüchen/i);
   assert.match(MULTILATERAL_SUGGESTION_DESCRIPTION, /unverbindlich/i);
-  assert.match(MULTILATERAL_SUGGESTION_DESCRIPTION, /keine Zahlung/i);
+  assert.match(MULTILATERAL_SUGGESTION_DESCRIPTION, /Keine Zahlung/i);
   assert.match(REDISTRIBUTION_SUGGESTION_TITLE, /nicht gebucht/i);
   assert.match(REDISTRIBUTION_SUGGESTION_NOTICE, /keine gebuchte Zahlung/i);
   assert.match(DERIVED_CLAIMS_DESCRIPTION, /keine Zahlungen/i);
