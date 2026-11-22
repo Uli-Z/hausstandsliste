@@ -193,7 +193,7 @@
     const itemId = uid('item');
     const activePeople = projection.people.filter(p => p.active);
     const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
-    appState.mutateProject(p => {
+    const saved = appState.mutateProject(p => {
       p.items.push({ id: itemId, name: itemName || 'Neuer Gegenstand', tags: parseTags(tags), note });
       p.events.push(createEvent('item-added', asOfDate, { 
         itemId, 
@@ -212,13 +212,13 @@
       if (dialog.id) {
         p.drafts = (p.drafts || []).filter(d => d.id !== dialog.id);
       }
-    }); 
-    close();
+    });
+    if (saved) close();
   }
 
   function continueItem() {
     const newItemId = uid('item');
-    appState.mutateProject(p => {
+    const saved = appState.mutateProject(p => {
       // 1. Altes Item beenden
       p.events.push(createEvent('item-ended', asOfDate, { 
         itemId: projectedItem.id, 
@@ -247,12 +247,18 @@
         shares: normShares(shares) 
       }));
     });
+    if (!saved) return;
     close();
     appState.setRoute({ page: 'item', id: newItemId });
   }
 
   function saveItemMeta() { appState.mutateProject(p => { const x = p.items.find(y => y.id === item.id); if (x) { x.name = itemName || x.name; x.tags = parseTags(tags); x.note = note; } }); close(); }
-  function saveShareSet() { appState.mutateProject(p => p.events.push(createEvent('shares-set', asOfDate, { itemId: projectedItem.id, shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert' }))); close(); }
+  function saveShareSet() {
+    const saved = appState.mutateProject(p => p.events.push(createEvent('shares-set', asOfDate, {
+      itemId: projectedItem.id, shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert'
+    })));
+    if (saved) close();
+  }
   function endItem() { appState.mutateProject(p => p.events.push(createEvent('item-ended', asOfDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }))); close(); }
 </script>
 
