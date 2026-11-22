@@ -4,6 +4,11 @@
 
 **Stand 21.11.2026: Forderungsprojektion, lokale Verschlüsselung, PHP-Dateispeicherung, Checkout und Versionshistorie implementiert; automatisierte Tests und PHP-Integration bestanden. GitHub Pages erfordert noch die einmalige Aktivierung durch den Repository-Administrator; PHP-Hosting und echter Mailversand noch nicht eingerichtet.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
 
+## P0-Fehlerbehebung (22.11.2026)
+
+- [x] **A01:** Aktive Gegenstände mit 0 € Zeitwert bleiben im Bestand, in den Eigentumsanteilen und in der Umverteilungs-Auswahl sichtbar. `projectAt()` filtert den aktiven Bestand nun ausschließlich nach dem Ereignisstatus; die Wertsumme bleibt 0 €. Regressionstests: `tests/projector.test.js` (Abschreibung, Übertragung ohne fiktive Forderung, Archivierung). Automatisierte CI- und Browserprüfung sind gesondert zu bestätigen.
+- [ ] Weitere P0-Fehler **A02–A07** und die Zahlungserfassung bleiben offen. Maßgeblich ist die [priorisierte To-do-Liste](WG-PRAXIS-TODO.md).
+
 ## Bereits vorhanden (statisch im Code geprüft)
 
 - Personen und Gegenstände mit historischen Ereignissen; Anteile zum Stichtag
