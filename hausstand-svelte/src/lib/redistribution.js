@@ -83,7 +83,22 @@ export function buildTransferChanges(projectionAtDate, sourcePersonId, targetPer
 }
 
 /**
- * Erzeugt eine Liste von Änderungen für eine Umverteilung, um alle Anteile einer Person zu entfernen.
+ * Items for which a person is the last owner cannot be removed via the
+ * redistribution shortcut. They must be transferred or explicitly ended.
+ */
+export function soleOwnedItems(projectionAtDate, sourcePersonId) {
+  if (!sourcePersonId) return [];
+  return (projectionAtDate?.activeItems || []).filter(item => {
+    if (Number(item.shares?.[sourcePersonId] || 0) <= 0) return false;
+    const remaining = { ...item.shares };
+    delete remaining[sourcePersonId];
+    return shareTotal(normShares(remaining)) <= 0;
+  });
+}
+
+/**
+ * Remove a person's units only when another owner would remain.
+ * The caller can use soleOwnedItems() to explain skipped items.
  */
 export function buildRemovePersonChanges(projectionAtDate, sourcePersonId) {
   if (!sourcePersonId) return [];
@@ -93,7 +108,9 @@ export function buildRemovePersonChanges(projectionAtDate, sourcePersonId) {
     if (item.shares && item.shares[sourcePersonId]) {
       const newShares = { ...item.shares };
       delete newShares[sourcePersonId];
-      changes.push({ itemId: item.id, shares: normShares(newShares) });
+      const clean = normShares(newShares);
+      if (shareTotal(clean) <= 0) continue; // Never create an ownerless active item.
+      changes.push({ itemId: item.id, shares: clean });
     }
   }
   return changes;
