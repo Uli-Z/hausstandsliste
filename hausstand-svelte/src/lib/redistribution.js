@@ -1,5 +1,5 @@
 import { normShares, shareTotal, money } from './domain.js';
-import { projectAt, shareDeltasForChange } from './projector.js';
+import { projectAt, projectBeforeEvent, shareDeltasForChange } from './projector.js';
 
 export function sharesEqual(left, right) {
   const a = normShares(left);
@@ -134,8 +134,13 @@ export function buildAddPersonChanges(projectionAtDate, targetPersonId, units) {
 /**
  * Berechnet die Vorschau einer Umverteilung (Deltas und Ausgleichszahlungen).
  */
-export function redistributionPreview(project, redistribution) {
-  const base = projectAt(project, redistribution.effectiveDate);
+export function redistributionPreview(project, redistribution, { beforeEventId = null, order = null } = {}) {
+  // For historical corrections, evaluate the exact position of that event;
+  // future/same-day-later events must not contaminate the valuation.
+  // New planned redistributions are appended after other events on their date.
+  const base = beforeEventId
+    ? projectBeforeEvent(project, beforeEventId, redistribution.effectiveDate, order)
+    : projectAt(project, redistribution.effectiveDate);
   const deltas = new Map();
   
   for (const change of redistribution.changes || []) {
