@@ -1,12 +1,13 @@
 <script>
   import { appState } from '../src/stores/projectStore.js';
-  import { money, normShares } from '../src/lib/domain.js';
+  import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { 
     redistributionPreview, 
     redistributionMarkdown, 
     buildRedistributionItemRows,
     buildTransferChanges, 
     buildRemovePersonChanges, 
+    soleOwnedItems, 
     buildAddPersonChanges,
     sharesEqual
   } from '../src/lib/redistribution.js';
@@ -38,6 +39,10 @@
 
   function upsertChange(itemId, shares) {
     const clean = normShares(shares);
+    if (shareTotal(clean) <= 0) {
+      alert('Ein aktiver Gegenstand braucht mindestens eine Person mit positivem Eigentumsanteil. Bitte erst Anteile übertragen oder den Gegenstand ausdrücklich beenden.');
+      return false;
+    }
     const baseItem = preview.base?.items.find(item => item.id === itemId);
     const idx = redistribution.changes.findIndex(c => c.itemId === itemId);
     if (baseItem && sharesEqual(baseItem.shares, clean)) {
@@ -45,6 +50,7 @@
     } else if (idx >= 0) redistribution.changes[idx] = { itemId, shares: clean };
     else redistribution.changes.push({ itemId, shares: clean });
     redistribution = { ...redistribution };
+    return true;
   }
 
   function openItemEdit(item) {
@@ -61,6 +67,12 @@
     if (activeSubModal === 'special-transfer') {
       changes = buildTransferChanges(preview.base, subModalData.sourceId, subModalData.targetId);
     } else if (activeSubModal === 'special-remove') {
+      const blocked = soleOwnedItems(preview.base, subModalData.sourceId);
+      if (blocked.length) {
+        alert('Die letzte Eigentümerin bzw. der letzte Eigentümer kann bei diesen Gegenständen nicht entfernt werden: '
+          + blocked.map(item => item.name).join(', ')
+          + '. Bitte die Anteile übertragen oder die Gegenstände ausdrücklich beenden. Andere Gegenstände werden bearbeitet.');
+      }
       changes = buildRemovePersonChanges(preview.base, subModalData.sourceId);
     } else if (activeSubModal === 'special-add') {
       changes = buildAddPersonChanges(preview.base, subModalData.targetId, Number(subModalData.units) || 1);
@@ -83,14 +95,14 @@
 
   function execute() {
     if (!confirm('Umverteilung jetzt ausführen?')) return;
-    appState.mutateProject(p => {
+    const saved = appState.mutateProject(p => {
       p.events.push({ 
         id: uid('event'), type: 'redistribution-executed', date: redistribution.effectiveDate, order: Date.now(), title: redistribution.title, financialMode: redistribution.financialMode,
         events: redistribution.changes.map(c => ({ id: uid('event_child'), type: 'shares-set', itemId: c.itemId, shares: normShares(c.shares), note: redistribution.title })) 
       });
       p.drafts = (p.drafts || []).filter(d => d.id !== redistribution.id);
     });
-    appState.closeDialog();
+    if (saved) appState.closeDialog();
   }
 </script>
 
@@ -224,7 +236,7 @@
       <div class="modal-footer">
         <button on:click={() => activeSubModal = null}>Abbrechen</button>
         <button class="primary" on:click={() => {
-          if (activeSubModal === 'item') { upsertChange(subModalData.item.id, subModalData.shares); activeSubModal = null; }
+          if (activeSubModal === 'item') { if (upsertChange(subModalData.item.id, subModalData.shares)) activeSubModal = null; }
           else applySpecial();
         }}>Anwenden</button>
       </div>
