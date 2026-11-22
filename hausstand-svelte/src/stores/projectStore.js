@@ -3,6 +3,7 @@ import { emptyProject, normalize } from '../lib/domain.js';
 import { clone, todayISO, uid } from '../lib/util.js';
 import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
+import { newUnownedActiveTransitions } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 
 const initial = {
@@ -33,12 +34,24 @@ function createStore() {
     importProject: (raw, fileName = null, secure = false, readOnly = false) => update(s => persist({ ...s, project: normalize(raw), fileName, secure, readOnly, dirty: false, route: { page: 'dashboard' } })),
     setReadOnly: readOnly => update(s => ({ ...s, readOnly })),
     newProject: name => update(s => persist({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, fileName: null, secure: false, readOnly: false, dirty: true, route: { page: 'dashboard' } })),
-    mutateProject: mutator => update(s => {
-      if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
-      const project = clone(s.project);
-      mutator(project);
-      return persist({ ...s, project, dirty: true });
-    }),
+    mutateProject: mutator => {
+      let saved = false;
+      update(s => {
+        if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
+        const project = clone(s.project);
+        mutator(project);
+        const invalid = newUnownedActiveTransitions(s.project, project);
+        if (invalid.length) {
+          const first = invalid[0];
+          const name = (project.items || []).find(item => item.id === first.itemId)?.name || first.itemId;
+          alert(`Änderung nicht gespeichert: „${name}“ wäre ab ${first.date} ohne Eigentümer. Bitte Anteile auf eine andere Person übertragen oder den Gegenstand ausdrücklich über „Beenden / archivieren“ beenden.`);
+          return s;
+        }
+        saved = true;
+        return persist({ ...s, project, dirty: true });
+      });
+      return saved;
+    },
     startRedistribution: (title, date, changes = [], extraDialog = {}) => update(s => {
       const r = createRedistribution(title || 'Neue Umverteilung', date || s.asOfDate, changes);
       return { ...s, activeDialog: { type: 'redistributionEdit', redistribution: r, ...extraDialog } };
