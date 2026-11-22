@@ -4,6 +4,7 @@
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
   import { money } from '../src/lib/domain.js';
+  import { PAYMENT_STATUS_NOTICE } from '../src/lib/financialLabels.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
   import PersonDetail from './PersonDetail.svelte';
@@ -184,7 +185,7 @@
           <div class="metric"><span>Gemeinsamer Bestandswert</span><strong>{money($projection.totalValue)}</strong><small>Wert aller aktiven Gegenstände</small></div>
           <div class="metric"><span>Gegenstände</span><strong>{$projection.activeItems.length}</strong><small>im aktuellen Bestand</small></div>
           <div class="metric"><span>Personen</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>aktuell dabei</small></div>
-          <div class="metric"><span>Offene Beziehungen</span><strong>{balances.length}</strong><small>mit noch zu verrechnenden Beträgen</small></div>
+          <div class="metric"><span>Bilaterale Nettosalden</span><strong>{balances.length}</strong><small>aus Forderungen, ohne Zahlungserfassung</small></div>
         </div>
 
         <div class="overview-layout">
@@ -198,7 +199,8 @@
             </div>
           </section>
           <section class="ux-panel financial-overview">
-            <div class="section-header"><div><span class="section-eyebrow">GELD</span><h2>Wer schuldet wem?</h2></div><button class="text-action" on:click={() => navigate('money')}>Alle Beträge ansehen →</button></div>
+            <div class="section-header"><div><span class="section-eyebrow">GELD</span><h2>Rechnerische Forderungssalden</h2></div><button class="text-action" on:click={() => navigate('money')}>Alle Beträge ansehen →</button></div>
+            <p class="muted">{PAYMENT_STATUS_NOTICE}</p>
             {#if balances.length}
               <div class="simple-debts">
                 {#each balances.slice(0,5) as b}
@@ -207,7 +209,7 @@
               </div>
               {#if balances.length > 5}<p class="muted">Weitere {balances.length - 5} Verbindungen im Bereich „Geld & Ausgleich“.</p>{/if}
             {:else}
-              <div class="gentle-empty"><span class="empty-symbol">✓</span><strong>Keine offenen Beträge</strong><p>Für diesen Stichtag ergeben sich keine Nettoschulden aus den erfassten Anteilsänderungen.</p></div>
+              <div class="gentle-empty"><span class="empty-symbol">✓</span><strong>Kein rechnerischer Nettosaldo</strong><p>Zum Stichtag gleichen sich die abgeleiteten Forderungen aus oder es bestehen keine. Das bedeutet nicht, dass Zahlungen erfolgt sind.</p></div>
             {/if}
           </section>
         </div>
@@ -250,7 +252,7 @@
         <div class="page-heading"><div><span class="overline">MITGLIEDER</span><h1>Personen</h1><p>Alle Beteiligten, ihre Gegenstände und ihr jeweiliger Wertanteil.</p></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ Person hinzufügen</button></div>
         <PeopleView people={$projection.people} ledger={$ledger}/>
       {:else if activeSection === 'money'}
-        <div class="page-heading"><div><span class="overline">FINANZEN</span><h1>Geld & Ausgleich</h1><p>Auf einen Blick: Wer schuldet wem etwas, und wie ergeben sich diese Beträge?</p></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Anteile übertragen</button></div>
+        <div class="page-heading"><div><span class="overline">FINANZEN</span><h1>Geld & Ausgleich</h1><p>Entstandene Forderungen, rechnerische Nettosalden und unverbindliche Überweisungsvorschläge. Tatsächliche Zahlungen werden noch nicht erfasst.</p></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Anteile übertragen</button></div>
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
         <div class="page-heading"><div><span class="overline">NACHVOLLZIEHBAR</span><h1>Änderungen</h1><p>Einzüge, Anschaffungen, Übertragungen und andere Vorgänge im zeitlichen Verlauf.</p></div></div>
