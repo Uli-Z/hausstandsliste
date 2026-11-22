@@ -4,7 +4,6 @@
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
   import { money } from '../src/lib/domain.js';
-  import { PAYMENT_STATUS_NOTICE } from '../src/lib/financialLabels.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
   import PersonDetail from './PersonDetail.svelte';
@@ -48,7 +47,7 @@
   $: dateMode = $appState.asOfDate > today ? 'future' : $appState.asOfDate < today ? 'past' : 'today';
   $: latestEvents = [...($appState.project.events || [])].filter(e => e.date && e.date <= $appState.asOfDate).sort((a,b)=>String(b.date).localeCompare(String(a.date)) || (b.order || 0) - (a.order || 0)).slice(0,5);
   $: futureEventCount = ($appState.project.events || []).filter(e => e.date > $appState.asOfDate).length;
-  $: balances = $ledger.pairwise || [];
+  $: balances = $ledger.simplified || [];
 
   function personName(id) { return $appState.project.people.find(p => p.id === id)?.name || 'Unbekannt'; }
   function itemName(id) { return $appState.project.items.find(i => i.id === id)?.name || 'Gegenstand'; }
@@ -186,7 +185,7 @@
           <div class="metric"><span>Gemeinsamer Bestandswert</span><strong>{money($projection.totalValue)}</strong><small>Wert aller aktiven Gegenstände</small></div>
           <div class="metric"><span>Gegenstände</span><strong>{$projection.activeItems.length}</strong><small>im aktuellen Bestand</small></div>
           <div class="metric"><span>Personen</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>aktuell dabei</small></div>
-          <div class="metric"><span>Bilaterale Nettosalden</span><strong>{balances.length}</strong><small>inklusive dokumentierter Gegenbuchungen</small></div>
+          <div class="metric"><span>Offene Ausgleichswege</span><strong>{balances.length}</strong><small>rechnerische Vorschläge</small></div>
         </div>
 
         <div class="overview-layout">
@@ -200,8 +199,8 @@
             </div>
           </section>
           <section class="ux-panel financial-overview">
-            <div class="section-header"><div><span class="section-eyebrow">GELD</span><h2>Rechnerische Forderungssalden</h2></div><button class="text-action" on:click={() => navigate('money')}>Alle Beträge ansehen →</button></div>
-            <p class="muted">{PAYMENT_STATUS_NOTICE}</p>
+            <div class="section-header"><div><span class="section-eyebrow">GELD</span><h2>Möglicher Ausgleich</h2></div><button class="text-action" on:click={() => navigate('money')}>Alle Beträge ansehen →</button></div>
+            <p class="muted">Aus dem eingebrachten Wert und den Anteilsänderungen entstehen persönliche Ausgleichssalden. Die Zahlungen sind nur Vorschläge.</p>
             {#if balances.length}
               <div class="simple-debts">
                 {#each balances.slice(0,5) as b}
@@ -210,7 +209,7 @@
               </div>
               {#if balances.length > 5}<p class="muted">Weitere {balances.length - 5} Verbindungen im Bereich „Geld & Ausgleich“.</p>{/if}
             {:else}
-              <div class="gentle-empty"><span class="empty-symbol">✓</span><strong>Kein rechnerischer Nettosaldo</strong><p>Zum Stichtag gleichen sich die abgeleiteten Forderungen aus oder es bestehen keine. Das bedeutet nicht, dass Zahlungen erfolgt sind.</p></div>
+              <div class="gentle-empty"><span class="empty-symbol">✓</span><strong>Kein offener Ausgleichssaldo</strong><p>Zum Stichtag gibt es keinen Wert, der noch ausgeglichen werden müsste.</p></div>
             {/if}
           </section>
         </div>
@@ -253,7 +252,7 @@
         <div class="page-heading"><div><span class="overline">MITGLIEDER</span><h1>Personen</h1><p>Alle Beteiligten, ihre Gegenstände und ihr jeweiliger Wertanteil.</p></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ Person hinzufügen</button></div>
         <PeopleView people={$projection.people} ledger={$ledger}/>
       {:else if activeSection === 'money'}
-        <div class="page-heading"><div><span class="overline">FINANZEN</span><h1>Geld & Ausgleich</h1><p>Forderungen und dokumentierte Gegenbuchungen ergeben bilaterale Nettosalden. Eine Eingabemaske für Zahlungen folgt.</p></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Anteile übertragen</button></div>
+        <div class="page-heading"><div><span class="overline">FINANZEN</span><h1>Geld & Ausgleich</h1><p>Wertausgleich aus euren Gegenständen und Anteilen. Dokumentiere hier nur Zahlungen, die bereits stattgefunden haben.</p></div><button class="outline-action" on:click={() => appState.setDialog({type:'settlementAdd'})} disabled={$appState.readOnly}>Zahlung erfassen</button></div>
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
         <div class="page-heading"><div><span class="overline">NACHVOLLZIEHBAR</span><h1>Änderungen</h1><p>Einzüge, Anschaffungen, Übertragungen und andere Vorgänge im zeitlichen Verlauf.</p></div></div>
