@@ -217,9 +217,6 @@
   .notice-small { font-size: 0.85rem; padding: 6px; background: var(--soft); border-radius: 4px; }
   .positive { color: var(--ok); }
   .negative { color: var(--warn); }
-</style>
-
-<style>
   .financial-help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .financial-help-heading strong{font-size:13px}
   .workflow-help{display:flex;justify-content:flex-end}
