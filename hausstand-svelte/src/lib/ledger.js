@@ -1,8 +1,7 @@
 import { normShares } from './domain.js';
 import { walkEvents } from './projector.js';
 import { valueAt } from './valuation.js';
-import { matchClaimSettlements } from './claimMatching.js';
-import { applyClaimSettlements } from './settlementBalances.js';
+import { deriveSettlementCounterclaims } from './claimSettlement.js';
 
 // Monetary calculations use integer cents. Largest-remainder allocation preserves
 // the total even for uneven shares (e.g. 10.00 EUR split in thirds).
@@ -148,20 +147,18 @@ export function simplifiedTransfers(claims) {
 
 export function ledgerAt(project, asOfDate) {
   const claims = deriveClaims(project, asOfDate);
-  // Claim matching imports the pure deriveClaims function from this module.
-  // The function exports are hoisted, so the ES module cycle is safe; passing
-  // the existing projection avoids a second chronological event walk.
-  const matching = matchClaimSettlements(project, asOfDate, claims);
-  const settlementProjection = applyClaimSettlements(claims, matching.matched, matching.unmatched);
-  const { openClaims } = settlementProjection;
+  const { entries: counterclaims, warnings } = deriveSettlementCounterclaims(project, asOfDate);
+  // One financial ledger: every money event has a debtor, a creditor, and an
+  // immutable amount. A payment is an entry in the inverse direction.
+  // No amount is capped or assigned to an individual purchase claim.
+  const entries = [...claims, ...counterclaims];
   return {
-    claims, // Original gross claims remain available for history/detail views.
-    ...settlementProjection,
-    // These reflect locally outstanding claims, including dated payments,
-    // externally tracked amounts and waived amounts. Opposing claims are
-    // netted only bilaterally; cross-person simplification remains a proposal.
-    pairwise: pairwiseBalances(openClaims),
-    simplified: simplifiedTransfers(openClaims),
-    balances: personBalances(openClaims)
+    claims, // Derived purchase/share claims (gross, for the audit trail).
+    counterclaims, // Independently recorded reverse entries, unchanged by edits.
+    entries,
+    warnings,
+    pairwise: pairwiseBalances(entries),
+    simplified: simplifiedTransfers(entries),
+    balances: personBalances(entries)
   };
 }
