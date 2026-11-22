@@ -1,6 +1,7 @@
 <script>
   import { appState } from '../src/stores/projectStore.js';
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
+  import HelpTip from '../src/components/HelpTip.svelte';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { 
     redistributionPreview, 
@@ -169,7 +170,7 @@
               </table>
             {:else}<div class="empty-small">Keine Verschiebung.</div>{/if}
             
-            <div class="muted" style="margin-top:8px">{redistribution.financialMode === 'derived' ? REDISTRIBUTION_SUGGESTION_TITLE : 'Keine Geldforderung bei dieser Änderung'}</div>
+            <div class="financial-help-heading"><strong>{redistribution.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label="Wie wirkt sich die Anteilsänderung finanziell aus?">{REDISTRIBUTION_SUGGESTION_TITLE} {REDISTRIBUTION_SUGGESTION_NOTICE}</HelpTip></div>
             {#if preview.payments.length}
               <table class="tight">
                 <tbody>
@@ -178,11 +179,11 @@
                   {/each}
                 </tbody>
               </table>
-                <div class="muted small-text">{REDISTRIBUTION_SUGGESTION_NOTICE}</div>
-            {:else}<div class="notice-small">{redistribution.financialMode === 'derived' ? 'Kein Ausgleich vorgeschlagen.' : 'Unentgeltlich: Es entsteht keine Forderung und es wird keine Zahlung erfasst.'}</div>{/if}
+                
+            {:else}<div class="notice-small">{redistribution.financialMode === 'derived' ? 'Kein Ausgleich vorgeschlagen.' : 'Unentgeltlich – kein Ausgleich.'}</div>{/if}
           </div>
         </section>
-        <div class="notice small-text">Du kannst die Änderung zuerst als Entwurf speichern. Erst nach „Änderung übernehmen“ werden die neuen Anteile wirksam.</div>
+        <div class="workflow-help"><HelpTip label="Hilfe zum Ablauf">Ein Entwurf wird gespeichert, verändert aber noch keine Eigentumsanteile. Erst wenn du die Änderung übernimmst, wird sie wirksam.</HelpTip></div>
       </div>
     </div>
 
@@ -258,4 +259,10 @@
   .negative { color: var(--warn); }
   .sub-modal { z-index: 100; }
   .content-left { overflow: hidden; display: flex; flex-direction: column; }
+</style>
+
+<style>
+  .financial-help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .financial-help-heading strong{font-size:13px}
+  .workflow-help{display:flex;justify-content:flex-end}
 </style>
