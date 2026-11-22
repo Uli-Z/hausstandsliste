@@ -4,6 +4,7 @@
   import { dateDE } from '../lib/util.js';
   import Timeline from './Timeline.svelte';
   import BalanceBreakdown from './BalanceBreakdown.svelte';
+  import HelpTip from './HelpTip.svelte';
   export let person;
   export let projection;
   export let asOfDate;
@@ -77,20 +78,19 @@
       {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' }, p)))}>Als ausgezogen markieren</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' }, p)))}>Wieder aufnehmen</button>{/if}
       <button on:click={startTransfer}>Anteile übertragen</button>
       <button on:click={startDissolve}>Anteile entfernen</button>
-    </div><div class="notice">Übertragen/Auflösen startet eine neue Umverteilung und öffnet direkt den Prüf-Dialog.</div></div>
+    </div></div>
   </div>
 </div></section>
 <section class="panel" style="margin-top:16px">
-  <div class="panel-header"><h2>So setzt sich der Ausgleichssaldo zusammen</h2></div>
+  <div class="panel-header"><div class="help-heading"><h2>Ausgleichssaldo im Detail</h2><HelpTip label="Wie entsteht dieser Ausgleichssaldo?">Der Saldo ergibt sich aus historischen Anschaffungswerten, erhaltenen oder abgegebenen Eigentumsanteilen und dokumentierten Ausgleichszahlungen. Die aktuelle Abschreibung ändert diese früheren Wertbewegungen nicht rückwirkend.</HelpTip></div></div>
   <div class="panel-body">
     <BalanceBreakdown detail={balanceDetail} {balanceCents}/>
   </div>
 </section>
 {#if transfersForPerson.length}
   <section class="panel" style="margin-top:16px">
-    <div class="panel-header"><h2>Ausgleichsmöglichkeiten</h2></div>
+    <div class="panel-header"><div class="help-heading"><h2>Ausgleichsmöglichkeiten</h2><HelpTip label="Was bedeuten die Ausgleichsmöglichkeiten?">Dies sind mögliche Zahlungswege zum gemeinschaftlichen Ausgleich. Erst nach der Bestätigung einer bereits geleisteten Zahlung wird diese im Verlauf dokumentiert.</HelpTip></div></div>
     <div class="panel-body stack">
-      <p class="muted">Unverbindliche Vorschläge zum Ausgleich der gemeinsamen Salden. Eine Zahlung wird erst nach Bestätigung dokumentiert.</p>
       {#each transfersForPerson as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
         <div class="split">
           <span>{nameOf(transfer.fromPersonId)} an {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
@@ -136,5 +136,6 @@
 {/if}
 
 <style>
+  .help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .person-inactive { color:var(--muted);font-size:13px; }
 </style>
