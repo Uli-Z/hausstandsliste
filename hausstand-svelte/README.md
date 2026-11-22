@@ -39,7 +39,7 @@ Die Datei `dist/hausstand-standalone.html` soll direkt im Browser und ohne Serve
 
 ## Fachliche Grenzen
 
-Die App verwaltet **Eigentums- und Wertanteile**, nicht die tatsächliche Bezahlung von Ausgleichsforderungen. Der Button „Umverteilung ausführen“ speichert Anteilsänderungen in der Ereignis-Timeline; er markiert keine Zahlung als beglichen. Ein eigener Zahlungsstatus ist als nächster Ausbauschritt geplant.
+Die App verwaltet in erster Linie **Eigentums- und Wertanteile**. Sie kann bereits geleistete Ausgleichszahlungen als eigenständige datierte Ereignisse dokumentieren, bearbeiten und löschen, überweist aber kein Geld. Der Button „Umverteilung ausführen“ speichert Anteilsänderungen, **keine** Zahlung. Das persönliche Wertkonto ergibt sich aus Finanzierung, Anteilen, Anteilsübertragungen und dokumentierten Zahlungen; ein zusätzlicher Bezahlstatus wird nicht geführt.
 
 Ein gespeicherter Browser-Arbeitsstand ist **keine Datensicherung**. Projekt-JSON regelmäßig exportieren und extern sichern. Keine echten persönlichen Hausgemeinschaftsdaten in Git committen.
 
@@ -58,7 +58,7 @@ Fachlich: [Forderungen je Anteilsbewegung, Ausgleichsstatus und Nettoschulden](.
 
 ## Forderungsprojektion (`master`, implementiert)
 
-`src/lib/ledger.js` berechnet bei explizit entgeltlichen Anteilsänderungen die Forderungen automatisch aus der Ereignishistorie; Gegenforderungen werden in `LedgerPanel.svelte` saldiert. Alte Ereignisse ohne `financialMode` bleiben finanziell neutral. Die Fachlogik speichert keine Forderungsbeträge und keine Abhak-Statuswerte. `npm test` prüft die wichtigsten historischen Fälle. Echte Geldzahlungen bleiben bewusst außerhalb dieses Ausbauschritts.
+`src/lib/ledger.js` berechnet bei explizit entgeltlichen Anteilsänderungen die Forderungen automatisch aus der Ereignishistorie; Gegenforderungen werden in `LedgerPanel.svelte` saldiert. Alte Ereignisse ohne `financialMode` bleiben finanziell neutral. Die Fachlogik speichert keine Forderungsbeträge und keine Abhak-Statuswerte. `npm test` prüft die wichtigsten historischen Fälle. Dazu kommen jetzt unabhängige Zahlungsevents und die nachvollziehbare Zerlegung der persönlichen Salden mit `ledgerAt().details` (ohne zusätzliche Persistenz).
 
 ## Build-Trennung (22.11.2026)
 
@@ -66,3 +66,8 @@ Fachlich: [Forderungen je Anteilsbewegung, Ausgleichsstatus und Nettoschulden](.
 - PHP-Build: `npm run build:php`; erzeugt `dist/hausstand.php` aus der **aktuellen V3-UI** plus PHP-Backend. Datenordner und Berechtigungen werden **oben in der PHP-Datei** durch den Betreiber eingestellt. Endanwender brauchen keine Serverdaten einzugeben.
 - Manueller GitHub-Workflow: [PHP-Datei bauen](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml).
 - Details: [Getrennte Buildvarianten](../docs/BUILD-VARIANTS.md).
+
+
+## Einfache Ausgleichsbedienung (22.11.2026)
+
+Die mobile V3-Oberfläche führt über **Ausgleichsvorschläge → Ausgleichen → bereits erfolgte Zahlung bestätigen**. Die Zahlung ist im Verlauf bearbeitbar/löschbar. Der Personenbereich erklärt den Saldo als Summe von Finanzierungen, aufgenommenen/abgegebenen Anteilen und Zahlungen. Zahlungen werden keinem bestimmten Gegenstand zugeordnet; die ursprünglichen Wertverschiebungen bleiben als Herkunft einsehbar. Kategorien werden gefiltert, aber nicht als wiederholte Badge-Chips präsentiert. Details und rechtliche Abgrenzung: [gemeinschaftlicher Wertausgleich](../docs/FEATURE-COMMUNAL-SETTLEMENT.md).
