@@ -3,7 +3,7 @@
   import { dateDE } from '../lib/util.js';
   import { money } from '../lib/domain.js';
   import { projectBeforeEvent, shareDeltasForChange } from '../lib/projector.js';
-  import { redistributionPreview } from '../lib/redistribution.js';
+  import { FINANCIAL_EVENT_NOTE, ITEM_FUNDING_NOTE } from '../lib/financialLabels.js';
   export let project;
   export let asOfDate;
   export let itemId = null;
@@ -86,10 +86,9 @@
 
   function summary(event) {
     if (event.type === 'redistribution-executed') {
-      const preview = redistributionPreview(project, { title: event.title, effectiveDate: event.date, financialMode: event.financialMode, changes: (event.events || []).filter(e => e.type === 'shares-set') });
       const affectedItems = [...new Set((event.events || []).filter(e => e.type === 'shares-set').map(e => itemName(e.itemId)).filter(Boolean))];
       const itemInfo = affectedItems.length ? ` · ${affectedItems.join(', ')}` : '';
-      return `${event.title || 'Umverteilung'} · ${(event.events || []).length} Änderungen · ${event.financialMode === 'derived' ? preview.payments.length + ' Ausgleichsvorschläge' : 'keine Forderung'}${itemInfo}`;
+      return `${event.title || 'Umverteilung'} · ${(event.events || []).length} Änderungen · ${FINANCIAL_EVENT_NOTE(event)}${itemInfo}`;
     }
     if (event.type === 'shares-set') {
       const before = projectBeforeEvent(project, event.id, event.date);
@@ -113,14 +112,8 @@
 
   function redistributionData(event) {
     const shareEvents = (event.events || []).filter(e => e.type === 'shares-set');
-    const preview = redistributionPreview(project, {
-      title: event.title,
-      effectiveDate: event.date,
-      financialMode: event.financialMode,
-      changes: shareEvents
-    });
     const affectedItems = [...new Set(shareEvents.map(e => e.itemId).filter(Boolean))];
-    return { preview, affectedItems };
+    return { affectedItems };
   }
 
   function openEdit(event) {
@@ -148,7 +141,7 @@
             <div class="event-summary">
               {#if event.type === 'redistribution-executed'}
                 {@const data = redistributionData(event)}
-                <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {event.financialMode === 'derived' ? data.preview.payments.length + ' Ausgleichsvorschläge' : 'keine Forderung'}</span>
+                <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {FINANCIAL_EVENT_NOTE(event)}</span>
                 {#if data.affectedItems.length}
                   <span> · </span>
                   {#each data.affectedItems as currentItemId, index}
@@ -166,6 +159,7 @@
                     <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
                   {/each}
                 {/if}
+                <span> · {FINANCIAL_EVENT_NOTE(event)}</span>
               {:else if event.type === 'person-added'}
                 <span>Willkommen, </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
               {:else if event.type === 'person-deactivated'}
@@ -173,7 +167,7 @@
               {:else if event.type === 'person-reactivated'}
                 <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Rückkehr'}</span>
               {:else if event.type === 'item-added'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span>
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)} · {ITEM_FUNDING_NOTE(event)}</span>
               {:else if event.type === 'item-ended'}
                 <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
               {:else}
@@ -200,7 +194,7 @@
           <div class="event-summary">
             {#if event.type === 'redistribution-executed'}
               {@const data = redistributionData(event)}
-              <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {event.financialMode === 'derived' ? data.preview.payments.length + ' Ausgleichsvorschläge' : 'keine Forderung'}</span>
+              <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen · {FINANCIAL_EVENT_NOTE(event)}</span>
               {#if data.affectedItems.length}
                 <span> · </span>
                 {#each data.affectedItems as currentItemId, index}
@@ -218,6 +212,7 @@
                   <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
                 {/each}
               {/if}
+              <span> · {FINANCIAL_EVENT_NOTE(event)}</span>
             {:else if event.type === 'person-added'}
               <span>Willkommen, </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
             {:else if event.type === 'person-deactivated'}
@@ -225,7 +220,7 @@
             {:else if event.type === 'person-reactivated'}
               <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Rückkehr'}</span>
             {:else if event.type === 'item-added'}
-              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span>
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)} · {ITEM_FUNDING_NOTE(event)}</span>
             {:else if event.type === 'item-ended'}
               <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
             {:else}
