@@ -26,7 +26,7 @@
 
 <section class="panel ledger-v3">
   <div class="panel-header">
-    <h2>Rechnerische Forderungen &amp; Salden</h2>
+    <h2>Forderungen, Gegenbuchungen &amp; Nettosalden</h2>
     <span class="hint">Stichtag {dateDE(asOfDate)}</span>
   </div>
   <div class="panel-body stack">
@@ -52,7 +52,7 @@
             </tbody>
           </table>
         {:else}
-          <div class="muted">Kein rechnerischer Nettosaldo aus den erfassten Forderungen. Das bestätigt keine Zahlung.</div>
+          <div class="muted">Kein offener bilateraler Saldo. Das kann an Zahlungen, Gegenbuchungen oder gegenseitigen Ansprüchen liegen.</div>
         {/if}
       </section>
       <section class="mini-card stack">
@@ -75,6 +75,30 @@
         {/if}
       </section>
     </div>
+    {#if data.counterclaims?.length}
+      <div class="mini-card stack">
+        <strong>Dokumentierte Gegenbuchungen ({data.counterclaims.length})</strong>
+        <div class="muted small-text">Zahlungen erzeugen rechnerisch eine Forderung in Gegenrichtung. Extern verbucht oder erlassen bedeutet nicht, dass Geld überwiesen wurde. Buchungen bleiben unabhängig von Anschaffungen bestehen.</div>
+        <div style="overflow-x:auto">
+          <table class="tight">
+            <thead><tr><th>Datum</th><th>Art</th><th>Von → an</th><th class="money">Betrag</th></tr></thead>
+            <tbody>
+              {#each data.counterclaims as entry, index (entry.sourceEventId + ':' + index)}
+                <tr>
+                  <td>{dateDE(entry.date)}</td>
+                  <td>{entry.entryKind === 'paid' ? 'Zahlung' : entry.entryKind === 'external' ? 'Extern verbucht' : 'Erlassen'}</td>
+                  <td>{personName(entry.creditorPersonId)} → {personName(entry.debtorPersonId)}</td>
+                  <td class="money">{money(entry.amountCents / 100)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {/if}
+    {#if data.warnings?.length}
+      <div class="notice">Achtung: {data.warnings.length} ungültige oder doppelte Gegenbuchungen wurden nicht angerechnet. Bitte im Ereignisverlauf prüfen.</div>
+    {/if}
     <button class="small" on:click={() => showDetails = !showDetails}>
       {showDetails ? 'Entstandene Forderungen ausblenden' : 'Entstandene Forderungen anzeigen'} ({data.claims.length})
     </button>
