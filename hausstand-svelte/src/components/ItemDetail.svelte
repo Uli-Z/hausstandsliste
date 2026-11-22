@@ -4,6 +4,7 @@
   import { label as valuationLabel } from '../lib/valuation.js';
   import { dateDE } from '../lib/util.js';
   import Timeline from './Timeline.svelte';
+  import HelpTip from './HelpTip.svelte';
   export let item;
   $: itemClaims = ($ledger.claims || []).filter(claim => claim.itemId === item.id);
   $: fundingEvents = ($appState.project.events || []).filter(event =>
@@ -77,7 +78,7 @@
 </section>
 
 <section class="panel" style="margin-top:16px">
-  <div class="panel-header"><h2>Finanzierung &amp; Wertausgleich</h2></div>
+  <div class="panel-header"><div class="help-heading"><h2>Finanzierung &amp; Wertausgleich</h2><HelpTip label="Wie entstehen diese Beträge?">Hier siehst du, wer den Kauf ursprünglich finanziert hat und welchen Wert andere durch Anteile erhalten haben. Tatsächliche Zahlungen werden nur im gemeinsamen Ausgleichssaldo verrechnet und keinem Gegenstand einzeln als bezahlt zugeordnet.</HelpTip></div></div>
   <div class="panel-body stack">
     {#each fundingEvents as event (event.id)}
       <div class="funding-fact">
@@ -85,7 +86,6 @@
         <span>{personName(event.financedByPersonId)} · {money(event.initialValue)} · {dateDE(event.date)}</span>
       </div>
     {/each}
-    <p class="muted">Diese Werte entstanden beim Kauf und bei entgeltlichen Anteilsänderungen. Spätere Zahlungen werden im gemeinsamen Ausgleichssaldo verrechnet, nicht bei einzelnen Gegenständen als „bezahlt“ markiert.</p>
     {#if itemClaims.length}
       <div style="overflow-x:auto">
         <table class="tight">
@@ -104,6 +104,7 @@
 </section>
 
 <style>
+  .help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .item-status-text{color:var(--muted);font-size:12px}
   .funding-fact{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border)}
   .funding-fact span{color:var(--muted)}
