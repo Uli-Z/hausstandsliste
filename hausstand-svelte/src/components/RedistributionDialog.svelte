@@ -157,7 +157,7 @@
                   {/each}
                 </tbody>
               </table>
-            {:else}<div class="notice-small">Kein Ausgleich empfohlen.</div>{/if}
+            {:else}<div class="notice-small">{redistribution.financialMode === 'derived' ? 'Kein Ausgleich vorgeschlagen.' : 'Unentgeltlich: Es entsteht keine Forderung und es wird keine Zahlung erfasst.'}</div>{/if}
           </div>
         </section>
         <div class="notice small-text">Entwürfe werden im Projekt-JSON gespeichert, wirken aber erst nach dem "Ausführen" auf die Timeline.</div>
