@@ -342,7 +342,7 @@
                     {/each}
                   </select>
                 </label>
-                <div class="muted">Wenn eine Person den ganzen Gegenstand finanziert hat, schulden andere Anteilseigner ihr automatisch ihren Anteil am Startwert.</div>
+                <div class="muted">Die finanzierende Person bringt den Startwert ein. Ihre eigenen Anteile werden berücksichtigt; die übrigen Anteile erhöhen den Ausgleichsbedarf der anderen Personen.</div>
               {/if}
             </section>
           </div>
