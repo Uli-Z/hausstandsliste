@@ -106,7 +106,7 @@
     const personId = uid('person');
     appState.mutateProject(p => { 
       p.people.push({ id: personId, name: name || 'Neue Person' }); 
-      p.events.push(createEvent('person-added', asOfDate, { personId, name: name || 'Neue Person' })); 
+      p.events.push(createEvent('person-added', asOfDate, { personId, name: name || 'Neue Person' }, p)); 
     });
     close();
   }
@@ -208,7 +208,7 @@
         shares: initialShares,
         financedByPersonId: financedByPersonId || undefined,
         financialMode: financedByPersonId ? 'derived' : 'none'
-      }));
+      }, p));
       if (dialog.id) {
         p.drafts = (p.drafts || []).filter(d => d.id !== dialog.id);
       }
@@ -224,7 +224,7 @@
         itemId: projectedItem.id, 
         statusAfter: 'succeeded', 
         reason: 'Als neue Version fortgeführt' 
-      }));
+      }, p));
       // 2. Neues Item Stammdaten
       p.items.push({ 
         id: newItemId, 
@@ -245,7 +245,7 @@
           minimumValue: Number(minimumValue) || 0 
         }, 
         shares: normShares(shares) 
-      }));
+      }, p));
     });
     if (!saved) return;
     close();
@@ -256,10 +256,10 @@
   function saveShareSet() {
     const saved = appState.mutateProject(p => p.events.push(createEvent('shares-set', asOfDate, {
       itemId: projectedItem.id, shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert'
-    })));
+    }, p)));
     if (saved) close();
   }
-  function endItem() { appState.mutateProject(p => p.events.push(createEvent('item-ended', asOfDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }))); close(); }
+  function endItem() { appState.mutateProject(p => p.events.push(createEvent('item-ended', asOfDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }, p))); close(); }
 </script>
 
 {#if dialog?.type === 'redistributionEdit'}
