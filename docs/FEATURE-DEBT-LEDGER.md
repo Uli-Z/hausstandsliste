@@ -145,3 +145,14 @@ Anders als im bisherigen Planungsvorschlag darf der finanzielle Teil der Daten *
 - `tests/ledger.test.js`, `.github/workflows/ci.yml`: automatische Test- und Buildprüfung ergänzt; beide erfolgreich auf PR und `master`.
 
 **Noch nicht enthalten:** tatsächliche Geldzahlungen, Gegenbuchungsereignisse, PHP, Verschlüsselung oder E-Mail. Die Forderungsbeträge sind ausschließlich zur Laufzeit berechnet und werden nicht in der Projektdatei gespeichert.
+
+
+## Ergänzung B02 – Zuordnung der Ausgleichsereignisse (22.11.2026)
+
+Die grundsätzliche Produktentscheidung, Forderungen immer aus Fachereignissen abzuleiten, bleibt unverändert. Zusätzlich zu B01 (Ausgleichsereignis als Datensatz) enthält `src/lib/claimMatching.js` nun eine reine Zuordnungsfunktion. Sie referenziert eine **konkrete** Forderungsposition anhand von `sourceEventId`, optionalem `childEventId`, `itemId`, `debtorPersonId` und `creditorPersonId`. Der daraus erzeugte Referenzschlüssel ist stabil über JSON-Export/Import sowie Wert- und Datumsänderungen; bei einer Änderung der wirtschaftlichen Parteien kann die Verbindung dagegen bewusst ungültig werden.
+
+- `claimReferenceFields(claim)` und `claimReferenceKey(claim)`: normierte Herkunft und eindeutiger Schlüssel; fehlende Child-ID = `null`.
+- `matchClaimSettlements(project, asOfDate)`: gibt zuordenbare Ereignisse unter `matched` und Problemfälle unter `unmatched` mit Fehlercode zurück. Keine automatische Zuordnung bei mehrdeutigen, gelöschten, zeitlich unmöglichen oder veränderten Referenzen.
+- `createClaimSettlementForClaim(project, claim, options)`: schreibbares Ereignis mit echten Herkunfts-IDs erzeugen und die aktuelle Zuordnung prüfen; keine Mengenverrechnung.
+
+Das ist **B02, nicht B03**: Ausgleichsereignisse ziehen derzeit noch keine Cent-Beträge von der Brutto-Forderung ab, selbst wenn die Referenz stimmt. Das ist erst der nächste Schritt. Regression: `tests/claim-matching.test.js` mit 7 neuen Fällen; gezielte Tests für B02 und bestehende B01-/Ledger-Tests erfolgreich, kein vollständiger CI-/Browserlauf bestätigt.
