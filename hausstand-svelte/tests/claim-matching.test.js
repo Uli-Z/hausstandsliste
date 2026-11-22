@@ -92,7 +92,7 @@ test('B02: parent + child + item references distinguish multiple transfers in a 
 
 test('B02: wrong person, item or child is unmatched, never assigned by balance similarity', () => {
   for (const override of [
-    { debtorPersonId: 'clara' },
+    { debtorPersonId: 'someone-else' },
     { creditorPersonId: 'clara' },
     { itemId: 'desk' },
     { childEventId: 'missing-child' },
