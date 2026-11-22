@@ -1,6 +1,6 @@
 <script>
   import { appState } from '../stores/projectStore.js';
-  import { money, normShares } from '../lib/domain.js';
+  import { money, normShares, shareTotal } from '../lib/domain.js';
   import { redistributionPreview, redistributionMarkdown, buildRedistributionItemRows, sharesEqual } from '../lib/redistribution.js';
   import ShareEditor from './ShareEditor.svelte';
   import RedistributionItemList from './RedistributionItemList.svelte';
@@ -49,6 +49,10 @@
     const idx = edited.events.findIndex(e => e.id === editingChildId);
     if (idx >= 0) {
       const clean = normShares(editedChildShares);
+      if (shareTotal(clean) <= 0) {
+        alert('Ein aktiver Gegenstand muss mindestens einer Person gehören. Bitte Anteile übertragen oder den Gegenstand ausdrücklich beenden.');
+        return;
+      }
       const child = edited.events[idx];
       const baseItem = preview.base?.items.find(item => item.id === child.itemId);
       if (baseItem && sharesEqual(baseItem.shares, clean)) {
@@ -68,16 +72,16 @@
   }
 
   function save() {
-    appState.mutateProject(p => {
+    const saved = appState.mutateProject(p => {
       const idx = p.events.findIndex(e => e.id === edited.id);
       if (idx >= 0) p.events[idx] = { ...edited };
     });
-    appState.closeDialog();
+    if (saved) appState.closeDialog();
   }
 
   function remove() {
     if (!confirm('Gesamte Umverteilung wirklich löschen?')) return;
-    appState.mutateProject(p => {
+    const saved = appState.mutateProject(p => {
       p.events = p.events.filter(e => e.id !== event.id);
     });
     appState.closeDialog();
