@@ -9,6 +9,8 @@
   export let asOfDate;
   export let ledger = null;
   $: balanceCents = ledger?.balances?.get(person.id) || 0;
+  $: transfersForPerson = (ledger?.simplified || []).filter(t => t.fromPersonId === person.id || t.toPersonId === person.id);
+  const nameOf = id => $appState.project.people.find(p => p.id === id)?.name || id;
   let transferDialogOpen = false;
   let transferTargetId = '';
 
@@ -67,7 +69,7 @@
   <div class="detail-hero">
     <div class="stack">
       <div class="detail-title"><h2>{person.name}</h2><span class="badge" class:ok={person.active} class:warn={!person.active}>{person.active ? 'aktiv' : person.inactiveFrom ? 'ausgezogen' : 'inaktiv'}</span></div>
-      <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">Rechnerischer Forderungssaldo</div><strong>{money(Math.abs(balanceCents) / 100)}</strong><div class="muted">{PERSON_BALANCE_NOTE(balanceCents)}</div></div></div>
+      <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">Persönlicher Ausgleichssaldo</div><strong>{money(Math.abs(balanceCents) / 100)}</strong><div class="muted">{PERSON_BALANCE_NOTE(balanceCents)}</div></div></div>
     </div>
     <div class="mini-card stack"><strong>Mögliche Aktionen</strong><div class="action-grid">
       <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}>Person bearbeiten</button>
@@ -77,6 +79,20 @@
     </div><div class="notice">Die Änderungen kannst du vor dem Übernehmen noch prüfen.</div></div>
   </div>
 </div></section>
+{#if transfersForPerson.length}
+  <section class="panel" style="margin-top:16px">
+    <div class="panel-header"><h2>Ausgleichsmöglichkeiten</h2></div>
+    <div class="panel-body stack">
+      <p class="muted">Diese Zahlungswege ergeben sich aus den gemeinschaftlichen Salden. Die ursprüngliche Anschaffung bestimmt nicht automatisch, an wen überwiesen werden muss.</p>
+      {#each transfersForPerson as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
+        <div class="split">
+          <span>{nameOf(transfer.fromPersonId)} an {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
+          <button on:click={() => appState.setDialog({ type: 'settlementAdd', payerPersonId: transfer.fromPersonId, recipientPersonId: transfer.toPersonId, amountCents: transfer.amountCents })} disabled={$appState.readOnly}>Ausgleichen</button>
+        </div>
+      {/each}
+    </div>
+  </section>
+{/if}
 <section class="grid-2" style="margin-top:16px">
   <section class="panel"><div class="panel-header"><h2>Welche Gegenstände gehören dieser Person?</h2></div><div class="panel-body">
     {#if person.holdings?.length}<table><thead><tr><th>Gegenstand</th><th class="right">Einheiten</th><th class="money">Wertanteil</th></tr></thead><tbody>{#each person.holdings as h}<tr class="clickable-row" on:click={() => appState.setRoute({ page: 'item', id: h.item.id })}><td>{h.item.name}</td><td class="right">{h.units}</td><td class="money">{money(h.value)}</td></tr>{/each}</tbody></table>{:else}<div class="empty">Keine Anteile zum Stichtag.</div>{/if}
