@@ -363,3 +363,29 @@ tr.clickable-row:hover td{background:#eef7f8}
   .modal-body.stack { align-content:start; grid-auto-rows:max-content; }
   .modal-body .person-name-field { width:100%; max-width:min(100%,440px); }
 }
+
+/* Calm, content-first UI: no ornamental pills or category chips. */
+.debt-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px}
+.debt-row>span{min-width:0;overflow-wrap:anywhere;font-size:13px}
+.debt-action{min-height:38px;font-weight:650;font-size:12px;color:var(--accent);border:1px solid var(--border);background:var(--panel);padding:7px 11px}
+.task-grid button{min-height:83px;padding:16px;align-content:center}
+.task-grid button strong{font-size:14px}
+.task-grid button small{font-size:12px}
+.page-heading h1{margin-top:0}
+.section-header h2{margin-top:0}
+.person-tile{gap:14px}
+.person-heading{align-items:baseline}
+.item-tile .item-top{min-height:24px}
+.item-tile .item-worth{font-size:16px}
+.person-value strong{font-size:21px}
+.ledger-v3 .panel-body{overflow-x:visible}
+.ledger-v3 .panel-header{gap:16px}
+@media(max-width:780px){
+  .debt-row{grid-template-columns:minmax(0,1fr) auto;gap:9px}
+  .debt-row .debt-action{grid-column:1/-1;justify-self:start;min-height:44px}
+  .task-grid button{min-height:88px}
+}
+@media(max-width:360px){
+  .task-grid button{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;min-height:78px}
+  .task-grid strong,.task-grid small{grid-column:1}
+}
