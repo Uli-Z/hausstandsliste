@@ -29,7 +29,6 @@
         <dd>{balanceCents > 0 ? '+' : balanceCents < 0 ? '−' : ''}{money(Math.abs(balanceCents) / 100)}</dd>
       </div>
     </dl>
-    <p class="balance-footnote">Die Beträge stammen aus den Werten zum Zeitpunkt der Anschaffung oder Anteilsänderung. Der heutige Zeitwert des Eigentums wird davon getrennt berechnet.</p>
   {:else}
     <p class="balance-footnote">Noch keine finanziellen Wertbewegungen zum gewählten Stichtag.</p>
   {/if}
