@@ -7,6 +7,7 @@
   import EventEditDialog from './EventEditDialog.svelte';
   import ExecutedRedistributionEditDialog from './ExecutedRedistributionEditDialog.svelte';
   import ShareEditor from './ShareEditor.svelte';
+  import SettlementDialog from '../src/components/SettlementDialog.svelte';
   import { isEnterForSubmit } from './form-behavior.js';
   export let dialog;
   export let project;
@@ -262,7 +263,9 @@
   function endItem() { appState.mutateProject(p => p.events.push(createEvent('item-ended', asOfDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }, p))); close(); }
 </script>
 
-{#if dialog?.type === 'redistributionEdit'}
+{#if dialog?.type === 'settlementAdd' || dialog?.type === 'settlementEdit'}
+  <SettlementDialog {dialog} {project} />
+{:else if dialog?.type === 'redistributionEdit'}
   <RedistributionDialog {dialog} {project} {projection} />
 {:else if dialog?.type === 'eventEdit'}
   <EventEditDialog {dialog} {project} {projection} />
