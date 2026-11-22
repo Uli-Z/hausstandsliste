@@ -1,5 +1,6 @@
 <script>
   import { appState } from '../src/stores/projectStore.js';
+  import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { redistributionPreview, redistributionMarkdown, buildRedistributionItemRows, sharesEqual } from '../src/lib/redistribution.js';
   import ShareEditor from './ShareEditor.svelte';
@@ -170,7 +171,7 @@
                 <div class="empty-small">Keine Verschiebung.</div>
               {/if}
 
-              <div class="muted" style="margin-top:8px">{edited.financialMode === 'derived' ? 'Rechnerischer Ausgleichsvorschlag' : 'Keine Geldforderung bei dieser Änderung'}</div>
+              <div class="muted" style="margin-top:8px">{edited.financialMode === 'derived' ? REDISTRIBUTION_SUGGESTION_TITLE : 'Keine Geldforderung bei dieser Änderung'}</div>
               {#if preview.payments.length}
                 <table class="tight">
                   <tbody>
@@ -179,6 +180,7 @@
                     {/each}
                   </tbody>
                 </table>
+                <div class="muted small-text">{REDISTRIBUTION_SUGGESTION_NOTICE}</div>
               {:else}
                 <div class="notice-small">{edited.financialMode === 'derived' ? 'Kein Ausgleich vorgeschlagen.' : 'Unentgeltlich: Es entsteht keine Forderung und es wird keine Zahlung erfasst.'}</div>
               {/if}
