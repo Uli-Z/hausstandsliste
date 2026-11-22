@@ -30,10 +30,10 @@ Das Ergebnis liegt unter `hausstand-svelte/dist/hausstand-standalone.html` und k
 - Ereignis-Timeline und stichtagsbezogene Rekonstruktion
 - Umverteilungen vorbereiten, als Entwurf speichern und ausführen
 - Wertverschiebungen und **empfohlene** Ausgleichszahlungen berechnen
-- Forderungen automatisch aus entgeltlichen Anteilsbewegungen ableiten, bilateral saldieren und gemeinschaftlich vereinfacht anzeigen
+- Persönliche Ausgleichssalden aus eingebrachtem Wert und Anteilsbewegungen berechnen; gemeinschaftliche Zahlungswege vorschlagen
 - Projekt-JSON importieren/exportieren; lokale Browser-Arbeitskopie
 
-**Wichtig:** Eine ausgeführte Umverteilung dokumentiert eine Anteilsänderung, **keine beglichene Zahlung**. Eine Schuldenübersicht ist vorhanden, tatsächliche Zahlungen sind als Ereignisse im Datenmodell möglich und verändern den Saldo als Gegenforderung; ein Eingabedialog ist noch nicht implementiert.
+**Wichtig:** Eine ausgeführte Umverteilung dokumentiert eine Anteilsänderung, **keine beglichene Zahlung**. Persönliche Ausgleichssalden und Zahlungsvorschläge sind vorhanden. Bereits erfolgte Zahlungen können direkt bei einem Vorschlag oder manuell dokumentiert, im Verlauf bearbeitet und gelöscht werden. Eine Zahlung verändert kein Eigentum.
 
 ## Speicherung und Datenschutz
 
@@ -53,12 +53,13 @@ Der Implementierungsstand umfasst:
 
 Dokumentation zur umgesetzten Forderungslogik und den weiteren Planungen:
 
-- [Forderungsjournal und Nettoausgleich](docs/FEATURE-DEBT-LEDGER.md)
+- [Gemeinschaftlicher Wertausgleich (aktuelle Regel)](docs/FEATURE-COMMUNAL-SETTLEMENT.md)
+- [Forderungsjournal und Nettoausgleich (historische Ausgangslogik)](docs/FEATURE-DEBT-LEDGER.md)
 - [Kollaborative PHP-Dateiablage](docs/FEATURE-COLLABORATIVE-STORAGE.md)
 - [Sicherheits- und Verschlüsselungsentwurf](docs/SECURITY-AND-ENCRYPTION.md)
 - [Installation, GitHub Pages und PHP-Server](docs/DEPLOYMENT.md)
 
-**Status:** Forderungsableitung, lokaler verschlüsselter Import/Export, PHP-Online-Ablage, Checkout, Revisionen und PHP-Mailanbindung sind im Code. Automatisierte Kryptotests und PHP-API-Integrationstests einschließlich PHP-Build waren erfolgreich; eine manuelle Browser-/Server-/E-Mail-Abnahme und unabhängige Sicherheitsprüfung stehen noch aus. Eine freie, datierte Zahlung wird als Gegenforderung im Bilanzmodell berücksichtigt; eine UI zum Erfassen fehlt noch.
+**Status:** Forderungsableitung, lokaler verschlüsselter Import/Export, PHP-Online-Ablage, Checkout, Revisionen und PHP-Mailanbindung sind im Code. Automatisierte Kryptotests und PHP-API-Integrationstests einschließlich PHP-Build waren erfolgreich; eine manuelle Browser-/Server-/E-Mail-Abnahme und unabhängige Sicherheitsprüfung stehen noch aus. Freie und vorausgefüllte Ausgleichsbuchungen sind in UI V3 und klassischer UI verfügbar; eine vollständige Browser-/Mobilabnahme steht noch aus.
 
 ## Projekt-Dokumentation
 
@@ -89,4 +90,11 @@ Die aktuelle mobile UI V3 bleibt als eigenständige statische Seite auf GitHub P
 
 ## Einheitliches Forderungsjournal (22.11.2026)
 
-Eine dokumentierte Zahlung wird als selbständige **Gegenforderung** derselben Personen mit umgekehrter Richtung in den bilateralen Saldo eingerechnet. Sie muss weder einem Gegenstand noch einer ursprünglichen Forderung zugeordnet werden. Überzahlungen erzeugen rechnerische Guthaben; die Zahlung bleibt bei späteren Änderungen am Kaufdatum oder Kaufwert erhalten. `external` und `waived` sind keine tatsächlichen Überweisungen und werden getrennt gekennzeichnet. `src/lib/claimSettlement.js` enthält die Fachlogik. **Nicht verfügbar:** UI zum Erstellen und Korrigieren solcher Ereignisse (B04 ff.), vollständige Browser-/CI-Abnahme.
+Eine dokumentierte Zahlung wird als selbständige **Gegenforderung** derselben Personen mit umgekehrter Richtung in den bilateralen Saldo eingerechnet. Sie muss weder einem Gegenstand noch einer ursprünglichen Forderung zugeordnet werden. Überzahlungen erzeugen rechnerische Guthaben; die Zahlung bleibt bei späteren Änderungen am Kaufdatum oder Kaufwert erhalten. `external` und `waived` sind keine tatsächlichen Überweisungen und werden getrennt gekennzeichnet. `src/lib/claimSettlement.js` enthält die Fachlogik. **Neu:** Gemeinschaftliche persönliche Ausgleichssalden sind die Hauptansicht; Zahlungen können aus den Vorschlägen heraus oder frei erfasst, geändert und gelöscht werden. **Offen:** vollständige Browser-/CI-Abnahme.
+
+
+## Persönlicher Ausgleich statt Einzel-Schuldenliste (22.11.2026)
+
+Die Hauptansicht der Geldseite ist jetzt der gemeinsame Wertausgleich: Einbringung bzw. Finanzierung und entgeltliche Anteilstransfers verändern die **persönlichen Ausgleichssalden**. Die App schlägt dafür Zahlungswege vor. Ein Klick auf **Ausgleichen** öffnet einen vorausgefüllten Dialog und dokumentiert erst nach Bestätigung eine bereits geleistete Zahlung. Manuelle Teil- und Überzahlungen sind möglich; Bearbeitung und Löschung erfolgen über die Timeline. Die ursprünglichen Ansprüche bleiben für die Nachvollziehbarkeit erhalten, werden aber nicht als zusätzlich abzuarbeitende Einzelschulden angezeigt.
+
+Diese Gruppenabrechnung setzt die Zustimmung der Beteiligten zu einer gemeinsamen Saldierung voraus und ersetzt ohne solche Vereinbarung keine rechtlich selbständigen Einzelforderungen. [Funktionsweise und Beispiele](docs/FEATURE-COMMUNAL-SETTLEMENT.md).
