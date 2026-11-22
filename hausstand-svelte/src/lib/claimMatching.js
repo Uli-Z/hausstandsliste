@@ -39,8 +39,7 @@ const issue = (event, code, message, details = null) => ({
  * Broken links, duplicate source IDs and changed payer/ownership references
  * are reported explicitly rather than reassigned to a different claim.
  */
-export function matchClaimSettlements(project, asOfDate) {
-  const claims = deriveClaims(project, asOfDate);
+export function matchClaimSettlements(project, asOfDate, claims = deriveClaims(project, asOfDate)) {
   const sourcesById = new Map();
   const allEvents = project?.events || [];
 
