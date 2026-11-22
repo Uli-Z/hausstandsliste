@@ -323,7 +323,7 @@
                     {/each}
                   </select>
                 </label>
-                <div class="muted">Wenn eine Person den ganzen Gegenstand finanziert hat, schulden andere Anteilseigner ihr automatisch ihren Anteil am Startwert.</div>
+                <div class="muted">Die finanzierende Person bringt den Startwert ein. Die Anteile werden danach im gemeinsamen Ausgleichssaldo berücksichtigt.</div>
               {/if}
             </section>
           </div>
