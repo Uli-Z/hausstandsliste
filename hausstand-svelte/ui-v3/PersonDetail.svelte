@@ -71,7 +71,7 @@
     </div>
     <div class="mini-card stack"><strong>Mögliche Aktionen</strong><div class="action-grid">
       <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}>Person bearbeiten</button>
-      {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' })))}>Als ausgezogen markieren</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' })))}>Wieder aufnehmen</button>{/if}
+      {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' }, p)))}>Als ausgezogen markieren</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' }, p)))}>Wieder aufnehmen</button>{/if}
       <button on:click={startTransfer}>Anteile übertragen</button>
       <button on:click={startDissolve}>Anteile entfernen</button>
     </div><div class="notice">Die Änderungen kannst du vor dem Übernehmen noch prüfen.</div></div>
