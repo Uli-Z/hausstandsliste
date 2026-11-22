@@ -59,3 +59,11 @@ Neue Module: `src/lib/ledger.js`, `src/components/LedgerPanel.svelte`, `tests/le
 - `.github/workflows/pages.yml` enthält die statische Veröffentlichung, die **einmalig in den GitHub-Reposettings aktiviert werden muss**, falls der CI-Token die Seitenanlage nicht autorisiert.
 - **Nicht behaupten:** PHP auf GitHub Pages, produktiv bestätigter E-Mail-Versand, durchgängig neu verschlüsselte Historie nach Passwortwechsel oder bereits erfolgte externe Sicherheitsprüfung.
 - [Installationsanleitung](docs/DEPLOYMENT.md) beachten; keine realen Passwörter/Konfigurationen in Repository committen.
+
+
+## Forderungsausgleich: aktueller Zwischenstand (22.11.2026)
+
+- **B01 implementiert:** `src/lib/claimSettlement.js` definiert das eigentumsneutrale `claim-settlement-recorded`-Ereignis mit Centbetrag, Datum, Parteien, Ausgleichsart und Herkunfts-ID. Es wird bereits als gültiger Ereignistyp erkannt, aber noch nicht in Geldsalden verrechnet.
+- **B02 implementiert:** `src/lib/claimMatching.js` ordnet dieses Ereignis über Quellereignis, optionalen Child-Event, Gegenstand und beide Parteien einer aus `deriveClaims()` rekonstruierten Forderungsposition zu. `createClaimSettlementForClaim()` ist die bevorzugte API für spätere UI-Erfassungen. Mehrdeutige oder ungültige Referenzen niemals automatisch auf andere Forderungen umhängen.
+- **B03 offen:** `ledgerAt()` enthält weiter Brutto-Forderungen; die Anrechnung von Zahlungen, externen Buchungen und Erlass sowie Reststände wird erst danach implementiert. Bis dahin keine UI-Formulierung „bezahlt“ oder „ausgeglichen“ aus den bisherigen Salden ableiten.
+- **Prüfungen:** Zielgerichtete B02-, B01- und Ledger-Fachtests in isolierter JavaScript-Ausführung erfolgreich. Vollständiges `npm test`, Svelte-Build und manuelle Browserprüfung sind noch gesondert durchzuführen.
