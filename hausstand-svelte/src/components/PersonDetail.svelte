@@ -1,14 +1,15 @@
 <script>
   import { appState, createEvent } from '../stores/projectStore.js';
   import { money, normShares } from '../lib/domain.js';
-  import { PERSON_BALANCE_NOTE } from '../lib/financialLabels.js';
   import { dateDE } from '../lib/util.js';
   import Timeline from './Timeline.svelte';
+  import BalanceBreakdown from './BalanceBreakdown.svelte';
   export let person;
   export let projection;
   export let asOfDate;
   export let ledger = null;
   $: balanceCents = ledger?.balances?.get(person.id) || 0;
+  $: balanceDetail = ledger?.details?.get(person.id) || null;
   $: transfersForPerson = (ledger?.simplified || []).filter(t => t.fromPersonId === person.id || t.toPersonId === person.id);
   const nameOf = id => $appState.project.people.find(p => p.id === id)?.name || id;
   let transferDialogOpen = false;
@@ -68,22 +69,28 @@
   <div class="breadcrumb"><button on:click={() => appState.setRoute({ page: 'dashboard' })}>← Übersicht</button><span>Person</span></div>
   <div class="detail-hero">
     <div class="stack">
-      <div class="detail-title"><h2>👤 {person.name}</h2><span class="badge" class:ok={person.active} class:warn={!person.active}>{person.active ? 'aktiv' : person.inactiveFrom ? 'ausgezogen' : 'inaktiv'}</span></div>
-      <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">Persönlicher Ausgleichssaldo</div><strong>{money(Math.abs(balanceCents) / 100)}</strong><div class="muted">{PERSON_BALANCE_NOTE(balanceCents)}</div></div></div>
+      <div class="detail-title"><h2>👤 {person.name}</h2>{#if !person.active}<span class="person-inactive">{person.inactiveFrom ? 'Ausgezogen' : 'Nicht mehr dabei'}</span>{/if}</div>
+      <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">{balanceCents > 0 ? 'Noch zu erhalten' : balanceCents < 0 ? 'Noch auszugleichen' : 'Ausgleichssaldo'}</div><strong>{money(Math.abs(balanceCents) / 100)}</strong></div></div>
     </div>
-    <div class="mini-card stack"><strong>⚡ Aktionen</strong><div class="action-grid">
-      <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}>✏️ Stammdaten</button>
-      {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' }, p)))}>🚪 Deaktivieren</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' }, p)))}>🔄 Reaktivieren</button>{/if}
-      <button on:click={startTransfer}>🔁 Alle Anteile übertragen</button>
-      <button on:click={startDissolve}>🧹 Alle Anteile auflösen</button>
+    <div class="mini-card stack"><strong>Aktionen</strong><div class="action-grid">
+      <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}>Person bearbeiten</button>
+      {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' }, p)))}>Als ausgezogen markieren</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' }, p)))}>Wieder aufnehmen</button>{/if}
+      <button on:click={startTransfer}>Anteile übertragen</button>
+      <button on:click={startDissolve}>Anteile entfernen</button>
     </div><div class="notice">Übertragen/Auflösen startet eine neue Umverteilung und öffnet direkt den Prüf-Dialog.</div></div>
   </div>
 </div></section>
+<section class="panel" style="margin-top:16px">
+  <div class="panel-header"><h2>So setzt sich der Ausgleichssaldo zusammen</h2></div>
+  <div class="panel-body">
+    <BalanceBreakdown detail={balanceDetail} {balanceCents}/>
+  </div>
+</section>
 {#if transfersForPerson.length}
   <section class="panel" style="margin-top:16px">
     <div class="panel-header"><h2>Ausgleichsmöglichkeiten</h2></div>
     <div class="panel-body stack">
-      <p class="muted">Diese Zahlungswege ergeben sich aus den gemeinschaftlichen Salden. Die ursprüngliche Anschaffung bestimmt nicht automatisch, an wen überwiesen werden muss.</p>
+      <p class="muted">Unverbindliche Vorschläge zum Ausgleich der gemeinsamen Salden. Eine Zahlung wird erst nach Bestätigung dokumentiert.</p>
       {#each transfersForPerson as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
         <div class="split">
           <span>{nameOf(transfer.fromPersonId)} an {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
@@ -106,7 +113,7 @@
   <div class="modal-backdrop">
     <div class="modal" style="max-width: 520px">
       <div class="modal-header">
-        <h3>🔁 Anteile übertragen</h3>
+        <h3>Anteile übertragen</h3>
         <button class="ghost" on:click={() => transferDialogOpen = false}>✕</button>
       </div>
       <div class="modal-body stack">
@@ -127,3 +134,7 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .person-inactive { color:var(--muted);font-size:13px; }
+</style>
