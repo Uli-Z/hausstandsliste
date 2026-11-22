@@ -19,7 +19,7 @@
         <tbody>
           {#each people.slice().sort((a,b)=>b.totalValue-a.totalValue || a.name.localeCompare(b.name,'de')) as person}
             <tr class="clickable-row" on:click={() => appState.setRoute({ page: 'person', id: person.id })}>
-              <td><strong>{person.name}</strong></td><td><span class="badge" class:ok={person.active} class:warn={!person.active}>{person.active ? 'aktiv' : 'inaktiv'}</span></td><td class="money">{money(person.totalValue)}</td><td class="right">{person.holdings.length}</td>
+              <td><strong>{person.name}</strong></td><td><span class="badge" class:ok={person.active} class:warn={!person.active}>{person.active ? 'aktiv' : person.inactiveFrom ? 'ausgezogen' : 'inaktiv'}</span></td><td class="money">{money(person.totalValue)}</td><td class="right">{person.holdings.length}</td>
             </tr>
           {/each}
         </tbody>

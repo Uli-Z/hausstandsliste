@@ -7,7 +7,8 @@
 ## P0-Fehlerbehebung (22.11.2026)
 
 - [x] **A01:** Aktive Gegenstände mit 0 € Zeitwert bleiben im Bestand, in den Eigentumsanteilen und in der Umverteilungs-Auswahl sichtbar. `projectAt()` filtert den aktiven Bestand nun ausschließlich nach dem Ereignisstatus; die Wertsumme bleibt 0 €. Regressionstests: `tests/projector.test.js` (Abschreibung, Übertragung ohne fiktive Forderung, Archivierung). Automatisierte CI- und Browserprüfung sind gesondert zu bestätigen.
-- [ ] Weitere P0-Fehler **A02–A07** und die Zahlungserfassung bleiben offen. Maßgeblich ist die [priorisierte To-do-Liste](WG-PRAXIS-TODO.md).
+- [x] **A02:** Ausgezogene Personen bleiben unabhängig von Besitzwert und Zahl der Gegenstände in der Personenliste und im Profil sichtbar. Die UI V3 kennzeichnet den Auszug und zeigt vorhandene Netto-Forderungssalden auch ohne Eigentum. Die Projektion berücksichtigt den Stichtag, sodass zukünftige Einzüge nicht vorzeitig angezeigt werden; Altbestand ohne Einzugsereignis bleibt über vorhandene Eigentumsanteile auffindbar. Regressionstests: `tests/projector.test.js` (80-€-Forderung, ohne Besitz/Anspruch, künftiger Einzug/Wiedereinzug, Altbestand). GitHub-Actions-Prüfung und manuelle Browserabnahme sind gesondert zu bestätigen.
+- [ ] Weitere P0-Fehler **A03–A07** und die Zahlungserfassung bleiben offen. Maßgeblich ist die [priorisierte To-do-Liste](WG-PRAXIS-TODO.md).
 
 ## Bereits vorhanden (statisch im Code geprüft)
 

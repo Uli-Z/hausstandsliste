@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { projectAt } from '../src/lib/projector.js';
-import { deriveClaims } from '../src/lib/ledger.js';
+import { deriveClaims, ledgerAt } from '../src/lib/ledger.js';
 import { buildRedistributionItemRows, buildTransferChanges } from '../src/lib/redistribution.js';
 
 function sampleProject() {
@@ -79,4 +79,81 @@ test('A01: only ending an item moves a zero-value item from active to archive', 
   assert.deepEqual(afterEnd.activeItems.map(item => item.id), ['lamp']);
   assert.deepEqual(afterEnd.archivedItems.map(item => item.id), ['fridge']);
   assert.deepEqual(afterEnd.people.find(person => person.id === 'anna').holdings, []);
+});
+
+test('A02: departed creditor with zero holdings and an 80 EUR claim stays selectable', () => {
+  const project = {
+    people: [{ id: 'anna', name: 'Anna' }, { id: 'ben', name: 'Ben' }],
+    items: [{ id: 'desk', name: 'Schreibtisch' }],
+    events: [
+      { id: 'anna-enter', type: 'person-added', personId: 'anna', date: '2026-01-01', order: 1 },
+      { id: 'ben-enter', type: 'person-added', personId: 'ben', date: '2026-01-01', order: 2 },
+      {
+        id: 'desk-buy', type: 'item-added', itemId: 'desk', date: '2026-01-02', order: 1,
+        initialValue: 80, valuation: { type: 'fixed', minimumValue: 0 }, shares: { ben: 1 },
+        financialMode: 'derived', financedByPersonId: 'anna'
+      },
+      { id: 'anna-exit', type: 'person-deactivated', personId: 'anna', date: '2026-02-01', order: 1, reason: 'Auszug' }
+    ]
+  };
+
+  const projection = projectAt(project, '2026-03-01');
+  const anna = projection.people.find(person => person.id === 'anna');
+  assert.ok(anna, 'the departed creditor must be in the people directory');
+  assert.equal(anna.active, false);
+  assert.equal(anna.inactiveFrom, '2026-02-01');
+  assert.equal(anna.inactiveReason, 'Auszug');
+  assert.deepEqual(anna.holdings, []);
+  assert.equal(anna.totalValue, 0);
+  const ledger = ledgerAt(project, '2026-03-01');
+  assert.equal(ledger.balances.get('anna'), 8000);
+  assert.deepEqual(ledger.pairwise, [{ fromPersonId: 'ben', toPersonId: 'anna', amountCents: 8000 }]);
+});
+
+test('A02: departed people without holdings or any claims remain in directory', () => {
+  const project = {
+    people: [{ id: 'former', name: 'Ehemalige' }],
+    items: [],
+    events: [
+      { id: 'join', type: 'person-added', personId: 'former', date: '2026-01-01', order: 1 },
+      { id: 'leave', type: 'person-deactivated', personId: 'former', date: '2026-02-01', order: 1, reason: 'Auszug' }
+    ]
+  };
+  const p = projectAt(project, '2026-03-01');
+  assert.equal(p.people.length, 1);
+  assert.equal(p.people[0].name, 'Ehemalige');
+  assert.equal(p.people[0].totalValue, 0);
+  assert.deepEqual(p.people[0].holdings, []);
+});
+
+test('A02: future members stay hidden before move-in and reactivate at historical dates', () => {
+  const project = {
+    people: [{ id: 'future', name: 'Zukunft' }, { id: 'never', name: 'Noch nie beigetreten' }],
+    items: [],
+    events: [
+      { id: 'enter', type: 'person-added', personId: 'future', date: '2027-06-01', order: 1 },
+      { id: 'exit', type: 'person-deactivated', personId: 'future', date: '2027-08-01', order: 1 },
+      { id: 'reenter', type: 'person-reactivated', personId: 'future', date: '2027-09-01', order: 1 }
+    ]
+  };
+  assert.deepEqual(projectAt(project, '2027-05-31').people, []);
+  assert.equal(projectAt(project, '2027-06-01').people.find(p => p.id === 'future').active, true);
+  assert.equal(projectAt(project, '2027-08-01').people.find(p => p.id === 'future').active, false);
+  assert.equal(projectAt(project, '2027-09-01').people.find(p => p.id === 'future').active, true);
+  assert.equal(projectAt(project, '2027-09-01').people.some(p => p.id === 'never'), false);
+});
+
+test('A02: legacy owner without a person-added event is still discoverable', () => {
+  const project = {
+    people: [{ id: 'legacy', name: 'Alte Person' }],
+    items: [{ id: 'zero', name: 'Wertloser Gegenstand' }],
+    events: [{
+      id: 'legacy-item', type: 'item-added', itemId: 'zero', date: '2024-01-01', order: 1,
+      initialValue: 0, valuation: { type: 'fixed', minimumValue: 0 }, shares: { legacy: 1 }
+    }]
+  };
+  const projection = projectAt(project, '2026-11-22');
+  assert.equal(projection.people.length, 1);
+  assert.equal(projection.people[0].active, false);
+  assert.equal(projection.people[0].holdings[0].item.id, 'zero');
 });

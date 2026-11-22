@@ -65,7 +65,7 @@
   <div class="breadcrumb"><button on:click={() => appState.setRoute({ page: 'dashboard' })}>← Übersicht</button><span>Person</span></div>
   <div class="detail-hero">
     <div class="stack">
-      <div class="detail-title"><h2>👤 {person.name}</h2><span class="badge" class:ok={person.active} class:warn={!person.active}>{person.active ? 'aktiv' : 'inaktiv'}</span></div>
+      <div class="detail-title"><h2>👤 {person.name}</h2><span class="badge" class:ok={person.active} class:warn={!person.active}>{person.active ? 'aktiv' : person.inactiveFrom ? 'ausgezogen' : 'inaktiv'}</span></div>
       <div class="grid-3"><div class="mini-card"><div class="muted">Gesamtwert</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">Gegenstände</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">Netto-Forderungssaldo</div><strong>{money(Math.abs(balanceCents) / 100)}</strong><div class="muted">{balanceCents > 0 ? 'zu erhalten' : balanceCents < 0 ? 'zu zahlen' : 'ausgeglichen'}</div></div></div>
     </div>
     <div class="mini-card stack"><strong>⚡ Aktionen</strong><div class="action-grid">

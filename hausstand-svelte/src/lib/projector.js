@@ -99,7 +99,11 @@ export const projectAt = (project, asOfDate) => {
     const holdings = activeItems.flatMap(item => item.shareRows.filter(row => row.personId === person.id).map(row => ({ item, ...row })));
     const totalValue = holdings.reduce((sum, holding) => sum + holding.value, 0);
     return { ...person, holdings, totalValue };
-  }).filter(person => person.active || person.totalValue > 0.0001);
+  // Former members stay visible after leaving, even with no holdings or value.
+  // Lifecycle events must already have occurred by the selected date; people
+  // whose first arrival lies in the future remain hidden in historical views.
+  // Also keep historical owners from legacy data without a person-added event.
+  }).filter(person => person.active || person.activeFrom || person.inactiveFrom || person.reactivatedAt || person.holdings.length > 0);
 
   return {
     asOfDate,
