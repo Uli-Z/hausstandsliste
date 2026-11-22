@@ -1,5 +1,7 @@
 # Projektstand und Umsetzungsplan
 
+**Neue Produktpriorität (22.11.2026):** Zuerst die bereits vorhandenen Fach-/UI-Fehler beheben, dann **einfaches, an Forderungsquellen und Gegenstände gebundenes Tracking tatsächlicher Zahlungen und externer Buchungen** ergänzen. Keine vollständige WG-Buchhaltung, keine dauerhaften Boolean-Bezahlstatus; der Klick auf „Als bezahlt erfassen“ erzeugt ein datiertes Ausgleichsereignis. Maßgebliche nach Priorität sortierte Aufgaben und Abnahmekriterien: [WG-Praxis-To-do](WG-PRAXIS-TODO.md). Das beschreibt eine **neue Vorgabe**, nicht bereits umgesetzten Code.
+
 **Stand 21.11.2026: Forderungsprojektion, lokale Verschlüsselung, PHP-Dateispeicherung, Checkout und Versionshistorie implementiert; automatisierte Tests und PHP-Integration bestanden. GitHub Pages erfordert noch die einmalige Aktivierung durch den Repository-Administrator; PHP-Hosting und echter Mailversand noch nicht eingerichtet.** Quellprojekt: `hausstand-svelte/`, App-Version `0.7.0`, Hauptbranch `master`. Die Dokumentation trennt bewusst **vorhanden**, **geplant** und **getestet**.
 
 ## Bereits vorhanden (statisch im Code geprüft)
@@ -27,7 +29,7 @@
 - [x] Bei neuen Gegenständen optional finanzierende Person dokumentieren.
 - [x] Zehn Node-Tests und GitHub-Actions-Workflow erfolgreich auf `master` ausgeführt.
 - [ ] Browser-/JSON-Roundtrip und reale End-to-End-Nutzung testen.
-- [ ] Optional später echte Zahlungen als datierte Gegenbuchungsereignisse erfassen.
+- [ ] **Neu priorisiert:** datierte, konkreten Forderungspositionen/Gegenständen zugeordnete Zahlungen, Teilzahlungen und externe Buchungen als Ausgleichsereignisse erfassen ([WG-Praxis-To-do](WG-PRAXIS-TODO.md)).
 
 **Implementierung:** `src/lib/ledger.js`, `src/lib/projector.js` (`walkEvents`), `src/components/LedgerPanel.svelte`, `tests/ledger.test.js`. Keine persistenten `finance.postings[]`, keine Checkboxen und keine gesonderten Statusaktionen.
 
@@ -71,9 +73,9 @@ Als Unterfunktion des Online-Modus:
 
 | Frage | Vorschlag |
 | --- | --- |
-| Muss eine Forderung abgehakt werden? | **Nein.** Gegenläufige Eigentums-/Ausgleichsereignisse saldieren automatisch; Status ist abgeleitet (Saldo null) |
+| Muss eine Forderung abgehakt werden? | **Nicht als gespeicherte Checkbox.** Ein Klick auf „Als bezahlt erfassen“ schreibt ein datiertes Ausgleichsereignis; offen/bezahlt/extern verbucht wird daraus abgeleitet. |
 | Müssen Forderungen gespeichert werden? | **Nein.** Fachereignisse sind Quelle, Forderungen werden live rekonstruiert |
-| Tatsächliche Zahlungen zusätzlich erfassen? | Nur optional später über eigenes datiertes Gegenbuchungsereignis, niemals als Boolean |
+| Tatsächliche Zahlungen zusätzlich erfassen? | **Ja, priorisiert**; mit Verbindung zur Quellforderung und zum Gegenstand. Auch Teilzahlungen und externe Buchungen unterscheiden. |
 | Multilaterale Vereinfachung? | Als Vorschau zusätzlich zur sicheren bilateralen Saldierung, nicht automatisch rechtliche Erfüllung |
 | Neue Gegenstände ohne bekannten Finanzierer? | Keine automatisch generierten Geldforderungen |
 | Alte Anteilsereignisse nach Update? | Ohne ausdrückliche Aktivierung keine automatische rückwirkende Schuldenerzeugung |
