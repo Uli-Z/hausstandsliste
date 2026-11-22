@@ -65,7 +65,7 @@ export const applyEvent = (state, event, beforeApply = null, parent = null) => {
     }
   } else if (event.type === CLAIM_SETTLEMENT_TYPE) {
     // A recorded payment/external handoff never changes ownership. Recognition
-    // and structural validation belong here; allocation to claims is B02/B03.
+    // and structural validation belong here; money netting uses a separate counterclaim.
     for (const problem of claimSettlementErrors(event)) {
       state.warnings.push(`Ungültiger Forderungsausgleich (${event.id || 'ohne ID'}): ${problem}`);
     }
