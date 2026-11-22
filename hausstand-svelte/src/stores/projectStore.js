@@ -1,6 +1,6 @@
 import { derived, writable } from 'svelte/store';
 import { emptyProject, normalize } from '../lib/domain.js';
-import { clone, todayISO, uid } from '../lib/util.js';
+import { clone, todayISO, uid, nextEventOrder } from '../lib/util.js';
 import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
 import { newUnownedActiveTransitions } from '../lib/ownershipValidation.js';
@@ -79,5 +79,5 @@ export const appState = createStore();
 export const projection = derived(appState, $s => projectAt($s.project, $s.asOfDate));
 export const ledger = derived(appState, $s => ledgerAt($s.project, $s.asOfDate));
 
-export const createEvent = (type, date, data = {}) => ({ id: uid('event'), type, date, order: Date.now(), ...data });
+export const createEvent = (type, date, data = {}, project = null) => ({ id: uid('event'), type, date, order: nextEventOrder(project, date), ...data });
 export const createRedistribution = (title, effectiveDate, changes = []) => ({ id: uid('redistribution'), type: 'redistribution', title, createdAt: new Date().toISOString(), effectiveDate, changes, financialMode: 'derived' });
