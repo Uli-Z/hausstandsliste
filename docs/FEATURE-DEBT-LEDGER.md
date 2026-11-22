@@ -1,6 +1,6 @@
 # Fachkonzept: automatisch abgeleitete Forderungen und Nettoschulden
 
-**Status: Kernfunktionen in `master` übernommen am 20.11.2026; zehn Tests und Standalone-Build in GitHub Actions erfolgreich. Manueller Browsertest noch offen.** Diese Fassung **ersetzt** den älteren Plan mit `finance.postings[]`, `settlementEvents[]` und einer Checkbox „bezahlt“. Es gibt **keinen** gespeicherten Boolean-Status und kein zweites, separat zu pflegendes Forderungsjournal.
+**Status: Fachmodell am 22.11.2026 um freie Zahlungsggegenbuchungen erweitert; frühere Zuordnungsplanung abgelöst. Kernfunktionen in `master` übernommen am 20.11.2026; zehn Tests und Standalone-Build in GitHub Actions erfolgreich. Manueller Browsertest noch offen.** Diese Fassung **ersetzt** den älteren Plan mit `finance.postings[]`, `settlementEvents[]` und einer Checkbox „bezahlt“. Es gibt **keinen** gespeicherten Boolean-Status und kein zweites, separat zu pflegendes Forderungsjournal.
 
 ## 1. Gewünschtes Verhalten
 
@@ -147,12 +147,12 @@ Anders als im bisherigen Planungsvorschlag darf der finanzielle Teil der Daten *
 **Noch nicht enthalten:** tatsächliche Geldzahlungen, Gegenbuchungsereignisse, PHP, Verschlüsselung oder E-Mail. Die Forderungsbeträge sind ausschließlich zur Laufzeit berechnet und werden nicht in der Projektdatei gespeichert.
 
 
-## Ergänzung B02 – Zuordnung der Ausgleichsereignisse (22.11.2026)
+## Aktuelle Festlegung (22.11.2026): nur ein Forderungsjournal
 
-Die grundsätzliche Produktentscheidung, Forderungen immer aus Fachereignissen abzuleiten, bleibt unverändert. Zusätzlich zu B01 (Ausgleichsereignis als Datensatz) enthält `src/lib/claimMatching.js` nun eine reine Zuordnungsfunktion. Sie referenziert eine **konkrete** Forderungsposition anhand von `sourceEventId`, optionalem `childEventId`, `itemId`, `debtorPersonId` und `creditorPersonId`. Der daraus erzeugte Referenzschlüssel ist stabil über JSON-Export/Import sowie Wert- und Datumsänderungen; bei einer Änderung der wirtschaftlichen Parteien kann die Verbindung dagegen bewusst ungültig werden.
+**Diese Entscheidung ersetzt die ältere B02-Zuordnungsplanung und die ursprüngliche Idee einer Deckelung auf die offene Einzelforderung.** Die Fachlogik unterscheidet lediglich die Herkunft einer Geldbewegung: automatisch aus Eigentumsereignis abgeleitete Forderung oder als datiertes Ereignis dokumentierte Zahlung. Letztere wird im Journal als **entgegengesetzte Forderung** mit ungekürztem Centbetrag verbucht. Ein Zahlungseintrag ist nicht mit einem Artikel, einer Ursprungsforderung oder einer einzelnen Anteilstransaktion verknüpft. Alte optionale Herkunftsfelder sind nur Metadaten.
 
-- `claimReferenceFields(claim)` und `claimReferenceKey(claim)`: normierte Herkunft und eindeutiger Schlüssel; fehlende Child-ID = `null`.
-- `matchClaimSettlements(project, asOfDate)`: gibt zuordenbare Ereignisse unter `matched` und Problemfälle unter `unmatched` mit Fehlercode zurück. Keine automatische Zuordnung bei mehrdeutigen, gelöschten, zeitlich unmöglichen oder veränderten Referenzen.
-- `createClaimSettlementForClaim(project, claim, options)`: schreibbares Ereignis mit echten Herkunfts-IDs erzeugen und die aktuelle Zuordnung prüfen; keine Mengenverrechnung.
+Beispiel: Ben schuldet Anna 100 €; eine Überweisung Ben → Anna 120 € ergibt eine Gegenbuchung Anna → Ben 120 € und einen Nettosaldo Anna → Ben 20 €. Neue Ansprüche werden ebenso saldiert. Rückwirkende Änderungen einer Anschaffung ändern **nur** die daraus abgeleiteten Forderungen; die historische Zahlung bleibt unverändert. Es wird weder eine Überzahlung verworfen noch eine Zahlung automatisch geändert oder gelöscht.
 
-Das ist **B02, nicht B03**: Ausgleichsereignisse ziehen derzeit noch keine Cent-Beträge von der Brutto-Forderung ab, selbst wenn die Referenz stimmt. Das ist erst der nächste Schritt. Regression: `tests/claim-matching.test.js` mit 7 neuen Fällen; gezielte Tests für B02 und bestehende B01-/Ledger-Tests erfolgreich, kein vollständiger CI-/Browserlauf bestätigt.
+`src/lib/ledger.js` gibt `claims`, `counterclaims`, `entries`, `pairwise`, `balances`, `simplified` und `warnings` zurück. `src/lib/claimSettlement.js` enthält die Gegenbuchungsvalidierung, -erzeugung und Umkehrung. **Nicht mehr vorhanden:** `claimMatching.js`, `settlementBalances.js`, Forderungspositionen mit eigenem Zahlungsstatus, Pflicht-Zuordnung, Überzahlungsdeckel.
+
+`paid` bedeutet dokumentierte tatsächliche Zahlung; `external` und `waived` sind ausdrücklich nicht als Geldfluss zu behandeln, beeinflussen aber nach entsprechender Erfassung den lokalen Saldo. Die UI bietet noch keine Aktion zum Erfassen oder Editieren dieser Vorgänge; das ist B04–B06/B11. Tests für Überzahlung, Wertkorrektur, fehlenden Quellvorgang, zeitabhängige Verrechnung und JSON-Roundtrip sind ergänzt. Gezielte Fachtests bestanden, vollständiges `npm test`/Build und manuelle Browserabnahme offen.
