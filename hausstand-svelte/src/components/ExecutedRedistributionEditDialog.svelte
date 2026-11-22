@@ -23,6 +23,7 @@
     id: edited.id,
     title: edited.title,
     effectiveDate: edited.date,
+    financialMode: edited.financialMode,
     changes: (edited.events || []).filter(e => e.type === 'shares-set').map(e => ({
       itemId: e.itemId,
       shares: e.shares
@@ -157,7 +158,7 @@
                 <div class="empty-small">Keine Verschiebung.</div>
               {/if}
 
-              <div class="muted" style="margin-top:8px">Empfohlener Ausgleich</div>
+              <div class="muted" style="margin-top:8px">{edited.financialMode === 'derived' ? 'Rechnerischer Ausgleichsvorschlag' : 'Keine Geldforderung bei dieser Änderung'}</div>
               {#if preview.payments.length}
                 <table class="tight">
                   <tbody>
@@ -167,7 +168,7 @@
                   </tbody>
                 </table>
               {:else}
-                <div class="notice-small">Kein Ausgleich empfohlen.</div>
+                <div class="notice-small">{edited.financialMode === 'derived' ? 'Kein Ausgleich vorgeschlagen.' : 'Unentgeltlich: Es entsteht keine Forderung und es wird keine Zahlung erfasst.'}</div>
               {/if}
             </div>
           </section>
