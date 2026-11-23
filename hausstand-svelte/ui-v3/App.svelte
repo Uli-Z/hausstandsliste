@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { locale, languagePreference, setLanguage, translate } from '../src/lib/i18n.js';
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
@@ -34,10 +35,15 @@
   let saveMessage = '';
 
   onMount(() => {
+    const stop = locale.subscribe(language => {
+      document.documentElement.lang = language;
+      document.title = 'Hausstandsliste – Shared Ownership Tracker';
+    });
     const copy = loadWorkingCopy();
     if (copy && copy.project) {
       appState.restoreWorkingCopy(copy); // The view always opens at today, never at a stale historical date.
     }
+    return stop;
   });
 
   $: route = $appState.route;
@@ -158,13 +164,13 @@
     <nav class="sidebar-links" aria-label="Arbeitsbereiche">
       {#each navigation as nav (nav.id)}
         <button class:nav-active={route.page === 'dashboard' && activeSection === nav.id} aria-current={route.page === 'dashboard' && activeSection === nav.id ? 'page' : undefined} on:click={() => navigate(nav.id)}>
-          <span class="nav-glyph" aria-hidden="true">{nav.glyph}</span><span>{nav.label}</span>
+          <span class="nav-glyph" aria-hidden="true">{nav.glyph}</span><span>{$translate('nav.' + nav.id)}</span>
         </button>
       {/each}
     </nav>
     <div class="sidebar-bottom">
-      <button class:nav-active={route.page === 'dashboard' && activeSection === 'save'} on:click={() => navigate('save')} aria-current={route.page === 'dashboard' && activeSection === 'save' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⇩</span> Sichern & Teilen</button>
-      <button class:nav-active={route.page === 'dashboard' && activeSection === 'settings'} on:click={() => navigate('settings')} aria-current={route.page === 'dashboard' && activeSection === 'settings' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⚙</span> Einstellungen</button>
+      <button class:nav-active={route.page === 'dashboard' && activeSection === 'save'} on:click={() => navigate('save')} aria-current={route.page === 'dashboard' && activeSection === 'save' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⇩</span> {$translate("nav.save")}</button>
+      <button class:nav-active={route.page === 'dashboard' && activeSection === 'settings'} on:click={() => navigate('settings')} aria-current={route.page === 'dashboard' && activeSection === 'settings' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⚙</span> {$translate("nav.settings")}</button>
       
     </div>
   </aside>
@@ -176,34 +182,35 @@
         <strong><span class="mobile-header-brand">Hausstandsliste · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
       </div>
       <div class="header-actions">
-        <div class="session-history-actions" role="group" aria-label="Änderungen rückgängig machen oder wiederholen">
-          <button type="button" class="session-history-button" aria-label="Rückgängig (Strg+Z)" title="Rückgängig (Strg+Z)" disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}>↶</button>
-          <button type="button" class="session-history-button" aria-label="Wiederholen (Strg+Y)" title="Wiederholen (Strg+Y / Strg+Umschalt+Z)" disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}>↷</button>
+        <div class="session-history-actions" role="group" aria-label={$translate('app.undo')}>
+          <button type="button" class="session-history-button" aria-label={$translate('app.undo')} title={$translate("app.undo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}>↶</button>
+          <button type="button" class="session-history-button" aria-label={$translate('app.redo')} title="Wiederholen (Strg+Y / Strg+Umschalt+Z)" disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}>↷</button>
         </div>
         <span class="working-indicator" title={$appState.secure ? 'Passwortgeschütztes Projekt: keine Klartext-Arbeitskopie im Browser' : 'Nicht verschlüsselte Projekte haben eine lokale Arbeitskopie im Browser'}>
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
-          {$appState.dirty ? 'Ungespeicherte Änderungen' : 'Keine ungespeicherten Änderungen'}
+          {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </span>
-        <button class="header-save" disabled={savingLocal} on:click={saveNow}>{savingLocal ? 'Speichert …' : 'Speichern'}</button>
+        <button class="header-save" disabled={savingLocal} on:click={saveNow}>{$translate(savingLocal ? 'app.saving' : 'app.save')}</button>
       </div>
     </header>
 
     <main class="work-content">
+      {#key $locale}
       {#if saveMessage}<p role="status" class="inline-info">{saveMessage}</p>{/if}
       {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">Der Browser konnte die Arbeitskopie nicht zwischenspeichern (Speicher voll oder nicht verfügbar). Bitte jetzt eine Projektdatei herunterladen.</p>{/if}
       <div class="date-toolbar" aria-label="Betrachtungsdatum">
         <div class="date-toolbar-label">
-          <span>Stand der Daten</span>
-          <strong>{dateMode === 'today' ? 'Heute' : dateMode === 'past' ? 'Vergangener Stand' : 'Geplanter Stand'}</strong>
+          <span>{$translate("app.dateAsOf")}</span>
+          <strong>{$translate(dateMode === 'today' ? 'app.today' : dateMode === 'past' ? 'app.past' : 'app.future')}</strong>
         </div>
         <div class="date-toolbar-controls">
-          <button title="Zum ersten Ereignis" aria-label="Zum ersten Ereignis" disabled={!firstDate} on:click={() => appState.setAsOfDate(firstDate)}>⇤<span class="mobile-jump-text">Anfang</span></button>
-          <button title="Einen Tag zurück" aria-label="Einen Tag zurück" on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, -1))}>‹</button>
-          <label class="sr-only" for="state-date">Datum wählen</label>
+          <button title={$translate("app.first")} aria-label={$translate("app.first")} disabled={!firstDate} on:click={() => appState.setAsOfDate(firstDate)}>⇤<span class="mobile-jump-text">Anfang</span></button>
+          <button title={$translate("app.previous")} aria-label={$translate("app.previous")} on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, -1))}>‹</button>
+          <label class="sr-only" for="state-date">{$translate("app.pickDate")}</label>
           <input id="state-date" type="date" value={$appState.asOfDate} on:change={e => appState.setAsOfDate(e.currentTarget.value || todayISO())}>
-          <button title="Einen Tag vor" aria-label="Einen Tag vor" on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, 1))}>›</button>
-          <button title="Zum letzten Ereignis" aria-label="Zum letzten Ereignis" disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>⇥<span class="mobile-jump-text">Ende</span></button>
-          <button class="today-button" on:click={() => appState.setAsOfDate(todayISO())}>Heute</button>
+          <button title={$translate("app.next")} aria-label={$translate("app.next")} on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, 1))}>›</button>
+          <button title={$translate("app.last")} aria-label={$translate("app.last")} disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>⇥<span class="mobile-jump-text">Ende</span></button>
+          <button class="today-button" on:click={() => appState.setAsOfDate(todayISO())}>{$translate("app.today")}</button>
         </div>
         {#if dateMode !== 'today'}<span class="date-explanation">{dateMode === 'past' ? 'Du siehst den früheren Besitzstand.' : 'Du siehst den Stand für ein zukünftiges Datum.'}</span>{/if}
       </div>
@@ -218,55 +225,55 @@
         <div class="blank-card"><p>Diese Detailansicht wurde nicht gefunden.</p><button on:click={() => navigate('overview')}>Zur Übersicht</button></div>
       {:else if activeSection === 'overview'}
         <section class="page-heading">
-          <div><h1>Überblick</h1></div>
-          <button class="solid-action" on:click={() => appState.setDialog({ type: 'itemAdd' })}>＋ Gegenstand hinzufügen</button>
+          <div><h1>{$translate("nav.overview")}</h1></div>
+          <button class="solid-action" on:click={() => appState.setDialog({ type: 'itemAdd' })}>＋ {$translate("app.itemAdd")}</button>
         </section>
 
         {#if $appState.project.people.length === 0 && $appState.project.items.length === 0}
           <section class="getting-started">
-            <div><h2>Beginne mit den Personen.</h2></div>
-            <button class="solid-action" on:click={() => appState.setDialog({ type: 'personAdd' })}>Erste Person hinzufügen</button>
+            <div><h2>{$translate("app.intro")}</h2></div>
+            <button class="solid-action" on:click={() => appState.setDialog({ type: 'personAdd' })}>{$translate("app.firstPerson")}</button>
           </section>
         {/if}
 
         <div class="metric-grid">
-          <div class="metric"><span>Gemeinsamer Bestandswert</span><strong>{money($projection.totalValue)}</strong><small>Wert aller aktiven Gegenstände</small></div>
-          <div class="metric"><span>Gegenstände</span><strong>{$projection.activeItems.length}</strong><small>im aktuellen Bestand</small></div>
-          <div class="metric"><span>Personen</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>aktuell dabei</small></div>
-          <div class="metric"><span>Noch auszugleichen</span><strong>{money(outstandingCents / 100)}</strong><small>gemeinsamer Ausgleichssaldo</small></div>
+          <div class="metric"><span>{$translate("app.totalValue")}</span><strong>{money($projection.totalValue)}</strong><small>{$translate("app.activeItems")}</small></div>
+          <div class="metric"><span>{$translate("nav.items")}</span><strong>{$projection.activeItems.length}</strong><small>{$translate("app.inInventory")}</small></div>
+          <div class="metric"><span>{$translate("nav.people")}</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>{$translate("app.participants")}</small></div>
+          <div class="metric"><span>{$translate("app.outstanding")}</span><strong>{money(outstandingCents / 100)}</strong><small>{$translate("app.sharedBalance")}</small></div>
         </div>
 
         <div class="overview-layout">
           <section class="ux-panel quick-actions">
-            <div class="section-header"><div><h2>Was möchtest du tun?</h2></div></div>
+            <div class="section-header"><div><h2>{$translate("app.tasks")}</h2></div></div>
             <div class="task-grid">
-              <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><strong>Etwas hinzufügen</strong><small>Neuen Gegenstand erfassen</small></button>
-              <button on:click={() => appState.startRedistribution()}><strong>Anteile übertragen</strong><small>Besitz neu aufteilen</small></button>
-              <button on:click={() => appState.setDialog({ type: 'personAdd' })}><strong>Person hinzufügen</strong><small>Einzug oder neue Beteiligung</small></button>
-              <button on:click={() => navigate('save')}><strong>Daten sichern</strong><small>Sicherung erstellen oder gemeinsam arbeiten</small></button>
+              <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><strong>{$translate("app.addSomething")}</strong><small>{$translate("app.recordItem")}</small></button>
+              <button on:click={() => appState.startRedistribution()}><strong>{$translate("app.transfer")}</strong><small>{$translate("app.split")}</small></button>
+              <button on:click={() => appState.setDialog({ type: 'personAdd' })}><strong>{$translate("app.personAdd")}</strong><small>{$translate("app.join")}</small></button>
+              <button on:click={() => navigate('save')}><strong>{$translate("app.backup")}</strong><small>{$translate("app.share")}</small></button>
             </div>
           </section>
           <section class="ux-panel financial-overview">
-            <div class="section-header"><div class="help-heading"><h2>Ausgleichsvorschläge</h2><HelpTip label="Wie entstehen die Ausgleichsvorschläge?">Aus dem finanzierten Wert und den Eigentumsanteilen wird berechnet, wer einen Ausgleich erhalten soll. Die Überweisungswege sind Vorschläge, keine dokumentierten Zahlungen.</HelpTip></div><button class="text-action" on:click={() => navigate('money')}>Alle Beträge ansehen →</button></div>
+            <div class="section-header"><div class="help-heading"><h2>{$translate("app.suggestions")}</h2><HelpTip label="Wie entstehen die Ausgleichsvorschläge?">Aus dem finanzierten Wert und den Eigentumsanteilen wird berechnet, wer einen Ausgleich erhalten soll. Die Überweisungswege sind Vorschläge, keine dokumentierten Zahlungen.</HelpTip></div><button class="text-action" on:click={() => navigate('money')}>{$translate("app.viewAll")}</button></div>
             {#if balances.length}
               <div class="simple-debts">
                 {#each balances.slice(0,5) as b}
                   <div class="debt-row">
                   <span>{personName(b.fromPersonId)} an {personName(b.toPersonId)}</span>
                   <strong>{money(b.amountCents / 100)}</strong>
-                  <button class="debt-action" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})} disabled={$appState.readOnly}>Ausgleichen</button>
+                  <button class="debt-action" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})} disabled={$appState.readOnly}>{$translate("app.settle")}</button>
                 </div>
                 {/each}
               </div>
               {#if balances.length > 5}<p class="muted">Weitere {balances.length - 5} Verbindungen im Bereich „Geld & Ausgleich“.</p>{/if}
             {:else}
-              <div class="gentle-empty"><strong>Alles ausgeglichen</strong></div>
+              <div class="gentle-empty"><strong>{$translate("app.settled")}</strong></div>
             {/if}
           </section>
         </div>
         <div class="overview-layout second-row">
           <section class="ux-panel">
-            <div class="section-header"><div><h2>Was hat sich verändert?</h2></div><button class="text-action" on:click={() => navigate('activity')}>Alle Änderungen →</button></div>
+            <div class="section-header"><div><h2>{$translate("app.recent")}</h2></div><button class="text-action" on:click={() => navigate('activity')}>{$translate("app.viewActivity")}</button></div>
             {#if latestEvents.length}
               <div class="recent-list">
                 {#each latestEvents as event (event.id)}
@@ -274,75 +281,87 @@
                 {/each}
               </div>
             {:else}
-              <div class="gentle-empty"><p>Noch keine Änderungen.</p></div>
+              <div class="gentle-empty"><p>{$translate("app.none")}</p></div>
             {/if}
           </section>
           <section class="ux-panel">
-            <div class="section-header"><div><h2>Entwürfe</h2></div></div>
+            <div class="section-header"><div><h2>{$translate("app.drafts")}</h2></div></div>
             {#if drafts.length}
               <div class="draft-list">
                 {#each drafts as draft (draft.id)}
                   <div class="draft-row">
                     <div><strong>{draft.title || draft.data?.name || 'Unbenannter Entwurf'}</strong><small>{draft.type === 'redistribution' ? 'Anteile übertragen' : 'Gegenstand erfassen'}</small></div>
                     <div class="draft-buttons">
-                      <button on:click={() => appState.setDialog({type:draft.type==='redistribution'?'redistributionEdit':'itemAdd',id:draft.id})}>Fortsetzen</button>
+                      <button on:click={() => appState.setDialog({type:draft.type==='redistribution'?'redistributionEdit':'itemAdd',id:draft.id})}>{$translate("app.continue")}</button>
                       <button class="subtle-danger" title="Entwurf löschen" aria-label="Entwurf löschen" on:click={() => { if (confirm('Diesen Entwurf löschen?')) appState.deleteDraft(draft.id); }}>×</button>
                     </div>
                   </div>
                 {/each}
               </div>
             {:else}
-              <div class="gentle-empty"><p>Keine offenen Entwürfe.</p></div>
+              <div class="gentle-empty"><p>{$translate("app.noDrafts")}</p></div>
             {/if}
           </section>
         </div>
       {:else if activeSection === 'items'}
-        <div class="page-heading"><div><h1>Gegenstände</h1></div><button class="solid-action" on:click={() => appState.setDialog({type:'itemAdd'})}>＋ Gegenstand hinzufügen</button></div>
+        <div class="page-heading"><div><h1>{$translate("nav.items")}</h1></div><button class="solid-action" on:click={() => appState.setDialog({type:'itemAdd'})}>＋ {$translate("app.itemAdd")}</button></div>
         <InventoryView items={$projection.activeItems} archived={$projection.archivedItems} tags={$projection.allTags}/>
       {:else if activeSection === 'people'}
-        <div class="page-heading"><div><h1>Personen</h1></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ Person hinzufügen</button></div>
+        <div class="page-heading"><div><h1>{$translate("nav.people")}</h1></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ {$translate("app.personAdd")}</button></div>
         <PeopleView people={$projection.people} ledger={$ledger}/>
       {:else if activeSection === 'money'}
-        <div class="page-heading"><div><h1>Geld & Ausgleich</h1></div><button class="outline-action" on:click={() => appState.startRedistribution()}>Anteile übertragen</button></div>
+        <div class="page-heading"><div><h1>{$translate("nav.money")}</h1></div><button class="outline-action" on:click={() => appState.startRedistribution()}>{$translate("app.transfer")}</button></div>
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
-        <div class="page-heading"><div><h1>Änderungen</h1></div></div>
+        <div class="page-heading"><div><h1>{$translate("nav.activity")}</h1></div></div>
         {#if futureEventCount}<div class="inline-info">{futureEventCount} Vorgang/Vorgänge liegen nach dem aktuell gewählten Datum. Sie können im Verlauf eingeblendet werden.</div>{/if}
         <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title="Alle Änderungen nach Datum"/>
       {:else if activeSection === 'save'}
-        <div class="page-heading"><div><h1>Sichern & Teilen</h1><HelpTip label="Wo werden die Projektdaten gespeichert?">{SERVER_MODE ? 'Du kannst Sicherungskopien erstellen und deine gemeinsamen Online-Projekte verwalten.' : 'Diese HTML-Version speichert ausschließlich lokal. Sichere deine Daten regelmäßig als Datei.'}</HelpTip></div></div>
+        <div class="page-heading"><div><h1>{$translate("nav.save")}</h1><HelpTip label="Wo werden die Projektdaten gespeichert?">{SERVER_MODE ? 'Du kannst Sicherungskopien erstellen und deine gemeinsamen Online-Projekte verwalten.' : 'Diese HTML-Version speichert ausschließlich lokal. Sichere deine Daten regelmäßig als Datei.'}</HelpTip></div></div>
         <div class="save-top-grid">
           <section class="ux-panel save-basic">
-            <div class="section-header"><div class="help-heading"><h2>Sicherungskopie erstellen</h2><HelpTip label="Wozu dient die Sicherungskopie?">Lade deine Projektdaten als Datei herunter. So kannst du sie später auf diesem oder einem anderen Gerät wieder öffnen.</HelpTip></div></div>
+            <div class="section-header"><div class="help-heading"><h2>{$translate("app.backupTitle")}</h2><HelpTip label="Wozu dient die Sicherungskopie?">Lade deine Projektdaten als Datei herunter. So kannst du sie später auf diesem oder einem anderen Gerät wieder öffnen.</HelpTip></div></div>
             <div class="save-basic-actions">
-              <button class="solid-action" on:click={exportNow}>Sicherung herunterladen</button>
-              <label class="file-button">Vorhandene Sicherung öffnen<input type="file" accept="application/json,.json" on:change={importFile}/></label>
+              <button class="solid-action" on:click={exportNow}>{$translate("app.download")}</button>
+              <label class="file-button">{$translate("app.openBackup")}<input type="file" accept="application/json,.json" on:change={importFile}/></label>
             </div>
-            <div class="inline-info warning">Diese einfache Sicherung ist <strong>nicht verschlüsselt</strong>. Bewahre sie an einem geschützten Ort auf.</div>
+            <div class="inline-info warning">Diese einfache Sicherung ist <strong>{$translate("app.unencrypted")}</strong>. Bewahre sie an einem geschützten Ort auf.</div>
           </section>
           <section class="ux-panel save-help">
-            <div class="section-header"><div class="help-heading"><h2>Wo liegen deine Daten?</h2><HelpTip label="Wie funktioniert die lokale Datenspeicherung?">{$appState.secure ? 'Bei verschlüsselten Projekten wird keine unverschlüsselte Kopie im Browser abgelegt.' : SERVER_MODE ? 'Solange kein Online-Projekt geöffnet wurde, liegt der Arbeitsstand nur in diesem Browser. Für gemeinsame Speicherung nutze Online-Projekte.' : 'Der Arbeitsstand wird nur in diesem Browser gespeichert und nicht automatisch auf andere Geräte übertragen.'} Bitte sichere deine Daten regelmäßig als Datei.</HelpTip></div></div>
+            <div class="section-header"><div class="help-heading"><h2>{$translate("app.whereData")}</h2><HelpTip label="Wie funktioniert die lokale Datenspeicherung?">{$appState.secure ? 'Bei verschlüsselten Projekten wird keine unverschlüsselte Kopie im Browser abgelegt.' : SERVER_MODE ? 'Solange kein Online-Projekt geöffnet wurde, liegt der Arbeitsstand nur in diesem Browser. Für gemeinsame Speicherung nutze Online-Projekte.' : 'Der Arbeitsstand wird nur in diesem Browser gespeichert und nicht automatisch auf andere Geräte übertragen.'} Bitte sichere deine Daten regelmäßig als Datei.</HelpTip></div></div>
             <div class="status-definition"><div><strong>{$appState.secure ? 'Passwortgeschütztes Projekt' : 'Arbeitskopie in diesem Browser'}</strong></div></div>
             <div class="status-definition"><div><strong>{$appState.dirty ? 'Änderungen noch nicht exportiert' : 'Keine neuen Änderungen seit der letzten Sicherung'}</strong></div></div>
           </section>
         </div>
       {:else if activeSection === 'settings'}
-        <div class="page-heading"><div><h1>Einstellungen</h1></div></div>
+        <div class="page-heading"><div><h1>{$translate("nav.settings")}</h1></div></div>
         <section class="ux-panel setting-panel">
-          <div class="section-header"><div><h2>Aktuelles Projekt</h2></div></div>
-          <dl class="project-metadata"><div><dt>Hausgemeinschaft</dt><dd>{$appState.project.community?.name || 'Hausgemeinschaft'}</dd></div><div><dt>Geöffnete Datei</dt><dd>{$appState.fileName || 'Keine Datei ausgewählt'}</dd></div><div><dt>Bearbeitung</dt><dd>{$appState.readOnly ? 'Schreibgeschützt' : 'Bearbeitbar'}</dd></div></dl>
+          <div class="section-header"><div><h2>{$translate('language.title')}</h2></div></div>
+          <label for="language-selection">{$translate('language.title')}
+            <select id="language-selection" value={$languagePreference} on:change={e => setLanguage(e.currentTarget.value)}>
+              <option value="auto">{$translate('language.auto')}</option>
+              <option value="en">English</option>
+              <option value="de">{$translate("language.german")}</option>
+            </select>
+          </label>
+          <p class="muted">{$translate('language.help')}</p>
         </section>
         <section class="ux-panel setting-panel">
-          <div class="section-header"><div class="help-heading"><h2>Projektdaten ansehen</h2><HelpTip label="Was enthält die technische Ansicht?">Die technische Ansicht zeigt die vollständige Datenstruktur des Projekts zur Fehlersuche und zum Austausch mit anderen Programmen.</HelpTip></div></div>
-          <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? 'Technische Ansicht schließen' : 'JSON-Daten anzeigen'}</button>
+          <div class="section-header"><div><h2>{$translate('app.currentProject')}</h2></div></div>
+          <dl class="project-metadata"><div><dt>{$translate("app.household")}</dt><dd>{$appState.project.community?.name || 'Hausgemeinschaft'}</dd></div><div><dt>{$translate("app.openFile")}</dt><dd>{$appState.fileName || $translate('app.noFile')}</dd></div><div><dt>{$translate("app.editing")}</dt><dd>{$appState.readOnly ? $translate('app.readonly') : $translate('app.editable')}</dd></div></dl>
+        </section>
+        <section class="ux-panel setting-panel">
+          <div class="section-header"><div class="help-heading"><h2>{$translate("app.inspect")}</h2><HelpTip label="Was enthält die technische Ansicht?">Die technische Ansicht zeigt die vollständige Datenstruktur des Projekts zur Fehlersuche und zum Austausch mit anderen Programmen.</HelpTip></div></div>
+          <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? $translate('app.technicalClose') : $translate('app.technicalOpen')}</button>
           {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
         </section>
         <section class="ux-panel setting-panel dangerous-settings">
-          <div class="section-header"><div class="help-heading"><h2>Neues Projekt beginnen</h2><HelpTip label="Was passiert beim Projektwechsel?">Beim Zurücksetzen wird die bisherige Arbeitskopie in diesem Browser ersetzt. Erstelle vorher eine Sicherungskopie.</HelpTip></div></div>
-          <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? 'Abbrechen' : 'Projekt zurücksetzen …'}</button>
+          <div class="section-header"><div class="help-heading"><h2>{$translate("app.newProject")}</h2><HelpTip label="Was passiert beim Projektwechsel?">Beim Zurücksetzen wird die bisherige Arbeitskopie in diesem Browser ersetzt. Erstelle vorher eine Sicherungskopie.</HelpTip></div></div>
+          <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? 'Abbrechen' : $translate('app.reset')}</button>
           {#if showDanger}<div class="inline-info warning"><strong>Der aktuelle Stand kann verloren gehen.</strong> Nach dem Zurücksetzen lässt er sich nur aus einer vorhandenen Sicherung wiederherstellen.</div><button class="dangerous-button" on:click={newProject}>Ja, neues Projekt beginnen</button>{/if}
         </section>
       {/if}
+      {/key}
       <!-- Keep the collaborative-storage component mounted: the server lease, edit token,
            selected remote file and password must survive tab/detail navigation. -->
       <div class:storage-not-visible={route.page !== 'dashboard' || activeSection !== 'save'}>
@@ -357,15 +376,15 @@
     <button type="button" class:nav-active={activeSection === nav.id}
       aria-current={activeSection === nav.id ? 'page' : undefined} on:click={() => navigate(nav.id)}>
       <span class="mobile-nav-icon" aria-hidden="true">{nav.glyph}</span>
-      <span class="mobile-nav-label">{nav.id === 'overview' ? 'Start' : nav.id === 'items' ? 'Dinge' : nav.id === 'people' ? 'Personen' : 'Geld'}</span>
+      <span class="mobile-nav-label">{$translate(nav.id === 'overview' ? 'nav.home' : nav.id === 'items' ? 'nav.things' : nav.id === 'people' ? 'nav.people' : 'nav.cash')}</span>
     </button>
   {/each}
   <div class="mobile-more-slot">
     {#if mobileMoreOpen}
       <div class="mobile-more-menu" id="mobile-more-menu">
-        <button type="button" class:nav-active={activeSection === 'activity'} on:click={() => navigate('activity')}><span aria-hidden="true">◷</span> Änderungen</button>
-        <button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><span aria-hidden="true">⇩</span> Sichern & Teilen</button>
-        <button type="button" class:nav-active={activeSection === 'settings'} on:click={() => navigate('settings')}><span aria-hidden="true">⚙</span> Einstellungen</button>
+        <button type="button" class:nav-active={activeSection === 'activity'} on:click={() => navigate('activity')}><span aria-hidden="true">◷</span> {$translate("nav.activity")}</button>
+        <button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><span aria-hidden="true">⇩</span> {$translate("nav.save")}</button>
+        <button type="button" class:nav-active={activeSection === 'settings'} on:click={() => navigate('settings')}><span aria-hidden="true">⚙</span> {$translate("nav.settings")}</button>
       </div>
     {/if}
     <button type="button" class:nav-active={['activity','save','settings'].includes(activeSection)}
@@ -373,7 +392,7 @@
       aria-label={mobileMoreOpen ? 'Weitere Bereiche schließen' : 'Weitere Bereiche öffnen'}
       on:click={() => mobileMoreOpen = !mobileMoreOpen}>
       <span class="mobile-nav-icon" aria-hidden="true">{mobileMoreOpen ? '×' : '⋯'}</span>
-      <span class="mobile-nav-label">Mehr</span>
+      <span class="mobile-nav-label">{$translate("nav.more")}</span>
     </button>
   </div>
 </nav>

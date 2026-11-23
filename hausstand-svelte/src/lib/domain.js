@@ -1,7 +1,8 @@
 import { nowISO, todayISO } from './util.js';
+import { formatMoney, formatPercent } from './i18n.js';
 
-export const money = value => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(value) || 0);
-export const pct = value => new Intl.NumberFormat('de-DE', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(value) || 0);
+export const money = formatMoney;
+export const pct = formatPercent;
 
 export const emptyProject = () => ({
   schemaVersion: 1,

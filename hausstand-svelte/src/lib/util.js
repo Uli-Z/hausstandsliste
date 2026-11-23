@@ -1,3 +1,4 @@
+import { formatDate, formatDateTime } from './i18n.js';
 export const todayISO = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -8,13 +9,8 @@ export const clone = value => typeof structuredClone === 'function' ? structured
 export const num = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 export const esc = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 export const parseTags = value => String(value || '').split(',').map(x => x.trim()).filter(Boolean);
-export const dateDE = iso => {
-  if (!iso) return '–';
-  const d = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return String(iso);
-  return new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(d);
-};
-export const dateTimeDE = iso => iso ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso)) : '–';
+export const dateDE = formatDate;
+export const dateTimeDE = formatDateTime;
 export const addDays = (iso, days) => {
   const d = new Date(`${iso || todayISO()}T00:00:00`);
   d.setDate(d.getDate() + days);
