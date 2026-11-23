@@ -620,6 +620,16 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       // Check chosen historical date is the default for new payments.
       await page.getByRole('button', { name: 'Stichtag wählen' }).click();
       await page.locator('#state-date').fill('2025-01-05');
+      await noOverflow('active time travel header');
+      assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /05\.01\.2025/);
+      const datePopover = await page.locator('#time-travel-panel').boundingBox();
+      assert.ok(datePopover.x >= 0 && datePopover.x + datePopover.width <= width + 2,
+        'Q16 ' + width + 'px date popover clipped: ' + JSON.stringify(datePopover));
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const timeTravelHeader = await header.boundingBox();
+      assert.ok(Math.abs(timeTravelHeader.y) <= 1,
+        'Q16 ' + width + 'px active time-travel header no longer sticky');
+      assert.equal(await page.locator('.time-travel-selected-text strong').isVisible(), true);
       await page.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
       const paymentDialog = page.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
       assert.equal(await paymentDialog.locator('input[type=date]').inputValue(), '2025-01-05');
