@@ -2,7 +2,7 @@
 
 This directory contains the **active source code** for [Hausstandsliste — Shared Ownership Tracker](../README.md), a local-first browser app for jointly owned belongings. The older [single-file prototype](../vorlage.html) is only a historical reference.
 
-The Svelte/Vite source produces a standalone offline HTML application and a separately configured PHP release. Both builds share the domain logic, event history, and user interface; PHP is **not** required for local use.
+The Svelte/Vite source produces standalone offline HTML and a separately configured PHP release. All builds share the domain logic and project file format. GitHub Pages and the PHP release use the current mobile V3 interface; `build:single` still uses the classic UI entry point. PHP is **not** required for local use.
 
 ## Development
 
