@@ -14,8 +14,11 @@ export const clearWorkingCopy = () => localStorage.removeItem(KEY);
 
 export const exportProject = (project, asOfDate) => {
   const projection = projectAt(project, asOfDate);
+  // Keep the active project readable first and the compressed, opaque
+  // historical payload at the very end of a manually inspected JSON file.
+  const { versionHistory, ...current } = project;
   return {
-    ...project,
+    ...current,
     schemaVersion: 1,
     currency: 'EUR',
     humanReadableSnapshot: {
@@ -35,7 +38,8 @@ export const exportProject = (project, asOfDate) => {
         tags: i.tags || [],
         shares: Object.fromEntries(i.shareRows.map(r => [r.personName, r.units]))
       }))
-    }
+    },
+    ...(versionHistory ? { versionHistory } : {})
   };
 };
 
