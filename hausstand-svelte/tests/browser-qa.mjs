@@ -144,9 +144,46 @@ async function offline(browser, url) {
   const restored = await download(mobile);
   assert.equal(restored.versionHistory.entries.length, 2);
   assert.deepEqual(restored.events.filter(e => e.type === 'claim-settlement-recorded'), []);
+
+  // Local encrypted download carries the same complete portable history.
+  await openSave(mobile);
+  await mobile.getByRole('button', { name: /Passwortgeschützte Dateien verwalten/ }).click();
+  await mobile.getByLabel('Passwort für diese Datei').fill('encrypted-browser-qa-secret');
+  await mobile.getByLabel('Name der Sicherung').fill('verschlüsselt');
+  const encryptedWait = mobile.waitForEvent('download');
+  await mobile.getByRole('button', { name: 'Verschlüsselte Datei herunterladen' }).click();
+  const encryptedFile = JSON.parse(await readFile(await (await encryptedWait).path(), 'utf8'));
+  assert.equal(encryptedFile.format, 'hausstand-aesgcm-v1');
+  assert.equal(JSON.stringify(encryptedFile).includes('portable-v1'), false);
+
+  const encryptedContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  try {
+    const encryptedPage = await encryptedContext.newPage();
+    const encryptedErrors = [];
+    encryptedPage.on('pageerror', e => encryptedErrors.push(e.message));
+    await encryptedPage.goto(url);
+    await openSave(encryptedPage);
+    await encryptedPage.getByRole('button', { name: /Passwortgeschützte Dateien verwalten/ }).click();
+    await encryptedPage.getByLabel('Passwort für diese Datei').fill('encrypted-browser-qa-secret');
+    await encryptedPage.locator('.storage-choices input[accept=".json,.enc"]').setInputFiles({
+      name: 'portable-encrypted.json', mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(encryptedFile))
+    });
+    await encryptedPage.getByText('Browser-Abnahme').first().waitFor();
+    await openFinance(encryptedPage);
+    await balance(encryptedPage, 'Anna', '200,00');
+    await openSave(encryptedPage);
+    await encryptedPage.locator('section[aria-label="Gespeicherte Dateiversionen"] select')
+      .selectOption({ index: 2 });
+    encryptedPage.on('dialog', dialog => dialog.accept());
+    await encryptedPage.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
+    await openFinance(encryptedPage);
+    await balance(encryptedPage, 'Anna', '140,00');
+    assert.deepEqual(encryptedErrors, []);
+  } finally { await encryptedContext.close(); }
   assert.deepEqual(errors, []);
   await fresh.close();
-  console.log('Browser offline QA: money balances, payment, Undo/Redo, download, new browser, restore and 375px layout passed');
+  console.log('Browser offline QA: money, Undo/Redo, JSON download, fresh-browser restore, encrypted file roundtrip and 375px layout passed');
 }
 async function freePort() {
   const srv = createServer();
