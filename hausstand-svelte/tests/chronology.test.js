@@ -51,7 +51,7 @@ test('A07: same-day future ownership transfers do not enter the first transfer p
   assert.equal(JSON.stringify(p), serialized, 'previews must not change source JSON');
 });
 
-test('A07: stable position is preserved for same-day equal-order legacy events', () => {
+test('A07: stable position is preserved for same-day equal-order events', () => {
   const p = project([
     itemAdded(),
     transfer('first', { ben: 1 }, date, 25),
@@ -62,7 +62,7 @@ test('A07: stable position is preserved for same-day equal-order legacy events',
   assert.deepEqual(sharesAt(p), { carla: 1 });
 });
 
-test('A07: missing legacy order uses stable relative array position', () => {
+test('A07: missing order uses stable relative array position', () => {
   const a = transfer('first', { ben: 1 }); delete a.order;
   const b = transfer('second', { carla: 1 }); delete b.order;
   const p = project([itemAdded(), a, b]);
@@ -114,7 +114,7 @@ test('A07: group before preview excludes later same-day nested redistribution', 
   assert.deepEqual(make('second', { carla: 1 }, 6).payments.map(p => p.toPersonId), ['ben']);
 });
 
-test('A07: new event order is strictly after imported same-day future order values', () => {
+test('A07: new event order is strictly after existing same-day larger order values', () => {
   const extremelyHigh = Date.now() + 500000;
   const p = project([itemAdded(), transfer('future-order', { ben: 1 }, date, extremelyHigh)]);
   const proposed = {

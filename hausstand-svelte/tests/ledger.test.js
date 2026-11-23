@@ -77,7 +77,7 @@ test('initial funding creates claims only when explicitly attributed', () => {
   assert.deepEqual(deriveClaims(project([funding]), '2026-03-01'), []);
 });
 
-test('legacy events have no financial effect without an explicit marker', () => {
+test('events without explicit financial mode have no financial effect', () => {
   const old = transfer('old', 'one', { anna: 1 });
   delete old.financialMode;
   const p = project([item('one', 100, { ben: 1 }), old]);

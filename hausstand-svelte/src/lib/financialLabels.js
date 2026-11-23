@@ -24,7 +24,7 @@ export const FINANCIAL_EVENT_NOTE = event => {
   if (event?.financialMode === 'derived') {
     return 'entgeltlich · mögliche Forderungen werden abgeleitet · keine Zahlung gebucht';
   }
-  return 'unentgeltlich/Altvorgang · keine neue Forderung · keine Zahlung gebucht';
+  return 'unentgeltlich · keine neue Forderung · keine Zahlung gebucht';
 };
 
 export const ITEM_FUNDING_NOTE = event => (

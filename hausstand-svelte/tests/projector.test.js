@@ -142,18 +142,3 @@ test('A02: future members stay hidden before move-in and reactivate at historica
   assert.equal(projectAt(project, '2027-09-01').people.find(p => p.id === 'future').active, true);
   assert.equal(projectAt(project, '2027-09-01').people.some(p => p.id === 'never'), false);
 });
-
-test('A02: legacy owner without a person-added event is still discoverable', () => {
-  const project = {
-    people: [{ id: 'legacy', name: 'Alte Person' }],
-    items: [{ id: 'zero', name: 'Wertloser Gegenstand' }],
-    events: [{
-      id: 'legacy-item', type: 'item-added', itemId: 'zero', date: '2024-01-01', order: 1,
-      initialValue: 0, valuation: { type: 'fixed', minimumValue: 0 }, shares: { legacy: 1 }
-    }]
-  };
-  const projection = projectAt(project, '2026-11-22');
-  assert.equal(projection.people.length, 1);
-  assert.equal(projection.people[0].active, false);
-  assert.equal(projection.people[0].holdings[0].item.id, 'zero');
-});

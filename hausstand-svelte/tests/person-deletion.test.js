@@ -106,9 +106,6 @@ test('A03: draft shares, financing and redistribution selections prohibit deleti
     project.drafts.push(draft);
     assertBlockedWithoutMutation(project);
   }
-  const legacy = makeProject();
-  legacy.redistributions = [{ id: 'old', changes: [{ itemId: 'desk', shares: { anna: 1 } }] }];
-  assertBlockedWithoutMutation(legacy);
 });
 
 test('A03: person references in other master data or finance extension are protected', () => {

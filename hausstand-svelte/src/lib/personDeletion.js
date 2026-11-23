@@ -35,7 +35,7 @@ export function personDeletionEligibility(project, personId) {
   if ((project.people || []).some(person => String(person.id) !== id && mentionsPersonId(person, id))) {
     return { allowed: false, reason: 'Andere Personenstammdaten verweisen auf diese Person.' };
   }
-  if ([...(project.drafts || []), ...(project.redistributions || [])].some(draft => mentionsPersonId(draft, id))) {
+  if ((project.drafts || []).some(draft => mentionsPersonId(draft, id))) {
     return { allowed: false, reason: 'Die Person wird noch in einem Entwurf verwendet.' };
   }
 
@@ -43,7 +43,7 @@ export function personDeletionEligibility(project, personId) {
   // human-readable snapshot is derived, not an independent source of truth.
   const standardKeys = new Set([
     'schemaVersion', 'appVersion', 'currency', 'community', 'humanReadableSnapshot',
-    'people', 'items', 'events', 'drafts', 'redistributions'
+    'people', 'items', 'events', 'drafts', 'versionHistory', 'lastSavedAt'
   ]);
   for (const [key, value] of Object.entries(project)) {
     if (!standardKeys.has(key) && mentionsPersonId(value, id)) {

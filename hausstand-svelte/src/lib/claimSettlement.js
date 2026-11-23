@@ -16,8 +16,7 @@ const validISODate = value => {
  * creditorPersonId is the person who received it. The resulting financial
  * ledger entry has the OPPOSITE direction, irrespective of existing debts.
  *
- * Legacy sourceEventId/childEventId/itemId metadata remains importable and
- * exportable, but has no matching or netting effect.
+ * The event is independent of any purchase or ownership change.
  */
 export function claimSettlementErrors(event) {
   const errors = [];
@@ -37,8 +36,8 @@ export function claimSettlementErrors(event) {
   if (nonEmptyId(event?.debtorPersonId) && event.debtorPersonId === event.creditorPersonId) {
     errors.push('Zahlende und empfangende Person müssen verschieden sein.');
   }
-  for (const key of ['sourceEventId', 'childEventId', 'itemId']) {
-    if (event?.[key] != null && !nonEmptyId(event[key])) errors.push(key + ' muss eine gültige ID sein.');
+  if (['sourceEventId', 'childEventId', 'itemId'].some(key => key in (event || {}))) {
+    errors.push('Ausgleichszahlungen dürfen keinen Gegenstands- oder Buchungsbezug enthalten.');
   }
   if (event?.note != null && typeof event.note !== 'string') errors.push('Notiz muss Text sein.');
   return errors;
@@ -47,12 +46,11 @@ export function claimSettlementErrors(event) {
 /**
  * A real payment or manual offset is stored once as a dated event; it stays
  * the exact amount paid if earlier purchase events are corrected or removed.
- * References are optional legacy/context fields and are never required.
+ * There is deliberately no link to an individual item or claim.
  */
 export function createClaimSettlementEvent(project, {
   date, amountCents, debtorPersonId, creditorPersonId,
-  settlementKind = 'paid', note,
-  sourceEventId, childEventId, itemId
+  settlementKind = 'paid', note
 } = {}) {
   const event = {
     id: uid('settlement'),
@@ -65,9 +63,6 @@ export function createClaimSettlementEvent(project, {
     settlementKind
   };
   if (note != null && note !== '') event.note = note;
-  if (sourceEventId != null) event.sourceEventId = sourceEventId;
-  if (childEventId != null) event.childEventId = childEventId;
-  if (itemId != null) event.itemId = itemId;
   const errors = claimSettlementErrors(event);
   if (errors.length) throw new TypeError('Ungültiges Ausgleichsereignis: ' + errors.join(' '));
   return event;
@@ -121,7 +116,7 @@ export function deriveSettlementCounterclaims(project, asOfDate) {
     entries.push({
       sourceEventId: event.id,
       childEventId: null,
-      itemId: null, // no source allocation: optional event.itemId is descriptive only
+      itemId: null, // recorded payments have no item allocation
       date: event.date,
       order: event.order,
       debtorPersonId: event.creditorPersonId,

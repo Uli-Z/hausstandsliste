@@ -63,13 +63,13 @@ test('B01 revised: payments do not change ownership and only count as opposite m
   ]), [['anna', 'ben', 10000]]);
 });
 
-test('B01 revised: legacy optional source metadata is preserved but not used for calculation', () => {
+test('payments cannot contain old purchase or source references', () => {
   const p = makeProject();
   const event = createClaimSettlementEvent(p, args({
-    sourceEventId: 'already-deleted', childEventId: 'child-1', itemId: 'fridge'
+    sourceEventId: 'purchase', childEventId: 'child-1', itemId: 'fridge'
   }));
-  p.events.push(event);
-  assert.equal(event.sourceEventId, 'already-deleted');
-  assert.equal(ledgerAt(p, '2026-02-02').warnings.length, 0);
-  assert.deepEqual(ledgerAt(p, '2026-02-02').pairwise, []);
+  assert.equal(event.sourceEventId, undefined);
+  assert.equal(event.childEventId, undefined);
+  assert.equal(event.itemId, undefined);
+  assert.deepEqual(claimSettlementErrors({ ...event, sourceEventId: 'purchase' }).length > 0, true);
 });

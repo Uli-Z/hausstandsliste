@@ -56,13 +56,14 @@ async function digest(bytes) {
 }
 
 async function compress(bytes) {
-  if (typeof CompressionStream !== 'function') return { encoding: 'json-base64', bytes };
+  if (typeof CompressionStream !== 'function') {
+    throw new Error('Der Browser unterstützt die benötigte gzip-Komprimierung nicht.');
+  }
   const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
   return { encoding: 'gzip-base64', bytes: new Uint8Array(await new Response(stream).arrayBuffer()) };
 }
 
 async function decompress(bytes, encoding) {
-  if (encoding === 'json-base64') return bytes;
   if (encoding !== 'gzip-base64' || typeof DecompressionStream !== 'function') {
     throw new Error('Diese Version kann in diesem Browser nicht entpackt werden.');
   }

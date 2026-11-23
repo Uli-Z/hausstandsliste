@@ -109,8 +109,7 @@ export const projectAt = (project, asOfDate) => {
   // Former members stay visible after leaving, even with no holdings or value.
   // Lifecycle events must already have occurred by the selected date; people
   // whose first arrival lies in the future remain hidden in historical views.
-  // Also keep historical owners from legacy data without a person-added event.
-  }).filter(person => person.active || person.activeFrom || person.inactiveFrom || person.reactivatedAt || person.holdings.length > 0);
+  }).filter(person => person.active || person.activeFrom || person.inactiveFrom || person.reactivatedAt);
 
   return {
     asOfDate,

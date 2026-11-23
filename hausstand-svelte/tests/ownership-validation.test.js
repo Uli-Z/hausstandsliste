@@ -91,7 +91,7 @@ test('A05: item-ended is the explicit alternative to deleting the last owner', (
   assert.deepEqual(projectAt(after, '2026-03-02').activeItems, []);
 });
 
-test('A05: legacy ownerless history may be imported and repaired without silent rewriting', () => {
+test('A05: invalid ownerless history can be repaired without silent rewriting', () => {
   const before = project([added('solo', {})]);
   const same = structuredClone(before);
   same.items[0].name = 'Sofa (alter Bestand)';

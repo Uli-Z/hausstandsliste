@@ -25,10 +25,10 @@ test('A06: historical ownership event never displays a payment as having taken p
   const derived = FINANCIAL_EVENT_NOTE({ financialMode: 'derived' });
   assert.match(derived, /Forderungen/i);
   assert.match(derived, /keine Zahlung gebucht/i);
-  const legacy = FINANCIAL_EVENT_NOTE({ type: 'redistribution-executed' });
-  assert.match(legacy, /Altvorgang/i);
-  assert.match(legacy, /keine neue Forderung/i);
-  assert.match(legacy, /keine Zahlung gebucht/i);
+  const gift = FINANCIAL_EVENT_NOTE({ financialMode: 'none' });
+  assert.match(gift, /unentgeltlich/i);
+  assert.match(gift, /keine neue Forderung/i);
+  assert.match(gift, /keine Zahlung gebucht/i);
   assert.match(FINANCIAL_EVENT_NOTE({ financialMode: 'none' }), /keine neue Forderung/i);
   assert.match(ITEM_FUNDING_NOTE({ financialMode: 'derived', financedByPersonId: 'anna' }), /keine Zahlung gebucht/i);
   assert.match(ITEM_FUNDING_NOTE({ financedByPersonId: 'anna' }), /Keine Forderung/i);
@@ -59,7 +59,7 @@ test('A06: zero net balance does not certify a paid debt', () => {
   assert.equal(project.events.some(event => event.type === 'claim-settlement-recorded'), false);
 });
 
-test('A06: both interfaces use the same semantic labels and timelines never show payment counts', () => {
+test('A06: current UI uses consistent financial labels and no payment counts', () => {
   for (const flavor of ['ui-v3/']) {
     const timeline = source(flavor + 'Timeline.svelte');
     assert.match(timeline, /FINANCIAL_EVENT_NOTE\(event\)/);
