@@ -1,8 +1,7 @@
 <script>
-  import { translate, localizeGermanText } from '../src/lib/i18n.js';
+  import { translate } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
-  import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
-  import HelpTip from '../src/components/HelpTip.svelte';
+    import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { 
@@ -18,7 +17,7 @@
   import ShareEditor from './ShareEditor.svelte';
   import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
-  import { uid, clone, dateDE, nextEventOrder } from '../src/lib/util.js';
+  import { uid, clone, nextEventOrder } from '../src/lib/util.js';
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   
   export let dialog;
@@ -121,60 +120,63 @@
 <div class="modal-backdrop">
   <div class="modal large-modal" role="dialog" aria-modal="true" aria-label={$translate("app.transfer")} on:keydown={confirmFromInput}>
     <div class="modal-header">
-      <div class="stack">
-        <h3>{$translate("ui.transfer-or-redistribute-shares-1u1uj43")}</h3>
-        <div class="muted">{$translate('redistribution.from', {date:dateDE(redistribution?.effectiveDate)})}</div>
-      </div>
+      <h3>{$translate("ui.transfer-or-redistribute-shares-1u1uj43")}</h3>
       <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>
     </div>
     
     <div class="modal-body grid-redistribution">
-      <!-- Linke Seite: Spezialaktionen und Items -->
       <div class="stack content-left">
-        <section class="mini-card stack">
-          <label>{$translate('timeTravel.effectiveDate')} <input id="redistribution-effective-date" type="date" bind:value={redistribution.effectiveDate}/></label>
-          <label>{$translate("ui.description-kc1lkc")} <input bind:value={redistribution.title} placeholder="z. B. Auszug Anna"></label>
+        <section class="redistribution-main-fields">
+          <label>{$translate('timeTravel.effectiveDate')}
+            <input id="redistribution-effective-date" type="date" bind:value={redistribution.effectiveDate}/>
+          </label>
           <label>{$translate("ui.should-financial-claims-arise-qd7qky")}
             <select bind:value={redistribution.financialMode}>
               <option value="derived">{$translate("ui.yes-calculate-claims-automatically-1jigawo")}</option>
               <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
             </select>
           </label>
-          {#if !dateValid}<p role="alert" class="notice warn">{$translate('timeTravel.invalidDate')}</p>{/if}
-          {#if invalidItems.length}<p role="alert" class="notice warn">{$translate('timeTravel.itemsUnavailable')}</p>{/if}
-          <div class="financial-mode-help"><HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip></div>
-          <strong>{$translate("ui.quick-actions-j7efqp")}</strong>
-          <div class="row">
-            <button class="small" on:click={() => { activeSubModal = 'special-transfer'; subModalData = { sourceId: dialog.sourcePersonId || '', targetId: '' }; }}>{$translate("ui.transfer-all-shares-to-one-person-m0ednu")}</button>
-            <button class="small" on:click={() => { activeSubModal = 'special-remove'; subModalData = { sourceId: dialog.sourcePersonId || '' }; }}>{$translate("ui.remove-a-person-s-shares-from-all-i-1eiw9j2")}</button>
-            <button class="small" on:click={() => { activeSubModal = 'special-add'; subModalData = { targetId: '', units: 1 }; }}>{$translate("ui.give-a-person-shares-in-all-items-9usel9")}</button>
-          </div>
         </section>
-
-        <section class="stack" style="flex: 1; overflow: hidden;">
-          <div class="split">
+        {#if !dateValid}<p role="alert" class="notice warn">{$translate('timeTravel.invalidDate')}</p>{/if}
+        {#if invalidItems.length}<p role="alert" class="notice warn">{$translate('timeTravel.itemsUnavailable')}</p>{/if}
+        <section class="redistribution-items">
+          <div class="split redistribution-item-heading">
             <strong>{$translate("ui.select-items-and-edit-shares-1wul31y")}</strong>
-            <input type="text" placeholder="Filter …" bind:value={filterText} class="small-input">
+            {#if itemRows.length > 4 || filterText}
+              <input type="search" placeholder={$translate('items.search')} aria-label={$translate('items.searchLabel')} bind:value={filterText} class="small-input"/>
+            {/if}
           </div>
-          <RedistributionItemList rows={itemRows} {filterText} emptyLabel="Keine Gegenstände zum Stichtag."
+          <RedistributionItemList rows={itemRows} {filterText} emptyLabel={$translate('redistribution.noItems')}
             on:select={(event) => {
               const item = itemsAtDate.find(entry => entry.id === event.detail.row.itemId);
               if (item) openItemEdit(item);
             }}
           />
         </section>
+        <details class="redistribution-advanced">
+          <summary>{$translate('redistribution.moreActions')}</summary>
+          <div class="stack">
+            <label>{$translate("ui.description-kc1lkc")}
+              <input bind:value={redistribution.title} placeholder={$translate('redistribution.titleExample')}>
+            </label>
+            <div class="redistribution-bulk-actions">
+              <button class="small" on:click={() => { activeSubModal = 'special-transfer'; subModalData = { sourceId: dialog.sourcePersonId || '', targetId: '' }; }}>{$translate("ui.transfer-all-shares-to-one-person-m0ednu")}</button>
+              <button class="small" on:click={() => { activeSubModal = 'special-remove'; subModalData = { sourceId: dialog.sourcePersonId || '' }; }}>{$translate("ui.remove-a-person-s-shares-from-all-i-1eiw9j2")}</button>
+              <button class="small" on:click={() => { activeSubModal = 'special-add'; subModalData = { targetId: '', units: 1 }; }}>{$translate("ui.give-a-person-shares-in-all-items-9usel9")}</button>
+            </div>
+          </div>
+        </details>
       </div>
 
-      <!-- Rechte Seite: Preview & Settlement -->
       <div class="stack content-right">
-        <section class="mini-card stack">
-          <div class="split">
+        <section class="redistribution-preview">
+          <div class="help-heading">
             <strong>{$translate("ui.effect-of-the-change-13xavst")}</strong>
-            <button class="small ghost" on:click={() => navigator.clipboard.writeText(redistributionMarkdown(redistribution, preview)).then(() => alert($translate("ui.markdown-copied-111azzg")))}>{$translate("ui.copy-markdown-y6z6dt")}</button>
+            <HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip>
           </div>
-          <div class="stack">
-            <div class="muted">{$translate("ui.change-in-ownership-value-132omm0")}</div>
+          {#if redistribution?.changes?.length}
             {#if preview.rows.length}
+              <div class="muted">{$translate("ui.change-in-ownership-value-132omm0")}</div>
               <table class="tight">
                 <tbody>
                   {#each preview.rows as row}
@@ -182,9 +184,10 @@
                   {/each}
                 </tbody>
               </table>
-            {:else}<div class="empty-small">{$translate("ui.no-transfer-of-value-awxg5c")}</div>{/if}
-            
-            <div class="financial-help-heading"><strong>{redistribution.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label={$translate("ui.what-is-the-financial-effect-of-thi-g85db9")}>{localizeGermanText(REDISTRIBUTION_SUGGESTION_TITLE)} {localizeGermanText(REDISTRIBUTION_SUGGESTION_NOTICE)}</HelpTip></div>
+            {:else}
+              <p class="muted">{$translate("ui.no-transfer-of-value-awxg5c")}</p>
+            {/if}
+            <strong>{$translate('redistribution.claimEffect')}</strong>
             {#if preview.payments.length}
               <table class="tight">
                 <tbody>
@@ -193,11 +196,18 @@
                   {/each}
                 </tbody>
               </table>
-                
-            {:else}<div class="notice-small">{redistribution.financialMode === 'derived' ? $translate("ui.no-settlement-suggested-utyl3l") : 'Unentgeltlich – kein Ausgleich.'}</div>{/if}
-          </div>
+            {:else}
+              <p class="muted">{redistribution.financialMode === 'derived' ? $translate("ui.no-settlement-suggested-utyl3l") : $translate('redistribution.withoutClaims')}</p>
+            {/if}
+            <p class="redistribution-notice">{$translate('redistribution.noPaymentRecorded')}</p>
+            <details class="redistribution-export">
+              <summary>{$translate('redistribution.export')}</summary>
+              <button class="small" on:click={() => navigator.clipboard.writeText(redistributionMarkdown(redistribution, preview)).then(() => alert($translate("ui.markdown-copied-111azzg")))}>{$translate("ui.copy-markdown-y6z6dt")}</button>
+            </details>
+          {:else}
+            <p class="muted">{$translate('redistribution.selectItemFirst')}</p>
+          {/if}
         </section>
-        <div class="workflow-help"><HelpTip label={$translate("ui.process-help-e5wlpe")}>{$translate("ui.saving-a-draft-does-not-change-owne-195uoyk")}</HelpTip></div>
       </div>
     </div>
 
@@ -263,19 +273,33 @@
 
 <style>
   .modal-footer button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
-
-  .large-modal { width: 95vw; max-width: 1100px; height: 85vh; display: flex; flex-direction: column; }
-  .grid-redistribution { display: grid; grid-template-columns: 1fr 340px; gap: 24px; flex: 1; overflow: hidden; }
-  .small-text { font-size: 0.85rem; }
-  .small-input { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 0.9rem; }
-  .tight td { padding: 2px 0; }
-  .empty-small { font-size: 0.85rem; color: var(--muted); font-style: italic; }
-  .notice-small { font-size: 0.85rem; padding: 6px; background: var(--soft); border-radius: 4px; }
-  .positive { color: var(--ok); }
-  .negative { color: var(--warn); }
-  .sub-modal { z-index: 100; }
-  .content-left { overflow: hidden; display: flex; flex-direction: column; }
+  .large-modal{width:min(95vw,1000px);max-height:90vh;height:auto;display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+  .grid-redistribution{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);gap:18px;overflow:auto;align-items:start;min-height:0}
+  .content-left,.content-right{min-width:0}
+  .redistribution-main-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:12px}
+  .redistribution-items{display:grid;gap:10px;min-width:0}
+  .redistribution-item-heading{align-items:center;flex-wrap:wrap}
+  .redistribution-item-heading .small-input{min-width:150px;max-width:210px}
+  .redistribution-advanced{border-top:1px solid var(--border);padding-top:4px}
+  .redistribution-advanced>summary,.redistribution-export>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;color:#246f85;font-size:13px;font-weight:650}
+  .redistribution-advanced>.stack{padding:8px 0}
+  .redistribution-bulk-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .redistribution-bulk-actions>button{white-space:normal;text-align:left}
+  .redistribution-preview{display:grid;gap:10px;border:1px solid var(--border);border-radius:12px;padding:14px;min-width:0}
+  .redistribution-preview p{margin:0;line-height:1.55}
+  .redistribution-preview table{width:100%}
+  .redistribution-notice{font-size:12px;color:var(--muted)}
+  .small-text{font-size:.85rem}
+  .small-input{padding:6px 9px;border-radius:8px;border:1px solid var(--border);font-size:.88rem}
+  .tight td{padding:5px 0}
+  .positive{color:var(--ok)}
+  .negative{color:var(--warn)}
+  .sub-modal{z-index:100}
   .financial-help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .financial-help-heading strong{font-size:13px}
-  .workflow-help{display:flex;justify-content:flex-end}
+  .help-heading{display:flex;align-items:center;gap:8px}
+  @media(max-width:820px){
+    .grid-redistribution{grid-template-columns:minmax(0,1fr)}
+    .redistribution-main-fields{grid-template-columns:minmax(0,1fr)}
+    .large-modal{max-height:94vh}
+  }
 </style>
