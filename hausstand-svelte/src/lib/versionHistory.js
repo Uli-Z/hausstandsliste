@@ -110,13 +110,17 @@ async function archiveEntry(project, savedAt) {
 // A first save has no previously confirmed version to archive.
 export async function createPortableSave(project, previousSaved, savedAt = new Date().toISOString()) {
   const current = copy(project);
-  const source = previousSaved || current;
-  const entries = [...getVersionEntries(source)];
-  if (previousSaved && hasProjectChanges(current, previousSaved)) {
-    entries.push(await archiveEntry(previousSaved, previousSaved.lastSavedAt));
+  const entries = [...getVersionEntries(current)];
+  const baseline = previousSaved ? getVersionEntries(previousSaved) : [];
+  // An in-memory archive may have grown through legacy migration. Never silently
+  // discard earlier entries when a save is prepared.
+  if (baseline.some(entry => !entries.some(currentEntry => currentEntry.id === entry.id))) {
+    throw new Error('Das Versionsarchiv ist unvollständig. Speichern wurde abgebrochen.');
   }
-  // No duplicate archive snapshots for repeated saves without business changes.
-  if (previousSaved && !hasProjectChanges(current, previousSaved)) return copy(previousSaved);
+  const businessChanged = previousSaved && hasProjectChanges(current, previousSaved);
+  const archiveChanged = JSON.stringify(entries) !== JSON.stringify(baseline);
+  if (previousSaved && !businessChanged && !archiveChanged) return copy(previousSaved);
+  if (businessChanged) entries.push(await archiveEntry(previousSaved, previousSaved.lastSavedAt));
   const { versionHistory: _ignored, ...root } = current;
   return { ...root, lastSavedAt: savedAt, versionHistory: { format: FORMAT, entries } };
 }
@@ -135,4 +139,33 @@ export async function readPortableVersion(project, versionId) {
   }
   // The archive belongs to the current project and must survive an older restore.
   return { ...snapshot, versionHistory: copy(project.versionHistory), lastSavedAt: project.lastSavedAt };
+}
+
+// Imports the old PHP encrypted revision files into the *single* portable archive.
+// Call only after all supplied legacy revisions have been decrypted successfully.
+// The result is a draft: the user must explicitly Save to persist it.
+export async function mergeLegacyVersions(project, snapshots, sourceId, lastConfirmedProject = project) {
+  if (!Array.isArray(snapshots) || !/^[a-z0-9-]{8,64}$/.test(sourceId)) {
+    throw new Error('Ungültige Angaben zur Migration alter Versionen.');
+  }
+  const entries = [...getVersionEntries(project)];
+  const imported = [];
+  const sorted = [...snapshots].sort((a, b) => a.revision - b.revision);
+  for (const item of sorted) {
+    if (!Number.isSafeInteger(item.revision) || item.revision < 1 || !item.project) {
+      throw new Error('Ungültige historische Serverrevision.');
+    }
+    const id = 'legacy-' + sourceId + '-' + item.revision;
+    if (entries.some(e => e.id === id)) continue; // idempotent migration
+    // The currently open saved state is already represented at JSON top level.
+    if (item === sorted[sorted.length - 1] && !hasProjectChanges(item.project, lastConfirmedProject)) continue;
+    const entry = await archiveEntry(item.project, item.createdAt || null);
+    entry.id = id;
+    entry.legacyRevision = item.revision;
+    imported.push(entry);
+  }
+  return {
+    ...project,
+    versionHistory: { format: FORMAT, entries: [...imported, ...entries] }
+  };
 }
