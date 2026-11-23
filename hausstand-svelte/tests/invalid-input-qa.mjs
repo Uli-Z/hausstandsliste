@@ -77,6 +77,8 @@ export async function invalidInputAcceptance(browser, url) {
     assert.equal(payments.length, 1, 'double click created duplicate payment');
     assert.equal(payments[0].amountCents, 1248);
     assert.equal(payments[0].date, '2032-03-20');
+    assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /20\.03\.2032/);
+    await page.getByRole('button', { name: 'Stichtag wählen' }).click();
     await page.locator('#state-date').waitFor();
     assert.equal(await page.locator('#state-date').inputValue(), '2032-03-20');
 
