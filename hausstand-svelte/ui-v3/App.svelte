@@ -252,7 +252,13 @@
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </span>
         {#if !(route.page === 'dashboard' && activeSection === 'save')}
-          <button class="header-save" on:click={saveNow}><ActionIcon name={onlineEditing ? 'check' : 'download'} size={17}/><span>{$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span></button>
+          <button class="header-save" on:click={saveNow}
+            aria-label={$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
+            title={$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
+            <ActionIcon name={onlineEditing ? 'check' : 'download'} size={17}/>
+            <span class="header-save-long">{$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span>
+            <span class="header-save-short">{$translate(onlineProjectOpen ? (onlineEditing ? 'storage.shortOnline' : 'storage.shortEditing') : 'storage.shortDownload')}</span>
+          </button>
         {/if}
       </div>
     </header>
