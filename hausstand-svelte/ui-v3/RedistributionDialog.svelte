@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../srclib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
@@ -109,10 +110,10 @@
 </script>
 
 <div class="modal-backdrop">
-  <div class="modal large-modal" role="dialog" aria-modal="true" aria-label="Anteile übertragen" on:keydown={confirmFromInput}>
+  <div class="modal large-modal" role="dialog" aria-modal="true" aria-label={$translate("app.transfer")} on:keydown={confirmFromInput}>
     <div class="modal-header">
       <div class="stack">
-        <h3>Anteile übertragen oder neu verteilen</h3>
+        <h3>{$translate("ui.transfer-or-redistribute-shares-1u1uj43")}</h3>
         <div class="muted">Gültig ab {dateDE(redistribution?.effectiveDate)} · Das Datum wird oben in der Ansicht gewählt</div>
       </div>
       <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>
@@ -122,24 +123,24 @@
       <!-- Linke Seite: Spezialaktionen und Items -->
       <div class="stack content-left">
         <section class="mini-card stack">
-          <label>Beschreibung <input bind:value={redistribution.title} placeholder="z. B. Auszug Anna"></label>
-          <label>Sollen Geldforderungen entstehen?
+          <label>{$translate("ui.description-kc1lkc")} <input bind:value={redistribution.title} placeholder="z. B. Auszug Anna"></label>
+          <label>{$translate("ui.should-financial-claims-arise-qd7qky")}
             <select bind:value={redistribution.financialMode}>
-              <option value="derived">Ja – Forderungen automatisch berechnen</option>
-              <option value="none">Nein – Schenkung oder Korrektur</option>
+              <option value="derived">{$translate("ui.yes-calculate-claims-automatically-1jigawo")}</option>
+              <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
             </select>
           </label>
-          <strong>Schnellaktionen</strong>
+          <strong>{$translate("ui.quick-actions-j7efqp")}</strong>
           <div class="row">
-            <button class="small" on:click={() => { activeSubModal = 'special-transfer'; subModalData = { sourceId: dialog.sourcePersonId || '', targetId: '' }; }}>Alle Anteile an eine Person übertragen</button>
-            <button class="small" on:click={() => { activeSubModal = 'special-remove'; subModalData = { sourceId: dialog.sourcePersonId || '' }; }}>Alle Anteile einer Person entfernen</button>
-            <button class="small" on:click={() => { activeSubModal = 'special-add'; subModalData = { targetId: '', units: 1 }; }}>Person an allen Gegenständen beteiligen</button>
+            <button class="small" on:click={() => { activeSubModal = 'special-transfer'; subModalData = { sourceId: dialog.sourcePersonId || '', targetId: '' }; }}>{$translate("ui.transfer-all-shares-to-one-person-m0ednu")}</button>
+            <button class="small" on:click={() => { activeSubModal = 'special-remove'; subModalData = { sourceId: dialog.sourcePersonId || '' }; }}>{$translate("ui.remove-a-person-s-shares-from-all-i-1eiw9j2")}</button>
+            <button class="small" on:click={() => { activeSubModal = 'special-add'; subModalData = { targetId: '', units: 1 }; }}>{$translate("ui.give-a-person-shares-in-all-items-9usel9")}</button>
           </div>
         </section>
 
         <section class="stack" style="flex: 1; overflow: hidden;">
           <div class="split">
-            <strong>Gegenstände auswählen und Anteile ändern</strong>
+            <strong>{$translate("ui.select-items-and-edit-shares-1wul31y")}</strong>
             <input type="text" placeholder="Filter …" bind:value={filterText} class="small-input">
           </div>
           <RedistributionItemList rows={itemRows} {filterText} emptyLabel="Keine Gegenstände zum Stichtag."
@@ -155,11 +156,11 @@
       <div class="stack content-right">
         <section class="mini-card stack">
           <div class="split">
-            <strong>So wirkt sich die Änderung aus</strong>
-            <button class="small ghost" on:click={() => navigator.clipboard.writeText(redistributionMarkdown(redistribution, preview)).then(() => alert('Markdown kopiert.'))}>📋 MD</button>
+            <strong>{$translate("ui.effect-of-the-change-13xavst")}</strong>
+            <button class="small ghost" on:click={() => navigator.clipboard.writeText(redistributionMarkdown(redistribution, preview)).then(() => alert($translate("ui.markdown-copied-111azzg")))}>{$translate("ui.copy-markdown-y6z6dt")}</button>
           </div>
           <div class="stack">
-            <div class="muted">Veränderung der Wertanteile</div>
+            <div class="muted">{$translate("ui.change-in-ownership-value-132omm0")}</div>
             {#if preview.rows.length}
               <table class="tight">
                 <tbody>
@@ -168,9 +169,9 @@
                   {/each}
                 </tbody>
               </table>
-            {:else}<div class="empty-small">Keine Verschiebung.</div>{/if}
+            {:else}<div class="empty-small">{$translate("ui.no-transfer-of-value-awxg5c")}</div>{/if}
             
-            <div class="financial-help-heading"><strong>{redistribution.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label="Wie wirkt sich die Anteilsänderung finanziell aus?">{REDISTRIBUTION_SUGGESTION_TITLE} {REDISTRIBUTION_SUGGESTION_NOTICE}</HelpTip></div>
+            <div class="financial-help-heading"><strong>{redistribution.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label={$translate("ui.what-is-the-financial-effect-of-thi-g85db9")}>{REDISTRIBUTION_SUGGESTION_TITLE} {REDISTRIBUTION_SUGGESTION_NOTICE}</HelpTip></div>
             {#if preview.payments.length}
               <table class="tight">
                 <tbody>
@@ -180,18 +181,18 @@
                 </tbody>
               </table>
                 
-            {:else}<div class="notice-small">{redistribution.financialMode === 'derived' ? 'Kein Ausgleich vorgeschlagen.' : 'Unentgeltlich – kein Ausgleich.'}</div>{/if}
+            {:else}<div class="notice-small">{redistribution.financialMode === 'derived' ? $translate("ui.no-settlement-suggested-utyl3l") : 'Unentgeltlich – kein Ausgleich.'}</div>{/if}
           </div>
         </section>
-        <div class="workflow-help"><HelpTip label="Hilfe zum Ablauf">Ein Entwurf wird gespeichert, verändert aber noch keine Eigentumsanteile. Erst wenn du die Änderung übernimmst, wird sie wirksam.</HelpTip></div>
+        <div class="workflow-help"><HelpTip label={$translate("ui.process-help-e5wlpe")}>{$translate("ui.saving-a-draft-does-not-change-owne-195uoyk")}</HelpTip></div>
       </div>
     </div>
 
     <div class="modal-footer">
-      <button on:click={() => appState.closeDialog()}>Abbrechen</button>
+      <button on:click={() => appState.closeDialog()}>{$translate("ui.cancel-cl4zc9")}</button>
       <div style="flex:1"></div>
       <button on:click={saveAsDraft}>💾 Als Entwurf speichern</button>
-      <button class="primary" on:click={execute} disabled={!redistribution.changes.length}>Änderung übernehmen</button>
+      <button class="primary" on:click={execute} disabled={!redistribution.changes.length}>{$translate("ui.apply-changes-7tqg8a")}</button>
     </div>
   </div>
 </div>
@@ -199,7 +200,7 @@
 <!-- Sub-Modals -->
 {#if activeSubModal}
   <div class="modal-backdrop sub-modal">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Anteile ändern" style="max-width: 600px">
+    <div class="modal" role="dialog" aria-modal="true" aria-label={$translate("items.change")} style="max-width: 600px">
       <div class="modal-header">
         <h3>
           {#if activeSubModal === 'item'}Eigentumsanteile ändern: {subModalData.item.name}{/if}
@@ -212,36 +213,36 @@
         {#if activeSubModal === 'item'}
           <div class="grid-2">
             <div class="stack">
-              <div class="muted">Bisher</div>
+              <div class="muted">{$translate("ui.before-qdpwf0")}</div>
               {#each Object.entries(subModalData.item.shares) as [pid, u]}
                 <div class="small-text">{people.find(p=>p.id===pid)?.name || pid}: {u}</div>
               {/each}
             </div>
             <div class="stack">
-              <div class="muted">Neu</div>
+              <div class="muted">{$translate("ui.after-121v6a3")}</div>
               <ShareEditor {people} bind:shares={subModalData.shares} />
             </div>
           </div>
         {:else if activeSubModal === 'special-transfer'}
           <div class="form-grid">
-            <label>Von Person <select bind:value={subModalData.sourceId}><option value="">wählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
-            <label>Auf Person <select bind:value={subModalData.targetId}><option value="">wählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
+            <label>{$translate("ui.from-person-1iellgp")} <select bind:value={subModalData.sourceId}><option value="">{$translate("ui.choose-1h2n4nz")}</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
+            <label>{$translate("ui.to-person-ufc7mo")} <select bind:value={subModalData.targetId}><option value="">{$translate("ui.choose-1h2n4nz")}</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
           </div>
         {:else if activeSubModal === 'special-remove'}
-          <label>Person entfernen <select bind:value={subModalData.sourceId}><option value="">wählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
+          <label>{$translate("ui.remove-person-s3vc87")} <select bind:value={subModalData.sourceId}><option value="">{$translate("ui.choose-1h2n4nz")}</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
         {:else if activeSubModal === 'special-add'}
           <div class="form-grid">
-            <label>Hinzuzufügende Person <select bind:value={subModalData.targetId}><option value="">wählen …</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
-            <label>Einheiten <input type="number" step="1" bind:value={subModalData.units}></label>
+            <label>{$translate("ui.person-to-add-4m6xic")} <select bind:value={subModalData.targetId}><option value="">{$translate("ui.choose-1h2n4nz")}</option>{#each people as p}<option value={p.id}>{p.name}</option>{/each}</select></label>
+            <label>{$translate("ui.units-1xtsz9u")} <input type="number" step="1" bind:value={subModalData.units}></label>
           </div>
         {/if}
       </div>
       <div class="modal-footer">
-        <button on:click={() => activeSubModal = null}>Abbrechen</button>
+        <button on:click={() => activeSubModal = null}>{$translate("ui.cancel-cl4zc9")}</button>
         <button class="primary" on:click={() => {
           if (activeSubModal === 'item') { if (upsertChange(subModalData.item.id, subModalData.shares)) activeSubModal = null; }
           else applySpecial();
-        }}>Anwenden</button>
+        }}>{$translate("ui.apply-opxyc3")}</button>
       </div>
     </div>
   </div>

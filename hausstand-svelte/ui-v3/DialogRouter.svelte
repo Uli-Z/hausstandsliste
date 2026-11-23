@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../srclib/i18n.js';
   import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
   import { uid, parseTags } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';
@@ -274,110 +275,110 @@
   <ExecutedRedistributionEditDialog {dialog} {project} {projection} />
 {:else if dialog}
   <div class="modal-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Bearbeiten" style="max-width:720px" on:keydown={confirmFromInput}>
+    <div class="modal" role="dialog" aria-modal="true" aria-label={$translate("ui.edit-m49ms0")} style="max-width:720px" on:keydown={confirmFromInput}>
       <div class="modal-header">
         <h3>{
-          dialog.type === 'personAdd' ? 'Person hinzufügen' : 
-          dialog.type === 'personMeta' ? 'Person bearbeiten' : 
-          dialog.type === 'itemAdd' ? 'Neuen Gegenstand erfassen' : 
-          dialog.type === 'itemContinue' ? 'Gegenstand ersetzen' :
-          dialog.type === 'itemMeta' ? 'Gegenstand bearbeiten' : 
-          dialog.type === 'shareSet' ? 'Eigentumsanteile ändern' : 
-          dialog.type === 'itemEnd' ? 'Gegenstand beenden' : 
+          dialog.type === 'personAdd' ? $translate("app.personAdd") : 
+          dialog.type === 'personMeta' ? $translate("ui.edit-person-jstaod") : 
+          dialog.type === 'itemAdd' ? $translate("app.recordItem") : 
+          dialog.type === 'itemContinue' ? $translate("ui.replace-item-1p7orxr") :
+          dialog.type === 'itemMeta' ? $translate("ui.edit-item-birsg") : 
+          dialog.type === 'shareSet' ? $translate("ui.change-ownership-shares-1x7cqup") : 
+          dialog.type === 'itemEnd' ? $translate("ui.archive-item-1j10bca") : 
           dialog.type === 'options' ? '⚙️ Optionen' : 'Dialog'
         }</h3>
         <button class="ghost" on:click={close}>✕</button>
       </div>
       <div class="modal-body stack">
         {#if dialog.type === 'personAdd' || dialog.type === 'personMeta'}
-          <label class="person-name-field">Name <input bind:value={name} placeholder="Vor- und Nachname" autocomplete="name" enterkeyhint="done"></label>
+          <label class="person-name-field">{$translate("ui.name-4el6o6")} <input bind:value={name} placeholder="Vor- und Nachname" autocomplete="name" enterkeyhint="done"></label>
           {#if duplicatePerson}
             <div class="notice warn">
-              Eine Person mit diesem Namen existiert bereits: <strong>{duplicatePerson.name}</strong>
+              {$translate("ui.a-person-with-this-name-already-exi-15fux56")} <strong>{duplicatePerson.name}</strong>
               ({duplicateIsActive ? 'aktiv' : 'inaktiv'}).
             </div>
             {#if !duplicateIsActive}
               <div class="row">
                 {#if duplicateIsFutureMoveIn}
-                  <button class="small" on:click={() => pullMoveInForward(duplicatePerson)}>Einzug auf Stichtag vorziehen</button>
+                  <button class="small" on:click={() => pullMoveInForward(duplicatePerson)}>{$translate("ui.move-start-date-to-selected-date-1ukvpci")}</button>
                 {/if}
                 {#if duplicateLatestDeactivation}
-                  <button class="small danger" on:click={() => deleteMoveOut(duplicatePerson)}>Letzten Auszug löschen</button>
+                  <button class="small danger" on:click={() => deleteMoveOut(duplicatePerson)}>{$translate("ui.remove-last-departure-gtnl55")}</button>
                 {/if}
               </div>
             {/if}
           {/if}
           {#if dialog.type === 'personMeta'}
             {#if deleteEligibility.allowed}
-              <div class="notice">Endgültiges Löschen ist nur möglich, solange eine Person noch an keinem Gegenstand, Ereignis oder Entwurf beteiligt war.</div>
+              <div class="notice">{$translate("ui.permanent-deletion-is-only-possible-1k5oppq")}</div>
             {:else}
               <div class="notice warn">Endgültiges Löschen gesperrt: {deleteEligibility.reason} Bei einem Auszug die Person stattdessen über ihr Profil als ausgezogen markieren.</div>
             {/if}
           {/if}
         {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
           <div class="form-grid">
-            <label>Name <input bind:value={itemName} enterkeyhint="done"></label>
-            <label>Kategorien <input bind:value={tags} placeholder="Küche, Elektro"></label>
-            <label>Anschaffungswert in Euro <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}></label>
-            <label>Wie verändert sich der Wert? <select bind:value={valuationType}>
-              <option value="linear">Wert sinkt gleichmäßig</option>
-              <option value="degressive">Wert sinkt jährlich prozentual</option>
-              <option value="fixed">Wert bleibt gleich</option>
+            <label>{$translate("ui.name-4el6o6")} <input bind:value={itemName} enterkeyhint="done"></label>
+            <label>{$translate("ui.categories-2lwhku")} <input bind:value={tags} placeholder={$translate("ui.kitchen-electronics-yb541o")}></label>
+            <label>{$translate("ui.purchase-price-in-euros-1858jaw")} <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}></label>
+            <label>{$translate("ui.how-does-the-value-change-16f9eit")} <select bind:value={valuationType}>
+              <option value="linear">{$translate("ui.value-decreases-linearly-1u8yk0y")}</option>
+              <option value="degressive">{$translate("ui.value-decreases-by-a-percentage-eac-1g9op4c")}</option>
+              <option value="fixed">{$translate("ui.value-remains-constant-1tdyxfv")}</option>
             </select></label>
             {#if valuationType === 'linear'}
-              <label>Nutzungsdauer (Jahre) <input type="number" min="0" step="1" inputmode="numeric" bind:value={durationYears}></label>
+              <label>{$translate("ui.useful-life-years-jdfjkh")} <input type="number" min="0" step="1" inputmode="numeric" bind:value={durationYears}></label>
             {:else if valuationType === 'degressive'}
-              <label>Jährlicher Wertverlust (0,2 = 20 %) <input type="number" min="0" max="1" step="0.01" inputmode="decimal" bind:value={annualRate}></label>
+              <label>{$translate("ui.annual-loss-in-value-0-2-20-1h9ss42")} <input type="number" min="0" max="1" step="0.01" inputmode="decimal" bind:value={annualRate}></label>
             {/if}
-            <label>Mindestwert <input type="number" min="0" step="0.01" inputmode="decimal" bind:value={minimumValue}></label>
-            <label class="wide">Notiz <textarea bind:value={note}></textarea></label>
+            <label>{$translate("ui.minimum-value-hzgo71")} <input type="number" min="0" step="0.01" inputmode="decimal" bind:value={minimumValue}></label>
+            <label class="wide">{$translate("ui.note-86vuh")} <textarea bind:value={note}></textarea></label>
             <section class="wide mini-card stack">
-              <strong>Wem gehört der Gegenstand?</strong>
+              <strong>{$translate("ui.who-owns-this-item-nnrc3g")}</strong>
               <ShareEditor people={projection.people} bind:shares />
               {#if dialog.type === 'itemAdd'}
-                <label>Wer hat den Gegenstand bezahlt?
+                <label>{$translate("ui.who-paid-for-this-item-57n9ck")}
                   <select bind:value={financedByPersonId}>
-                    <option value="">Keine Finanzierung zuordnen (keine Forderung)</option>
+                    <option value="">{$translate("ui.no-financing-recorded-no-claim-8fndbn")}</option>
                     {#each project.people || [] as person}
                       <option value={person.id}>{person.name}</option>
                     {/each}
                   </select>
                 </label>
-                <HelpTip label="Wie wird die Finanzierung berücksichtigt?">Die finanzierende Person bringt den Startwert ein. Die Eigentumsanteile der Beteiligten gehen in den gemeinsamen Ausgleichssaldo ein. Ohne zugeordnete Finanzierung entstehen beim Kauf keine automatischen Geldforderungen.</HelpTip>
+                <HelpTip label={$translate("ui.how-is-financing-taken-into-account-ohdukf")}>{$translate("ui.the-financing-person-contributes-th-1aq7dq2")}</HelpTip>
               {/if}
             </section>
           </div>
         {:else if dialog.type === 'itemMeta'}
-          <div class="form-grid"><label>Name <input bind:value={itemName} enterkeyhint="done"></label><label>Kategorien <input bind:value={tags}></label><label class="wide">Notiz <textarea bind:value={note}></textarea></label></div>
+          <div class="form-grid"><label>{$translate("ui.name-4el6o6")} <input bind:value={itemName} enterkeyhint="done"></label><label>{$translate("ui.categories-2lwhku")} <input bind:value={tags}></label><label class="wide">{$translate("ui.note-86vuh")} <textarea bind:value={note}></textarea></label></div>
         {:else if dialog.type === 'shareSet'}
           <ShareEditor people={projection.people} bind:shares />
-          <label>Sollen Geldforderungen entstehen?
+          <label>{$translate("ui.should-financial-claims-arise-qd7qky")}
             <select bind:value={shareFinancialMode}>
-              <option value="derived">Ja – automatisch ermitteln</option>
-              <option value="none">Nein – Schenkung oder Korrektur</option>
+              <option value="derived">{$translate("ui.yes-calculate-automatically-1jfscg7")}</option>
+              <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
             </select>
           </label>
         {:else if dialog.type === 'itemEnd'}
-          <label>Grund <input bind:value={reason} placeholder="kaputt, verkauft, privat übernommen …"></label>
+          <label>{$translate("ui.reason-1rj1mxt")} <input bind:value={reason} placeholder={$translate("ui.broken-sold-taken-over-privately-29sy7l")}></label>
         {:else if dialog.type === 'options'}
-          <p class="muted">Projektdatei und Sicherung findest du im Bereich „Sichern & Teilen“.</p>
+          <p class="muted">{$translate("ui.the-project-file-and-its-backup-are-1al4mbb")}</p>
         {:else}
           <div class="notice warn">Dieser Dialogtyp ist noch nicht implementiert: {dialog.type}</div>
         {/if}
       </div>
-      <div class="modal-footer"><button on:click={close}>Abbrechen</button>
+      <div class="modal-footer"><button on:click={close}>{$translate("ui.cancel-cl4zc9")}</button>
         <div style="flex:1"></div>
-        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName}>Anlegen</button>{/if}
-        {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>💾 Speichern</button>{/if}
-        {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely} disabled={!deleteEligibility.allowed || $appState.readOnly}>Person endgültig löschen</button>{/if}
+        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName}>{$translate("ui.create-zqi05d")}</button>{/if}
+        {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>{$translate("ui.save-sq2189")}</button>{/if}
+        {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely} disabled={!deleteEligibility.allowed || $appState.readOnly}>{$translate("ui.delete-person-permanently-e06bgl")}</button>{/if}
         {#if dialog.type === 'itemAdd'}
-          <button on:click={saveItemDraft}>Als Entwurf sichern</button>
-          <button class="primary" on:click={addItem}>Anlegen</button>
+          <button on:click={saveItemDraft}>{$translate("ui.save-as-draft-sz9zgy")}</button>
+          <button class="primary" on:click={addItem}>{$translate("ui.create-zqi05d")}</button>
         {/if}
-        {#if dialog.type === 'itemContinue'}<button class="primary" on:click={continueItem}>🔄 Neu anlegen & alt beenden</button>{/if}
-        {#if dialog.type === 'itemMeta'}<button class="primary" on:click={saveItemMeta}>💾 Speichern</button>{/if}
-        {#if dialog.type === 'shareSet'}<button class="primary" on:click={saveShareSet}>Änderung übernehmen</button>{/if}
-        {#if dialog.type === 'itemEnd'}<button class="danger" on:click={endItem}>📦 Beenden</button>{/if}
+        {#if dialog.type === 'itemContinue'}<button class="primary" on:click={continueItem}>{$translate("ui.replace-and-archive-old-item-y6ooa2")}</button>{/if}
+        {#if dialog.type === 'itemMeta'}<button class="primary" on:click={saveItemMeta}>{$translate("ui.save-sq2189")}</button>{/if}
+        {#if dialog.type === 'shareSet'}<button class="primary" on:click={saveShareSet}>{$translate("ui.apply-changes-7tqg8a")}</button>{/if}
+        {#if dialog.type === 'itemEnd'}<button class="danger" on:click={endItem}>{$translate("ui.archive-qlwwpx")}</button>{/if}
       </div>
     </div>
   </div>

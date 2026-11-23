@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../srclib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE } from '../src/lib/util.js';
   import { money } from '../src/lib/domain.js';
@@ -133,7 +134,7 @@
 </script>
 
 <section class="panel timeline-panel">
-  <div class="panel-header"><h2>{title}</h2><span class="hint">Über „Bearbeiten“ kannst du Vorgänge korrigieren</span></div>
+  <div class="panel-header"><h2>{title}</h2><span class="hint">{$translate("ui.you-can-correct-events-using-edit-1bvsp4q")}</span></div>
   <div class="panel-body stack">
     {#if future.length}
       <button class="timeline-more" on:click={() => showFuture = !showFuture}>
@@ -159,7 +160,7 @@
               {:else if event.type === 'shares-set'}
                 {@const deltas = deltasFor(event)}
                 <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
-                <span> · {event.note || 'Anteile'}</span>
+                <span> · {event.note || $translate("ui.shares-1y9v96b")}</span>
                 {#if deltas.length}
                   <span> · </span>
                   {#each deltas as delta, index}
@@ -167,15 +168,15 @@
                     <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
                   {/each}
                 {/if}
-                <HelpTip label="Finanzielle Wirkung der Anteilsänderung">{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
+                <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
               {:else if event.type === 'person-added'}
-                <span>Willkommen, </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
+                <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
               {:else if event.type === 'person-deactivated'}
                 <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Auszug'}</span>
               {:else if event.type === 'person-reactivated'}
-                <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Rückkehr'}</span>
+                <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || $translate("ui.return-lfxhdv")}</span>
               {:else if event.type === 'item-added'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span><HelpTip label="Finanzierung dieser Anschaffung">{ITEM_FUNDING_NOTE(event)}</HelpTip>
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span><HelpTip label={$translate("ui.financing-of-this-purchase-1s2bh1x")}>{ITEM_FUNDING_NOTE(event)}</HelpTip>
               {:else if event.type === 'item-ended'}
                 <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
               {:else}
@@ -183,7 +184,7 @@
               {/if}
             </div>
             <div class="event-actions">
-              <button class="small ghost edit-button" title="Änderung bearbeiten" on:click={() => openEdit(event)}>Bearbeiten</button>
+              <button class="small ghost edit-button" title={$translate("ui.edit-change-1t2xk03")} on:click={() => openEdit(event)}>{$translate("ui.edit-m49ms0")}</button>
             </div>
           </div>
         {/each}
@@ -212,7 +213,7 @@
             {:else if event.type === 'shares-set'}
               {@const deltas = deltasFor(event)}
               <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
-              <span> · {event.note || 'Anteile'}</span>
+              <span> · {event.note || $translate("ui.shares-1y9v96b")}</span>
               {#if deltas.length}
                 <span> · </span>
                 {#each deltas as delta, index}
@@ -220,15 +221,15 @@
                   <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
                 {/each}
               {/if}
-              <HelpTip label="Finanzielle Wirkung der Anteilsänderung">{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
+              <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
             {:else if event.type === 'person-added'}
-              <span>Willkommen, </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
+              <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
             {:else if event.type === 'person-deactivated'}
               <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Auszug'}</span>
             {:else if event.type === 'person-reactivated'}
-              <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Rückkehr'}</span>
+              <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || $translate("ui.return-lfxhdv")}</span>
             {:else if event.type === 'item-added'}
-              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span><HelpTip label="Finanzierung dieser Anschaffung">{ITEM_FUNDING_NOTE(event)}</HelpTip>
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span><HelpTip label={$translate("ui.financing-of-this-purchase-1s2bh1x")}>{ITEM_FUNDING_NOTE(event)}</HelpTip>
             {:else if event.type === 'item-ended'}
               <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
             {:else}
@@ -236,15 +237,15 @@
             {/if}
           </div>
           <div class="event-actions">
-            <button class="small ghost edit-button" title="Änderung bearbeiten" on:click={() => openEdit(event)}>Bearbeiten</button>
+            <button class="small ghost edit-button" title={$translate("ui.edit-change-1t2xk03")} on:click={() => openEdit(event)}>{$translate("ui.edit-m49ms0")}</button>
           </div>
         </div>
       {/each}
       {#if past.length > visiblePast.length}
-        <button class="timeline-more" on:click={() => pastLimit += 10}>⬇️ Ältere Ereignisse</button>
+        <button class="timeline-more" on:click={() => pastLimit += 10}>{$translate("ui.older-events-ue6evx")}</button>
       {/if}
     {:else if !events.length}
-      <div class="empty">Keine Ereignisse vorhanden.</div>
+      <div class="empty">{$translate("ui.no-events-yet-kk73s4")}</div>
     {/if}
   </div>
 </section>

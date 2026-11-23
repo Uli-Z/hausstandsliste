@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../lib/i18n.js';
   import { money } from '../lib/domain.js';
   export let detail = null;
   export let balanceCents = 0;
@@ -25,12 +26,12 @@
         </div>
       {/each}
       <div class="balance-row balance-result">
-        <dt>{balanceCents > 0 ? 'Noch zu erhalten' : balanceCents < 0 ? 'Noch auszugleichen' : 'Ausgeglichen'}</dt>
+        <dt>{balanceCents > 0 ? $translate("people.toReceive") : balanceCents < 0 ? $translate("people.toSettle") : 'Ausgeglichen'}</dt>
         <dd>{balanceCents > 0 ? '+' : balanceCents < 0 ? '−' : ''}{money(Math.abs(balanceCents) / 100)}</dd>
       </div>
     </dl>
   {:else}
-    <p class="balance-footnote">Noch keine finanziellen Wertbewegungen zum gewählten Stichtag.</p>
+    <p class="balance-footnote">{$translate("ui.no-financial-value-transfers-at-the-1uuqwnq")}</p>
   {/if}
 </div>
 

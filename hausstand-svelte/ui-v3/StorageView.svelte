@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../srclib/i18n.js';
   import { onMount } from 'svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
@@ -222,7 +223,7 @@
       <div class="storage-form">
         <div class="form-grid">
           <label>Passwort für diese Datei<input type="password" autocomplete="off" bind:value={password} placeholder="Langes, sicheres Passwort"/></label>
-          <label>Name der Sicherung<input bind:value={fileName} placeholder="Hausgemeinschaft"/></label>
+          <label>Name der Sicherung<input bind:value={fileName} placeholder={$translate("app.household")}/></label>
         </div>
         <div class="storage-action-row">
           <button class="solid-action" disabled={busy} on:click={() => run(exportEncrypted)}>Verschlüsselte Datei herunterladen</button>
@@ -238,7 +239,7 @@
       <div class="stack">
         <label>Früheren Speicherstand auswählen
           <select bind:value={selectedPortableVersion}>
-            <option value="">Bitte wählen</option>
+            <option value="">{$translate("ui.please-select-1qm0osl")}</option>
             {#each portableVersions as v (v.id)}
               <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString('de-DE') : 'Frühere Version (Datum unbekannt)'}</option>
             {/each}
@@ -256,7 +257,7 @@
       <div class="storage-form stack">
         <div class="form-grid">
           <label>Passwort der Projektdatei<input type="password" autocomplete="off" bind:value={password} placeholder="Passwort"/></label>
-          <label>Projektname (für neue Datei)<input bind:value={fileName} placeholder="Hausgemeinschaft"/></label>
+          <label>Projektname (für neue Datei)<input bind:value={fileName} placeholder={$translate("app.household")}/></label>
         </div>
         <div class="storage-action-row">
           <button class="solid-action" disabled={busy} on:click={() => run(refreshFiles)}>Verfügbare Dateien anzeigen</button>
@@ -269,7 +270,7 @@
           <div class="shared-files">
             <h3>Verfügbare Projekte</h3>
             {#each files as f (f.id)}
-              <div class="shared-file"><div><strong>{f.name}</strong><small>Version {f.revision} · zuletzt geändert: {f.updatedAt}</small></div><button class="outline-action" disabled={busy} on:click={() => run(() => openRemote(f))}>Öffnen</button></div>
+              <div class="shared-file"><div><strong>{f.name}</strong><small>Version {f.revision} · zuletzt geändert: {f.updatedAt}</small></div><button class="outline-action" disabled={busy} on:click={() => run(() => openRemote(f))}>{$translate("ui.open-14klu42")}</button></div>
             {/each}
           </div>
         {/if}

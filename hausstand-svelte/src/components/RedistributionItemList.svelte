@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../lib/i18n.js';
   import { createEventDispatcher } from 'svelte';
   import { money } from '../lib/domain.js';
 
@@ -30,9 +31,9 @@
           </div>
           <div class="row">
             {#if row.changed}
-              <span class="badge ok">geändert</span>
+              <span class="badge ok">{$translate("ui.changed-rt7uq6")}</span>
             {:else}
-              <span class="badge">unverändert</span>
+              <span class="badge">{$translate("ui.unchanged-gts2gw")}</span>
             {/if}
           </div>
         </div>

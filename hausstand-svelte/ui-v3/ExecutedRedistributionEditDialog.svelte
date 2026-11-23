@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../srclib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
@@ -110,10 +111,10 @@
 </script>
 
 <div class="modal-backdrop">
-  <div class="modal large-modal" role="dialog" aria-modal="true" aria-label="Anteilsänderung bearbeiten" on:keydown={confirmFromInput}>
+  <div class="modal large-modal" role="dialog" aria-modal="true" aria-label={$translate("ui.edit-ownership-change-1tqsrir")} on:keydown={confirmFromInput}>
     <div class="modal-header">
       <div class="stack">
-        <h3>Frühere Anteilsänderung bearbeiten</h3>
+        <h3>{$translate("ui.edit-earlier-ownership-change-s1489d")}</h3>
         <div class="muted">Damals gültig ab: {dateDE(edited?.date)}</div>
       </div>
       <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>
@@ -123,21 +124,21 @@
         <div class="stack content-left">
           <section class="mini-card stack">
             <div class="grid-2">
-              <label>Titel <input bind:value={edited.title}></label>
-              <label>Datum <input type="date" bind:value={edited.date}></label>
-              <label>Sollen Geldforderungen entstehen?
+              <label>{$translate("ui.title-2r13zr")} <input bind:value={edited.title}></label>
+              <label>{$translate("ui.date-o4j91o")} <input type="date" bind:value={edited.date}></label>
+              <label>{$translate("ui.should-financial-claims-arise-qd7qky")}
                 <select bind:value={edited.financialMode}>
-                  <option value="derived">Ja – Ansprüche neu berechnen</option>
-                  <option value="none">Nein – Schenkung oder Korrektur</option>
+                  <option value="derived">{$translate("ui.yes-recalculate-claims-1o04vr5")}</option>
+                  <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
                 </select>
               </label>
             </div>
-            <div class="workflow-help"><HelpTip label="Hilfe zum Ablauf">Klicke auf einen Gegenstand, um seine Anteile zu bearbeiten. Werden die Anteile auf ihren vorherigen Zustand zurückgesetzt, wird die Änderung entfernt.</HelpTip></div>
+            <div class="workflow-help"><HelpTip label={$translate("ui.process-help-e5wlpe")}>{$translate("ui.select-an-item-to-edit-its-shares-r-owkt2c")}</HelpTip></div>
           </section>
 
           <section class="stack" style="flex: 1; overflow: hidden;">
             <div class="split">
-              <strong>Betroffene Gegenstände</strong>
+              <strong>{$translate("ui.affected-items-1nc8pe3")}</strong>
               <input type="text" placeholder="Filter …" bind:value={filterText} class="small-input">
             </div>
             <RedistributionItemList
@@ -156,11 +157,11 @@
         <div class="stack content-right">
           <section class="mini-card stack">
             <div class="split">
-              <strong>So wirkt sich die Änderung aus</strong>
-              <button class="small ghost" on:click={copyMarkdown}>📋 Markdown kopieren</button>
+              <strong>{$translate("ui.effect-of-the-change-13xavst")}</strong>
+              <button class="small ghost" on:click={copyMarkdown}>{$translate("ui.copy-markdown-pb2l7m")}</button>
             </div>
             <div class="stack">
-              <div class="muted">Veränderung der Wertanteile</div>
+              <div class="muted">{$translate("ui.change-in-ownership-value-132omm0")}</div>
               {#if preview.rows.length}
                 <table class="tight">
                   <tbody>
@@ -170,10 +171,10 @@
                   </tbody>
                 </table>
               {:else}
-                <div class="empty-small">Keine Verschiebung.</div>
+                <div class="empty-small">{$translate("ui.no-transfer-of-value-awxg5c")}</div>
               {/if}
 
-              <div class="financial-help-heading"><strong>{edited.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label="Wie wirkt sich die Anteilsänderung finanziell aus?">{REDISTRIBUTION_SUGGESTION_TITLE} {REDISTRIBUTION_SUGGESTION_NOTICE}</HelpTip></div>
+              <div class="financial-help-heading"><strong>{edited.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label={$translate("ui.what-is-the-financial-effect-of-thi-g85db9")}>{REDISTRIBUTION_SUGGESTION_TITLE} {REDISTRIBUTION_SUGGESTION_NOTICE}</HelpTip></div>
               {#if preview.payments.length}
                 <table class="tight">
                   <tbody>
@@ -184,7 +185,7 @@
                 </table>
                 
               {:else}
-                <div class="notice-small">{edited.financialMode === 'derived' ? 'Kein Ausgleich vorgeschlagen.' : 'Unentgeltlich – kein Ausgleich.'}</div>
+                <div class="notice-small">{edited.financialMode === 'derived' ? $translate("ui.no-settlement-suggested-utyl3l") : 'Unentgeltlich – kein Ausgleich.'}</div>
               {/if}
             </div>
           </section>
@@ -192,14 +193,14 @@
           {#if editingChildId}
             <section class="mini-card stack">
               <div class="split">
-                <strong>Eigentumsanteile ändern</strong>
-                <button class="small danger" on:click={() => removeChild(editingChildId)}>Änderung entfernen</button>
+                <strong>{$translate("ui.change-ownership-shares-1x7cqup")}</strong>
+                <button class="small danger" on:click={() => removeChild(editingChildId)}>{$translate("ui.remove-change-1lq0vel")}</button>
               </div>
               <div class="muted">{itemRows.find(row => row.itemId === activeEditedChild?.itemId)?.itemName || activeEditedChild?.itemId}</div>
               <ShareEditor {people} bind:shares={editedChildShares} />
               <div class="row" style="justify-content: flex-end; gap:8px">
-                <button on:click={() => editingChildId = null}>Abbrechen</button>
-                <button class="primary" on:click={saveChild}>💾 Übernehmen</button>
+                <button on:click={() => editingChildId = null}>{$translate("ui.cancel-cl4zc9")}</button>
+                <button class="primary" on:click={saveChild}>{$translate("ui.apply-ltxt64")}</button>
               </div>
             </section>
           {/if}
@@ -207,10 +208,10 @@
       {/if}
     </div>
     <div class="modal-footer">
-      <button class="danger" on:click={remove}>Anteilsänderung löschen</button>
+      <button class="danger" on:click={remove}>{$translate("ui.delete-ownership-change-ei8m7d")}</button>
       <div style="flex:1"></div>
-      <button on:click={() => appState.closeDialog()}>Abbrechen</button>
-      <button class="primary" on:click={save}>Änderung speichern</button>
+      <button on:click={() => appState.closeDialog()}>{$translate("ui.cancel-cl4zc9")}</button>
+      <button class="primary" on:click={save}>{$translate("ui.save-change-1pvx2yb")}</button>
     </div>
   </div>
 </div>

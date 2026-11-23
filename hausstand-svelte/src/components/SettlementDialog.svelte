@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../lib/i18n.js';
   import { appState } from '../stores/projectStore.js';
   import { createClaimSettlementEvent, claimSettlementErrors } from '../lib/claimSettlement.js';
   import { money } from '../lib/domain.js';
@@ -95,26 +96,26 @@
 </script>
 
 <div class="modal-backdrop">
-  <div class="modal" role="dialog" aria-modal="true" aria-label={editing ? 'Ausgleich bearbeiten' : 'Ausgleich dokumentieren'} style="max-width:560px" on:keydown={event => { if (event.key === 'Escape') close(); }}>
+  <div class="modal" role="dialog" aria-modal="true" aria-label={editing ? $translate("ui.edit-settlement-ok356z") : $translate("ui.record-settlement-1vfcczq")} style="max-width:560px" on:keydown={event => { if (event.key === 'Escape') close(); }}>
     <div class="modal-header">
-      <div class="dialog-title"><h3>{editing ? 'Ausgleich bearbeiten' : kind === 'paid' ? 'Zahlung dokumentieren' : 'Ausgleich dokumentieren'}</h3><HelpTip label="Was passiert beim Dokumentieren?">{kind === 'paid' ? 'Hier hältst du eine Zahlung fest, die bereits stattgefunden hat. Die App überweist selbst kein Geld.' : 'Hier hältst du eine Verrechnung ohne neue Überweisung fest.'} Eigentumsanteile ändern sich dadurch nicht. Die Buchung bleibt im Verlauf bearbeitbar und löschbar.</HelpTip></div>
-      <button class="ghost" type="button" aria-label="Schließen" on:click={close}>×</button>
+      <div class="dialog-title"><h3>{editing ? $translate("ui.edit-settlement-ok356z") : kind === 'paid' ? $translate("ui.record-payment-10dyeok") : $translate("ui.record-settlement-1vfcczq")}</h3><HelpTip label={$translate("ui.what-happens-when-recording-this-ni3kz3")}>{kind === 'paid' ? $translate("ui.record-a-payment-that-has-already-h-fwt66e") : $translate("ui.record-a-non-cash-settlement-withou-1obvpjx")} Eigentumsanteile ändern sich dadurch nicht. Die Buchung bleibt im Verlauf bearbeitbar und löschbar.</HelpTip></div>
+      <button class="ghost" type="button" aria-label={$translate("ui.close-1qnddid")} on:click={close}>×</button>
     </div>
     <form class="settlement-form" on:submit|preventDefault={save}>
       <div class="modal-body stack">
         {#if date > asOfDate}<p class="settlement-date-note">Datum nach dem Stichtag: Die Ansicht wechselt beim Speichern zum {dateDE(date)}.</p>{/if}
         <div class="form-grid">
-          <label>{kind === 'paid' ? 'Wer hat bezahlt?' : 'Von wem geht der Ausgleich aus?'}
+          <label>{kind === 'paid' ? $translate("ui.who-paid-1tgy0m9") : $translate("ui.who-is-settling-mht70x")}
             <select bind:value={payer}>
-              <option value="">Person auswählen</option>
+              <option value="">{$translate("ui.select-person-10cm653")}</option>
               {#each people as person (person.id)}
                 <option value={person.id}>{person.name}</option>
               {/each}
             </select>
           </label>
-          <label>{kind === 'paid' ? 'Wer hat das Geld erhalten?' : 'Wessen Saldo wird ausgeglichen?'}
+          <label>{kind === 'paid' ? $translate("ui.who-received-the-money-ztwo1k") : $translate("ui.whose-balance-is-being-settled-1h29lbp")}
             <select bind:value={recipient}>
-              <option value="">Person auswählen</option>
+              <option value="">{$translate("ui.select-person-10cm653")}</option>
               {#each people as person (person.id)}
                 <option value={person.id}>{person.name}</option>
               {/each}
@@ -123,27 +124,27 @@
           <label>{kind === 'paid' ? 'Gezahlter Betrag in Euro' : 'Ausgleichsbetrag in Euro'}
             <input type="text" inputmode="decimal" placeholder="0,00" bind:value={amount} autocomplete="off"/>
           </label>
-          <label>{kind === 'paid' ? 'Zahlungsdatum' : 'Datum des Ausgleichs'}
+          <label>{kind === 'paid' ? 'Zahlungsdatum' : $translate("ui.settlement-date-fw9ncy")}
             <input type="date" bind:value={date}/>
           </label>
-          <label class="wide">Notiz (optional)
+          <label class="wide">{$translate("ui.note-optional-78uues")}
             <textarea rows="2" bind:value={note} placeholder="z. B. Überweisung am 22.11."></textarea>
           </label>
         </div>
         <details open={advanced}>
-          <summary>Andere Ausgleichsarten</summary>
-          <label>Art des Ausgleichs
+          <summary>{$translate("ui.other-settlement-types-1d7grug")}</summary>
+          <label>{$translate("ui.settlement-type-rrljhk")}
             <select bind:value={kind}>
-              <option value="paid">Tatsächlich gezahlt</option>
-              <option value="external">Extern abgerechnet (hier nicht mehr offen)</option>
-              <option value="waived">Erlassen (ohne Geldfluss)</option>
+              <option value="paid">{$translate("ui.actually-paid-1emrdll")}</option>
+              <option value="external">{$translate("ui.settled-externally-no-longer-outsta-ktzy1w")}</option>
+              <option value="waived">{$translate("ui.waived-without-payment-xuzqp4")}</option>
             </select>
           </label>
-          <p class="muted">„Extern abgerechnet“ und „Erlassen“ verringern nur den hier angezeigten Saldo. Sie belegen keine Überweisung.</p>
+          <p class="muted">{$translate("ui.settled-externally-and-waived-only--ezm31f")}</p>
         </details>
         <div class="settlement-confirmation">
-          <strong>{kind === 'paid' ? 'Ist diese Zahlung bereits erfolgt?' : 'Ist dieser Ausgleich vereinbart und erfolgt?'}</strong>
-          <HelpTip label="Was bedeutet die Bestätigung?">Beim Speichern wird der Vorgang im Änderungsverlauf dokumentiert. Du kannst den Betrag später ändern oder die Buchung wieder löschen.</HelpTip>
+          <strong>{kind === 'paid' ? $translate("ui.has-this-payment-already-been-made-120a38k") : $translate("ui.has-this-settlement-been-agreed-and-uy5i03")}</strong>
+          <HelpTip label={$translate("ui.what-does-confirmation-mean-1c76cot")}>{$translate("ui.the-event-is-recorded-in-the-timeli-1tcq3sk")}</HelpTip>
         </div>
         {#if Number.isSafeInteger(cents) && cents > 0 && payer !== recipient && payer && recipient}
           <p class="settlement-effect">Saldo: {people.find(p => p.id === payer)?.name} <strong>+{money(cents / 100)}</strong> · {people.find(p => p.id === recipient)?.name} <strong>−{money(cents / 100)}</strong></p>
@@ -151,10 +152,10 @@
       </div>
       <div class="modal-footer">
         {#if editing}
-          <button class="danger" type="button" disabled={busy || $appState.readOnly} on:click={remove}>Löschen</button>
+          <button class="danger" type="button" disabled={busy || $appState.readOnly} on:click={remove}>{$translate("ui.delete-odpvb4")}</button>
         {/if}
-        <button type="button" on:click={close}>Abbrechen</button>
-        <button class="primary" type="submit" disabled={!valid || busy || $appState.readOnly}>{editing ? 'Änderungen speichern' : kind === 'paid' ? 'Zahlung als erfolgt erfassen' : 'Ausgleich dokumentieren'}</button>
+        <button type="button" on:click={close}>{$translate("ui.cancel-cl4zc9")}</button>
+        <button class="primary" type="submit" disabled={!valid || busy || $appState.readOnly}>{editing ? $translate("ui.save-changes-1wtqubg") : kind === 'paid' ? $translate("ui.record-payment-as-completed-1v8giio") : $translate("ui.record-settlement-1vfcczq")}</button>
       </div>
     </form>
   </div>

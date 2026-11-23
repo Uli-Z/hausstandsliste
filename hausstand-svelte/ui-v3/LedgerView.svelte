@@ -1,4 +1,5 @@
 <script>
+  import { translate } from '../srclib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { money } from '../src/lib/domain.js';
   import { dateDE } from '../src/lib/util.js';
@@ -41,13 +42,13 @@
 
 <section class="panel ledger-v3 settlement-screen">
   <div class="panel-header">
-    <div class="help-heading"><h2>Wertausgleich</h2><HelpTip label="Was bedeutet Wertausgleich?">Wenn Personen Gegenstände finanzieren oder Eigentumsanteile übernehmen, entstehen persönliche Ausgleichssalden. Das Programm schlägt Zahlungswege zum Ausgleich vor; es überweist selbst kein Geld.</HelpTip></div>
+    <div class="help-heading"><h2>{$translate("ui.value-settlement-19afpms")}</h2><HelpTip label={$translate("ui.what-does-value-settlement-mean-9p85pk")}>{$translate("ui.when-people-finance-items-or-acquir-mc1vof")}</HelpTip></div>
     <span class="hint">Stand {dateDE(asOfDate)}</span>
   </div>
   <div class="panel-body settlement-content">
 
     <section class="settlement-section">
-      <div class="help-heading"><h3>So könnt ihr ausgleichen</h3><HelpTip label="Wie funktionieren die Zahlungsvorschläge?">Die Vorschläge gleichen alle persönlichen Salden aus. Sie sind keine bereits erfolgten Zahlungen und gelten für eine Hausgemeinschaft, die gemeinsame Saldierung vereinbart hat. Erst wenn du eine tatsächlich erfolgte Zahlung bestätigst, wird sie dokumentiert.</HelpTip></div>
+      <div class="help-heading"><h3>{$translate("ui.how-to-settle-balances-1hpc1r")}</h3><HelpTip label={$translate("ui.how-do-payment-suggestions-work-1erz08t")}>{$translate("ui.the-suggestions-balance-everyone-s--c0cs6u")}</HelpTip></div>
       {#if suggestions.length}
         <div class="transfer-list">
           {#each suggestions as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
@@ -56,42 +57,42 @@
                 <strong>{personName(transfer.fromPersonId)} zahlt an {personName(transfer.toPersonId)}</strong>
               </div>
               <strong class="transfer-amount">{money(transfer.amountCents / 100)}</strong>
-              <button class="primary transfer-action" type="button" on:click={() => addSettlement(transfer)} disabled={$appState.readOnly}>Ausgleichen</button>
+              <button class="primary transfer-action" type="button" on:click={() => addSettlement(transfer)} disabled={$appState.readOnly}>{$translate("app.settle")}</button>
             </div>
           {/each}
         </div>
       {:else}
-        <p class="settled-message">Es gibt zum gewählten Stichtag keine offenen Ausgleichssalden.</p>
+        <p class="settled-message">{$translate("ui.there-are-no-outstanding-settlement-9gw2n4")}</p>
       {/if}
     </section>
 
     <section class="settlement-section">
-      <div class="help-heading"><h3>Salden der Personen</h3><HelpTip label="Was bedeutet ein persönlicher Saldo?">Wer mehr Wert eingebracht als übernommen hat, kann Geld erhalten; wer mehr Wert übernommen hat, muss ausgleichen. Die einzelnen Beträge findest du beim Aufklappen einer Person.</HelpTip></div>
+      <div class="help-heading"><h3>{$translate("ui.personal-balances-6tb5zl")}</h3><HelpTip label={$translate("ui.what-does-a-personal-balance-mean-1qhrnx3")}>{$translate("ui.someone-who-contributed-more-value--1s288g4")}</HelpTip></div>
       {#if balances.length}
         <div class="person-balance-list">
           {#each balances as balance (balance.id)}
             <details class="person-balance-row">
               <summary>
                 <span class="person-balance-name">{personName(balance.id)}</span>
-                <span class="person-balance-amount">{balance.cents > 0 ? 'Erhält' : 'Gleicht aus'} <strong>{money(Math.abs(balance.cents) / 100)}</strong></span>
+                <span class="person-balance-amount">{balance.cents > 0 ? $translate("ui.receives-9wmoo2") : $translate("ui.owes-w6ktki")} <strong>{money(Math.abs(balance.cents) / 100)}</strong></span>
               </summary>
               <div class="balance-expand">
                 <BalanceBreakdown detail={data.details?.get(balance.id)} balanceCents={balance.cents}/>
-                <button class="text-link" type="button" on:click={() => appState.setRoute({page:'person',id:balance.id})}>Personenprofil ansehen</button>
+                <button class="text-link" type="button" on:click={() => appState.setRoute({page:'person',id:balance.id})}>{$translate("ui.view-person-s-profile-18hksfz")}</button>
               </div>
             </details>
           {/each}
         </div>
       {:else}
-        <p class="muted">Alle persönlichen Ausgleichssalden stehen bei null.</p>
+        <p class="muted">{$translate("ui.all-personal-settlement-balances-ar-tlu8nx")}</p>
       {/if}
     </section>
 
     <div class="manual-payment">
       <div>
-        <strong>Andere Zahlung?</strong>
+        <strong>{$translate("ui.another-payment-18vryrc")}</strong>
       </div>
-      <button type="button" on:click={() => addSettlement()} disabled={$appState.readOnly}>Zahlung erfassen</button>
+      <button type="button" on:click={() => addSettlement()} disabled={$appState.readOnly}>{$translate("ui.record-payment-clxxpv")}</button>
     </div>
 
     {#if data.warnings?.length}
@@ -100,27 +101,27 @@
 
     <div class="audit-area">
       <details class="audit-disclosure">
-        <summary>Dokumentierte Ausgleiche <span class="disclosure-count">{recorded.length}</span></summary>
+        <summary>{$translate("ui.recorded-settlements-1lqa61h")} <span class="disclosure-count">{recorded.length}</span></summary>
         {#if recorded.length}
           <div class="audit-list">
             {#each recorded as entry (entry.sourceEventId)}
               <div class="audit-row">
                 <div class="audit-main">
                   <strong>{personName(entry.creditorPersonId)} an {personName(entry.debtorPersonId)}</strong>
-                  <span>{dateDE(entry.date)} · {entry.entryKind === 'paid' ? 'Zahlung' : entry.entryKind === 'external' ? 'Extern abgerechnet' : 'Erlassen'}</span>
+                  <span>{dateDE(entry.date)} · {entry.entryKind === 'paid' ? 'Zahlung' : entry.entryKind === 'external' ? $translate("ui.settled-externally-1p3ll9n") : 'Erlassen'}</span>
                   {#if eventById.get(entry.sourceEventId)?.note}<span>{eventById.get(entry.sourceEventId).note}</span>{/if}
                 </div>
                 <strong class="audit-amount">{money(entry.amountCents / 100)}</strong>
-                <button class="audit-edit" type="button" on:click={() => appState.setDialog({type:'settlementEdit',eventId:entry.sourceEventId})}>Bearbeiten</button>
+                <button class="audit-edit" type="button" on:click={() => appState.setDialog({type:'settlementEdit',eventId:entry.sourceEventId})}>{$translate("ui.edit-m49ms0")}</button>
               </div>
             {/each}
           </div>
         {:else}
-          <p class="muted">Noch kein Ausgleich dokumentiert.</p>
+          <p class="muted">{$translate("ui.no-settlements-recorded-yet-uw5q4")}</p>
         {/if}
       </details>
       <details class="audit-disclosure">
-        <summary>Herkunft der Wertverschiebungen <span class="disclosure-count">{data.claims.length}</span></summary>
+        <summary>{$translate("ui.origin-of-value-transfers-1r99hdh")} <span class="disclosure-count">{data.claims.length}</span></summary>
         {#if data.claims.length}
           <div class="audit-list">
             {#each data.claims as claim, index (claim.sourceEventId + ':' + index)}
@@ -130,12 +131,12 @@
                   <span>{dateDE(claim.date)} · Wert von {personName(claim.creditorPersonId)} an {personName(claim.debtorPersonId)}</span>
                 </div>
                 <strong class="audit-amount">{money(claim.amountCents / 100)}</strong>
-                <button class="audit-edit" type="button" on:click={() => editClaim(claim)}>Vorgang ansehen</button>
+                <button class="audit-edit" type="button" on:click={() => editClaim(claim)}>{$translate("ui.view-event-8joqb1")}</button>
               </div>
             {/each}
           </div>
         {:else}
-          <p class="muted">Noch keine finanziellen Wertverschiebungen erfasst.</p>
+          <p class="muted">{$translate("ui.no-financial-value-transfers-record-1p0hfqy")}</p>
         {/if}
       </details>
     </div>
