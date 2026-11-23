@@ -16,7 +16,16 @@ for(const label of ['Gegenstände','Personen','Geld & Ausgleich','Änderungen','
 assert.match(html,/mobile-bottom-nav/,'Mobile bottom navigation missing');
 assert.match(html,/mobile-more-menu/,'Mobile more menu missing');
 assert.match(html,/safe-area-inset-bottom/,'Mobile safe-area CSS missing');
-assert.match(html,/data-label="Betrag"/,'Mobile finance row labels missing');
+// The current V3 finance screen uses responsive cards, not the old table
+// with data-label="Betrag" cells. Verify its real mobile layout instead.
+const ledgerSource = await readFile(path.join(root,'ui-v3','LedgerView.svelte'),'utf8');
+for (const className of ['transfer-row', 'transfer-amount', 'person-balance-row', 'audit-row']) {
+ assert.match(ledgerSource,new RegExp('class=["\\'][^"\\']*\\b'+className+'\\b'), 'Finance screen markup missing: '+className);
+ assert.ok(html.includes(className), 'Finance screen missing from compiled bundle: '+className);
+}
+assert.match(ledgerSource,/@media\(max-width:620px\)/,'Finance screen mobile breakpoint missing');
+assert.match(ledgerSource,/\.transfer-row\{grid-template-columns:minmax\(0,1fr\) auto/,'Mobile payment suggestions must fit two columns');
+assert.match(ledgerSource,/\.transfer-action\{grid-column:1\/-1/,'Mobile settlement action must span full row');
 assert.match(html,/person-name-field/,'Person name field must be layout-bounded');
 assert.match(await readFile(path.join(root,'ui-v3','DialogRouter.svelte'),'utf8'),/confirmFromInput/,'Dialog Enter handling missing');
 
