@@ -8,12 +8,11 @@ Hausstand wird in **zwei getrennten Betriebsvarianten** gebaut. Eine statische H
 cd hausstand-svelte
 npm ci
 npm run build:single
-npm run build:ui-v3
 ```
 
-- `dist/hausstand-standalone.html`: bisherige Offline-Oberfläche
-- `dist/pages/ui-v3/index.html`: aktuelle mobile Oberfläche
-- Beide arbeiten unabhängig von PHP. Projekt-JSON sowie verschlüsselte Backups lassen sich herunterladen und wieder öffnen; unverschlüsselte Arbeitskopien bleiben im jeweiligen Browser.
+- `dist/hausstand-standalone.html`: die einzige aktuelle, mobile Oberfläche (V3).
+- GitHub Pages veröffentlicht dieselbe Oberfläche unter `/`.
+- Offline-HTML und GitHub Pages arbeiten unabhängig von PHP. Projekt-JSON sowie verschlüsselte Backups lassen sich herunterladen und wieder öffnen; unverschlüsselte Arbeitskopien bleiben im jeweiligen Browser.
 - Die ebenfalls statischen GitHub-Pages-Seiten haben keine Server-Dateiliste, keinen Server-Checkout und keine Server-Speicherfunktion.
 
 ## 2. PHP-App manuell als einzelne Datei bauen
@@ -25,7 +24,7 @@ npm run build:php
 php -l dist/hausstand.php
 ```
 
-Die Datei **`dist/hausstand.php`** enthält PHP-API, HTML, JavaScript und CSS in einem Artefakt. Sie verwendet die **mobile V3**. Hochladen genügt, sobald der private Datenordner konfiguriert und über PHP beschreibbar ist. Ein weiterer Build der HTML-Version ist nicht nötig.
+Die Datei **`dist/hausstand.php`** enthält PHP-API, HTML, JavaScript und CSS in einem Artefakt. Sie verwendet dieselbe einzige Svelte-Oberfläche. Hochladen genügt, sobald der private Datenordner konfiguriert und über PHP beschreibbar ist. Ein weiterer Build der HTML-Version ist nicht nötig.
 
 **Ohne lokale Entwicklungsumgebung:** In GitHub den Workflow [Build PHP single-file release (manual)](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml) über „Run workflow“ starten. Aus dem abgeschlossenen Workflow unter „Artifacts“ `hausstand-php-manual` herunterladen und die ZIP-Datei entpacken.
 
@@ -59,4 +58,4 @@ Beispiel: `/home/konto/public_html/hausstand.php` im Web, `/home/konto/hausstand
 4. Wenn `allow_create=true` gesetzt ist, kannst du aus dem aktuellen Stand ein neues Online-Projekt anlegen. Ein langes Projektpasswort ist erforderlich.
 5. Zusätzlich bleiben lokale verschlüsselte oder unverschlüsselte Dateien verfügbar. Verschlüsselte Daten werden nicht als Klartext-Browserkopie gespeichert.
 
-**Wichtige Einschränkungen:** Der PHP-Server muss die Datei als PHP ausführen, darf sie nicht als Klartext ausliefern und muss über HTTPS erreichbar sein. Dateinamen und Versionsmetadaten sind bei einer öffentlich erreichbaren Instanz sichtbar; das Öffnen der Inhalte erfordert das Dateipasswort. Ein verlorenes Dateipasswort kann nicht auf dem Server wiederhergestellt werden. Die App verhindert paralleles Bearbeiten durch Checkout/Checkin; sie synchronisiert Bearbeitungen nicht in Echtzeit. Vor echtem Einsatz Sicherheits-/Berechtigungsprüfung und Backups einplanen.
+**Wichtige Einschränkungen:** Der PHP-Server muss die Datei als PHP ausführen, darf sie nicht als Klartext ausliefern und muss über HTTPS erreichbar sein. Dateinamen und technische Revisionsmetadaten sind bei einer öffentlich erreichbaren Instanz sichtbar; das Öffnen der Inhalte erfordert das Dateipasswort. Ein verlorenes Dateipasswort kann nicht auf dem Server wiederhergestellt werden. Die App verhindert paralleles Bearbeiten durch Checkout/Checkin; sie synchronisiert Bearbeitungen nicht in Echtzeit. Vor echtem Einsatz Sicherheits-/Berechtigungsprüfung und Backups einplanen.

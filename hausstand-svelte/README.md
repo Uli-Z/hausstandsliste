@@ -1,68 +1,44 @@
-# Hausstandsliste — Svelte application
+# Hausstandsliste — application
 
-This directory contains the **active source code** for [Hausstandsliste — Shared Ownership Tracker](../README.md), a local-first browser app for jointly owned belongings. The older [single-file prototype](../vorlage.html) is only a historical reference.
+This is the sole active implementation of **Hausstandsliste — Shared Ownership Tracker**, using Svelte/Vite. The same `ui-v3/` interface and shared domain modules are built into a standalone offline HTML file and a separately configured single-file PHP release.
 
-The Svelte/Vite source produces standalone offline HTML and a separately configured PHP release. All builds share the domain logic and project file format. GitHub Pages and the PHP release use the current mobile V3 interface; `build:single` still uses the classic UI entry point. PHP is **not** required for local use.
-
-## Development
-
-Install Node.js and npm:
+## Development and builds
 
 ```bash
 cd hausstand-svelte
 npm ci
 npm run dev
+npm run check:js
+npm test
+npm run build:single
+npm run build:php
+php -l dist/hausstand.php
+node server-php/smoke.mjs
 ```
 
-Other commands:
+- `npm run dev` serves the single current UI.
+- `npm run build:single` produces `dist/hausstand-standalone.html`. This file needs no PHP backend.
+- `npm run build:php` produces `dist/hausstand.php` with the same interface and a server API. Its operator must configure the private storage directory and HTTPS.
+- `dist/` is generated and not committed. The CI workflows verify both distributions and publish the offline UI at the **GitHub Pages root**.
 
-```bash
-npm run check:js      # check the inline build script
-npm test              # domain, settlement, and crypto regression tests
-npm run build         # Vite production build
-npm run build:single  # self-contained dist/hausstand-standalone.html
-npm run build:ui-v3   # current mobile UI V3, used by the Pages workflow
-npm run build:ui-v2   # older preview interface
-npm run build:php     # standalone PHP release, dist/hausstand.php
-```
+## Source layout
 
-The `dist/` files are generated and not versioned. The HTML distribution can run from `file://` and must not depend on the PHP API. The PHP distribution is built **manually** and configured by the operator inside the PHP file, not by the end user. See [Build variants](../docs/BUILD-VARIANTS.md) and [Deployment](../docs/DEPLOYMENT.md).
+- `ui-v3/`: the only interface, dialogs, history picker and responsive styles.
+- `src/components/`: reusable components used by that interface, including settlement entry, HelpTip, shared balance and redistribution widgets.
+- `src/stores/projectStore.js`: source project, last saved file, edit state, as-of date and controlled changes.
+- `src/lib/projector.js`: historical ownership projection from dated events.
+- `src/lib/ledger.js`, `claimSettlement.js`: personal net positions and independent counterclaim/payment events.
+- `src/lib/redistribution.js` and `valuation.js`: ownership changes and depreciation.
+- `src/lib/persistence.js`, `versionHistory.js`, `crypto.js`: local working copy, **embedded compressed file history**, and browser-side encryption.
+- `server-php/backend.php`: one encrypted current document per project, technical revision checking, checkout/lease and optional encrypted email copies.
+- `tests/`: Node domain tests and PHP smoke test.
 
-## Code map
+## File format and safety
 
-- `ui-v3/App.svelte` and `ui-v3/`: **current** mobile-first interface and navigation.
-- `src/App.svelte`, `src/components/`: classic interface, shared components, and dialogs.
-- `src/stores/projectStore.js`: project state and controlled mutations.
-- `src/lib/projector.js`: reconstruction from dated project events.
-- `src/lib/ledger.js` and `src/lib/claimSettlement.js`: derived ownership-related claims, personal balances, and independently recorded settlements.
-- `src/lib/redistribution.js`: ownership transfers and settlement previews.
-- `src/lib/valuation.js`: valuation/depreciation methods.
-- `src/lib/persistence.js`, `src/lib/crypto.js`: JSON export, temporary working copy, and encryption.
-- `server-php/backend.php`: PHP server template, not a second application.
-- `scripts/`: standalone HTML and PHP bundling.
-- `tests/`: regression tests.
+Only the **current portable project schema** is accepted for file import. The current project remains ordinary JSON at the root; `versionHistory` contains complete previous saved states compressed with gzip/Base64 and protected by SHA-256. No server history archive or file-format migration exists. History follows local downloads and encrypted server uploads. The server revision number remains a technical concurrency safeguard, not a user-facing snapshot.
 
-## Ownership and financial boundaries
+Changes to the current project are not equivalent to bank transfers. A payment event records an actual completed payment or an explicitly noncash adjustment; ownership and balances are derived separately. See [Community settlement](../docs/FEATURE-COMMUNAL-SETTLEMENT.md).
 
-The app is an **ownership tracker**, not a shared household budget or bank payment service. Purchases and compensated ownership transfers can produce derived claims; the finance screen shows personal net group balances and proposed settlement routes. Actual payments are recorded as **independent dated events**, and may be edited or deleted. Payments do not change ownership, are not matched to individual purchases, and may produce an opposing balance when they exceed an amount owed.
+Unencrypted local working copies are a convenience, **not durable backups**. Protected data is never intentionally cached in plaintext. The file must be saved explicitly. Real PHP hosting and browsers must be tested before production; see [Build variants](../docs/BUILD-VARIANTS.md), [Security](../docs/SECURITY-AND-ENCRYPTION.md), and [To-do list](../docs/WG-PRAXIS-TODO.md).
 
-The application does not send bank transfers. Group-level netting requires the participants' agreement; see [Community settlement](../docs/FEATURE-COMMUNAL-SETTLEMENT.md). Original claims remain available for audit but are not a second paid/unpaid checklist.
-
-Import/export compatibility is essential. Old JSON records without an explicit financial mode must not retroactively acquire new claims. An encrypted project must never be silently cached unencrypted. Browser working copies are not durable backups.
-
-## Language and naming
-
-**Hausstandsliste** is the product name; **Shared Ownership Tracker** is the English descriptor. Product titles and visible branding now use these terms in UI V3 and the earlier entry points. **This is not yet a localized UI:** most interface strings are still German, so HTML `lang="de"` remains accurate.
-
-Planned task **Q13** introduces English as the default UI language, German detection through browser preferences, a persistent manual override, translation keys, locale-aware formatting, and accessibility/testing coverage. Do not replace persisted JSON field names, event identifiers, storage keys, or release filenames simply to translate the UI. See [Language and terminology](../docs/LANGUAGE-AND-TERMINOLOGY.md) and the [to-do list](../docs/WG-PRAXIS-TODO.md).
-
-## Verification and further documentation
-
-The last recorded complete CI run on 23 November 2026 ([run 45122479125](https://github.com/Uli-Z/hausstandsliste/actions/runs/45122479125)) passed 87 unit tests, JS checks, standalone/UI builds, PHP build/lint, and PHP API smoke tests. New commits must be tested independently. Full interactive browser/mobile testing, old/new JSON round trips, real hosting/email validation, and the portable in-file version history are still open.
-
-- [Developer rules](../AGENTS.md) and [Svelte-specific notes](GEMINI.md)
-- [Architecture](../docs/ARCHITECTURE.md)
-- [Development and test instructions](../docs/DEVELOPMENT.md)
-- [Current prioritized tasks](../docs/WG-PRAXIS-TODO.md)
-- [Roadmap](../docs/ROADMAP.md)
-- [Portable version history proposal](../docs/FEATURE-PORTABLE-VERSION-HISTORY.md)
+The default interface language is currently German. English-first localization is a separate open task; see [terminology](../docs/LANGUAGE-AND-TERMINOLOGY.md).

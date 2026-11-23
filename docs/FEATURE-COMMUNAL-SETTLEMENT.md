@@ -69,7 +69,7 @@ Die ursprünglichen `claims` und das optionale `pairwise`-Ergebnis dienen nur de
 
 Fachcode: `src/lib/ledger.js` und `src/lib/claimSettlement.js`.
 Erfassung/Korrektur: `src/components/SettlementDialog.svelte`.
-Oberflächen: `ui-v3/LedgerView.svelte` und `src/components/LedgerPanel.svelte`.
+Oberfläche: `ui-v3/LedgerView.svelte`.
 Tests: `tests/community-balances.test.js`, `tests/payment-counterclaims.test.js` und `tests/ledger.test.js`.
 
 Die gemeinsame Abrechnung erfordert noch einen vollständigen CI-Build und manuelle Browser-/Mobilabnahme; produktive Speicherung sensibler Daten setzt die separat dokumentierte Sicherheitsprüfung voraus.
