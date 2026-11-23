@@ -27,7 +27,7 @@
   {/if}
   {#each Object.entries(shares) as [personId, units]}
     <div class="share-row">
-      <label>{$translate("ui.person-1i84mn4")} <select disabled><option>{people.find(p=>p.id===personId)?.name || personId}</option></select></label>
+      <span class="share-person-name">{people.find(p=>p.id===personId)?.name || personId}</span>
       <label>{$translate("ui.units-1xtsz9u")} <input type="number" min="0" step="0.01" value={units ?? ''} on:input={e => setShare(personId, e.currentTarget.value)}></label>
       <button class="danger" on:click={() => removeShare(personId)} type="button" aria-label={$translate("ui.remove-person-s-share-xybgun")}
         disabled={positiveOwnerCount === 1 && Number(units) > 0}
@@ -44,7 +44,8 @@
 
 <style>
   .share-editor-toolbar{display:flex;justify-content:flex-end}
+  .share-person-name{align-self:center;min-width:0;overflow-wrap:anywhere;font-size:13px;font-weight:650}
   .share-percent{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;align-self:center}
   .share-row{grid-template-columns:minmax(0,1fr) 112px auto auto;gap:8px;align-items:end}
-  @media(max-width:680px){.share-row{grid-template-columns:minmax(0,1fr) 1fr;gap:8px}.share-row>label:first-child{grid-column:1/-1}.share-row>label:nth-child(2){grid-column:1}.share-row>button{grid-column:2;grid-row:2;min-height:44px}.share-percent{grid-column:1/-1}}
+  @media(max-width:680px){.share-row{grid-template-columns:minmax(0,1fr) 1fr;gap:8px}.share-row>.share-person-name{grid-column:1/-1}.share-row>label{grid-column:1}.share-row>button{grid-column:2;grid-row:2;min-height:44px}.share-percent{grid-column:1/-1}}
 </style>
