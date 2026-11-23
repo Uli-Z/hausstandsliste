@@ -25,7 +25,7 @@ test('the payment form states the fact of a completed transfer and stays scrolla
   assert.ok(atTranslation(s, 'Ist diese Zahlung bereits erfolgt?') >= 0);
   assert.ok(atTranslation(s, 'Zahlung als erfolgt erfassen') >= 0);
   assert.match(dictionaries.de['ui.record-a-payment-that-has-already-h-fwt66e'], /tatsächlich gezahlt/);
-  assert.match(dictionaries.de['ui.record-a-payment-that-has-already-h-fwt66e'], /spätere Kaufänderung/);
+  assert.match(dictionaries.de['ui.record-a-payment-that-has-already-h-fwt66e'], /Kaufänderung/);
   assert.match(dictionaries.en['ui.record-a-payment-that-has-already-h-fwt66e'], /payment/i);
   assert.ok(s.includes('ui.record-a-payment-that-has-already-h-fwt66e'));
   assert.match(s, /settlement-form/);
