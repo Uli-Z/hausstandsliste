@@ -1,5 +1,11 @@
 # Svelte-Projekt: technische Hinweise
 
+
+## Product name / translation boundary (23 November 2026)
+
+Brand all entry points as **Hausstandsliste — Shared Ownership Tracker**. English UI and browser-driven German localization are **planned** (Q13), not yet implemented. Current German-only UI must retain `lang="de"` until full translations, language detection, user override, and format tests are in place. Centralize future translated strings instead of hardcoding a second language alongside existing German text. See [language specification](../docs/LANGUAGE-AND-TERMINOLOGY.md). Persisted JSON schema, cryptographic formats, working-copy keys, and output filenames must remain compatible.
+
+
 Zuerst [`../AGENTS.md`](../AGENTS.md), [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md), [`../docs/ROADMAP.md`](../docs/ROADMAP.md) lesen. Diese Datei ergänzt die allgemeinen Regeln um Svelte-spezifische Konventionen.
 
 ## Architekturentscheidungen
