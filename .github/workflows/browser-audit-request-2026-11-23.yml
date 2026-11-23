@@ -1,0 +1,44 @@
+name: One-off requested browser and UX acceptance
+# Runs only when this dedicated request branch is updated. No scheduled or
+# per-master-commit browser runs; the normal manual workflow remains unchanged.
+on:
+  push:
+    branches: ['qa/browser-audit-2026-11-23']
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: hausstand-svelte/package-lock.json
+      - name: Install application and browsers
+        working-directory: hausstand-svelte
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.65.1
+          npx playwright install --with-deps chromium firefox webkit
+      - name: Unit tests, syntax and builds
+        working-directory: hausstand-svelte
+        run: |
+          npm run check:js
+          npm test
+          npm run build:single
+          node scripts/check-standalone.mjs
+          npm run build:php
+          php -l dist/hausstand.php
+          php -l server-php/backend.php
+          node server-php/smoke.mjs
+      - name: Chromium Firefox WebKit browser end-to-end acceptance
+        working-directory: hausstand-svelte
+        run: npm run test:browser
+      - name: All-pages and dialogs visual inventory and screenshots
+        working-directory: hausstand-svelte
+        run: node tests/screen-audit-qa.mjs
