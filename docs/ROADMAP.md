@@ -5,6 +5,9 @@
 **Aktueller Stand, 22.11.2026:** Die führende Geldansicht wurde auf persönliche Gemeinschaftssalden und vorgeschlagene Ausgleichszahlungen umgestellt. Datierte Zahlungen, Teil- und Überzahlungen sowie externe Buchungen/Erlass können über die Dialoge dokumentiert, in der Timeline bearbeitet und gelöscht werden. Herkunft der Wertverschiebung bleibt in Gegenstandsdetails nachvollziehbar. [Aktuelles Fachkonzept](FEATURE-COMMUNAL-SETTLEMENT.md). **CI-Build und manuelle Browser-/Mobilabnahme sind noch nicht als bestanden bestätigt.**
 
 # Projektstand und Umsetzungsplan
+**Product naming and language plan (23 November 2026):** the official product name is **Hausstandsliste** with the descriptor **Shared Ownership Tracker**. Entry-point titles and primary READMEs have been updated. English-first UI and documentation, German browser-language detection, manual override, and locale-sensitive display remain **planned** in [Q13/Q08](WG-PRAXIS-TODO.md); [language and terminology rules](LANGUAGE-AND-TERMINOLOGY.md). No completed UI internationalization is implied.
+
+
 
 **Neue Produktpriorität (22.11.2026):** Zuerst die bereits vorhandenen Fach-/UI-Fehler beheben, dann **ein einheitliches Forderungsjournal mit unabhängigen Gegenbuchungen für tatsächliche Zahlungen, externe Buchungen und Erlass** ergänzen. Keine vollständige WG-Buchhaltung, keine dauerhaften Boolean-Bezahlstatus; der Klick auf „Als bezahlt erfassen“ erzeugt ein datiertes Ausgleichsereignis. Maßgebliche nach Priorität sortierte Aufgaben und Abnahmekriterien: [WG-Praxis-To-do](WG-PRAXIS-TODO.md). Das beschreibt eine **neue Vorgabe**, nicht bereits umgesetzten Code.
 
