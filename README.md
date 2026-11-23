@@ -1,13 +1,29 @@
-# Hausstandsliste – historische Anteilsverwaltung
+# Hausstandsliste — Shared Ownership Tracker
 
-Hausstand ist eine browserbasierte Anwendung zur Verwaltung von gemeinsam finanzierten Gegenständen und den Eigentumsanteilen einzelner Personen, zum Beispiel in einer Hausgemeinschaft. Anteile, Werte und Personenstatus lassen sich zu einem beliebigen **Stichtag** rekonstruieren.
+**Hausstandsliste** is an open-source, local-first browser application for tracking jointly owned belongings, ownership shares, and changes over time. It is intended for shared households, flatshares, and other groups who own things together.
 
-**Aktuelle Anwendung:** [`hausstand-svelte/`](hausstand-svelte/) (Svelte/Vite, Versionsangabe `0.7.0`).  
-**Historische Vorlage:** [`vorlage.html`](vorlage.html) (ältere Single-HTML-Fassung, nicht die primäre Entwicklungsbasis).
+Unlike a shared expense tracker, Hausstandsliste focuses on **ownership rather than everyday spending**. It reconstructs ownership and value at any selected date, derives financial balances from ownership events, and records settlements that have already taken place.
 
-## Schnellstart
+**Current application:** [`hausstand-svelte/`](hausstand-svelte/) (Svelte/Vite; currently version `0.7.0`).  
+**Legacy reference:** [`vorlage.html`](vorlage.html) is the original single-file prototype, **not** the active development target.
 
-Voraussetzung: Node.js mit npm.
+## Features
+
+- Manage people, items, tags, and relative ownership shares.
+- Value items using linear depreciation, declining-balance depreciation, or a fixed value.
+- Reconstruct ownership, item value, and membership at historical dates using an event timeline.
+- Preview, save drafts of, and execute ownership transfers.
+- Derive financial claims and personal group balances from purchases, financing, and compensated ownership transfers.
+- Suggest settlement routes and record, edit, or remove **payments that have actually occurred**, including partial payments and overpayments.
+- Import/export project JSON, use the app locally, or deploy a separately configured encrypted PHP version.
+
+**Ownership is separate from payment.** Executing an ownership transfer does not itself record a payment. A recorded payment is an independent, dated event and does not change any ownership shares. Corrections to past purchases recalculate derived claims but do not silently rewrite historical payments.
+
+**Group settlement requires agreement.** The simplified payment routes are proposals for jointly agreed netting, not proof that any individual legal claim has been settled. See [Community settlement](docs/FEATURE-COMMUNAL-SETTLEMENT.md).
+
+## Getting started
+
+Requires Node.js and npm:
 
 ```bash
 cd hausstand-svelte
@@ -15,86 +31,57 @@ npm ci
 npm run dev
 ```
 
-Die angezeigte lokale Vite-Adresse im Browser öffnen. Für eine ohne Server verwendbare HTML-Datei:
+Open the local Vite URL shown in the terminal. To build a self-contained, offline-capable HTML file:
 
 ```bash
 npm run build:single
 ```
 
-Das Ergebnis liegt unter `hausstand-svelte/dist/hausstand-standalone.html` und kann lokal geöffnet werden. `dist/` ist absichtlich nicht im Repository versioniert. Details: [Entwicklung & Testen](docs/DEVELOPMENT.md).
+The generated `hausstand-svelte/dist/hausstand-standalone.html` works without a server. The `dist/` directory is intentionally not committed. See [Development](docs/DEVELOPMENT.md) and the [Svelte project README](hausstand-svelte/README.md).
 
-## Was funktioniert bereits?
+## Distribution and storage
 
-- Personen, Gegenstände, Tags und Anteilssätze verwalten
-- Drei Bewertungsmodelle: linear, degressiv, fester Wert
-- Ereignis-Timeline und stichtagsbezogene Rekonstruktion
-- Umverteilungen vorbereiten, als Entwurf speichern und ausführen
-- Wertverschiebungen und **empfohlene** Ausgleichszahlungen berechnen
-- Persönliche Ausgleichssalden aus eingebrachtem Wert und Anteilsbewegungen berechnen; gemeinschaftliche Zahlungswege vorschlagen
-- Projekt-JSON importieren/exportieren; lokale Browser-Arbeitskopie
+There are two deliberately separate distributions:
 
-**Wichtig:** Eine ausgeführte Umverteilung dokumentiert eine Anteilsänderung, **keine beglichene Zahlung**. Persönliche Ausgleichssalden und Zahlungsvorschläge sind vorhanden. Bereits erfolgte Zahlungen können direkt bei einem Vorschlag oder manuell dokumentiert, im Verlauf bearbeitet und gelöscht werden. Eine Zahlung verändert kein Eigentum.
+1. **Standalone HTML / GitHub Pages:** offline-first, with local file import/export and **no PHP server-storage feature**.
+2. **Separately built PHP release:** the same Svelte app, bundled with a preconfigured encrypted online file-storage API. The server operator configures the PHP file; end users do not enter API URLs or server credentials.
 
-## Speicherung und Datenschutz
+See [Build variants](docs/BUILD-VARIANTS.md) and [Deployment](docs/DEPLOYMENT.md). GitHub Pages itself cannot run PHP.
 
-Die Anwendung hat **zwei klar getrennte Varianten**: Offline-HTML/GitHub Pages mit ausschließlich lokalem Import/Export sowie eine **separat gebaute, vorkonfigurierte PHP-Datei** mit integrierter verschlüsselter Serverablage. Die Offline-Version kann nicht über die PHP-API speichern. Für die PHP-Variante müssen Endanwender weder API-Adressen noch Server-Schlüssel eingeben. [Build und Konfiguration](docs/BUILD-VARIANTS.md). Bei gewöhnlichen Klartext-Projekten speichert die App eine Arbeitskopie im `localStorage`. **Verschlüsselt geöffnete Projekte werden dagegen nicht als Klartext im Browser-Storage zwischengespeichert.** Die **exportierte JSON-Projektdatei ist der dauerhaft aufzubewahrende Datenbestand**. Browserdaten können verloren gehen oder auf einem anderen Gerät fehlen – daher regelmäßig exportieren und gesichert ablegen. Persönliche Projektdaten nicht in dieses öffentliche Repository committen.
+For ordinary unencrypted projects, browser `localStorage` is only a working copy. **Encrypted projects must not be cached in plaintext.** The exported project file is the durable record, so save it somewhere safe; browser data can disappear or be unavailable on another device. Never commit private household data to this public repository.
 
-## Veröffentlichungsstatus
+The PHP implementation currently includes checkout/checkin, write-conflict protection, encrypted file handling, and a legacy server-side version archive. **Planned change (not implemented):** a portable version history embedded in the project file will replace that separate archive, consistently for local and online storage. Migration must preserve existing revisions. See [Portable version history](docs/FEATURE-PORTABLE-VERSION-HISTORY.md) and tasks Q11/Q12 in the [prioritized to-do list](docs/WG-PRAXIS-TODO.md).
 
-Der Quellcode ist öffentlich. Die GitHub-Pages-Veröffentlichung ist vorbereitet; die erstmalige Freischaltung unter **Settings → Pages → Source: GitHub Actions** muss einmal durch den Repository-Administrator erfolgen. Der automatische Versuch war durch fehlende GitHub-Actions-Administrationsberechtigung blockiert. Die getestete HTML- und PHP-Datei stehen als CI-Artefakte bereit. [Deployment-Anleitung](docs/DEPLOYMENT.md).
+An encrypted email backup mechanism is implemented in PHP, but delivery against a real mail server has not been confirmed. Password changes do not retroactively re-encrypt previously sent emails or old revisions. Production use with sensitive data requires independent security and hosting checks.
 
-## Erweiterungen: Forderungen, Verschlüsselung und optionale Online-Ablage
+## Product name and language
 
-Der Implementierungsstand umfasst:
+The official product name is **Hausstandsliste**. Its English descriptor is **Shared Ownership Tracker**. Use those names in product titles, repository introductions, and release descriptions.
 
-1. **Forderungen aus Anteilsbewegungen (implementiert):** Jede wirtschaftliche Eigentumsübertragung erzeugt **aus ihren historischen Ereignisdaten abgeleitete** Forderungen. Gegenläufige Forderungen werden automatisch verrechnet, **ohne Checkbox oder gespeicherten Zahlungsstatus**. Wird ein Quellereignis zeitlich oder wertmäßig verändert oder gelöscht, werden alle betroffenen Forderungen und Salden neu berechnet. Einbringung von Gegenständen braucht eine ausdrückliche Angabe zur Finanzierung, wenn daraus Forderungen entstehen sollen.
-2. **Mehrere verschlüsselte Projektdateien auf einem PHP-Server (implementiert, noch nicht extern gehostet):** Ein gemeinsamer Arbeitsordner mit sichtbaren Dateinamen, Passwort zum Entschlüsseln, Checkout/Checkin mit standardmäßig zwei Stunden Inaktivitätsfrist, Revisionsschutz und verschlüsselter Versionshistorie. Zusätzlich zur Offline-HTML-Version wird aus demselben Quellcode ein `hausstand.php`-Release gebaut.
-3. **Verschlüsselte E-Mail-Sicherung (implementiert, Versand noch nicht mit echtem Mailserver bestätigt):** Nach jeder bestätigten Online-Speicherung eine Kopie der verschlüsselten Dateiversion an eine konfigurierte E-Mail-Adresse senden. Die Verschlüsselung muss genauso für lokale Dateien funktionieren.
+**Language migration status:** the main READMEs and product-language guidance are in English; the current user-interface copy and most older technical documents remain in German. English as the default UI language, automatic German selection from the browser language, and a manual language override are **planned, not yet implemented**. The current HTML documents retain `lang="de"` while their actual UI content is German. See [Language and terminology](docs/LANGUAGE-AND-TERMINOLOGY.md) and task Q13 in the [to-do list](docs/WG-PRAXIS-TODO.md).
 
-Dokumentation zur umgesetzten Forderungslogik und den weiteren Planungen:
+Internal schema names, event types, download formats, storage keys, and existing artifact filenames are intentionally unchanged for backward compatibility.
 
-- [Gemeinschaftlicher Wertausgleich (aktuelle Regel)](docs/FEATURE-COMMUNAL-SETTLEMENT.md)
-- [Forderungsjournal und Nettoausgleich (historische Ausgangslogik)](docs/FEATURE-DEBT-LEDGER.md)
-- [Kollaborative PHP-Dateiablage](docs/FEATURE-COLLABORATIVE-STORAGE.md)
-- [Sicherheits- und Verschlüsselungsentwurf](docs/SECURITY-AND-ENCRYPTION.md)
-- [Installation, GitHub Pages und PHP-Server](docs/DEPLOYMENT.md)
+## Current implementation and verification
 
-**Status:** Forderungsableitung, lokaler verschlüsselter Import/Export, PHP-Online-Ablage, Checkout, Revisionen und PHP-Mailanbindung sind im Code. Automatisierte Kryptotests und PHP-API-Integrationstests einschließlich PHP-Build waren erfolgreich; eine manuelle Browser-/Server-/E-Mail-Abnahme und unabhängige Sicherheitsprüfung stehen noch aus. Freie und vorausgefüllte Ausgleichsbuchungen sind in UI V3 und klassischer UI verfügbar; eine vollständige Browser-/Mobilabnahme steht noch aus.
+The event-driven financial model derives claims from compensated ownership events instead of storing a second list of claims or paid/unpaid checkboxes. Independent settlement events contribute opposing claims, including when a payment exceeds the original balance. The primary finance view shows **personal group balances** and suggested settlement routes; the original transactions remain auditable. The financial core is in `hausstand-svelte/src/lib/ledger.js` and `hausstand-svelte/src/lib/claimSettlement.js`.
 
-## Projekt-Dokumentation
+As of **23 November 2026**, the last documented complete GitHub Actions build ([run 45122479125](https://github.com/Uli-Z/hausstandsliste/actions/runs/45122479125)) passed JavaScript checks, **87 unit tests**, standalone HTML, PHP build and lint, PHP API smoke tests, and both UI bundles. This is not a claim that subsequent edits were tested. Full interactive browser, mobile, JSON round-trip, external PHP hosting, email delivery, and independent security acceptance remain open; consult the [current to-do list](docs/WG-PRAXIS-TODO.md) rather than older status notes.
 
-- [`AGENTS.md`](AGENTS.md) – Einstieg und verbindliche Hinweise für weitere Entwicklungs- und KI-Sitzungen
-- [Architektur & Datenmodell](docs/ARCHITECTURE.md) – Aufbau, Ereignistypen, Speicherweg
-- [Entwicklung & Testen](docs/DEVELOPMENT.md) – Befehle, manuelle Prüfschritte, Releases
-- [Stand & nächste Aufgaben](docs/ROADMAP.md) – bestätigter Funktionsstand, offene Aufgaben und Entscheidungen
-- [Svelte-Projekt-README](hausstand-svelte/README.md) – Hinweise direkt beim Quellprojekt
+The GitHub Pages workflow and the manual [PHP release workflow](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml) are separate. If Pages has not been enabled on this repository, an administrator must select **Settings → Pages → Source: GitHub Actions**. For downloads, open a successful [Svelte app checks](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) run and get the `hausstand-standalone` artifact. The generated files are not committed to `dist/`.
 
-**Weiterentwicklung:** Maßgeblich ist der Branch `master`. Vor jeder Änderung aktuellen Branch, Git-Status und Dokumentation prüfen. Neue Funktionen zunächst im Datenmodell und in den Akzeptanzfällen durchdenken; die alte HTML-Vorlage nicht parallel als zweite Implementierung fortführen.
+## Documentation
 
+- [Developer and agent guidance](AGENTS.md) — repository development rules
+- [Svelte project README](hausstand-svelte/README.md) — commands, builds, and code structure
+- [Architecture and data model](docs/ARCHITECTURE.md)
+- [Development and testing](docs/DEVELOPMENT.md)
+- [Prioritized to-do list](docs/WG-PRAXIS-TODO.md) — current implementation priorities
+- [Roadmap](docs/ROADMAP.md) — long-term work and historical decisions
+- [Product language and terminology](docs/LANGUAGE-AND-TERMINOLOGY.md)
+- [Community settlement rules](docs/FEATURE-COMMUNAL-SETTLEMENT.md)
+- [Legacy claim-ledger design](docs/FEATURE-DEBT-LEDGER.md)
+- [Collaborative PHP storage](docs/FEATURE-COLLABORATIVE-STORAGE.md)
+- [Security and encryption](docs/SECURITY-AND-ENCRYPTION.md)
 
-## Offline-HTML oder PHP-Datei herunterladen
-
-In [GitHub Actions – Svelte app checks](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) einen erfolgreichen Lauf öffnen und unter **Artifacts** `hausstand-standalone` herunterladen. Das Artefakt enthält die eigenständige HTML-App (14 Tage Aufbewahrung), aber keine Projektdateien. Für die automatische Web-Veröffentlichung die [Pages-Quelle einmalig aktivieren](docs/DEPLOYMENT.md#github-pages-veröffentlichung).
-
-
-**Wichtige Grenzen:** GitHub Pages führt selbst kein PHP aus. Die gemeinsame Online-Ablage benötigt einen separaten PHP-Webserver mit HTTPS; Dateinamen und Revisionsmetadaten sind dort öffentlich sichtbar. Das Ändern des Dateipassworts schützt die aktuelle Revision und rotiert das Schreibrecht, **verschlüsselt aber alte Versionen und bereits versandte E-Mails nicht rückwirkend neu**. Eine produktive Nutzung sensibler Daten setzt eine Server- und Sicherheitsprüfung voraus.
-
-
-## Fehlerbehebung GitHub Pages (21.11.2026)
-
-Bei der ersten Pages-Veröffentlichung konnte der Build erfolgreich deployen, obwohl die Anwendung nur eine leere Seite zeigte. Ursache: `scripts/inline-build.mjs` hatte das JavaScript aus dem Vite-Bundle mit einem synchronen `<script>` im HTML-`<head>` eingebettet; die App versuchte `#app` zu verwenden, bevor dieses DOM-Element existierte. Der Generator bewahrt jetzt `<script type="module">` bei, damit die Ausführung nach dem HTML-Parsing startet. Der zusätzliche CI-/Pages-Check `scripts/check-standalone.mjs` sichert dieses Verhalten ab. Das reparierte Artefakt wird bei jedem Push auf `master` neu auf GitHub Pages veröffentlicht.
-
-## Getrennte Builds (22.11.2026)
-
-Die aktuelle mobile UI V3 bleibt als eigenständige statische Seite auf GitHub Pages erhalten. Die PHP-Datei wird dagegen **manuell** mit `npm run build:php` oder über [GitHub Actions → Build PHP single-file release (manual)](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml) erstellt. Sie enthält die mobile UI V3 und einen konfigurierbaren privaten Speicherordner. Die Einstellungen befinden sich ausschließlich oben in der PHP-Datei und nicht in der Endnutzer-Oberfläche. [Anleitung](docs/BUILD-VARIANTS.md).
-
-## Einheitliches Forderungsjournal (22.11.2026)
-
-Eine dokumentierte Zahlung wird als selbständige **Gegenforderung** derselben Personen mit umgekehrter Richtung in den bilateralen Saldo eingerechnet. Sie muss weder einem Gegenstand noch einer ursprünglichen Forderung zugeordnet werden. Überzahlungen erzeugen rechnerische Guthaben; die Zahlung bleibt bei späteren Änderungen am Kaufdatum oder Kaufwert erhalten. `external` und `waived` sind keine tatsächlichen Überweisungen und werden getrennt gekennzeichnet. `src/lib/claimSettlement.js` enthält die Fachlogik. **Neu:** Gemeinschaftliche persönliche Ausgleichssalden sind die Hauptansicht; Zahlungen können aus den Vorschlägen heraus oder frei erfasst, geändert und gelöscht werden. **Offen:** vollständige Browser-/CI-Abnahme.
-
-
-## Persönlicher Ausgleich statt Einzel-Schuldenliste (22.11.2026)
-
-Die Hauptansicht der Geldseite ist jetzt der gemeinsame Wertausgleich: Einbringung bzw. Finanzierung und entgeltliche Anteilstransfers verändern die **persönlichen Ausgleichssalden**. Die App schlägt dafür Zahlungswege vor. Ein Klick auf **Ausgleichen** öffnet einen vorausgefüllten Dialog und dokumentiert erst nach Bestätigung eine bereits geleistete Zahlung. Manuelle Teil- und Überzahlungen sind möglich; Bearbeitung und Löschung erfolgen über die Timeline. Die ursprünglichen Ansprüche bleiben für die Nachvollziehbarkeit erhalten, werden aber nicht als zusätzlich abzuarbeitende Einzelschulden angezeigt.
-
-Diese Gruppenabrechnung setzt die Zustimmung der Beteiligten zu einer gemeinsamen Saldierung voraus und ersetzt ohne solche Vereinbarung keine rechtlich selbständigen Einzelforderungen. [Funktionsweise und Beispiele](docs/FEATURE-COMMUNAL-SETTLEMENT.md).
+**Development principle:** work from the current `master` branch, preserve old project files and historical calculations, and keep implementation status separate from verified test results. The older German design documents are being migrated to English in stages; they are not automatically superseded by a translated title.
