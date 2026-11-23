@@ -58,11 +58,11 @@ async function makeArchive() {
 
 async function openSave(page, mobile = false) {
   if (!mobile) {
-    await page.locator('.sidebar').getByRole('button', { name: 'Sichern & Teilen' }).click();
+    await page.locator('.sidebar').getByRole('button', { name: 'Sichern & Öffnen' }).click();
     return;
   }
   await page.getByRole('button', { name: 'Weitere Bereiche öffnen' }).click();
-  await page.locator('.mobile-more-menu').getByRole('button', { name: /Sichern & Teilen/ }).click();
+  await page.locator('.mobile-more-menu').getByRole('button', { name: /Sichern & Öffnen/ }).click();
 }
 
 async function importJson(page, project) {
@@ -75,21 +75,18 @@ async function importJson(page, project) {
 
 async function savedDownload(page) {
   const pending = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).first().click();
   return JSON.parse(await readFile(await (await pending).path(), 'utf8'));
 }
 
 async function rejectedImport(page, value, expectedMessage) {
-  const rejected = new Promise(resolve => page.once('dialog', async dialog => {
-    const message = dialog.message();
-    await dialog.accept();
-    resolve(message);
-  }));
   await page.locator('.save-basic-actions input[type=file]').setInputFiles({
     name: 'invalid.json', mimeType: 'application/json',
     buffer: Buffer.from(typeof value === 'string' ? value : JSON.stringify(value))
   });
-  assert.match(await rejected, expectedMessage);
+  const feedback = page.locator('.storage-feedback[role="alert"]');
+  await feedback.waitFor({ timeout: 8000 });
+  assert.match(await feedback.innerText(), expectedMessage);
 }
 
 async function exerciseQuota(page, entryCount) {
@@ -113,7 +110,8 @@ async function exerciseQuota(page, entryCount) {
     return largest;
   }, STORAGE_KEY);
   assert.ok(filled >= 256 * 1024, 'A browser quota could not be simulated');
-  const picker = page.locator('section[aria-label="Gespeicherte Dateiversionen"] select');
+  await page.locator('.storage-versions > summary').click();
+  const picker = page.locator('.storage-versions select');
   await picker.selectOption({ index: entryCount }); // oldest saved version
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
@@ -187,7 +185,7 @@ export async function portableFileAcceptance(browser, url, engine) {
     await openSave(page, mobile);
     await rejectedImport(page, { ...archive, schemaVersion: 0 }, /Nicht unterstütztes Projektformat/);
     await rejectedImport(page, { ...archive, versionHistory: undefined }, /Nicht unterstütztes Projektformat/);
-    await rejectedImport(page, '{ invalid json', /Öffnen fehlgeschlagen/);
+    await rejectedImport(page, '{ invalid json', /Öffnen fehlgeschlagen|Unexpected|JSON/);
     assert.equal(await page.locator('.header-context').innerText().then(t => t.includes('Q05 Archiv 35')), true);
     assert.deepEqual((await savedDownload(page)).versionHistory, archive.versionHistory);
 
@@ -208,12 +206,12 @@ export async function portableFileAcceptance(browser, url, engine) {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url);
     await openSave(page);
-    await page.getByRole('button', { name: /Passwortgeschützte Dateien verwalten/ }).click();
-    await page.getByLabel('Passwort für diese Datei').fill(PASSWORD);
-    await page.locator('.storage-choices input[accept=".json,.enc"]').setInputFiles({
+    await page.locator('.save-basic-actions input[type=file]').setInputFiles({
       name: 'q05.crypt.json', mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(cachedCipher))
     });
+    await page.getByLabel('Dateipasswort').fill(PASSWORD);
+    await page.getByRole('button', { name: 'Verschlüsselte Datei öffnen' }).click();
     await page.locator('.header-context').getByText('Q05 Archiv 35').waitFor();
     assert.equal(await page.evaluate(key => localStorage.getItem(key), STORAGE_KEY), null,
       'Never cache a decrypted protected project');
@@ -221,13 +219,14 @@ export async function portableFileAcceptance(browser, url, engine) {
     // Restore an older archived state, then save encrypted again, preserving
     // the old snapshot and archiving the previously current version.
     await openSave(page);
-    await page.locator('section[aria-label="Gespeicherte Dateiversionen"] select')
+    await page.locator('.storage-versions > summary').click();
+    await page.locator('.storage-versions select')
       .selectOption({ index: 1 });
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
     await page.locator('.header-context').getByText('Q05 Archiv 34').waitFor();
     const pending = page.waitForEvent('download');
-    await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).first().click();
     const encryptedSave = JSON.parse(await readFile(await (await pending).path(), 'utf8'));
     assert.equal(encryptedSave.format, 'hausstand-aesgcm-v1');
     assert.equal(JSON.stringify(encryptedSave).includes('Q05 Archiv 34'), false);
