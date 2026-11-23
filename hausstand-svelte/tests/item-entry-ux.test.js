@@ -36,6 +36,7 @@ test('new items show default equal shares; changed dates remove unavailable owne
   assert.ok(dialog.includes('dateSharesRebased = true'));
   assert.ok(dialog.includes('ownersValid'));
   assert.ok(dialog.includes('itemCostValid'));
+  assert.ok(dialog.includes('itemNameValid'));
   assert.ok(dialog.includes('disabled={!canSubmitDated || $appState.readOnly}'));
   assert.ok(dialog.includes('effectiveDate = draft?.data?.effectiveDate || asOfDate'));
   assert.ok(dialog.includes('financedByPersonId = draft.data.financedByPersonId'));
@@ -91,7 +92,7 @@ test('redistribution starts with dated item changes and a meaningful preview', (
 test('new fields have complete English and German translations', () => {
   const strings = source('src/lib/i18n.js');
   for (const key of [
-    'items.equalShares', 'items.selectOwner', 'items.moreDetails', 'items.purchasePreview',
+    'items.equalShares', 'items.selectOwner', 'items.enterName', 'items.moreDetails', 'items.purchasePreview',
     'items.purchaseSummary', 'items.purchaseClaims', 'items.purchaseClaimRow', 'items.purchaseNoPayment',
     'items.noPurchaseClaims', 'redistribution.moreActions', 'redistribution.titleExample',
     'redistribution.noItems', 'redistribution.claimEffect', 'redistribution.withoutClaims',
