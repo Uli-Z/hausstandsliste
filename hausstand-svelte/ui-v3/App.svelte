@@ -77,6 +77,13 @@
   function goToDetailReturn() {
     appState.setRoute({ page: 'dashboard' });
   }
+  function warnUnsavedBeforeLeaving(event) {
+    if (!$appState.dirty) return;
+    // Browser-controlled warning: local working copies and unfinished PHP
+    // checkouts are not a replacement for explicit Save.
+    event.preventDefault();
+    event.returnValue = '';
+  }
   function handleKeydown(e) {
     const shortcut = historyShortcut(e, !!$appState.activeDialog);
     if (shortcut) {
@@ -138,7 +145,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
+<svelte:window on:keydown={handleKeydown} on:beforeunload={warnUnsavedBeforeLeaving} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
 
 <div class="app-shell">
   <aside class="sidebar" aria-label="Hauptnavigation">
