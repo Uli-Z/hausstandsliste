@@ -5,9 +5,11 @@ import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
 import { newUnownedActiveTransitions } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
+import { hasProjectChanges } from '../lib/versionHistory.js';
 
 const initial = {
   project: emptyProject(),
+  savedProject: null, // Last explicitly saved/loaded version, not the working copy.
   asOfDate: todayISO(),
   fileName: null,
   dirty: false,
@@ -22,18 +24,28 @@ function createStore() {
   const persist = state => {
     // Never persist a decrypted protected project into browser localStorage.
     if (state.secure) clearWorkingCopy();
-    else saveWorkingCopy({ project: state.project, asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty });
+    else saveWorkingCopy({ project: state.project, savedProject: state.savedProject, asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty });
     return state;
   };
   return {
     subscribe,
     setAsOfDate: asOfDate => update(s => persist({ ...s, asOfDate })),
+    restoreWorkingCopy: copy => update(s => ({ ...s,
+      project: normalize(copy.project),
+      savedProject: copy.savedProject ? normalize(copy.savedProject) : copy.dirty ? null : normalize(copy.project),
+      fileName: copy.fileName || null, dirty: !!copy.dirty,
+      secure: false, readOnly: false, asOfDate: todayISO(), route: { page: 'dashboard' }
+    })),
     setRoute: route => update(s => ({ ...s, route })),
     setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
     closeDialog: () => update(s => ({ ...s, activeDialog: null })),
-    importProject: (raw, fileName = null, secure = false, readOnly = false) => update(s => persist({ ...s, project: normalize(raw), fileName, secure, readOnly, dirty: false, route: { page: 'dashboard' } })),
+    importProject: (raw, fileName = null, secure = false, readOnly = false) => update(s => {
+      const project = normalize(raw);
+      return persist({ ...s, project, savedProject: clone(project), fileName, secure, readOnly,
+        asOfDate: todayISO(), dirty: false, route: { page: 'dashboard' } });
+    }),
     setReadOnly: readOnly => update(s => ({ ...s, readOnly })),
-    newProject: name => update(s => persist({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, fileName: null, secure: false, readOnly: false, dirty: true, route: { page: 'dashboard' } })),
+    newProject: name => update(s => persist({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, fileName: null, secure: false, readOnly: false, asOfDate: todayISO(), dirty: true, route: { page: 'dashboard' } })),
     mutateProject: mutator => {
       let saved = false;
       update(s => {
@@ -71,7 +83,16 @@ function createStore() {
       project.drafts = (project.drafts || []).filter(d => d.id !== id);
       return persist({ ...s, project, dirty: true });
     }),
-    markExported: () => update(s => persist({ ...s, dirty: false }))
+    // The archive enters the working project only after the download/upload has been started/confirmed.
+    markSaved: saved => update(s => {
+      const savedProject = normalize(saved);
+      const dirty = hasProjectChanges(s.project, savedProject);
+      return persist({ ...s,
+        project: dirty ? { ...s.project, lastSavedAt: savedProject.lastSavedAt, versionHistory: savedProject.versionHistory } : savedProject,
+        savedProject: clone(savedProject), dirty
+      });
+    }),
+    markExported: () => update(s => persist({ ...s, dirty: false, savedProject: clone(s.project) }))
   };
 }
 
