@@ -57,6 +57,33 @@ async function bootFixture(page, url) {
   await page.reload();
   await page.getByText('Browser-Abnahme').first().waitFor();
 }
+async function localization(browser, url) {
+  // Browser language chooses English; manual override stays in browser storage
+  // and must not modify the shared ownership project.
+  const context = await browser.newContext({ locale: 'en-GB', viewport: { width: 1280, height: 800 } });
+  try {
+    const page = await context.newPage();
+    await bootFixture(page, url);
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+    await page.locator('.sidebar').getByRole('button', { name: 'Settings' }).click();
+    const selection = page.locator('#language-selection');
+    assert.equal(await selection.inputValue(), 'auto');
+    await selection.selectOption('de');
+    assert.equal(await page.locator('html').getAttribute('lang'), 'de');
+    await page.locator('.sidebar').getByRole('button', { name: 'Einstellungen' }).waitFor();
+    await page.reload();
+    assert.equal(await page.locator('html').getAttribute('lang'), 'de');
+    assert.equal(await page.locator('#language-selection').inputValue(), 'de');
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hausstand_svelte_v07_working_copy')));
+    assert.equal(Object.hasOwn(stored?.project || {}, 'language'), false);
+    assert.equal(await page.evaluate(() => localStorage.getItem('hausstand-language')), 'de');
+    await page.locator('#language-selection').selectOption('auto');
+    assert.equal(await page.locator('html').getAttribute('lang'), 'en');
+    await page.locator('.sidebar').getByRole('button', { name: 'Settings' }).waitFor();
+    console.log('Browser i18n QA: English auto-detection, German override/reload, isolated preference passed');
+  } finally { await context.close(); }
+}
+
 async function openFinance(page) {
   const desktop = page.locator('.sidebar').getByRole('button', { name: /Geld & Ausgleich/ });
   if (await desktop.isVisible()) return desktop.click();
@@ -88,7 +115,7 @@ async function download(page) {
   return JSON.parse(await readFile(await file.path(), 'utf8'));
 }
 async function offline(browser, url) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
+  const context = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', e => failures.push(e.message));
@@ -118,7 +145,7 @@ async function offline(browser, url) {
   await context.close();
 
   // A new browser context cannot share the first browser's local working copy.
-  const fresh = await browser.newContext({ viewport: { width: 375, height: 812 }, acceptDownloads: true });
+  const fresh = await browser.newContext({ locale: 'de-DE', viewport: { width: 375, height: 812 }, acceptDownloads: true });
   const mobile = await fresh.newPage();
   const errors = [];
   mobile.on('pageerror', e => errors.push(e.message));
@@ -160,7 +187,7 @@ async function offline(browser, url) {
   assert.equal(encryptedFile.format, 'hausstand-aesgcm-v1');
   assert.equal(JSON.stringify(encryptedFile).includes('portable-v1'), false);
 
-  const encryptedContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const encryptedContext = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 800 } });
   try {
     const encryptedPage = await encryptedContext.newPage();
     const encryptedErrors = [];
@@ -232,8 +259,8 @@ async function phpOnline(browser) {
       await pause(150);
     }
     assert.ok(alive, 'PHP server did not start: ' + phpLogs);
-    const first = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    const second = await browser.newContext({ viewport: { width: 375, height: 812 } });
+    const first = await browser.newContext({ locale: 'de-DE', viewport: { width: 1280, height: 800 } });
+    const second = await browser.newContext({ locale: 'de-DE', viewport: { width: 375, height: 812 } });
     try {
       const editor = await first.newPage();
       await bootFixture(editor, host + '/hausstand.php');
@@ -283,6 +310,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
+  await localization(browser, offlineServer.url);
   await offline(browser, offlineServer.url);
   await phpOnline(browser);
 } catch (error) {
