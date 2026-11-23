@@ -4,6 +4,7 @@
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
   import { createPortableSave } from '../src/lib/versionHistory.js';
+  import { historyShortcut } from '../src/lib/sessionUndo.js';
   import { money, requireProjectFile } from '../src/lib/domain.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
@@ -77,6 +78,12 @@
     appState.setRoute({ page: 'dashboard' });
   }
   function handleKeydown(e) {
+    const shortcut = historyShortcut(e, !!$appState.activeDialog);
+    if (shortcut) {
+      const changed = shortcut === 'undo' ? appState.undo() : appState.redo();
+      if (changed) e.preventDefault();
+      return;
+    }
     if (e.key === 'Escape' && mobileMoreOpen) { mobileMoreOpen = false; return; }
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable || e.target?.closest?.('button, a, [role="tab"]') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || $appState.activeDialog) return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); appState.setAsOfDate(addDays($appState.asOfDate, -1)); }
@@ -161,6 +168,10 @@
         <strong><span class="mobile-header-brand">Hausstandsliste · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
       </div>
       <div class="header-actions">
+        <div class="session-history-actions" role="group" aria-label="Änderungen rückgängig machen oder wiederholen">
+          <button type="button" class="session-history-button" aria-label="Rückgängig (Strg+Z)" title="Rückgängig (Strg+Z)" disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}>↶</button>
+          <button type="button" class="session-history-button" aria-label="Wiederholen (Strg+Y)" title="Wiederholen (Strg+Y / Strg+Umschalt+Z)" disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}>↷</button>
+        </div>
         <span class="working-indicator" title={$appState.secure ? 'Passwortgeschütztes Projekt: keine Klartext-Arbeitskopie im Browser' : 'Nicht verschlüsselte Projekte haben eine lokale Arbeitskopie im Browser'}>
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
           {$appState.dirty ? 'Ungespeicherte Änderungen' : 'Keine ungespeicherten Änderungen'}

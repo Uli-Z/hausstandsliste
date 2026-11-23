@@ -6,11 +6,13 @@ import { ledgerAt } from '../lib/ledger.js';
 import { unownedActiveTransitions } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
+import { createSessionUndo } from '../lib/sessionUndo.js';
 
 const initial = {
   project: emptyProject(),
   savedProject: null, // Last explicitly saved/loaded version, not the working copy.
   localCacheWarning: false,
+  history: { undoCount: 0, redoCount: 0 },
   asOfDate: todayISO(),
   fileName: null,
   dirty: false,
@@ -21,7 +23,15 @@ const initial = {
 };
 
 function createStore() {
-  const { subscribe, set, update } = writable(initial);
+  const { subscribe, update } = writable(initial);
+  const sessionUndo = createSessionUndo(50);
+  const resetUndo = state => ({ ...state, history: sessionUndo.reset() });
+  const changedProject = (state, nextProject) => {
+    if (!sessionUndo.record(state.project, nextProject)) return state;
+    return persist({ ...state, project: nextProject,
+      dirty: hasProjectChanges(nextProject, state.savedProject),
+      history: sessionUndo.counts() });
+  };
   const persist = state => {
     // Never persist decrypted protected data into browser storage.
     if (state.secure) { clearWorkingCopy(); return { ...state, localCacheWarning: false }; }
@@ -56,20 +66,21 @@ function createStore() {
           ? { versionHistory: { format: 'portable-v1', entries: savedArchiveEntries } }
           : {}) })
         : copy.dirty ? null : normalize(copy.project);
-      return { ...s, project: normalize(copy.project), savedProject: saved,
-        fileName: copy.fileName || null, dirty: !!copy.dirty, localCacheWarning: false,
-        secure: false, readOnly: false, asOfDate: todayISO(), route: { page: 'dashboard' } };
+      return resetUndo({ ...s, project: normalize(copy.project), savedProject: saved,
+        fileName: copy.fileName || null, dirty: hasProjectChanges(normalize(copy.project), saved),
+        localCacheWarning: false, secure: false, readOnly: false,
+        asOfDate: todayISO(), route: { page: 'dashboard' }, activeDialog: null });
     }),
     setRoute: route => update(s => ({ ...s, route })),
     setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
     closeDialog: () => update(s => ({ ...s, activeDialog: null })),
     importProject: (raw, fileName = null, secure = false, readOnly = false) => update(s => {
       const project = normalize(raw);
-      return persist({ ...s, project, savedProject: clone(project), fileName, secure, readOnly,
-        asOfDate: todayISO(), dirty: false, route: { page: 'dashboard' } });
+      return persist(resetUndo({ ...s, project, savedProject: clone(project), fileName, secure, readOnly,
+        asOfDate: todayISO(), dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
     }),
     setReadOnly: readOnly => update(s => ({ ...s, readOnly })),
-    newProject: name => update(s => persist({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, fileName: null, secure: false, readOnly: false, asOfDate: todayISO(), dirty: true, route: { page: 'dashboard' } })),
+    newProject: name => update(s => persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, fileName: null, secure: false, readOnly: false, asOfDate: todayISO(), dirty: true, route: { page: 'dashboard' }, activeDialog: null }))),
     mutateProject: mutator => {
       let saved = false;
       update(s => {
@@ -84,7 +95,7 @@ function createStore() {
           return s;
         }
         saved = true;
-        return persist({ ...s, project, dirty: true });
+        return changedProject(s, project);
       });
       return saved;
     },
@@ -99,21 +110,45 @@ function createStore() {
       const idx = project.drafts.findIndex(d => d.id === draft.id);
       if (idx >= 0) project.drafts[idx] = clone(draft);
       else project.drafts.push(clone(draft));
-      return persist({ ...s, project, dirty: true });
+      return changedProject(s, project);
     }),
     deleteDraft: id => update(s => {
       if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
       const project = clone(s.project);
       project.drafts = (project.drafts || []).filter(d => d.id !== id);
-      return persist({ ...s, project, dirty: true });
+      return changedProject(s, project);
     }),
+    undo: () => {
+      let applied = false;
+      update(s => {
+        if (s.readOnly || s.activeDialog) return s;
+        const project = sessionUndo.undo(s.project, p => !unownedActiveTransitions(p).length);
+        if (!project) return s;
+        applied = true;
+        return persist({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
+          history: sessionUndo.counts() });
+      });
+      return applied;
+    },
+    redo: () => {
+      let applied = false;
+      update(s => {
+        if (s.readOnly || s.activeDialog) return s;
+        const project = sessionUndo.redo(s.project, p => !unownedActiveTransitions(p).length);
+        if (!project) return s;
+        applied = true;
+        return persist({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
+          history: sessionUndo.counts() });
+      });
+      return applied;
+    },
     // The archive enters the working project only after the download/upload has been started/confirmed.
     restoreVersion: restored => update(s => {
       if (s.readOnly) return s;
       // Restoring is an editable draft, not an implicit file/server save.
       const project = normalize(restored);
-      return persist({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
-        activeDialog: null, route: { page: 'dashboard' }, asOfDate: todayISO() });
+      return persist(resetUndo({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
+        activeDialog: null, route: { page: 'dashboard' }, asOfDate: todayISO() }));
     }),
     markSaved: saved => update(s => {
       const savedProject = normalize(saved);

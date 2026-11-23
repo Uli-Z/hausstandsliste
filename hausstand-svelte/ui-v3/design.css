@@ -393,3 +393,10 @@ tr.clickable-row:hover td{background:#eef7f8}
   .task-grid button{display:grid;grid-template-columns:minmax(0,1fr);gap:5px;min-height:78px}
   .task-grid strong,.task-grid small{grid-column:1}
 }
+
+/* Session-only history controls: unobtrusive, usable with touch and keyboard. */
+.session-history-actions{display:inline-flex;gap:2px;flex-shrink:0;align-items:center}
+.session-history-button{width:34px;height:34px;padding:3px;border:1px solid transparent;background:transparent;color:var(--muted);border-radius:8px;font-size:22px;line-height:1}
+.session-history-button:hover:not(:disabled){background:var(--soft);color:var(--text)}
+.session-history-button:disabled{opacity:.3}
+@media(max-width:540px){.session-history-actions{gap:0}.session-history-button{width:30px;height:32px}.header-actions{gap:4px}}
