@@ -208,6 +208,8 @@ if ($api !== '') {
         [$dir, $meta] = checkedFile($root, $id);
         reply(['revision' => $meta['revision'], 'envelope' => readJson(currentPath($dir, $meta))]);
     }
+    if (!in_array($api, ['create', 'checkout', 'renew', 'checkin', 'save'], true))
+        fail(404, 'Unbekannte API-Aktion.');
     if ($method !== 'POST') fail(405, 'POST erforderlich.');
     $body = submitted();
     $id = requireId($body['id'] ?? '');
