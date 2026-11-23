@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { locale, languagePreference, setLanguage, translate, pluralMessage } from '../src/lib/i18n.js';
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
@@ -43,7 +43,18 @@
     if (copy && copy.project) {
       appState.restoreWorkingCopy(copy); // The view always opens at today, never at a stale historical date.
     }
-    return stop;
+    const refreshDay = () => appState.syncToday(todayISO());
+    // Background timers can be throttled: also refresh after tab focus.
+    const clock = window.setInterval(refreshDay, 30_000);
+    window.addEventListener('focus', refreshDay);
+    document.addEventListener('visibilitychange', refreshDay);
+    refreshDay();
+    return () => {
+      stop();
+      window.clearInterval(clock);
+      window.removeEventListener('focus', refreshDay);
+      document.removeEventListener('visibilitychange', refreshDay);
+    };
   });
 
   $: route = $appState.route;
@@ -90,6 +101,11 @@
     event.preventDefault();
     event.returnValue = '';
   }
+  async function showDatePicker() {
+    appState.openDatePicker();
+    await tick();
+    document.getElementById('state-date')?.focus();
+  }
   function handleKeydown(e) {
     const shortcut = historyShortcut(e, !!$appState.activeDialog);
     if (shortcut) {
@@ -98,9 +114,7 @@
       return;
     }
     if (e.key === 'Escape' && mobileMoreOpen) { mobileMoreOpen = false; return; }
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable || e.target?.closest?.('button, a, [role="tab"]') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || $appState.activeDialog) return;
-    if (e.key === 'ArrowLeft') { e.preventDefault(); appState.setAsOfDate(addDays($appState.asOfDate, -1)); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); appState.setAsOfDate(addDays($appState.asOfDate, 1)); }
+    if (e.key === 'Escape' && $appState.datePickerOpen && !$appState.timeTravelActive) appState.dismissDatePicker();
   }
   async function importFile(event) {
     const input = event.currentTarget;
@@ -182,6 +196,7 @@
         <strong><span class="mobile-header-brand">Hausstandsliste · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
       </div>
       <div class="header-actions">
+        <button type="button" class="time-travel-toggle" aria-label={$translate('app.openTimeTravel')} title={$translate('app.openTimeTravel')} aria-expanded={$appState.datePickerOpen || $appState.timeTravelActive} aria-controls="time-travel-panel" aria-pressed={$appState.timeTravelActive} on:click={showDatePicker}><span aria-hidden="true" class="clock-glyph">◷</span><span class="time-travel-toggle-label">{$translate('app.timeTravel')}</span></button>
         <div class="session-history-actions" role="group" aria-label={$translate('app.undo')}>
           <button type="button" class="session-history-button" aria-label={$translate('app.undo')} title={$translate("app.undo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}>↶</button>
           <button type="button" class="session-history-button" aria-label={$translate('app.redo')} title="Wiederholen (Strg+Y / Strg+Umschalt+Z)" disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}>↷</button>
@@ -198,22 +213,26 @@
       {#key $locale}
       {#if saveMessage}<p role="status" class="inline-info">{saveMessage}</p>{/if}
       {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">{$translate("ui.the-browser-could-not-cache-the-wo-1u1cj1a")}</p>{/if}
-      <div class="date-toolbar" aria-label="Betrachtungsdatum">
-        <div class="date-toolbar-label">
-          <span>{$translate("app.dateAsOf")}</span>
-          <strong>{$translate(dateMode === 'today' ? 'app.today' : dateMode === 'past' ? 'app.past' : 'app.future')}</strong>
+      {#if $appState.datePickerOpen || $appState.timeTravelActive}
+        <div id="time-travel-panel" class="date-toolbar" class:date-toolbar-active={$appState.timeTravelActive} data-period={dateMode} role="region" aria-label={$translate('app.timeTravel')}>
+          <div class="date-toolbar-label">
+            <span>{$translate('app.timeTravel')}</span>
+            <strong>{dateDE($appState.asOfDate)} · {$translate(dateMode === 'today' ? 'app.today' : dateMode === 'past' ? 'app.past' : 'app.future')}</strong>
+          </div>
+          <div class="date-toolbar-controls">
+            <button type="button" title={$translate("app.first")} aria-label={$translate("app.first")} disabled={!firstDate} on:click={() => appState.setAsOfDate(firstDate)}>⇤<span class="mobile-jump-text">{$translate('app.start')}</span></button>
+            <button type="button" title={$translate("app.previous")} aria-label={$translate("app.previous")} on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, -1))}>‹</button>
+            <label class="sr-only" for="state-date">{$translate("app.pickDate")}</label>
+            <input id="state-date" type="date" value={$appState.asOfDate} on:change={e => appState.setAsOfDate(e.currentTarget.value)}>
+            <button type="button" title={$translate("app.next")} aria-label={$translate("app.next")} on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, 1))}>›</button>
+            <button type="button" title={$translate("app.last")} aria-label={$translate("app.last")} disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>⇥<span class="mobile-jump-text">{$translate('app.end')}</span></button>
+            <button type="button" class="today-button" on:click={() => appState.exitTimeTravel()}>{$translate('app.returnToday')}</button>
+          </div>
+          {#if $appState.timeTravelActive && dateMode !== 'today'}
+            <span class="date-explanation" role="status">{dateMode === 'past' ? $translate("ui.you-are-viewing-an-earlier-ownersh-10vlzyi") : $translate("ui.you-are-viewing-a-state-at-a-futur-1s5vjd8")}</span>
+          {/if}
         </div>
-        <div class="date-toolbar-controls">
-          <button title={$translate("app.first")} aria-label={$translate("app.first")} disabled={!firstDate} on:click={() => appState.setAsOfDate(firstDate)}>⇤<span class="mobile-jump-text">Anfang</span></button>
-          <button title={$translate("app.previous")} aria-label={$translate("app.previous")} on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, -1))}>‹</button>
-          <label class="sr-only" for="state-date">{$translate("app.pickDate")}</label>
-          <input id="state-date" type="date" value={$appState.asOfDate} on:change={e => appState.setAsOfDate(e.currentTarget.value || todayISO())}>
-          <button title={$translate("app.next")} aria-label={$translate("app.next")} on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, 1))}>›</button>
-          <button title={$translate("app.last")} aria-label={$translate("app.last")} disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>⇥<span class="mobile-jump-text">Ende</span></button>
-          <button class="today-button" on:click={() => appState.setAsOfDate(todayISO())}>{$translate("app.today")}</button>
-        </div>
-        {#if dateMode !== 'today'}<span class="date-explanation">{dateMode === 'past' ? $translate("ui.you-are-viewing-an-earlier-ownersh-10vlzyi") : $translate("ui.you-are-viewing-a-state-at-a-futur-1s5vjd8")}</span>{/if}
-      </div>
+      {/if}
 
       {#if route.page === 'person' && person}
         <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← {$translate('app.backTo')} {$translate(activeSection === 'people' ? 'nav.people' : 'nav.overview')}</button></div>

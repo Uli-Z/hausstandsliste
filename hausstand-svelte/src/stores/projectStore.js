@@ -7,13 +7,14 @@ import { unownedActiveTransitions } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
 import { createSessionUndo } from '../lib/sessionUndo.js';
+import { openDatePicker, dismissDatePicker, selectAsOfDate, returnToToday, syncCalendarDay } from '../lib/timeTravel.js';
 
 const initial = {
   project: emptyProject(),
   savedProject: null, // Last explicitly saved/loaded version, not the working copy.
   localCacheWarning: false,
   history: { undoCount: 0, redoCount: 0 },
-  asOfDate: todayISO(),
+  asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false,
   fileName: null,
   dirty: false,
   secure: false,
@@ -55,7 +56,14 @@ function createStore() {
   };
   return {
     subscribe,
-    setAsOfDate: asOfDate => update(s => persist({ ...s, asOfDate })),
+    openDatePicker: () => update(s => openDatePicker(s)),
+    dismissDatePicker: () => update(s => dismissDatePicker(s)),
+    setAsOfDate: asOfDate => update(s => {
+      const next = selectAsOfDate(s, asOfDate);
+      return next === s ? s : persist(next);
+    }),
+    exitTimeTravel: () => update(s => returnToToday(s, todayISO())),
+    syncToday: day => update(s => syncCalendarDay(s, day)),
     restoreWorkingCopy: copy => update(s => {
       // Saved state has a smaller copy without history; reconstruct its exact
       // prior archive from the persisted entry IDs.
@@ -69,7 +77,7 @@ function createStore() {
       return resetUndo({ ...s, project: normalize(copy.project), savedProject: saved,
         fileName: copy.fileName || null, dirty: hasProjectChanges(normalize(copy.project), saved),
         localCacheWarning: false, secure: false, readOnly: false,
-        asOfDate: todayISO(), route: { page: 'dashboard' }, activeDialog: null });
+        asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, route: { page: 'dashboard' }, activeDialog: null });
     }),
     setRoute: route => update(s => ({ ...s, route })),
     setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
@@ -77,10 +85,10 @@ function createStore() {
     importProject: (raw, fileName = null, secure = false, readOnly = false) => update(s => {
       const project = normalize(raw);
       return persist(resetUndo({ ...s, project, savedProject: clone(project), fileName, secure, readOnly,
-        asOfDate: todayISO(), dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
+        asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
     }),
     setReadOnly: readOnly => update(s => ({ ...s, readOnly })),
-    newProject: name => update(s => persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, fileName: null, secure: false, readOnly: false, asOfDate: todayISO(), dirty: true, route: { page: 'dashboard' }, activeDialog: null }))),
+    newProject: name => update(s => persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, fileName: null, secure: false, readOnly: false, asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard' }, activeDialog: null }))),
     mutateProject: mutator => {
       let saved = false;
       update(s => {
@@ -148,7 +156,7 @@ function createStore() {
       // Restoring is an editable draft, not an implicit file/server save.
       const project = normalize(restored);
       return persist(resetUndo({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
-        activeDialog: null, route: { page: 'dashboard' }, asOfDate: todayISO() }));
+        activeDialog: null, route: { page: 'dashboard' }, asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false }));
     }),
     markSaved: saved => update(s => {
       const savedProject = normalize(saved);

@@ -400,3 +400,23 @@ tr.clickable-row:hover td{background:#eef7f8}
 .session-history-button:hover:not(:disabled){background:var(--soft);color:var(--text)}
 .session-history-button:disabled{opacity:.3}
 @media(max-width:540px){.session-history-actions{gap:0}.session-history-button{width:30px;height:32px}.header-actions{gap:4px}}
+
+
+/* Q10: date selection is opt-in; deliberate time travel remains visible. */
+.time-travel-toggle{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:5px 9px;background:transparent;border:1px solid transparent;color:var(--muted);font-size:12px;white-space:nowrap}
+.time-travel-toggle:hover:not(:disabled),.time-travel-toggle[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent)}
+.time-travel-toggle[aria-pressed="true"]{border-color:#91bbc5;color:#12566a}
+.clock-glyph{font-size:22px;line-height:1}
+.date-toolbar-active{border-color:#a0c9d4;background:#eaf5f7;border-left:4px solid var(--accent);padding-left:12px}
+.date-toolbar-active[data-period="future"]{background:#fff7ed;border-color:#e7c5a4;border-left-color:var(--warn)}
+.date-toolbar-label strong{font-variant-numeric:tabular-nums}
+.date-toolbar-controls>button,.date-toolbar-controls>input{max-width:100%}
+@media(max-width:780px){
+  .time-travel-toggle{min-width:34px;padding:4px}
+  .time-travel-toggle-label{display:none}
+  .date-toolbar-controls{min-width:0}
+}
+@media(max-width:360px){
+  .date-toolbar{padding:9px}
+  .date-toolbar-controls{grid-template-columns:minmax(0,1fr) minmax(116px,2fr) minmax(0,1fr)}
+}
