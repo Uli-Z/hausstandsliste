@@ -56,8 +56,8 @@ test('A05 store: valid transfer is saved and marked dirty', () => {
   assert.equal(alerts.length, 0);
 });
 
-test('A05 store: invalid legacy ownerless project stays importable and can be repaired', () => {
-  appState.importProject(fixture({}), 'legacy.json');
+test('A05 store: invalid ownerless project can be repaired', () => {
+  appState.importProject(fixture({}), 'fixture.json');
   assert.deepEqual(get(appState).project.events[0].shares, {});
   const saved = appState.mutateProject(p => { p.events[0].shares = { anna: 1 }; });
   assert.equal(saved, true);
