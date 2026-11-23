@@ -30,6 +30,7 @@
   });
   const report = e => { error = e?.message || String(e); message = ''; };
   async function run(job) {
+    if (busy) return;
     busy = true; error = ''; message = '';
     try { await job(); } catch (e) { report(e); }
     finally { busy = false; }
@@ -95,7 +96,7 @@
       const { project, editToken: token } = await decryptProject(JSON.parse(await file.text()), password);
       appState.importProject(requireProjectFile(project), file.name, true);
       editToken = token; activePassword = password; fileName = file.name;
-      openedId = ''; leaseToken = ''; revision = 0;
+      openedId = ''; leaseToken = ''; revision = 0; selectedPortableVersion = '';
       message = 'Verschlüsselte lokale Datei geöffnet.'; error = '';
     } catch (e) { report(e); }
     finally { event.currentTarget.value = ''; }
@@ -167,6 +168,7 @@
     message = 'Eingecheckt, Sperre aufgehoben.';
   }
   export async function saveFromHeader() {
+    if (busy) return { handled: true, ok: false, message: 'Ein Speichervorgang läuft bereits.' };
     if (!openedId || !leaseToken) return { handled: false };
     busy = true; error = ''; message = '';
     try {
