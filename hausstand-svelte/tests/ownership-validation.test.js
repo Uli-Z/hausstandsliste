@@ -48,7 +48,7 @@ test('A05: creating or continuing an item with no positive share is rejected', (
   assert.deepEqual(unownedActiveTransitions(after).map(problem => problem.sourceEventId),
     ['add-solo']);
   const okay = project([added('solo', { anna: 2 })]);
-  assert.deepEqual(newUnownedActiveTransitions(before, okay), []);
+  assert.deepEqual(unownedActiveTransitions(okay), []);
 });
 
 test('A05: a nested historical redistribution is checked with parent identity', () => {
