@@ -1,5 +1,11 @@
 # Einstieg für KI-unterstützte Entwicklung
 
+
+## Product naming and localization (23 November 2026)
+
+Use **Hausstandsliste — Shared Ownership Tracker** in app titles and new English-language documentation. The active UI is still mostly German until localization task **Q13**; see [language guidance](docs/LANGUAGE-AND-TERMINOLOGY.md) and [prioritized tasks](docs/WG-PRAXIS-TODO.md). Keep stored data identifiers and artifact filenames unchanged.
+
+
 Die aktuelle Hausstandsliste wird unter `hausstand-svelte/` entwickelt. Bitte vor Änderungen lesen:
 
 - [AGENTS.md](AGENTS.md) – Arbeitsregeln und Lesereihenfolge
