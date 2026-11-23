@@ -51,9 +51,3 @@ export function unownedActiveTransitions(project) {
   return problems;
 }
 
-// Preserve legacy imports unchanged and permit corrections to old bad data.
-// Only NEW invalid historical transitions may block an in-app mutation.
-export function newUnownedActiveTransitions(before, after) {
-  const previous = new Set(unownedActiveTransitions(before).map(problem => problem.key));
-  return unownedActiveTransitions(after).filter(problem => !previous.has(problem.key));
-}

@@ -3,7 +3,7 @@ import { emptyProject, normalize } from '../lib/domain.js';
 import { clone, todayISO, uid, nextEventOrder } from '../lib/util.js';
 import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
-import { newUnownedActiveTransitions } from '../lib/ownershipValidation.js';
+import { unownedActiveTransitions } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
 
@@ -76,7 +76,7 @@ function createStore() {
         if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
         const project = clone(s.project);
         mutator(project);
-        const invalid = newUnownedActiveTransitions(s.project, project);
+        const invalid = unownedActiveTransitions(project);
         if (invalid.length) {
           const first = invalid[0];
           const name = (project.items || []).find(item => item.id === first.itemId)?.name || first.itemId;
