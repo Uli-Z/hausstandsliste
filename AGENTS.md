@@ -1,93 +1,51 @@
-# Projektleitfaden für Entwicklungsagenten – Hausstandsliste
+# Hausstandsliste — development guidance
 
+**Product:** Hausstandsliste — Shared Ownership Tracker. Main development language: English. The UI currently uses German; language switching is a future task Q13. Do not translate persisted schema or event identifiers.
 
-## Product identity and language direction (23 November 2026)
+## Single supported application
 
-**Official name:** Hausstandsliste. **English descriptor:** Shared Ownership Tracker. New product documentation should be written in English, with terminology defined in [Product language and terminology](docs/LANGUAGE-AND-TERMINOLOGY.md). The two main README files are already English; older German technical records are pending translation and consistency review under Q08.
+- Application directory: `hausstand-svelte/`.
+- **Only UI:** `ui-v3/App.svelte` and `ui-v3/`. Shared components are under `src/components/`; the shared domain/store modules are under `src/lib/` and `src/stores/`.
+- **Only current project file schema:** `schemaVersion: 1` with readable top-level project data and embedded `versionHistory` (`portable-v1`, gzip/Base64, SHA-256). File imports explicitly reject unsupported schemas. **Do not add prototype/UI V1/UI V2 or historical file-format migration paths.**
+- Two delivery artifacts from the same UI: `dist/hausstand-standalone.html` (offline, no server) and `dist/hausstand.php` (PHP API embedded). GitHub Pages serves the offline UI at the repository root.
+- The PHP server stores only the **current encrypted project file** with atomic technical revision pointer, checkout lease and conflict protection. Historical business snapshots are **inside the encrypted project file**, never a second PHP archive or separate history API.
+- GitHub and public Pages must never contain real household project data, passwords, private storage contents, or configuration secrets.
 
-**Important:** this change has **not** implemented locale switching. Most UI labels are still German; keep honest `lang="de"` metadata until Q13 delivers complete English/default and automatic German/localized rendering. Do not rename existing JSON/event fields, crypto markers, local storage keys, release filenames, or backend identifiers to translate user-facing copy. See [Q13](docs/WG-PRAXIS-TODO.md).
+## Invariants
 
+1. Jointly owned belongings, relative share units, and changes over time are the core purpose. Do not turn the app into an expense/bank transfer service.
+2. Ownership is projected from dated events (`projectAt()`). Financial positions are projected from the same events (`ledgerAt()`); claims and personal balances are **derived**, not separately stored paid/unpaid rows.
+3. A completed payment is an independent dated counterclaim event with payer, recipient and amount. It is **not** bound to a purchase. Partial and overpayments remain actual historical facts.
+4. Group-wide payment routes are proposals and require mutual agreement. Distinguish `paid` from noncash `external`/`waived`.
+5. User edits must go through the central store and respect readonly/lease rules. Never silently modify historical payment amounts when an earlier purchase changes.
+6. Preserve historical **event** calculations (date/order), but **not unsupported old file formats**.
+7. Save must be explicit. Local means download; encrypted online means confirmed upload. A temporary browser working copy is not a durable saved file. Restore from the embedded archive loads an unsaved working state.
+8. Keep protected projects and their complete archived history encrypted; never cache their plaintext in `localStorage`.
+9. Keep the UI minimal and responsive; explanations belong in contextual help. Warn clearly about saving, historical as-of dates, and factual payment confirmation.
 
-Dieses Dokument ist der kurze Einstieg für neue Entwicklungs-Sitzungen. **Zuerst diese Dateien lesen**:
+## Checks
 
-1. [README.md](README.md) – Ziel, Schnellstart, Funktionsumfang
-2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – Datenmodell und Ereignisprojektion
-3. [docs/ROADMAP.md](docs/ROADMAP.md) – tatsächlicher Stand, offene Produktentscheidungen
-4. [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) – Build und manuelle Prüfungen
-5. [hausstand-svelte/GEMINI.md](hausstand-svelte/GEMINI.md) – technische Regeln nahe am Code
+```bash
+cd hausstand-svelte
+npm ci
+npm run check:js
+npm test
+npm run build:single
+node scripts/check-standalone.mjs
+npm run build:php
+php -l dist/hausstand.php
+node server-php/smoke.mjs
+```
 
-## Wo wird entwickelt?
+After every change, inspect the GitHub Actions runs for the exact commit. CI success is not a substitute for a real mobile browser, two-browser PHP, download/reimport, large archive or security test. Maintain the [prioritized to-do list](docs/WG-PRAXIS-TODO.md).
 
-- Produktiver Quellcode: `hausstand-svelte/` (Svelte/Vite), Einstieg `src/App.svelte`
-- Zustand und Mutationen: `src/stores/projectStore.js`
-- Fachlogik: `src/lib/` (insbesondere `projector.js`, `redistribution.js`, `persistence.js`)
-- UI: `src/components/`; globale Styles: `src/styles.css`
-- `vorlage.html` ist eine **historische Referenz**, keine parallel zu pflegende App.
-- Build-Ergebnis `dist/hausstand-standalone.html` wird erzeugt, nicht versioniert.
+## References
 
-## Unverrückbare Produktprinzipien
+- [Architecture](docs/ARCHITECTURE.md)
+- [Communal settlement](docs/FEATURE-COMMUNAL-SETTLEMENT.md)
+- [Portable in-file history](docs/FEATURE-PORTABLE-VERSION-HISTORY.md)
+- [Build and hosting](docs/BUILD-VARIANTS.md)
+- [Security](docs/SECURITY-AND-ENCRYPTION.md)
+- [Terminology and future localization](docs/LANGUAGE-AND-TERMINOLOGY.md)
 
-1. **Offline-first als dauerhafte Fähigkeit:** Die eigenständige HTML-Datei und der lokale JSON-Import/-Export müssen erhalten bleiben. **Implementiert** ist ein optionaler PHP-Online-Modus aus demselben Svelte-Quellcode, kein verpflichtender Server und keine zweite UI. Siehe `docs/FEATURE-COLLABORATIVE-STORAGE.md`.
-2. **Projekt-JSON ist die dauerhafte Datenquelle**; `localStorage` ist nur eine Arbeitskopie. Import-/Exportfähigkeit und Rückwärtskompatibilität beachten.
-3. **Historische Ereignisse:** `projectAt(project, asOfDate)` muss bei gleicher Eingabe dasselbe Ergebnis liefern; Ereignisse nach `date` und `order` sortieren.
-4. **Entitäten per stabiler ID referenzieren**, Anteile als relative Einheiten speichern (nicht als gerundete Prozentangaben).
-5. **Datenänderungen nur über `appState.mutateProject(...)`** bzw. die Store-Aktionen; keine direkte Mutation von `$appState.project`.
-6. Die vorhandene Funktionsparität zur alten HTML-Version schützen. Bestehende Imports und historische Projektdateien nicht stillschweigend verändern.
-7. **Umverteilung ≠ Ausgleich.** Die App berechnet jetzt Forderungen und Nettosalden aus entgeltlichen Ereignissen, erfasst aber keine realen Geldzahlungen. Für die geplante Forderungsverwaltung siehe `docs/FEATURE-DEBT-LEDGER.md`: Forderungen **ausschließlich aus Quellereignissen ableiten** (keine gespeicherten Postings/Checkboxen), Ereignis-ID als Herkunft, centgenaue Nettosalden und automatische Neuberechnung bei Datum-/Wertänderung oder Löschung.
-8. **Verschlüsselung/Backend nicht mit Fachlogik vermengen.** Projekt-JSON, Crypto-Container und lokaler/remote Speicheradapter sind getrennte Schichten. Die implementierte Browser-Verschlüsselung darf niemals durch unverschlüsseltes lokales Caching unterlaufen werden; kein Passwort an PHP senden. Vor Umsetzung `docs/SECURITY-AND-ENCRYPTION.md` lesen.
-9. **Bereitstellung prüfen:** PHP-API, Checkout, Versionen, E-Mail-Anbindung und Verschlüsselung sind implementiert. Der PHP-Server muss separat installiert und konfiguriert werden; GitHub Pages benötigt einmalige Aktivierung. E-Mail-Versand und Browser-Verhalten sind nicht durch eine End-to-End-Abnahme belegt.
-
-## Bei jeder neuen Sitzung
-
-- Aktuelle Dateien und Branches abrufen; nie allein aus früheren Antworten auf den Arbeitsstand schließen.
-- `README.md`, `docs/ROADMAP.md` und betroffene Quelldateien lesen.
-- Änderungen gezielt und klein halten; Datenmodell-Änderungen auf Migration, Stichtage, JSON-Export und alte Ereignisse prüfen.
-- Nach Codeänderungen `npm ci`, `npm run check:js`, `npm run build:single` und die manuellen Tests aus [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) durchführen. Nicht ausgeführte Tests ausdrücklich nennen.
-- Dokumentation und Roadmap im selben Arbeitsschritt aktualisieren; **„umgesetzt“ nur nach Sichtung des Codes**, „getestet“ nur nach tatsächlichem Test.
-
-## Status der Dokumentationsüberarbeitung (20.11.2026)
-
-Die Dokumentation wurde anhand der Dateien im Branch `master` aktualisiert. In dieser Sitzung wurde kein Build ausgeführt und kein Anwendungscode geändert. Das Projekt besitzt bislang keine automatisierte Testsuite und keine eingerichtete GitHub-Pages-Veröffentlichung.
-
-**Geplante nächste Produktpunkte (20.11.2026):** (1) dynamisch aus Events abgeleitete Forderungen/Nettoschulden (ohne gespeicherten Ausgleichsstatus); (2) optionale verschlüsselte PHP-Online-Ablage mit Checkout, Revisionen und Versionshistorie; (3) verschlüsselte E-Mail-Kopie je Revision und lokal nutzbares Verschlüsselungsformat. Forderungsableitung, Verschlüsselung, PHP-API und E-Mail-Anbindung sind implementiert; externes PHP-Hosting, Seitenfreischaltung und End-to-End-Abnahme sind offen. [Roadmap](docs/ROADMAP.md).
-
-
-## Implementierung der Forderungsableitung (in `master`, 20.11.2026)
-
-Neue Module: `src/lib/ledger.js`, `src/components/LedgerPanel.svelte`, `tests/ledger.test.js`, `.github/workflows/ci.yml`. Eigentums- und Finanzprojektion verwenden denselben `walkEvents`-Ablauf. Keine Postings/Checkboxen persistieren; die einzigen zusätzlichen Fachdaten sind optionale Felder `financialMode` und `financedByPersonId` an bestehenden Events. Neue Änderungen sind standardmäßig entgeltlich, Alt-Events ohne Marker finanziell neutral. GitHub CI hat die zehn Fachlogiktests und den Standalone-Build erfolgreich ausgeführt. Manuelle Browser-/JSON-Tests stehen aus. PHP/Krypto/E-Mail sind im Code und separat auf einem PHP-Server zu betreiben.
-
-
-## Speicher-/Verschlüsselungsschicht (21.11.2026)
-
-- `hausstand-svelte/src/lib/crypto.js`: versioniertes AES-256-GCM-Containerformat mit PBKDF2-HMAC-SHA256 und 600.000 Iterationen; editToken bleibt im Ciphertext.
-- `hausstand-svelte/src/components/StoragePanel.svelte`: verschlüsselter lokaler Import/Export und Browser-UI für PHP-Speicher, Locks, Revisionen, Passwortwechsel.
-- `hausstand-svelte/src/stores/projectStore.js`: `secure` verhindert Klartext-`localStorage`, `readOnly` schützt gesperrte Online-Dokumente.
-- `hausstand-svelte/server-php/backend.php`: alleinige PHP-API-Vorlage; `scripts/build-php.mjs` fügt sie mit der gebündelten Svelte-HTML zur `dist/hausstand.php` zusammen.
-- `hausstand-svelte/server-php/smoke.mjs`: Integrationstest mit temporärem PHP-Server, Testdaten und Lease-/Revisionsprüfungen.
-- `.github/workflows/pages.yml` enthält die statische Veröffentlichung, die **einmalig in den GitHub-Reposettings aktiviert werden muss**, falls der CI-Token die Seitenanlage nicht autorisiert.
-- **Nicht behaupten:** PHP auf GitHub Pages, produktiv bestätigter E-Mail-Versand, durchgängig neu verschlüsselte Historie nach Passwortwechsel oder bereits erfolgte externe Sicherheitsprüfung.
-- [Installationsanleitung](docs/DEPLOYMENT.md) beachten; keine realen Passwörter/Konfigurationen in Repository committen.
-
-
-## Forderungsjournal – verbindliches Modell (22.11.2026)
-
-- **Eine Geldprojektion, keine Zahlung-zu-Kauf-Verknüpfung.** `deriveClaims()` leitet ursprüngliche Forderungen aus Anschaffungen/Anteilsbewegungen ab. `deriveSettlementCounterclaims()` erzeugt aus jeder unabhängig dokumentierten Zahlung eine Gegenforderung mit umgekehrter Richtung. `ledgerAt()` saldiert alle Buchungen bilateral, ohne Gegenbuchungen zu deckeln.
-- Der Zahlungsbetrag bleibt auch nach Rückdatierung, Änderung oder Löschung eines Kaufes unverändert. Ein Überschuss ist ein Anspruch in Gegenrichtung.
-- `src/lib/claimSettlement.js` validiert `claim-settlement-recorded`; `sourceEventId`, `childEventId`, `itemId` sind optional und wirken **nie** auf die Zahlung. Frühere Module `claimMatching.js` und `settlementBalances.js` wurden entfernt.
-- Ein-Klick-„Als beglichen“ erzeugt künftig über `paymentForBalance()` lediglich ein unabhängiges `paid`-Ereignis für den **bilateralen Nettobetrag**. Eine Einzelgegenstandszuordnung, Bezahlflag oder weitere Schuldenliste sind ausdrücklich nicht vorgesehen.
-- `external` und `waived` sind eigene **nicht-bar**-Kennzeichnungen im selben Geldjournal. Nicht als Geldüberweisung darstellen.
-- Aktuell sind die Saldenberechnung und Timeline-/Geld-Anzeigen angepasst; Erfassungs- und Editierdialoge sind noch nicht vorhanden. Gezielte Tests in isolierter JavaScript-Ausführung erfolgreich, npm-/Build-/Browserabnahme offen. [To-do](docs/WG-PRAXIS-TODO.md).
-
-## Aktuelle Produktentscheidung: gemeinschaftlicher Wertausgleich (22.11.2026)
-
-**Vorrangig gilt [FEATURE-COMMUNAL-SETTLEMENT.md](docs/FEATURE-COMMUNAL-SETTLEMENT.md).** Nicht die alten Einzelgläubiger-Tabellen wieder zum primären Bedienmodell machen: `ledgerAt().balances` zeigt die persönlichen Ausgleichssalden, `ledgerAt().simplified` nur vorgeschlagene Überweisungswege. Zahlungen sind datierte, frei dokumentierte Events mit bezahltem Betrag, Richtung und optionaler Notiz – keine Verknüpfung zu Kauf/Einzelanspruch und kein gespeichert-„bezahlt“-Flag. Die Einzelschuldquelle bleibt als `claims` für den Verlauf prüfbar. Nur wer den gemeinschaftlichen Ausgleich als Regel akzeptiert, kann gruppenweite Vorschläge als endgültige Abrechnung verwenden.
-
-**Neu in der UI:** `src/components/SettlementDialog.svelte` für beide Varianten, `ui-v3/LedgerView.svelte` und `src/components/LedgerPanel.svelte` für die gemeinsamen Salden; Bearbeiten/Löschen in beiden Timelines; persönliche Ausgleichsvorschläge in den Profilen; ursprüngliche Wertverschiebungen bei jedem Gegenstand. Alle Geldbuchungen dürfen korrigierbar bleiben. Vor Freigabe automatisierte Tests, Build, Mobil-/Browserabnahme und JSON-/PHP-Roundtrips ausführen; die letzte Codeüberarbeitung ist nicht automatisch eine bestandene Abnahme.
-
-## Interface-Überarbeitung (22.11.2026)
-
-Zur gemeinschaftlichen Saldenanzeige gehört die reine Projektion `ledgerAt().details` (`src/lib/ledger.js`). Sie erklärt jedes persönliche `balances`-Ergebnis aus vollständigem historischem Finanzierungswert, übernommenen Anfangsanteilen, Anteilsveränderungen, echten Zahlungen und als solchen gekennzeichneten nichtbaren Ausgleichen. **Keine zweiten gespeicherten Buchungen erstellen; `details.get(personId).balanceCents` muss genau `balances.get(personId)` sein.** UI-Komponenten: `src/components/BalanceBreakdown.svelte`, `ui-v3/LedgerView.svelte`, `ui-v3/PersonDetail.svelte` und gemeinsames `SettlementDialog.svelte`. Zahlungseingabe sagt eindeutig, dass nur vergangene Zahlungen dokumentiert werden. Kategorie-Tags und Status-Badges in den normalen Karten nicht erneut als Dekoration einführen; Kategorien bleiben als Suchfilter und plain text. UI-Regression: `tests/settlement-ui.test.js`, Geldherleitung: `tests/community-balances.test.js`. Build/Browserprüfung separat nachholen.
-
-## Informationsdichte und Hilfe-UI (22.11.2026)
-
-Die aktuelle V3-Oberfläche ist bewusst knapp: In normalen Ansichten stehen Zahlen, Bezeichnungen und Aktionen; lange Fach- und Workflowerklärungen gehören in `src/components/HelpTip.svelte` hinter ein erreichbares, per Klick öffnendes `?`. Das Hilfefenster schließt bei Escape, Klick außerhalb oder Scrollen. Nicht als ständig sichtbare `notice`, `muted`-Absätze oder neue Tags/Badges wieder einführen. Ausnahmen: Sicherheitswarnungen, Fehlermeldungen und entscheidungsrelevante Fragen wie „Ist diese Zahlung bereits erfolgt?“ bleiben vor dem Speichern sichtbar. Beide Ledger-/Timeline-Varianten und Umverteilungsdialoge benutzen denselben Hilfeblock. Siehe `tests/settlement-ui.test.js`.
+**Open major tasks:** Q10 compact time-travel UI, Q11 browser/hosting acceptance of the portable file, Q12 session Undo/Redo, Q13 English/German localization.

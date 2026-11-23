@@ -1,67 +1,31 @@
-# Svelte-Projekt: technische Hinweise
+# Hausstandsliste — application implementation notes
 
+The code in this directory is the only active Svelte application. The UI entry point is `ui-v3/main.js` and `ui-v3/App.svelte`; `vite.ui-v3.config.js` is the only Vite build configuration. The offline HTML, Pages root, and single-file PHP release share this interface. Never recreate parallel classic/V2 UIs.
 
-## Product name / translation boundary (23 November 2026)
-
-Brand all entry points as **Hausstandsliste — Shared Ownership Tracker**. English UI and browser-driven German localization are **planned** (Q13), not yet implemented. Current German-only UI must retain `lang="de"` until full translations, language detection, user override, and format tests are in place. Centralize future translated strings instead of hardcoding a second language alongside existing German text. See [language specification](../docs/LANGUAGE-AND-TERMINOLOGY.md). Persisted JSON schema, cryptographic formats, working-copy keys, and output filenames must remain compatible.
-
-
-Zuerst [`../AGENTS.md`](../AGENTS.md), [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md), [`../docs/ROADMAP.md`](../docs/ROADMAP.md) lesen. Diese Datei ergänzt die allgemeinen Regeln um Svelte-spezifische Konventionen.
-
-## Architekturentscheidungen
-
-- **Svelte/Vite, modularer Quellcode, eine fertige HTML-Datei.** Kein Pflicht-Backend; keine zweite parallele Umsetzung in `../vorlage.html`.
-- **Event-Sourcing:** `src/lib/projector.js` verarbeitet `project.events` anhand des Stichtags; nicht den projizierten Zustand als alleinige Wahrheit speichern.
-- **Datei ist Wahrheit:** `src/lib/persistence.js` exportiert JSON inkl. `humanReadableSnapshot`; dieser Snapshot ist nur abgeleitete Lesehilfe. `localStorage` ist temporäre Arbeitskopie.
-- **Store:** `src/stores/projectStore.js` mit `appState.mutateProject` für Datenänderungen und dem abgeleiteten Store `projection`. Keine direkte Mutation des Projektobjekts außerhalb der Store-Aktionen.
-- **Stammdaten vs. Ereignisse:** Namen, Tags und Notizen stehen in `people[]`/`items[]`; zeitabhängige Aktivität, Wert und Eigentumsanteile in `events[]`.
-
-## Aktuelles Projekt-JSON (Schema-Version 1)
-
-`community`, `people[]`, `items[]`, `events[]`, `drafts[]`, `currency`, `humanReadableSnapshot`, `schemaVersion`, `appVersion`.
-
-**Wichtige Korrektur zu älteren Dokumenten:** Entwürfe liegen aktuell in `drafts[]` (Item- und Umverteilungsentwürfe). Beim Import liest `normalize()` ersatzweise das historische Feld `redistributions[]` und entfernt es anschließend. Ein ausgeführter Umverteilungsentwurf wird als Event `redistribution-executed` mit `shares-set`-Kinderevents gespeichert.
-
-Ereignistypen: `person-added`, `person-deactivated`, `person-reactivated`, `item-added`, `item-ended`, `shares-set`, `redistribution-executed`.
-
-Bewertungsmodelle: `linear` (`durationYears`), `degressive` (`annualRate`), `fixed`; alle optional mit `minimumValue`.
-
-Relative Anteilseinheiten verwenden, IDs statt Namen referenzieren, neue IDs mit `uid(prefix)` erzeugen. Ereignisse am selben Datum werden zusätzlich über `order` sortiert. Gleiche Eingaben und gleicher Stichtag müssen gleiche Projektionen erzeugen.
-
-## Umverteilung und Zahlung
-
-`src/lib/redistribution.js` berechnet mit `redistributionPreview()` Wertdifferenzen und mit `settlementRecommendations()` **nicht persistierte** Zahlungsvorschläge. Die UI zeigt diese in `RedistributionDialog.svelte` und `ExecutedRedistributionEditDialog.svelte`. Es gibt bislang **keine** Datenstruktur für „offen“, „bezahlt“ oder Teilzahlungen und keinen tatsächlichen Geldfluss. Umsetzung erst nach Klärung stabiler Forderungs-IDs und des historischen Verhaltens (siehe Roadmap).
-
-## Prüfregeln vor Änderungen
+## Commands
 
 ```bash
 npm ci
+npm run dev
 npm run check:js
+npm test
 npm run build:single
+node scripts/check-standalone.mjs
+npm run build:php
+php -l dist/hausstand.php
+node server-php/smoke.mjs
 ```
 
-Danach die manuellen Akzeptanzfälle aus [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) im Browser ausführen, besonders JSON-Roundtrip, historische Stichtage, Umverteilungen, Export und `file://`-Start der Standalone-Datei. Automatisierte Tests existieren derzeit nicht. Nicht verifizierte Builds/Tests nicht als erfolgreich dokumentieren.
+## Data, history and settlements
 
+`src/lib/projector.js` projects historical ownership and member presence from ordered events; `src/lib/ledger.js` projects cent-exact claims, personal balances, and suggested payment routes. `src/lib/claimSettlement.js` validates independent dated cash/noncash adjustments. Never attach payments to individual purchases or store paid/unpaid claim flags. Use `src/stores/projectStore.js` for mutations and readonly checks.
 
-## Geplante Architekturentwicklung (noch kein Code)
+The only accepted project file schema has `schemaVersion: 1`, `currency: EUR`, `lastSavedAt` and `versionHistory` with `format: portable-v1`. Complete previous save points are gzip/Base64 snapshots with SHA-256 validation in the file itself. `src/lib/versionHistory.js` handles snapshot writing and restore. Do not add alternative encodings or old-format migration paths.
 
-- [Forderungsjournal/Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md): **neue Festlegung 20.11.2026:** keine gespeicherten Forderungslisten und kein `settled:boolean`; ausschließlich dynamisch aus `events[]` hergeleitete, über Quellereignis-IDs nachvollziehbare Cent-Forderungen und Netto-Salden. Jede historische Korrektur ändert die Projektion automatisch. Alte Events nicht stillschweigend zu Schulden machen.
-- [PHP-Ablage](../docs/FEATURE-COLLABORATIVE-STORAGE.md): eine Svelte-App, zwei Build-Artefakte, getrennte Speicheradapter und ein eigenes `documentStore` für Revision, Dirty-Flag und Checkout.
-- [Browser-Verschlüsselung](../docs/SECURITY-AND-ENCRYPTION.md): dasselbe verschlüsselte Containerformat für lokalen Export und Remote-Speicherung; aktuell vorhandene Klartext-`localStorage`-Arbeitskopie darf niemals bei verschlüsselten Projekten unverschlüsselt fortgeführt werden.
+The PHP API in `server-php/backend.php` stores one current encrypted document per project, guarded by technical revision/checkout lease and metadata pointer. It does **not** store a history archive. Passwords remain in the browser, and encrypted project copies must never be cached in cleartext. Optional encrypted email files are independent backups.
 
-**Noch nicht implementieren oder als vorhanden behaupten**, bevor die betreffenden Architekturentscheidungen bestätigt, getestet und in Code umgesetzt sind.
+## UI design
 
+The single responsive UI lives in `ui-v3/`. The reusable `src/components/SettlementDialog.svelte`, `HelpTip.svelte`, `BalanceBreakdown.svelte`, and `RedistributionItemList.svelte` are used by that UI. No additional decorative badges or permanently visible long explanations. Keep the working date explicit when time travel is active; the UI should open at today's date. Q10 (compact time travel), Q12 (Undo/Redo), and Q13 (localization) remain open.
 
-## Implementiert (`master`, 20.11.2026)
-
-`src/lib/ledger.js` ist reine Fachlogik auf `walkEvents()` aus `projector.js`. `LedgerPanel.svelte` zeigt abgeleitete Brutto- und Nettoschulden. Direkt-/Sammelanteilsänderungen lassen `financialMode` wählen, `item-added` optional `financedByPersonId`. Bei alten Events ohne Marker **keine** automatische Schuld. Kein eigener Settlement-/Posting-Speicher. `npm test` ist für Regressionen ergänzt, CI-Tests und Standalone-Build sind erfolgreich; die manuelle Browser-/JSON-Abnahme steht noch aus.
-
-
-## Implementiert am 21.11.2026
-
-`src/lib/crypto.js` und `src/components/StoragePanel.svelte` implementieren verschlüsselten lokalen Export/Import und die optionale PHP-Online-Ablage. `src/stores/projectStore.js` besitzt `secure` und `readOnly`. Die PHP-Vorlage liegt in `server-php/backend.php`; `scripts/build-php.mjs` erstellt die einzelne `hausstand.php`. PHP-Integrationstest: `node server-php/smoke.mjs`, Kryptotest: `npm test`. GitHub Pages stellt nur HTML/JS bereit. Beachte ausdrücklich: Historie nicht neu verschlüsselt nach Passwortwechsel, Mailzustellung noch nicht live getestet, vor produktiver Nutzung Sicherheitsprüfung nötig. [Deployment](../docs/DEPLOYMENT.md).
-
-
-## Entscheidung 22.11.2026: Zahlung ist Gegenforderung
-
-Die ältere Formulierung „Zahlungen noch nicht implementiert“ bezieht sich nur noch auf fehlende Eingabedialoge. `ledgerAt()` saldiert die aus Käufen abgeleiteten `claims` mit unabhängig gespeicherten `counterclaims` aus Zahlungsevents. **Kein Pflichtbezug auf einzelne Gegenstände oder Forderungen, keine Deckelung bei Überzahlung.** `claimMatching.js` und `settlementBalances.js` wurden gelöscht. API: `claimSettlement.js`, insbesondere `paymentForBalance()`. Aktuelle Tests: `tests/payment-counterclaims.test.js`. Alte importierte Zusatzreferenzen bleiben erhalten, ändern den Saldo aber nicht.
+Before calling any feature complete, check current GitHub Actions for the exact commit and record what was tested. Browser and real-hosting acceptance are separate.
