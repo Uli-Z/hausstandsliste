@@ -60,6 +60,8 @@ test('share editor keeps editing, optional equal split and localized percentages
   assert.ok(editor.includes('export let allowEqualize = false'));
   assert.ok(editor.includes('const selected = Object.keys(normShares(shares))'));
   assert.ok(editor.includes('shares = Object.fromEntries(selected.map(personId => [personId, 1]))'));
+  assert.ok(editor.includes('class="share-person-name"'));
+  assert.ok(!editor.includes('<select disabled>'));
   assert.ok(editor.includes('formatPercent('));
   assert.ok(editor.includes('on:input={e => setShare(personId, e.currentTarget.value)}'));
   assert.ok(editor.includes('positiveOwnerCount === 1'));
