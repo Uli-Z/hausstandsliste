@@ -170,7 +170,7 @@
   async function saveNow() {
     if ($appState.secure) {
       const result = await storageView?.saveFromHeader?.();
-      if (result?.handled) { if (result.message) showFeedback(result.message); return; }
+      if (result?.handled) { if (result.message) showFeedback(result.message, result.ok === false); return; }
       navigate('save'); // Encrypted local file: requires the file password.
       return;
     }
