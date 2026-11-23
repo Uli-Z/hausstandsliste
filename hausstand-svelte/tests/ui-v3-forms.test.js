@@ -29,6 +29,7 @@ test('share entry can stay empty while typing, without turning into zero',()=>{
   assert.equal(parseShareInput(''),null);
   assert.equal(parseShareInput('0'),0);
   assert.equal(parseShareInput('0.5'),0.5);
+  assert.equal(parseShareInput('0,5'),0.5);
   assert.equal(parseShareInput('2'),2);
   assert.equal(parseShareInput('foo'),null);
 });

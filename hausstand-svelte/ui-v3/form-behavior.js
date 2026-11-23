@@ -1,3 +1,4 @@
+import { parseDecimal } from '../src/lib/i18n.js';
 // Eingabeverhalten der UI V3, unabhängig von der Fachlogik.
 export const isEnterForSubmit = event => {
   const target = event?.target;
@@ -34,6 +35,6 @@ export function finishDialogNumber(event) {
 
 export function parseShareInput(value) {
   if (value === '') return null; // Zwischenzustand: das Feld bleibt wirklich leer.
-  const parsed = Number(value);
+  const parsed = parseDecimal(value);
   return Number.isFinite(parsed) ? parsed : null;
 }

@@ -1,5 +1,6 @@
 import { yearsBetween } from './util.js';
 import { money } from './domain.js';
+import { message, getLocale } from './i18n.js';
 
 export const valueAt = (valuation, startValue, startDate, asOfDate) => {
   const base = Math.max(0, Number(startValue) || 0);
@@ -17,8 +18,9 @@ export const valueAt = (valuation, startValue, startDate, asOfDate) => {
 };
 
 export const label = valuation => {
-  const min = Number(valuation?.minimumValue || 0) > 0 ? `, Mindestwert ${money(valuation.minimumValue)}` : '';
-  if (valuation?.type === 'linear') return `linear über ${valuation.durationYears || '?'} Jahre${min}`;
-  if (valuation?.type === 'degressive') return `degressiv ${Math.round((valuation.annualRate || 0) * 1000) / 10}%/Jahr${min}`;
-  return `konstant${min}`;
+  const t = (key, params) => message(key, getLocale(), params);
+  const min = Number(valuation?.minimumValue || 0) > 0 ? t('valuation.minimum', { value: money(valuation.minimumValue) }) : '';
+  if (valuation?.type === 'linear') return t('valuation.linear', {years: valuation.durationYears || '?'}) + min;
+  if (valuation?.type === 'degressive') return t('valuation.degressive', {rate: Math.round((valuation.annualRate || 0) * 1000) / 10}) + min;
+  return t('valuation.fixed') + min;
 };

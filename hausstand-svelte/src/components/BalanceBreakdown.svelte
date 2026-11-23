@@ -4,14 +4,14 @@
   export let detail = null;
   export let balanceCents = 0;
   const lines = [
-    { key: 'fundedCents', label: 'Finanzierte Anschaffungen', sign: 1 },
-    { key: 'initialSharesCents', label: 'Erhaltene Anteile beim Kauf', sign: -1 },
-    { key: 'sharesGivenCents', label: 'Abgegebene Eigentumsanteile', sign: 1 },
-    { key: 'sharesTakenCents', label: 'Übernommene Eigentumsanteile', sign: -1 },
-    { key: 'paidCents', label: 'Geleistete Ausgleichszahlungen', sign: 1 },
-    { key: 'receivedPaymentsCents', label: 'Erhaltene Ausgleichszahlungen', sign: -1 },
-    { key: 'adjustmentsPlusCents', label: 'Sonstige Ausgleiche (Gutschrift)', sign: 1 },
-    { key: 'adjustmentsMinusCents', label: 'Sonstige Ausgleiche (Belastung)', sign: -1 }
+    { key: 'fundedCents', label: 'balance.funded', sign: 1 },
+    { key: 'initialSharesCents', label: 'balance.initial', sign: -1 },
+    { key: 'sharesGivenCents', label: 'balance.given', sign: 1 },
+    { key: 'sharesTakenCents', label: 'balance.taken', sign: -1 },
+    { key: 'paidCents', label: 'balance.paid', sign: 1 },
+    { key: 'receivedPaymentsCents', label: 'balance.received', sign: -1 },
+    { key: 'adjustmentsPlusCents', label: 'balance.credit', sign: 1 },
+    { key: 'adjustmentsMinusCents', label: 'balance.debit', sign: -1 }
   ];
   $: visible = lines.filter(line => (detail?.[line.key] || 0) > 0);
 </script>
@@ -21,12 +21,12 @@
     <dl class="balance-rows">
       {#each visible as line (line.key)}
         <div class="balance-row">
-          <dt>{line.label}</dt>
+          <dt>{$translate(line.label)}</dt>
           <dd>{line.sign > 0 ? '+' : '−'}{money((detail?.[line.key] || 0) / 100)}</dd>
         </div>
       {/each}
       <div class="balance-row balance-result">
-        <dt>{balanceCents > 0 ? $translate("people.toReceive") : balanceCents < 0 ? $translate("people.toSettle") : 'Ausgeglichen'}</dt>
+        <dt>{balanceCents > 0 ? $translate("people.toReceive") : balanceCents < 0 ? $translate("people.toSettle") : $translate('balance.zero')}</dt>
         <dd>{balanceCents > 0 ? '+' : balanceCents < 0 ? '−' : ''}{money(Math.abs(balanceCents) / 100)}</dd>
       </div>
     </dl>

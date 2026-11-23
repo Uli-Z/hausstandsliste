@@ -463,7 +463,20 @@ export const dictionaries = {
     "ui.transfer-the-shares-or-explicitly--1yi7m42": ". Transfer the shares or explicitly archive the items. Other items will still be updated.",
     "ui.the-original-settlement-entry-was--1huy9tm": "The original settlement entry was not found.",
     "ui.settlement-was-not-saved-1tbmhev": "Settlement was not saved:",
-    "ui.e-g-bank-transfer-on-22-nov-bkvarc": "e.g. bank transfer on 22 Nov."
+    "ui.e-g-bank-transfer-on-22-nov-bkvarc": "e.g. bank transfer on 22 Nov.",
+    "valuation.minimum": "; minimum value {value}",
+    "valuation.linear": "linear over {years} years",
+    "valuation.degressive": "depreciation {rate}%/year",
+    "valuation.fixed": "fixed",
+    "balance.funded": "Financed purchases",
+    "balance.initial": "Shares received at purchase",
+    "balance.given": "Ownership shares given away",
+    "balance.taken": "Ownership shares acquired",
+    "balance.paid": "Settlement payments made",
+    "balance.received": "Settlement payments received",
+    "balance.credit": "Other settlements (credit)",
+    "balance.debit": "Other settlements (debit)",
+    "balance.zero": "Settled"
   },
   "de": {
     "nav.overview": "Überblick",
@@ -925,7 +938,20 @@ export const dictionaries = {
     "ui.transfer-the-shares-or-explicitly--1yi7m42": ". Bitte die Anteile übertragen oder die Gegenstände ausdrücklich beenden. Andere Gegenstände werden bearbeitet.",
     "ui.the-original-settlement-entry-was--1huy9tm": "Die ursprüngliche Buchung wurde nicht gefunden.",
     "ui.settlement-was-not-saved-1tbmhev": "Ausgleich nicht gespeichert:",
-    "ui.e-g-bank-transfer-on-22-nov-bkvarc": "z. B. Überweisung am 22.11."
+    "ui.e-g-bank-transfer-on-22-nov-bkvarc": "z. B. Überweisung am 22.11.",
+    "valuation.minimum": ", Mindestwert {value}",
+    "valuation.linear": "linear über {years} Jahre",
+    "valuation.degressive": "degressiv {rate}%/Jahr",
+    "valuation.fixed": "konstant",
+    "balance.funded": "Finanzierte Anschaffungen",
+    "balance.initial": "Erhaltene Anteile beim Kauf",
+    "balance.given": "Abgegebene Eigentumsanteile",
+    "balance.taken": "Übernommene Eigentumsanteile",
+    "balance.paid": "Geleistete Ausgleichszahlungen",
+    "balance.received": "Erhaltene Ausgleichszahlungen",
+    "balance.credit": "Sonstige Ausgleiche (Gutschrift)",
+    "balance.debit": "Sonstige Ausgleiche (Belastung)",
+    "balance.zero": "Ausgeglichen"
   }
 };
 export function resolveLocale(preference = 'auto', browserLanguages = []) {
