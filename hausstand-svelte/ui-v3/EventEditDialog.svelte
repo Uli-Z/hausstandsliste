@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../src/lib/i18n.js';
+  import { translate, parseDecimal } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE, uid, clone } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';
@@ -20,6 +20,15 @@
     if (edited.type === 'shares-set' && !edited.financialMode) edited.financialMode = 'none';
   }
 
+  // Keep localized decimal input as text until save; do not replace invalid
+  // values with zero or lose the user's partially typed input.
+  $: minimumRaw = edited?.type === 'item-added' ? String(edited.valuation?.minimumValue ?? '').trim() : '';
+  $: minimumAmount = minimumRaw === '' ? 0 : parseDecimal(minimumRaw);
+  $: minimumCents = Math.round(minimumAmount * 100);
+  $: minimumValid = edited?.type !== 'item-added' || (Number.isFinite(minimumAmount) &&
+    minimumAmount >= 0 && Number.isSafeInteger(minimumCents) &&
+    Math.abs(minimumAmount * 100 - minimumCents) <= 1e-7);
+
   function confirmFromInput(event) {
     if (!isEnterForSubmit(event)) return;
     event.preventDefault();
@@ -27,7 +36,8 @@
   }
 
   function save() {
-    if (!edited) return;
+    if (!edited || !minimumValid) return;
+    if (edited.type === 'item-added') edited.valuation.minimumValue = minimumAmount;
     const saved = appState.mutateProject(p => {
       const idx = p.events.findIndex(e => e.id === edited.id);
       if (idx >= 0) p.events[idx] = { ...edited };
@@ -69,19 +79,19 @@
           {:else if edited.type === 'item-added'}
             <label>{$translate("ui.name-at-that-time-81lqvy")} <input bind:value={edited.name}></label>
             <label>{$translate("ui.initial-value-1dch75t")} <input type="number" step="0.01" bind:value={edited.initialValue}></label>
-            <section class="mini-card stack">
-              <strong>{$translate("ui.valuation-13jfos6")}</strong>
-              <label>{$translate("ui.type-893bfe")} <select bind:value={edited.valuation.type}>
-                <option value="fixed">{$translate("ui.fixed-constant-whx6g5")}</option>
-                <option value="linear">{$translate("ui.linear-over-time-1ybmzdf")}</option>
-                <option value="degressive">{$translate("ui.depreciation-per-year-wte2b6")}</option>
+            <section class="mini-card stack item-valuation-edit-fields">
+              <label>{$translate("ui.how-does-the-value-change-16f9eit")} <select bind:value={edited.valuation.type}>
+                <option value="linear">{$translate("ui.value-decreases-linearly-1u8yk0y")}</option>
+                <option value="degressive">{$translate("ui.value-decreases-by-a-percentage-eac-1g9op4c")}</option>
+                <option value="fixed">{$translate("ui.value-remains-constant-1tdyxfv")}</option>
               </select></label>
               {#if edited.valuation.type === 'linear'}
                 <label>{$translate("ui.useful-life-years-jdfjkh")} <input type="number" bind:value={edited.valuation.durationYears}></label>
               {:else if edited.valuation.type === 'degressive'}
                 <label>{$translate("ui.annual-rate-0-1-17rz98n")} <input type="number" step="0.01" bind:value={edited.valuation.annualRate}></label>
               {/if}
-              <label>{$translate("ui.minimum-value-hzgo71")} <input type="number" step="0.01" bind:value={edited.valuation.minimumValue}></label>
+              <label>{$translate("ui.minimum-value-hzgo71")} <input type="text" inputmode="decimal" autocomplete="off" bind:value={edited.valuation.minimumValue} aria-invalid={!minimumValid}></label>
+              {#if !minimumValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             </section>
             <section class="mini-card stack">
               <strong>{$translate("ui.original-ownership-shares-sekno0")}</strong>
@@ -129,7 +139,7 @@
       <button class="danger" on:click={remove}>{$translate("ui.delete-odpvb4")}</button>
       <div style="flex:1"></div>
       <button on:click={() => appState.closeDialog()}>{$translate("ui.cancel-cl4zc9")}</button>
-      <button class="primary" on:click={save}>{$translate("ui.save-change-1pvx2yb")}</button>
+      <button class="primary" on:click={save} disabled={!minimumValid || $appState.readOnly}>{$translate("ui.save-change-1pvx2yb")}</button>
     </div>
   </div>
 </div>

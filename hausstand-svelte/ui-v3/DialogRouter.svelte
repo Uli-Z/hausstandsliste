@@ -1,12 +1,11 @@
 <script>
-  import { translate } from '../src/lib/i18n.js';
+  import { translate, parseDecimal } from '../src/lib/i18n.js';
   import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
   import { uid, parseTags, nextEventOrder } from '../src/lib/util.js';
   import { projectAt } from '../src/lib/projector.js';
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { normShares, money } from '../src/lib/domain.js';
   import { allocateCents } from '../src/lib/ledger.js';
-  import { label as valuationLabel } from '../src/lib/valuation.js';
   import { personDeletionEligibility, deleteUnusedPerson } from '../src/lib/personDeletion.js';
   import RedistributionDialog from './RedistributionDialog.svelte';
   import EventEditDialog from './EventEditDialog.svelte';
@@ -35,6 +34,7 @@
   let financedByPersonId = '';
   let effectiveDate = '';
   let dateSharesRebased = false;
+  let itemExtrasOpen = false;
   let initializedFor = null;
   // Effective dates are independent of the view once a dialog/draft is opened.
   $: if (dialog && dialog !== initializedFor) {
@@ -42,6 +42,7 @@
     const draft = dialog.id ? (project.drafts || []).find(d => d.id === dialog.id) : null;
     effectiveDate = draft?.data?.effectiveDate || asOfDate;
     dateSharesRebased = false;
+    itemExtrasOpen = dialog.type === 'itemContinue' || !!dialog.id;
     if (dialog.type === 'itemAdd' && !dialog.id) {
       // Make the default equal ownership explicit rather than silently
       // assigning all currently active people only on save.
@@ -69,7 +70,15 @@
     Number.isSafeInteger(itemCostCents) && Math.abs(itemCost * 100 - itemCostCents) <= 1e-7);
   $: ownersValid = !itemNeedsOwners || Object.keys(normShares(shares)).length > 0;
   $: itemNameValid = !itemNeedsOwners || !!String(itemName || '').trim();
-  $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid && itemCostValid && ownersValid && itemNameValid;
+  // Keep the raw minimum-value text while typing: a German decimal comma must
+  // neither collapse the details panel nor silently be stored as zero.
+  $: minimumValueAmount = String(minimumValue ?? '').trim() === '' ? 0 : parseDecimal(minimumValue);
+  $: minimumValueCents = Math.round(minimumValueAmount * 100);
+  $: minimumValueValid = !itemNeedsOwners || (Number.isFinite(minimumValueAmount) &&
+    minimumValueAmount >= 0 && Number.isSafeInteger(minimumValueCents) &&
+    Math.abs(minimumValueAmount * 100 - minimumValueCents) <= 1e-7);
+  $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid &&
+    itemCostValid && ownersValid && itemNameValid && minimumValueValid;
   $: purchaseShares = normShares(shares);
   $: purchaseOwnerCount = Object.keys(purchaseShares).length;
   $: purchaseClaims = dialog?.type === 'itemAdd' && itemCostValid && financedByPersonId
@@ -77,7 +86,6 @@
         .filter(([personId, amountCents]) => personId !== financedByPersonId && amountCents > 0)
         .map(([personId, amountCents]) => ({ name: entryProjection.peopleById.get(personId)?.name || personId, amountCents }))
     : [];
-  $: currentValuation = { type: valuationType, durationYears, annualRate, minimumValue };
   function changeEffectiveDate(event) {
     const nextDate = event.currentTarget.value;
     if (validCalendarDate(nextDate)) {
@@ -264,7 +272,7 @@
   }
 
   function saveItemDraft() {
-    if (!dateValid) return;
+    if (!dateValid || !minimumValueValid) return;
     const draftId = dialog.id || uid('draft_item');
     const activePeople = entryProjection.people.filter(p => p.active);
     const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
@@ -283,7 +291,7 @@
           type: valuationType,
           durationYears: valuationType === 'linear' ? Number(durationYears) : undefined,
           annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
-          minimumValue: Number(minimumValue) || 0
+          minimumValue: minimumValueAmount
         },
         shares: initialShares,
         financedByPersonId: financedByPersonId || undefined
@@ -307,7 +315,7 @@
           type: valuationType, 
           durationYears: valuationType === 'linear' ? Number(durationYears) : undefined, 
           annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
-          minimumValue: Number(minimumValue) || 0 
+          minimumValue: minimumValueAmount 
         }, 
         shares: initialShares,
         financedByPersonId: financedByPersonId || undefined,
@@ -347,7 +355,7 @@
           type: valuationType, 
           durationYears: valuationType === 'linear' ? Number(durationYears) : undefined, 
           annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
-          minimumValue: Number(minimumValue) || 0 
+          minimumValue: minimumValueAmount 
         }, 
         shares: normShares(shares) 
       }, p));
@@ -441,6 +449,24 @@
                 <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}>
               </label>
             </div>
+            <div class="form-grid item-valuation-fields">
+              <label>{$translate("ui.how-does-the-value-change-16f9eit")}
+                <select bind:value={valuationType}>
+                  <option value="linear">{$translate("ui.value-decreases-linearly-1u8yk0y")}</option>
+                  <option value="degressive">{$translate("ui.value-decreases-by-a-percentage-eac-1g9op4c")}</option>
+                  <option value="fixed">{$translate("ui.value-remains-constant-1tdyxfv")}</option>
+                </select>
+              </label>
+              {#if valuationType === 'linear'}
+                <label>{$translate("ui.useful-life-years-jdfjkh")}
+                  <input type="number" min="1" step="1" inputmode="numeric" bind:value={durationYears}>
+                </label>
+              {:else if valuationType === 'degressive'}
+                <label>{$translate("ui.annual-loss-in-value-0-2-20-1h9ss42")}
+                  <input type="number" min="0" max="1" step="0.01" inputmode="decimal" bind:value={annualRate}>
+                </label>
+              {/if}
+            </div>
             {#if !itemNameValid}<p class="notice warn" role="alert">{$translate('items.enterName')}</p>{/if}
             {#if !itemCostValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             <section class="item-ownership-fields">
@@ -481,27 +507,11 @@
                 </section>
               {/if}
             {/if}
-            <details class="item-extra-fields" open={dialog.type === 'itemContinue' || !!dialog.id}>
-              <summary>{$translate('items.moreDetails')} · {valuationLabel(currentValuation)}</summary>
+            <details class="item-extra-fields" bind:open={itemExtrasOpen}>
+              <summary>{$translate('items.moreDetails')}</summary>
               <div class="form-grid">
-                <label>{$translate("ui.how-does-the-value-change-16f9eit")}
-                  <select bind:value={valuationType}>
-                    <option value="linear">{$translate("ui.value-decreases-linearly-1u8yk0y")}</option>
-                    <option value="degressive">{$translate("ui.value-decreases-by-a-percentage-eac-1g9op4c")}</option>
-                    <option value="fixed">{$translate("ui.value-remains-constant-1tdyxfv")}</option>
-                  </select>
-                </label>
-                {#if valuationType === 'linear'}
-                  <label>{$translate("ui.useful-life-years-jdfjkh")}
-                    <input type="number" min="0" step="1" inputmode="numeric" bind:value={durationYears}>
-                  </label>
-                {:else if valuationType === 'degressive'}
-                  <label>{$translate("ui.annual-loss-in-value-0-2-20-1h9ss42")}
-                    <input type="number" min="0" max="1" step="0.01" inputmode="decimal" bind:value={annualRate}>
-                  </label>
-                {/if}
                 <label>{$translate("ui.minimum-value-hzgo71")}
-                  <input type="number" min="0" step="0.01" inputmode="decimal" bind:value={minimumValue}>
+                  <input type="text" inputmode="decimal" autocomplete="off" bind:value={minimumValue} aria-invalid={!minimumValueValid}>
                 </label>
                 <label>{$translate("ui.categories-2lwhku")}
                   <input bind:value={tags} placeholder={$translate("ui.kitchen-electronics-yb541o")}>
@@ -510,6 +520,7 @@
                   <textarea bind:value={note}></textarea>
                 </label>
               </div>
+              {#if !minimumValueValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             </details>
           </div>
         {:else if dialog.type === 'itemMeta'}
@@ -540,7 +551,7 @@
         {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>{$translate("ui.save-sq2189")}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely} disabled={!deleteEligibility.allowed || $appState.readOnly}>{$translate("ui.delete-person-permanently-e06bgl")}</button>{/if}
         {#if dialog.type === 'itemAdd'}
-          <button on:click={saveItemDraft} disabled={!dateValid || $appState.readOnly}>{$translate("ui.save-as-draft-sz9zgy")}</button>
+          <button on:click={saveItemDraft} disabled={!dateValid || !minimumValueValid || $appState.readOnly}>{$translate("ui.save-as-draft-sz9zgy")}</button>
           <button class="primary" on:click={addItem} disabled={!canSubmitDated || $appState.readOnly}>{$translate("ui.create-zqi05d")}</button>
         {/if}
         {#if dialog.type === 'itemContinue'}<button class="primary" on:click={continueItem} disabled={!canSubmitDated || $appState.readOnly}>{$translate("ui.replace-and-archive-old-item-y6ooa2")}</button>{/if}
@@ -554,7 +565,8 @@
 
 <style>
   .item-entry-flow{display:grid;gap:16px;min-width:0}
-  .item-primary-fields{align-items:end}
+  .item-primary-fields,.item-valuation-fields{align-items:end}
+  .item-valuation-fields{padding:2px 0 6px}
   .item-ownership-fields{display:grid;gap:10px;padding-top:4px}
   .item-flow-heading{display:flex;align-items:center;gap:8px;font-size:14px}
   .item-purchase-preview{display:grid;gap:6px;background:var(--soft);border-radius:10px;padding:12px;font-size:12px}

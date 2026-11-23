@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { allocateCents } from '../src/lib/ledger.js';
+import { parseDecimal } from '../src/lib/i18n.js';
 
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -100,4 +101,44 @@ test('new fields have complete English and German translations', () => {
   ]) {
     assert.equal(strings.split('"' + key + '"').length - 1, 2, key);
   }
+});
+
+test('Q22: depreciation is always visible; optional details retain explicit open state', () => {
+  const dialog = source('ui-v3/DialogRouter.svelte');
+  const block = dialog.slice(
+    dialog.indexOf("{:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}"),
+    dialog.indexOf("{:else if dialog.type === 'itemMeta'}")
+  );
+  const visible = block.slice(0, block.indexOf('<section class="item-ownership-fields">'));
+  const extra = block.slice(block.indexOf('<details class="item-extra-fields"'));
+  for (const key of ['bind:value={valuationType}', 'bind:value={durationYears}', 'bind:value={annualRate}']) {
+    assert.ok(visible.includes(key), key);
+    assert.ok(!extra.includes(key), 'not hidden: ' + key);
+  }
+  assert.ok(visible.indexOf('bind:value={valuationType}') > visible.indexOf('bind:value={initialValue}'));
+  assert.ok(block.includes('<details class="item-extra-fields" bind:open={itemExtrasOpen}>'));
+  assert.ok(dialog.includes("itemExtrasOpen = dialog.type === 'itemContinue' || !!dialog.id"));
+  assert.ok(!block.includes("open={dialog.type === 'itemContinue' || !!dialog.id}"));
+  assert.ok(extra.includes('bind:value={minimumValue}'));
+  assert.ok(extra.includes('input type="text" inputmode="decimal"'));
+  assert.ok(dialog.includes('minimumValue: minimumValueAmount'));
+  assert.equal((dialog.match(/minimumValue: minimumValueAmount/g) || []).length, 3);
+  assert.ok(dialog.includes('minimumValueValid') && dialog.includes('aria-invalid={!minimumValueValid}'));
+  assert.equal(parseDecimal('12,48'), 12.48);
+  assert.equal(parseDecimal('0,07'), 0.07);
+  assert.ok(Number.isNaN(parseDecimal('12,345')));
+});
+
+test('Q22: existing purchase editing preserves a localized minimum and the focus ring is accessible', () => {
+  const editor = source('ui-v3/EventEditDialog.svelte');
+  assert.ok(editor.includes('bind:value={edited.valuation.type}'));
+  assert.ok(editor.includes('ui.how-does-the-value-change-16f9eit'));
+  assert.ok(editor.includes('bind:value={edited.valuation.minimumValue} aria-invalid={!minimumValid}'));
+  assert.ok(editor.includes('edited.valuation.minimumValue = minimumAmount'));
+  assert.ok(editor.includes('disabled={!minimumValid || $appState.readOnly}'));
+  const css = source('ui-v3/design.css');
+  assert.ok(css.includes('.modal-body input:focus-visible'));
+  assert.ok(css.includes('outline:2px solid #276f84'));
+  assert.ok(css.includes('.modal-body input[aria-invalid="true"]'));
+  assert.ok(css.includes('.modal-body input:disabled'));
 });

@@ -531,3 +531,33 @@ tr.clickable-row:hover td{background:#eef7f8}
   .time-travel-selected-text strong{font-size:12px}
   .time-travel-popover{padding:13px}
 }
+
+/* Item-entry/editor controls: quiet neutral borders, distinct hover/focus/error states. */
+.modal-body input:not([type="checkbox"]):not([type="radio"]),
+.modal-body select,
+.modal-body textarea {
+  border:1px solid #cbd5db;
+  border-radius:9px;
+  background:#fff;
+  box-shadow:none;
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+.modal-body label:focus-within{outline:none}
+.modal-body input:not(:disabled):hover,
+.modal-body select:not(:disabled):hover,
+.modal-body textarea:not(:disabled):hover{border-color:#91aab5}
+.modal-body input:focus-visible,
+.modal-body select:focus-visible,
+.modal-body textarea:focus-visible {
+  border-color:#276f84;
+  outline:2px solid #276f84;
+  outline-offset:2px;
+  box-shadow:0 0 0 3px rgba(39,111,132,.12);
+}
+.modal-body input[aria-invalid="true"],
+.modal-body input:user-invalid,
+.modal-body select:user-invalid,
+.modal-body textarea:user-invalid{border-color:var(--danger)}
+.modal-body input:disabled,
+.modal-body select:disabled,
+.modal-body textarea:disabled{background:#eef2f4;color:#677986;opacity:1;cursor:not-allowed}
