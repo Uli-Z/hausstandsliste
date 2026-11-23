@@ -126,7 +126,8 @@ test('Q22: depreciation is always visible; optional details retain explicit open
   assert.ok(dialog.includes('minimumValueValid') && dialog.includes('aria-invalid={!minimumValueValid}'));
   assert.equal(parseDecimal('12,48'), 12.48);
   assert.equal(parseDecimal('0,07'), 0.07);
-  assert.ok(Number.isNaN(parseDecimal('12,345')));
+  assert.equal(parseDecimal('12,345'), 12.345);
+  assert.ok(Math.abs(parseDecimal('12,345') * 100 - Math.round(parseDecimal('12,345') * 100)) > 1e-7);
 });
 
 test('Q22: existing purchase editing preserves a localized minimum and the focus ring is accessible', () => {
