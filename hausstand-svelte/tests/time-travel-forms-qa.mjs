@@ -75,7 +75,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await nav('Gegenstände').click();
     await page.locator('.item-tile').filter({hasText:'Zeitreise-Lampe'}).locator('.tile-open').click();
     await page.getByRole('button',{name:'Eigentumsanteile ändern'}).click();
-    assert.equal(await dateField.inputValue(),'2031-01-15');
+    assert.equal(await dateField.inputValue(),'2031-01-15', 'share editor starts on the lamp purchase date');
     await dateField.fill('2031-02-01');
     await dialog.locator('.share-row input[type="number"]').first().fill('2');
     await dialog.locator('.modal-footer .primary').click();
@@ -93,7 +93,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
 
     await nav('Personen').click();
     await page.locator('.page-heading button').first().click();
-    assert.equal(await dateField.inputValue(),'2031-01-15');
+    assert.equal(await dateField.inputValue(),'2031-03-01', 'new person inherits the latest cutoff after archiving');
     await dateField.fill('2032-03-11');
     await dialog.locator('.person-name-field input').fill('Carla');
     await dialog.locator('.modal-footer .primary').click();
