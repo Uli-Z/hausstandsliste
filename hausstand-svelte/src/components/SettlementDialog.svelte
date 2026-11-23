@@ -25,7 +25,7 @@
     : null;
   $: if (dialog && dialog !== initializedFor) {
     initializedFor = dialog;
-    date = original?.date || todayISO();
+    date = original?.date || asOfDate || todayISO();
     payer = original?.debtorPersonId || dialog.payerPersonId || '';
     recipient = original?.creditorPersonId || dialog.recipientPersonId || '';
     amount = original ? (original.amountCents / 100).toFixed(2).replace('.', ',')
@@ -78,7 +78,7 @@
       } else busy = false;
     } catch (error) {
       busy = false;
-      alert('Ausgleich nicht gespeichert: ' + error.message);
+      alert($translate("ui.settlement-was-not-saved-1tbmhev") + " " + error.message);
     }
   }
 
@@ -98,7 +98,7 @@
 <div class="modal-backdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-label={editing ? $translate("ui.edit-settlement-ok356z") : $translate("ui.record-settlement-1vfcczq")} style="max-width:560px" on:keydown={event => { if (event.key === 'Escape') close(); }}>
     <div class="modal-header">
-      <div class="dialog-title"><h3>{editing ? $translate("ui.edit-settlement-ok356z") : kind === 'paid' ? $translate("ui.record-payment-10dyeok") : $translate("ui.record-settlement-1vfcczq")}</h3><HelpTip label={$translate("ui.what-happens-when-recording-this-ni3kz3")}>{kind === 'paid' ? $translate("ui.record-a-payment-that-has-already-h-fwt66e") : $translate("ui.record-a-non-cash-settlement-withou-1obvpjx")} Eigentumsanteile ändern sich dadurch nicht. Die Buchung bleibt im Verlauf bearbeitbar und löschbar.</HelpTip></div>
+      <div class="dialog-title"><h3>{editing ? $translate("ui.edit-settlement-ok356z") : kind === 'paid' ? $translate("ui.record-payment-10dyeok") : $translate("ui.record-settlement-1vfcczq")}</h3><HelpTip label={$translate("ui.what-happens-when-recording-this-ni3kz3")}>{kind === 'paid' ? $translate("ui.record-a-payment-that-has-already-h-fwt66e") : $translate("ui.record-a-non-cash-settlement-withou-1obvpjx")} {$translate("ui.ownership-shares-do-not-change-the--16v4sx")}</HelpTip></div>
       <button class="ghost" type="button" aria-label={$translate("ui.close-1qnddid")} on:click={close}>×</button>
     </div>
     <form class="settlement-form" on:submit|preventDefault={save}>
@@ -124,7 +124,7 @@
           <label>{$translate(kind === 'paid' ? 'settlement.paid' : 'settlement.amount')}
             <input type="text" inputmode="decimal" placeholder="0,00" bind:value={amount} autocomplete="off"/>
           </label>
-          <label>{kind === 'paid' ? 'Zahlungsdatum' : $translate("ui.settlement-date-fw9ncy")}
+          <label>{$translate(kind === 'paid' ? 'settlement.paymentDate' : 'ui.settlement-date-fw9ncy')}
             <input type="date" bind:value={date}/>
           </label>
           <label class="wide">{$translate("ui.note-optional-78uues")}
