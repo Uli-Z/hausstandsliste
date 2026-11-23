@@ -31,7 +31,10 @@ test('normal today advances overnight while selected past/future dates remain fi
     const selected = selectAsOfDate(base, date);
     assert.equal(selected.timeTravelActive, true);
     assert.equal(syncCalendarDay(selected, '2026-12-06'), selected);
-    assert.equal(dismissDatePicker(selected), selected);
+    assert.equal(dismissDatePicker(selected), selected, 'closed date menu stays closed after programmatic selection');
+    const selectedFromOpenMenu = selectAsOfDate(openDatePicker(base), date);
+    assert.equal(selectedFromOpenMenu.datePickerOpen, true);
+    assert.deepEqual(dismissDatePicker(selectedFromOpenMenu), { ...selectedFromOpenMenu, datePickerOpen: false });
     assert.deepEqual(returnToToday(selected, '2026-12-06'), { ...base, asOfDate: '2026-12-06' });
   }
   assert.equal(syncCalendarDay(base, 'invalid'), base);
@@ -62,6 +65,10 @@ test('no global arrow date shortcut; editing preserves the original event date',
   const edit = readFileSync(new URL('../ui-v3/EventEditDialog.svelte', import.meta.url), 'utf8');
   assert.doesNotMatch(app, /e\.key\s*===\s*'Arrow(Left|Right)'/);
   assert.match(app, /appState\.openDatePicker\(\)/);
+  assert.match(app, /class="time-travel-popover"/);
+  assert.match(app, /class:header-in-time-travel=/);
+  assert.match(app, /class="time-travel-selected-text"/);
+  assert.doesNotMatch(app, /class="date-toolbar"/);
   assert.match(app, /appState\.exitTimeTravel\(\)/);
   assert.match(edit, /edited\s*=\s*clone\(event\)/);
   assert.match(edit, /bind:value=\{edited\.date\}/);
