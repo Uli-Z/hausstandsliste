@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createPortableSave, readPortableVersion, getVersionEntries, hasProjectChanges
+  createPortableSave, readPortableVersion, getVersionEntries, hasProjectChanges, mergeLegacyVersions
 } from '../src/lib/versionHistory.js';
 import { encryptProject, decryptProject } from '../src/lib/crypto.js';
 
@@ -75,4 +75,34 @@ test('imported legacy JSON has no archive and an unknown timestamp', async () =>
   const newer = await createPortableSave({ ...legacy, people: [{ id: 'p', name: 'N' }] }, legacy);
   assert.equal(newer.versionHistory.entries[0].savedAt, null);
   assert.equal((await readPortableVersion(newer, newer.versionHistory.entries[0].id)).people.length, 0);
+});
+
+test('legacy PHP snapshots migrate in order and remain portable without a second server archive', async () => {
+  const source = 'cafecafe-1234-4567-8888-aabbccddeeff';
+  const old = project('earliest');
+  const middle = project('middle');
+  const latest = await createPortableSave(project('latest'), null, '2026-11-23T10:00:00Z');
+  const migrated = await mergeLegacyVersions(latest, [
+    { revision: 3, project: latest, createdAt: '2026-11-23T10:00:00Z' },
+    { revision: 1, project: old, createdAt: '2026-11-20T10:00:00Z' },
+    { revision: 2, project: middle, createdAt: '2026-11-21T10:00:00Z' }
+  ], source, latest);
+  const entries = getVersionEntries(migrated);
+  assert.equal(entries.length, 2);
+  assert.equal(entries[0].id, 'legacy-' + source + '-1');
+  assert.equal(entries[1].id, 'legacy-' + source + '-2');
+  assert.equal((await readPortableVersion(migrated, entries[0].id)).community.name, 'earliest');
+  const saved = await createPortableSave(migrated, latest, '2026-11-23T11:00:00Z');
+  assert.equal(saved.versionHistory.entries.length, 2, 'Archive-only save must not create an extra snapshot');
+  assert.equal((await readPortableVersion(saved, entries[1].id)).community.name, 'middle');
+  const repeated = await mergeLegacyVersions(saved, [
+    { revision: 1, project: old }, { revision: 2, project: middle }, { revision: 3, project: latest }
+  ], source, latest);
+  assert.equal(repeated.versionHistory.entries.length, 2, 'Migration must be idempotent');
+});
+
+test('a missing previously saved history entry blocks download instead of deleting history', async () => {
+  const a = await createPortableSave(project('A'), null);
+  const b = await createPortableSave({ ...a, community: { name: 'B' } }, a);
+  await assert.rejects(() => createPortableSave({ ...b, versionHistory: { format: 'portable-v1', entries: [] } }, b), /unvollständig/);
 });
