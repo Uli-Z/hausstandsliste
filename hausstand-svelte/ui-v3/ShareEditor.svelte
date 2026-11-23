@@ -8,7 +8,9 @@
   function removeShare(personId) { const next = { ...shares }; delete next[personId]; shares = next; }
   function addPerson(personId) { if (!personId) return; shares = { ...shares, [personId]: shares[personId] || 1 }; }
   $: positiveOwnerCount = Object.keys(normShares(shares)).length;
-  $: available = people.filter(p => !(p.id in shares));
+  // Existing ownership rows may include inactive people, but new allocations
+  // must choose someone participating on the event's effective date.
+  $: available = people.filter(p => p.active !== false && !(p.id in shares));
 </script>
 <div class="stack">
   {#each Object.entries(shares) as [personId, units]}
