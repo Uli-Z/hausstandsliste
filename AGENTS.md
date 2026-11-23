@@ -48,4 +48,4 @@ After every change, inspect the GitHub Actions runs for the exact commit. CI suc
 - [Security](docs/SECURITY-AND-ENCRYPTION.md)
 - [Terminology and future localization](docs/LANGUAGE-AND-TERMINOLOGY.md)
 
-**Open major tasks:** Q10 compact time-travel UI, Q11 browser/hosting acceptance of the portable file, Q12 session Undo/Redo, Q13 English/German localization.
+**Open major tasks:** Q10 compact time-travel UI, Q11 additional browser/hosting acceptance of the portable file, Q13 English/German localization. Q12 session Undo/Redo is implemented and tested.

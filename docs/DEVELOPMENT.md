@@ -24,6 +24,22 @@ The Node test suite under `tests/` covers historical ownership and event order, 
 
 Only the **current** file schema is supported. Imported project JSON must have `schemaVersion: 1`, `currency: EUR`, `lastSavedAt` and embedded `versionHistory`; unsupported files must be rejected. No alternative historical file formats or PHP version archives are supported.
 
+## Automated browser acceptance (Chromium)
+
+The separate [Browser acceptance QA](../.github/workflows/browser-qa.yml) workflow builds offline HTML and PHP, installs Playwright/Chromium, and runs `node tests/browser-qa.mjs`. It exercises financial balances, payment entry, Ctrl+Z/Ctrl+Y, downloading and reopening a portable project in another browser context, Restore, narrow mobile layout, and two-browser encrypted PHP checkout/revision conflict handling.
+
+To execute locally with browser dependencies already installed:
+
+```bash
+npm install --no-save --package-lock=false playwright@1.65.1
+npx playwright install chromium
+npm run build:single
+npm run build:php
+npm run test:browser
+```
+
+Only the Chromium-specific successful parts from an actual workflow run may be claimed verified. Browser-engine diversity, real mobile devices and real HTTPS/PHP deployment remain additional checks.
+
 ## Manual browser acceptance (still necessary)
 
 1. Create three people and purchase a €300 shared item paid for by Anna, split equally. Anna should show +€200, the other two -€100 each. Record Ben paying €60; confirm updated net group positions. Complete the remaining payments, then test partial and excess payments.

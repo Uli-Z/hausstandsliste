@@ -15,6 +15,7 @@ Unlike a shared expense tracker, Hausstandsliste focuses on **ownership rather t
 - Derive financial claims and personal group balances from purchases, financing, and compensated ownership transfers.
 - Suggest settlement routes and record, edit, or remove **payments that have actually occurred**, including partial payments and overpayments.
 - Import/export project JSON, use the app locally, or deploy a separately configured encrypted PHP version.
+- Undo/Redo up to 50 steps per session (Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z) without adding file archive entries.
 
 **Ownership is separate from payment.** Executing an ownership transfer does not itself record a payment. A recorded payment is an independent, dated event and does not change any ownership shares. Corrections to past purchases recalculate derived claims but do not silently rewrite historical payments.
 
@@ -65,7 +66,7 @@ User-facing localization will not change the current file-format or event identi
 
 The event-driven financial model derives claims from compensated ownership events instead of storing a second list of claims or paid/unpaid checkboxes. Independent settlement events contribute opposing claims, including when a payment exceeds the original balance. The primary finance view shows **personal group balances** and suggested settlement routes; the original transactions remain auditable. The financial core is in `hausstand-svelte/src/lib/ledger.js` and `hausstand-svelte/src/lib/claimSettlement.js`.
 
-As of **23 November 2026**, the [current verified CI run](https://github.com/Uli-Z/hausstandsliste/actions/runs/45144140944) passed **96 automated tests**, the sole UI's offline HTML build, PHP build/lint and PHP API smoke tests. Full interactive browser, mobile, JSON round-trip, external hosting, email delivery, and independent security acceptance remain open; see the [to-do list](docs/WG-PRAXIS-TODO.md).
+As of **23 November 2026**, JS, PHP and standalone CI passes are supplemented by [real Chromium browser acceptance](https://github.com/Uli-Z/hausstandsliste/actions/runs/45148794074) for local file download, new-browser import/Restore, session Undo/Redo, responsive 375px finance UI, and two-browser encrypted PHP checkout/concurrency. Other engines/physical devices, real HTTPS hosting, mail delivery and independent security review are not yet accepted; consult the [to-do list](docs/WG-PRAXIS-TODO.md).
 
 The GitHub Pages workflow and the manual [PHP release workflow](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml) are separate. If Pages has not been enabled on this repository, an administrator must select **Settings → Pages → Source: GitHub Actions**. For downloads, open a successful [Svelte app checks](https://github.com/Uli-Z/hausstandsliste/actions/workflows/ci.yml) run and get the `hausstand-standalone` artifact. The generated files are not committed to `dist/`.
 

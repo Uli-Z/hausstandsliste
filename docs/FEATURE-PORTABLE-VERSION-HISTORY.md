@@ -1,6 +1,6 @@
 # Portable in-file version history
 
-**Status:** Implemented in source for the sole Svelte UI and PHP API, with automated tests. Interactive cross-browser and real-hosting acceptance are still open (Q11). Session Undo/Redo remains a separate planned feature (Q12).
+**Status:** Implemented in source for the sole Svelte UI and PHP API, with automated tests. Interactive cross-browser and real-hosting acceptance are still open (Q11). Session Undo/Redo has been implemented and tested independently (Q12).
 
 ## One current project format
 
@@ -27,7 +27,7 @@ There is **one supported import format**: current project JSON with this embedde
 
 ## Saving and restoring
 
-Only explicit **Save** operations create file versions. Editing, navigation, date-travel and session-level Undo/Redo do not create versions.
+Only explicit **Save** operations create file versions. Editing, navigation, date-travel and session-level Undo/Redo do not create versions. A 50-step in-memory Undo stack (Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z) survives Save but not a new session, import, project switch or archived-version Restore. Native text-input Undo is not intercepted.
 
 - **Local HTML:** Save downloads the full JSON file, including its portable history. The browser usually cannot overwrite the previously downloaded path; a browser working copy is not a substitute for keeping the file.
 - **Encrypted local:** the browser encrypts the entire document, including its complete history; no plaintext history is cached.
@@ -35,6 +35,10 @@ Only explicit **Save** operations create file versions. Editing, navigation, dat
 - **Restore:** selecting an archive entry loads its contents as an **unsaved editable working state**. The embedded archive is retained. The next explicit Save archives the previous current file and makes the restored state current.
 
 The PHP backend swaps a server-generated current file and metadata pointer to avoid exposing a partially saved revision. Optional encrypted email backups are independent recovery media, not the primary version history. Already-sent email attachments cannot be retroactively re-encrypted by a password change.
+
+## Automated browser QA
+
+[Chromium integration run 45148794074](https://github.com/Uli-Z/hausstandsliste/actions/runs/45148794074) verified local purchase/payment/Undo, JSON download into a fresh browser context, embedded version Restore, 375px layout, and two-browser encrypted PHP create/open/checkout/Save/stale-revision protection. Browser automation lives in `tests/browser-qa.mjs` and [the separate CI workflow](../.github/workflows/browser-qa.yml); an encrypted local-file cross-context roundtrip is also covered by its latest test source.
 
 ## Remaining acceptance
 

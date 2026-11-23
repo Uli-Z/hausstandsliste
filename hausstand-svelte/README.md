@@ -30,6 +30,7 @@ node server-php/smoke.mjs
 - `src/lib/ledger.js`, `claimSettlement.js`: personal net positions and independent counterclaim/payment events.
 - `src/lib/redistribution.js` and `valuation.js`: ownership changes and depreciation.
 - `src/lib/persistence.js`, `versionHistory.js`, `crypto.js`: local working copy, **embedded compressed file history**, and browser-side encryption.
+- `src/lib/sessionUndo.js`: bounded in-memory undo/redo and keyboard shortcut policy; never serialized into project files.
 - `server-php/backend.php`: one encrypted current document per project, technical revision checking, checkout/lease and optional encrypted email copies.
 - `tests/`: Node domain tests and PHP smoke test.
 
@@ -39,6 +40,6 @@ Only the **current portable project schema** is accepted for file import. The cu
 
 Changes to the current project are not equivalent to bank transfers. A payment event records an actual completed payment or an explicitly noncash adjustment; ownership and balances are derived separately. See [Community settlement](../docs/FEATURE-COMMUNAL-SETTLEMENT.md).
 
-Unencrypted local working copies are a convenience, **not durable backups**. Protected data is never intentionally cached in plaintext. The file must be saved explicitly. Real PHP hosting and browsers must be tested before production; see [Build variants](../docs/BUILD-VARIANTS.md), [Security](../docs/SECURITY-AND-ENCRYPTION.md), and [To-do list](../docs/WG-PRAXIS-TODO.md).
+Unencrypted local working copies are a convenience, **not durable backups**. Protected data is never intentionally cached in plaintext. The file must be saved explicitly. Automated Chromium browser QA is present; real hosting and independent browser/device/security reviews must still be tested before production; see [Build variants](../docs/BUILD-VARIANTS.md), [Security](../docs/SECURITY-AND-ENCRYPTION.md), and [To-do list](../docs/WG-PRAXIS-TODO.md).
 
 The default interface language is currently German. English-first localization is a separate open task; see [terminology](../docs/LANGUAGE-AND-TERMINOLOGY.md).
