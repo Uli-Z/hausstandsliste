@@ -5,6 +5,7 @@
   import { dateDE } from '../src/lib/util.js';
   import BalanceBreakdown from '../src/components/BalanceBreakdown.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
+  import ActionIcon from '../src/components/ActionIcon.svelte';
 
   export let project;
   export let data;
@@ -57,7 +58,7 @@
                 <strong>{personName(transfer.fromPersonId)} zahlt an {personName(transfer.toPersonId)}</strong>
               </div>
               <strong class="transfer-amount">{money(transfer.amountCents / 100)}</strong>
-              <button class="primary transfer-action" type="button" on:click={() => addSettlement(transfer)} disabled={$appState.readOnly}>{$translate("app.settle")}</button>
+              <button class="primary transfer-action" type="button" on:click={() => addSettlement(transfer)} disabled={$appState.readOnly}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
             </div>
           {/each}
         </div>
@@ -92,7 +93,7 @@
       <div>
         <strong>{$translate("ui.another-payment-18vryrc")}</strong>
       </div>
-      <button type="button" on:click={() => addSettlement()} disabled={$appState.readOnly}>{$translate("ui.record-payment-clxxpv")}</button>
+      <button type="button" on:click={() => addSettlement()} disabled={$appState.readOnly}><ActionIcon name="plus" size={17}/>{$translate("ui.record-payment-clxxpv")}</button>
     </div>
 
     {#if data.warnings?.length}
@@ -112,7 +113,7 @@
                   {#if eventById.get(entry.sourceEventId)?.note}<span>{eventById.get(entry.sourceEventId).note}</span>{/if}
                 </div>
                 <strong class="audit-amount">{money(entry.amountCents / 100)}</strong>
-                <button class="audit-edit" type="button" on:click={() => appState.setDialog({type:'settlementEdit',eventId:entry.sourceEventId})}>{$translate("ui.edit-m49ms0")}</button>
+                <button class="audit-edit" type="button" on:click={() => appState.setDialog({type:'settlementEdit',eventId:entry.sourceEventId})}><ActionIcon name="edit" size={16}/>{$translate("ui.edit-m49ms0")}</button>
               </div>
             {/each}
           </div>
@@ -157,7 +158,7 @@
   .transfer-row:last-child{border-bottom:0}
   .transfer-people strong{font-size:14px;font-weight:650}
   .transfer-amount,.audit-amount{font-variant-numeric:tabular-nums;white-space:nowrap;font-size:15px}
-  .transfer-action{min-height:40px;min-width:106px}
+  .transfer-action{min-height:40px;min-width:106px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
   .settled-message{margin:0;padding:16px;border:1px solid var(--border);border-radius:11px;color:var(--muted)}
   .person-balance-row{border-bottom:1px solid var(--border)}
   .person-balance-row summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:16px;padding:15px 4px;justify-content:space-between}
@@ -172,7 +173,7 @@
   .manual-payment{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:17px 18px;border:1px solid var(--border);border-radius:13px}
   .manual-payment strong{font-size:13px}
   .manual-payment p{font-size:12px;margin:4px 0 0;color:var(--muted);line-height:1.5}
-  .manual-payment button{flex:none;min-height:40px}
+  .manual-payment button{flex:none;min-height:40px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
   .audit-area{border-top:1px solid var(--border);padding-top:6px}
   .audit-disclosure{border-bottom:1px solid var(--border);padding:14px 0}
   .audit-disclosure summary{cursor:pointer;list-style:none;font-size:13px;font-weight:650;display:flex;align-items:center;gap:9px;min-height:30px}
@@ -185,7 +186,7 @@
   .audit-main strong{font-size:13px}
   .audit-main span{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
   .audit-amount{font-size:13px}
-  .audit-edit{font-size:12px;min-height:38px}
+  .audit-edit{font-size:12px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
   @media(max-width:620px){
     .transfer-row{grid-template-columns:minmax(0,1fr) auto;gap:10px}
     .transfer-action{grid-column:1/-1;justify-self:stretch;min-height:46px}
