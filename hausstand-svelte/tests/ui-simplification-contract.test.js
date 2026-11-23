@@ -41,3 +41,31 @@ test('people keep directional balances and a link to detail without an idle coun
   assert.ok(people.includes("appState.setRoute({page:'person',id:person.id})"));
   assert.ok(people.includes("pluralMessage('people.itemCount'"));
 });
+
+
+test('item detail has one back control, prominent ownership and collapsible advanced actions', () => {
+  const item = source('ui-v3/ItemDetail.svelte');
+  assert.ok(!item.includes('class="breadcrumb"'));
+  assert.ok(item.includes('item-core-facts'));
+  assert.ok(item.includes('<details class="valuation-detail">'));
+  assert.ok(item.includes('<details class="secondary-actions">'));
+  assert.ok(item.includes('class="panel-header ownership-header"'));
+  assert.ok(item.includes("type: 'shareSet', itemId: item.id"));
+  assert.ok(item.includes("type: 'itemContinue', itemId: item.id"));
+  assert.ok(item.includes('itemClaims.length'));
+  assert.ok(item.includes('<Timeline project='));
+});
+
+test('person detail puts the personal balance and settlement first, without losing any actions', () => {
+  const person = source('ui-v3/PersonDetail.svelte');
+  assert.ok(!person.includes('class="breadcrumb"'));
+  assert.ok(person.includes('person-core-facts'));
+  assert.ok(person.includes('<details class="secondary-actions">'));
+  assert.ok(person.includes("type: 'personMeta', personId: person.id"));
+  assert.ok(person.includes("type:'personStatus'"));
+  assert.ok(person.includes('on:click={startTransfer}'));
+  assert.ok(person.includes('on:click={startDissolve}'));
+  assert.ok(person.indexOf('ui.settlement-options-1u5xuy7') < person.indexOf('ui.balance-breakdown-kyjlab'));
+  assert.ok(person.includes('<BalanceBreakdown detail={balanceDetail} {balanceCents}/>'));
+  assert.ok(person.includes('<Timeline project='));
+});
