@@ -64,6 +64,11 @@ button{border-radius:10px}
 .metric span{color:#6c7f8c;font-size:12px}.metric strong{font-size:clamp(23px,2.35vw,31px);font-weight:760;letter-spacing:-.045em;font-variant-numeric:tabular-nums;color:#183748;line-height:1.25}.metric small{color:#90a0a9;font-size:11px}
 .overview-layout{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start;margin-bottom:18px}
 .overview-layout.second-row.only-recent{grid-template-columns:minmax(0,1fr)}
+.settings-advanced>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;color:#276f84;font-size:15px;font-weight:700}
+.settings-advanced>summary:focus-visible{outline:2px solid #276f84;outline-offset:4px}
+.settings-advanced-body{display:grid;gap:18px;padding-top:12px}
+.setting-advanced-block+.setting-advanced-block{border-top:1px solid #e6ecef;padding-top:18px}
+.setting-advanced-block .section-header{margin-bottom:12px}
 .ux-panel,.panel{background:#fff;border:1px solid var(--border);border-radius:17px;box-shadow:var(--shadow);overflow:hidden}
 .ux-panel{padding:23px}.section-header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:19px}
 .section-header h2{font-size:17px;font-weight:725;letter-spacing:-.025em;margin:5px 0 0}
