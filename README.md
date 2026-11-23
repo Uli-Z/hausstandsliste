@@ -10,7 +10,7 @@ Unlike a shared expense tracker, Hausstandsliste focuses on **ownership rather t
 
 - Manage people, items, tags, and relative ownership shares.
 - Value items using linear depreciation, declining-balance depreciation, or a fixed value.
-- Reconstruct ownership, item value, and membership at historical dates using an event timeline.
+- Reconstruct ownership, item value, and membership at historical or future dates. Optional time travel opens from the header and closes with Back to today.
 - Preview, save drafts of, and execute ownership transfers.
 - Derive financial claims and personal group balances from purchases, financing, and compensated ownership transfers.
 - Suggest settlement routes and record, edit, or remove **payments that have actually occurred**, including partial payments and overpayments.
@@ -58,7 +58,7 @@ An encrypted email backup mechanism is implemented in PHP, but delivery against 
 
 The official product name is **Hausstandsliste**. Its English descriptor is **Shared Ownership Tracker**. Use those names in product titles, repository introductions, and release descriptions.
 
-**Language migration status:** the main READMEs and product-language guidance are in English; the current user-interface copy and most older technical documents remain in German. English as the default UI language, automatic German selection from the browser language, and a manual language override are **planned, not yet implemented**. The current HTML documents retain `lang="de"` while their actual UI content is German. See [Language and terminology](docs/LANGUAGE-AND-TERMINOLOGY.md) and task Q13 in the [to-do list](docs/WG-PRAXIS-TODO.md).
+**Language status:** English fallback, automatic German selection for German-language browsers, and a browser-local manual override are implemented. Final copy/accessibility and other-browser audits remain open under Q13; older technical documents are tracked under Q08. See [Language and terminology](docs/LANGUAGE-AND-TERMINOLOGY.md) and the [to-do list](docs/WG-PRAXIS-TODO.md).
 
 User-facing localization will not change the current file-format or event identifiers. Only the current portable project schema is supported.
 
