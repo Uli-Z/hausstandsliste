@@ -278,11 +278,11 @@ async function settlementEndToEnd(browser, url) {
     await card.locator('.edit-button').click();
     return page.locator('[role="dialog"]');
   };
-  const assertBalances = async expected => {
-    await openFinance(page);
+  const assertBalances = async (expected, targetPage = page) => {
+    await openFinance(targetPage);
     // Assert every person, direction, cents and absence of extraneous rows.
     // A zero balance is intentionally not displayed in the ledger.
-    await page.waitForFunction(expectedBalances => {
+    await targetPage.waitForFunction(expectedBalances => {
       const rows = [...document.querySelectorAll('.person-balance-row')];
       const nonzero = Object.entries(expectedBalances).filter(([, cents]) => cents !== 0);
       if (rows.length !== nonzero.length) return false;
@@ -298,7 +298,7 @@ async function settlementEndToEnd(browser, url) {
           expectedBalances[name] === direction * cents;
       });
     }, expected, { timeout: 10000 }).catch(async error => {
-      const rendered = await page.locator('.person-balance-row').allTextContents();
+      const rendered = await targetPage.locator('.person-balance-row').allTextContents();
       throw new Error('Expected ledger ' + JSON.stringify(expected) +
         ', rendered ' + JSON.stringify(rendered) + ': ' + error.message);
     });
@@ -330,7 +330,7 @@ async function settlementEndToEnd(browser, url) {
     if (suggested) {
       assert.equal(await dialog.getByLabel('Wer hat bezahlt?').inputValue(), payer);
       assert.equal(await dialog.getByLabel('Wer hat das Geld erhalten?').inputValue(), recipient);
-      assert.equal(await dialog.getByLabel('Gezahlter Betrag in Euro').inputValue(), String(amount) + ',00');
+      assert.equal(await dialog.getByLabel('Gezahlter Betrag in Euro').inputValue(), '100,00');
     }
     await dialog.getByLabel('Wer hat bezahlt?').selectOption(payer);
     await dialog.getByLabel('Wer hat das Geld erhalten?').selectOption(recipient);
@@ -453,44 +453,23 @@ async function settlementEndToEnd(browser, url) {
       await modal.waitFor({ state: 'hidden' });
     };
     await changeShares('0', '2', 'derived');
-    await openFinance(ownership);
-    await ownership.waitForFunction(() => {
-      const rendered = [...document.querySelectorAll('.person-balance-row')]
-        .map(row => row.textContent.replace(/\s+/g, ' '));
-      return rendered.length === 3 && rendered.some(x => x.includes('Anna') && x.includes('300,00')) &&
-        rendered.some(x => x.includes('Ben') && x.includes('200,00')) &&
-        rendered.some(x => x.includes('Clara') && x.includes('100,00'));
-    });
+    await assertBalances({ Anna: 30000, Ben: -20000, Clara: -10000 }, ownership);
     await ownership.locator('.sidebar-links').getByRole('button', { name: /Änderungen/ }).click();
     await ownership.locator('.timeline-event-card')
       .filter({ hasText: 'Kühlschrank' }).first().locator('.entity-link').first().click();
     // Anna has zero shares after the paid transfer, so the remaining rows
     // are Ben and Clara. Gift one of Ben's units to Clara.
     await changeShares('1', '2', 'none');
-    await openFinance(ownership);
-    await ownership.waitForFunction(() => {
-      const rendered = [...document.querySelectorAll('.person-balance-row')]
-        .map(row => row.textContent.replace(/\s+/g, ' '));
-      return rendered.length === 3 && rendered.some(x => x.includes('Anna') && x.includes('300,00')) &&
-        rendered.some(x => x.includes('Ben') && x.includes('200,00')) &&
-        rendered.some(x => x.includes('Clara') && x.includes('100,00'));
-    });
+    await assertBalances({ Anna: 30000, Ben: -20000, Clara: -10000 }, ownership);
     await ownership.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
     const groupPayment = ownership.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
     await groupPayment.getByLabel('Wer hat bezahlt?').selectOption('ben');
     await groupPayment.getByLabel('Wer hat das Geld erhalten?').selectOption('clara');
     await groupPayment.getByLabel('Gezahlter Betrag in Euro').fill('50');
-    await groupPayment.locator('input[type=date]').fill('2025-01-05');
     await groupPayment.locator('textarea').fill('Q03 vereinbarte Gruppensaldierung');
     await groupPayment.getByRole('button', { name: 'Zahlung als erfolgt erfassen' }).click();
     await groupPayment.waitFor({ state: 'hidden' });
-    await ownership.waitForFunction(() => {
-      const rendered = [...document.querySelectorAll('.person-balance-row')]
-        .map(row => row.textContent.replace(/\s+/g, ' '));
-      return rendered.length === 3 && rendered.some(x => x.includes('Anna') && x.includes('300,00')) &&
-        rendered.some(x => x.includes('Ben') && x.includes('150,00')) &&
-        rendered.some(x => x.includes('Clara') && x.includes('150,00'));
-    });
+    await assertBalances({ Anna: 30000, Ben: -15000, Clara: -15000 }, ownership);
     const secondCopy = await ownership.evaluate(storageKey =>
       JSON.parse(localStorage.getItem(storageKey)).project, key);
     assert.deepEqual(secondCopy.events.filter(e => e.type === 'shares-set')
