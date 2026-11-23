@@ -1,6 +1,6 @@
 <script>
   import { onMount, tick } from 'svelte';
-  import { locale, languagePreference, setLanguage, translate, pluralMessage } from '../src/lib/i18n.js';
+  import { locale, languagePreference, setLanguage, translate, pluralMessage, formatDate } from '../src/lib/i18n.js';
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
@@ -36,6 +36,8 @@
   let saveMessage = '';
   let saveMessageError = false;
   let feedbackTimer;
+  let timeTravelControl;
+  let dateToggleButton;
   function dismissFeedback() {
     if (feedbackTimer) window.clearTimeout(feedbackTimer);
     feedbackTimer = undefined;
@@ -102,6 +104,7 @@
     return e.title || e.note || 'Änderung';
   }
   function navigate(id) {
+    appState.dismissDatePicker();
     dismissFeedback();
     mobileMoreOpen = false;
     activeSection = id;
@@ -119,9 +122,26 @@
     event.returnValue = '';
   }
   async function showDatePicker() {
+    if ($appState.datePickerOpen) {
+      appState.dismissDatePicker();
+      return;
+    }
     appState.openDatePicker();
     await tick();
     document.getElementById('state-date')?.focus();
+  }
+  function dismissPicker(restoreFocus = false) {
+    appState.dismissDatePicker();
+    if (restoreFocus) tick().then(() => dateToggleButton?.focus());
+  }
+  function handleOutsidePointer(event) {
+    if ($appState.datePickerOpen && !timeTravelControl?.contains(event.target)) {
+      appState.dismissDatePicker();
+    }
+  }
+  function returnToday() {
+    appState.exitTimeTravel();
+    tick().then(() => dateToggleButton?.focus());
   }
   function handleKeydown(e) {
     const shortcut = historyShortcut(e, !!$appState.activeDialog);
@@ -131,7 +151,7 @@
       return;
     }
     if (e.key === 'Escape' && mobileMoreOpen) { mobileMoreOpen = false; return; }
-    if (e.key === 'Escape' && $appState.datePickerOpen && !$appState.timeTravelActive) appState.dismissDatePicker();
+    if (e.key === 'Escape' && $appState.datePickerOpen) { e.preventDefault(); dismissPicker(true); }
   }
   async function importFile(event) {
     const input = event.currentTarget;
@@ -183,7 +203,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} on:beforeunload={warnUnsavedBeforeLeaving} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
+<svelte:window on:keydown={handleKeydown} on:pointerdown={handleOutsidePointer} on:beforeunload={warnUnsavedBeforeLeaving} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
 
 <div class="app-shell">
   <aside class="sidebar" aria-label="Hauptnavigation">
@@ -207,13 +227,55 @@
   </aside>
 
   <div class="main-column">
-    <header class="app-header">
+    <header class="app-header" class:header-in-time-travel={$appState.timeTravelActive}>
       <div class="header-context">
         
         <strong><span class="mobile-header-brand">Hausstandsliste · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
       </div>
       <div class="header-actions">
-        <button type="button" class="time-travel-toggle" aria-label={$translate('app.openTimeTravel')} title={$translate('app.openTimeTravel')} aria-expanded={$appState.datePickerOpen || $appState.timeTravelActive} aria-controls="time-travel-panel" aria-pressed={$appState.timeTravelActive} on:click={showDatePicker}><ActionIcon name="clock" size={19}/><span class="time-travel-toggle-label">{$translate('app.timeTravel')}</span></button>
+        <div class="time-travel-control" bind:this={timeTravelControl}>
+          <button type="button" class="time-travel-toggle" class:time-travel-selected={$appState.timeTravelActive}
+            data-period={dateMode} bind:this={dateToggleButton}
+            aria-label={$appState.timeTravelActive
+              ? $translate('app.openTimeTravel') + ': ' + formatDate($appState.asOfDate, $locale) + ' · ' + $translate(dateMode === 'past' ? 'app.past' : dateMode === 'future' ? 'app.future' : 'app.today')
+              : $translate('app.openTimeTravel')}
+            title={$translate('app.openTimeTravel')} aria-haspopup="dialog"
+            aria-expanded={$appState.datePickerOpen} aria-controls="time-travel-panel"
+            aria-pressed={$appState.timeTravelActive} on:click={showDatePicker}>
+            <ActionIcon name="clock" size={19}/>
+            {#if $appState.timeTravelActive}
+              <span class="time-travel-selected-text">
+                <span>{$translate(dateMode === 'past' ? 'app.past' : dateMode === 'future' ? 'app.future' : 'app.today')}</span>
+                <strong>{formatDate($appState.asOfDate, $locale)}</strong>
+              </span>
+            {:else}
+              <span class="time-travel-toggle-label">{$translate('app.timeTravel')}</span>
+            {/if}
+          </button>
+          {#if $appState.datePickerOpen}
+            <div id="time-travel-panel" class="time-travel-popover" data-period={dateMode}
+              role="dialog" aria-label={$translate('app.pickDate')} aria-modal="false">
+              <div class="time-travel-popover-title">
+                <strong>{$translate('app.pickDate')}</strong>
+                <button type="button" class="time-travel-close" aria-label={$translate("ui.close-1qnddid")} on:click={() => dismissPicker(true)}><ActionIcon name="close" size={18}/></button>
+              </div>
+              <label for="state-date">{$translate('app.dateAsOf')}</label>
+              <div class="time-travel-date-row">
+                <button type="button" title={$translate('app.previous')} aria-label={$translate('app.previous')}
+                  on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, -1))}><ActionIcon name="chevron-left" size={21}/></button>
+                <input id="state-date" type="date" value={$appState.asOfDate}
+                  on:change={e => appState.setAsOfDate(e.currentTarget.value)}/>
+                <button type="button" title={$translate('app.next')} aria-label={$translate('app.next')}
+                  on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, 1))}><ActionIcon name="chevron-right" size={21}/></button>
+              </div>
+              <div class="time-travel-quick-actions">
+                <button type="button" disabled={!firstDate} on:click={() => appState.setAsOfDate(firstDate)}>{$translate('app.first')}</button>
+                <button type="button" disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>{$translate('app.last')}</button>
+                <button type="button" class="time-travel-today" on:click={returnToday}>{$translate('app.returnToday')}</button>
+              </div>
+            </div>
+          {/if}
+        </div>
         <div class="session-history-actions" role="group" aria-label={$translate('app.undo')}>
           <button type="button" class="session-history-button" aria-label={$translate('app.undo')} title={$translate("app.undo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}><ActionIcon name="undo" size={20}/></button>
           <button type="button" class="session-history-button" aria-label={$translate('app.redo')} title={$translate("app.redo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}><ActionIcon name="redo" size={20}/></button>
@@ -238,27 +300,6 @@
     <main class="work-content">
       {#key $locale}
       {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">{$translate("ui.the-browser-could-not-cache-the-wo-1u1cj1a")}</p>{/if}
-      {#if $appState.datePickerOpen || $appState.timeTravelActive}
-        <div id="time-travel-panel" class="date-toolbar" class:date-toolbar-active={$appState.timeTravelActive} data-period={dateMode} role="region" aria-label={$translate('app.timeTravel')}>
-          <div class="date-toolbar-label">
-            <span>{$translate('app.timeTravel')}</span>
-            <strong>{dateDE($appState.asOfDate)} · {$translate(dateMode === 'today' ? 'app.today' : dateMode === 'past' ? 'app.past' : 'app.future')}</strong>
-          </div>
-          <div class="date-toolbar-controls">
-            <button type="button" title={$translate("app.first")} aria-label={$translate("app.first")} disabled={!firstDate} on:click={() => appState.setAsOfDate(firstDate)}>⇤<span class="mobile-jump-text">{$translate('app.start')}</span></button>
-            <button type="button" title={$translate("app.previous")} aria-label={$translate("app.previous")} on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, -1))}>‹</button>
-            <label class="sr-only" for="state-date">{$translate("app.pickDate")}</label>
-            <input id="state-date" type="date" value={$appState.asOfDate} on:change={e => appState.setAsOfDate(e.currentTarget.value)}>
-            <button type="button" title={$translate("app.next")} aria-label={$translate("app.next")} on:click={() => appState.setAsOfDate(addDays($appState.asOfDate, 1))}>›</button>
-            <button type="button" title={$translate("app.last")} aria-label={$translate("app.last")} disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>⇥<span class="mobile-jump-text">{$translate('app.end')}</span></button>
-            <button type="button" class="today-button" on:click={() => appState.exitTimeTravel()}>{$translate('app.returnToday')}</button>
-          </div>
-          {#if $appState.timeTravelActive && dateMode !== 'today'}
-            <span class="date-explanation" role="status">{dateMode === 'past' ? $translate("ui.you-are-viewing-an-earlier-ownersh-10vlzyi") : $translate("ui.you-are-viewing-a-state-at-a-futur-1s5vjd8")}</span>
-          {/if}
-        </div>
-      {/if}
-
       {#if route.page === 'person' && person}
         <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← {$translate('app.backTo')} {$translate(activeSection === 'people' ? 'nav.people' : 'nav.overview')}</button></div>
         <PersonDetail {person} projection={$projection} asOfDate={$appState.asOfDate} ledger={$ledger} />
