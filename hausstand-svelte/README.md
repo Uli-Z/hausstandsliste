@@ -40,6 +40,6 @@ Only the **current portable project schema** is accepted for file import. The cu
 
 Changes to the current project are not equivalent to bank transfers. A payment event records an actual completed payment or an explicitly noncash adjustment; ownership and balances are derived separately. See [Community settlement](../docs/FEATURE-COMMUNAL-SETTLEMENT.md).
 
-Unencrypted local working copies are a convenience, **not durable backups**. Protected data is never intentionally cached in plaintext. The file must be saved explicitly. Automated Chromium browser QA is present; real hosting and independent browser/device/security reviews must still be tested before production; see [Build variants](../docs/BUILD-VARIANTS.md), [Security](../docs/SECURITY-AND-ENCRYPTION.md), and [To-do list](../docs/WG-PRAXIS-TODO.md).
+Unencrypted local working copies are a convenience, **not durable backups**. Protected data is never intentionally cached in plaintext. The file must be saved explicitly. Automated Chromium browser QA has passed for local JSON/encrypted files, restore, Undo and concurrent PHP checkout; real hosting and independent browser/device/security reviews must still be tested before production; see [Build variants](../docs/BUILD-VARIANTS.md), [Security](../docs/SECURITY-AND-ENCRYPTION.md), and [To-do list](../docs/WG-PRAXIS-TODO.md).
 
 The default interface language is currently German. English-first localization is a separate open task; see [terminology](../docs/LANGUAGE-AND-TERMINOLOGY.md).

@@ -38,7 +38,7 @@ The PHP backend swaps a server-generated current file and metadata pointer to av
 
 ## Automated browser QA
 
-[Chromium integration run 45148794074](https://github.com/Uli-Z/hausstandsliste/actions/runs/45148794074) verified local purchase/payment/Undo, JSON download into a fresh browser context, embedded version Restore, 375px layout, and two-browser encrypted PHP create/open/checkout/Save/stale-revision protection. Browser automation lives in `tests/browser-qa.mjs` and [the separate CI workflow](../.github/workflows/browser-qa.yml); an encrypted local-file cross-context roundtrip is also covered by its latest test source.
+[Chromium integration run 45148794074](https://github.com/Uli-Z/hausstandsliste/actions/runs/45148794074) verified local purchase/payment/Undo, JSON download into a fresh browser context, embedded version Restore, 375px layout, and two-browser encrypted PHP create/open/checkout/Save/stale-revision protection. Browser automation lives in `tests/browser-qa.mjs` and [the separate CI workflow](../.github/workflows/browser-qa.yml); encrypted local-file roundtrip and one-click encrypted header Save have additionally passed in [Chromium QA 45149720501](https://github.com/Uli-Z/hausstandsliste/actions/runs/45149720501).
 
 ## Remaining acceptance
 
