@@ -202,7 +202,7 @@ async function phpOnline(browser) {
       await openFinance(editor);
       await payment(editor, '60');
       await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-      await editor.getByText(/Revision 2 gespeichert/).waitFor();
+      await editor.locator('main.work-content > p[role="status"]').filter({ hasText: /Revision 2 gespeichert/ }).waitFor();
       const files = (await (await fetch(host + '/hausstand.php?api=files')).json()).files;
       assert.equal(files.length, 1);
       const packet = await (await fetch(host + '/hausstand.php?api=read&id=' + files[0].id)).json();
