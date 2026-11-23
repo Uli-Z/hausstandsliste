@@ -1,6 +1,6 @@
 <script>
   import { onMount, tick } from 'svelte';
-  import { locale, languagePreference, setLanguage, translate, pluralMessage, formatDate } from '../src/lib/i18n.js';
+  import { locale, languagePreference, setLanguage, resolveLocale, translate, pluralMessage, formatDate } from '../src/lib/i18n.js';
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
@@ -19,6 +19,7 @@
   import ActionIcon from '../src/components/ActionIcon.svelte';
   import StorageView from './StorageView.svelte';
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
+  const autoLanguage = resolveLocale('auto', typeof navigator === 'undefined' ? [] : (navigator.languages?.length ? navigator.languages : [navigator.language]));
 
   const navigation = [
     { id: 'overview', icon: 'home' },
@@ -392,7 +393,7 @@
         <div class="page-heading"><div><h1>{$translate("nav.people")}</h1></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ {$translate("app.personAdd")}</button></div>
         <PeopleView people={$projection.people} ledger={$ledger}/>
       {:else if activeSection === 'money'}
-        <div class="page-heading"><div><h1>{$translate("nav.money")}</h1></div><button class="outline-action" on:click={() => appState.startRedistribution()}>{$translate("app.transfer")}</button></div>
+        <div class="page-heading"><div class="help-heading"><h1>{$translate("nav.money")}</h1><HelpTip label={$translate("ui.what-does-value-settlement-mean-9p85pk")}>{$translate("ui.when-people-finance-items-or-acquir-mc1vof")}</HelpTip></div></div>
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
         <div class="page-heading"><div><h1>{$translate("nav.activity")}</h1></div></div>
@@ -418,30 +419,35 @@
       {:else if activeSection === 'settings'}
         <div class="page-heading"><div><h1>{$translate("nav.settings")}</h1></div></div>
         <section class="ux-panel setting-panel">
-          <div class="section-header"><div><h2>{$translate('language.title')}</h2></div></div>
-          <label for="language-selection">{$translate('language.title')}
-            <select id="language-selection" value={$languagePreference} on:change={e => setLanguage(e.currentTarget.value)}>
-              <option value="auto">{$translate('language.auto')}</option>
-              <option value="en">English</option>
-              <option value="de">{$translate("language.german")}</option>
-            </select>
-          </label>
-          <p class="muted">{$translate('language.help')}</p>
+          <div class="help-heading">
+            <label for="language-selection">{$translate('language.title')}</label>
+            <HelpTip label={$translate('language.title')}>{$translate('language.help')}</HelpTip>
+          </div>
+          <select id="language-selection" value={$languagePreference} on:change={e => setLanguage(e.currentTarget.value)}>
+            <option value="auto">{$translate('language.auto')} ({autoLanguage === 'de' ? $translate('language.german') : $translate('language.english')})</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+          </select>
         </section>
         <section class="ux-panel setting-panel">
           <div class="section-header"><div><h2>{$translate('app.currentProject')}</h2></div></div>
           <dl class="project-metadata"><div><dt>{$translate("app.household")}</dt><dd>{$appState.project.community?.name || $translate("app.household")}</dd></div><div><dt>{$translate("app.openFile")}</dt><dd>{$appState.fileName || $translate('app.noFile')}</dd></div><div><dt>{$translate("app.editing")}</dt><dd>{$appState.readOnly ? $translate('app.readonly') : $translate('app.editable')}</dd></div></dl>
         </section>
-        <section class="ux-panel setting-panel">
-          <div class="section-header"><div class="help-heading"><h2>{$translate("app.inspect")}</h2><HelpTip label={$translate("ui.what-does-the-technical-view-show-fofuc8")}>{$translate("ui.the-technical-view-shows-the-compl-xkqom1")}</HelpTip></div></div>
-          <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? $translate('app.technicalClose') : $translate('app.technicalOpen')}</button>
-          {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
-        </section>
-        <section class="ux-panel setting-panel dangerous-settings">
-          <div class="section-header"><div class="help-heading"><h2>{$translate("app.newProject")}</h2><HelpTip label={$translate("ui.what-happens-when-starting-a-new-p-8ivv1x")}>{$translate("ui.resetting-replaces-the-current-wor-6b37pz")}</HelpTip></div></div>
-          <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? $translate("ui.cancel-cl4zc9") : $translate('app.reset')}</button>
-          {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
-        </section>
+        <details class="ux-panel setting-panel settings-advanced">
+          <summary>{$translate('settings.advanced')}</summary>
+          <div class="settings-advanced-body">
+            <section class="setting-advanced-block">
+              <div class="section-header"><div class="help-heading"><h2>{$translate("app.inspect")}</h2><HelpTip label={$translate("ui.what-does-the-technical-view-show-fofuc8")}>{$translate("ui.the-technical-view-shows-the-compl-xkqom1")}</HelpTip></div></div>
+              <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? $translate('app.technicalClose') : $translate('app.technicalOpen')}</button>
+              {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
+            </section>
+            <section class="setting-advanced-block dangerous-settings">
+              <div class="section-header"><div class="help-heading"><h2>{$translate("app.newProject")}</h2><HelpTip label={$translate("ui.what-happens-when-starting-a-new-p-8ivv1x")}>{$translate("ui.resetting-replaces-the-current-wor-6b37pz")}</HelpTip></div></div>
+              <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? $translate("ui.cancel-cl4zc9") : $translate('app.reset')}</button>
+              {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
+            </section>
+          </div>
+        </details>
       {/if}
       {/key}
       <!-- Keep the collaborative-storage component mounted: the server lease, edit token,
