@@ -83,6 +83,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.ok((await snapshot()).events.some(e=>e.type==='shares-set' &&
       e.itemId===lamp.itemId && e.date==='2031-02-01'));
 
+    await page.locator('.secondary-actions summary').click();
     await page.getByRole('button',{name:'Gegenstand beenden'}).click();
     assert.equal(await dateField.inputValue(),'2031-02-01');
     await dateField.fill('2031-03-01');
@@ -114,8 +115,8 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await dialog.waitFor({state:'hidden'});
     assert.equal((await snapshot()).events.find(e=>e.type==='person-reactivated'&&e.personId==='anna')?.date,'2032-05-05');
 
-    await nav('Geld & Ausgleich').click();
-    await page.locator('.page-heading button').first().click();
+    await nav('Überblick').click();
+    await page.locator('.quick-actions .task-grid > button').nth(1).click();
     assert.equal(await page.locator('#redistribution-effective-date').inputValue(),'2032-05-05');
     await page.locator('#redistribution-effective-date').fill('2024-01-01');
     assert.equal(await dialog.locator('.redistribution-item-card').count(),0);
@@ -130,10 +131,11 @@ export async function timeTravelFormsAcceptance(browser,url) {
     // Replacement forms are dated; plain metadata edits are intentionally not.
     await nav('Gegenstände').click();
     await page.locator('.item-tile').filter({hasText:'Sessel'}).locator('.tile-open').click();
-    await page.locator('.action-grid button').nth(3).click();
+    await page.locator('.secondary-actions summary').click();
+    await page.locator('.secondary-actions .action-grid button').filter({hasText:'Durch neuen Gegenstand ersetzen'}).click();
     assert.equal(await dateField.inputValue(),'2032-05-05');
     await dialog.locator('.modal-header button').click();
-    await page.locator('.action-grid button').first().click();
+    await page.locator('.secondary-actions .action-grid button').first().click();
     assert.equal(await dateField.count(),0);
     await dialog.locator('.modal-header button').click();
 
