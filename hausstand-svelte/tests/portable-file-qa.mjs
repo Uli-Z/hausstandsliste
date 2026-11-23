@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
 import { encryptProject, decryptProject } from '../src/lib/crypto.js';
+import { ledgerAt } from '../src/lib/ledger.js';
+import { projectAt } from '../src/lib/projector.js';
 
 const STORAGE_KEY = 'hausstand_svelte_v07_working_copy';
 const PASSWORD = 'q05-portable-archive-passphrase';
@@ -157,6 +159,17 @@ export async function portableFileAcceptance(browser, url, engine) {
     assert.equal((await readPortableVersion(exported, last.id)).community.name, 'Q05 Archiv 34');
     assert.equal(exported.events.find(e => e.id === 'payment').amountCents, 1248);
     assert.equal(exported.events.find(e => e.id === 'departure').date, '2027-01-12');
+    // Business history must replay identically after file serialization:
+    // odd-cent splits, dated reverse claims and people who left later on.
+    assert.deepEqual(ledgerAt(exported, '2025-01-01').simplified, []);
+    assert.deepEqual(ledgerAt(exported, '2025-01-02').simplified, [
+      { fromPersonId: 'ben', toPersonId: 'anna', amountCents: 6172 }
+    ]);
+    assert.deepEqual(ledgerAt(exported, '2025-01-03').simplified, [
+      { fromPersonId: 'ben', toPersonId: 'anna', amountCents: 4924 }
+    ]);
+    assert.equal(projectAt(exported, '2027-01-11').people.find(p => p.id === 'ben')?.active, true);
+    assert.equal(projectAt(exported, '2027-01-12').people.find(p => p.id === 'ben')?.active, false);
 
     // The same JSON opens in another browser profile with no shared cache.
     const another = await browser.newContext({ locale: 'de-DE', acceptDownloads: true });
