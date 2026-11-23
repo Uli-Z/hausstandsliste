@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { locale, languagePreference, setLanguage, translate } from '../src/lib/i18n.js';
+  import { locale, languagePreference, setLanguage, translate, pluralMessage } from '../src/lib/i18n.js';
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
@@ -265,7 +265,7 @@
                 </div>
                 {/each}
               </div>
-              {#if balances.length > 5}<p class="muted">{$translate('app.moreSuggestions', {count:balances.length-5})}</p>{/if}
+              {#if balances.length > 5}<p class="muted">{pluralMessage('app.moreSuggestions', balances.length-5)}</p>{/if}
             {:else}
               <div class="gentle-empty"><strong>{$translate("app.settled")}</strong></div>
             {/if}
@@ -314,7 +314,7 @@
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
         <div class="page-heading"><div><h1>{$translate("nav.activity")}</h1></div></div>
-        {#if futureEventCount}<div class="inline-info">{$translate('app.futureEvents', {count:futureEventCount})}</div>{/if}
+        {#if futureEventCount}<div class="inline-info">{pluralMessage('app.futureEvents', futureEventCount)}</div>{/if}
         <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title={$translate('app.allChanges')}/>
       {:else if activeSection === 'save'}
         <div class="page-heading"><div><h1>{$translate("nav.save")}</h1><HelpTip label={$translate("ui.where-are-project-files-stored-lr7d5h")}>{SERVER_MODE ? $translate("ui.you-can-create-backups-and-manage--16raxo9") : $translate("ui.this-html-version-stores-data-loca-107t5ed")}</HelpTip></div></div>

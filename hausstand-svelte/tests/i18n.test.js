@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveLocale, dictionaries, message, loadLanguage, formatMoney, formatDate, parseDecimal, LANGUAGE_KEY } from '../src/lib/i18n.js';
+import { resolveLocale, dictionaries, message, loadLanguage, formatMoney, formatDate, parseDecimal, pluralMessage, LANGUAGE_KEY } from '../src/lib/i18n.js';
 
 test('Q13: automatic language honors primary subtag and manual override', () => {
   for (const tag of ['de', 'de-DE', 'de-AT', 'de-CH']) assert.equal(resolveLocale('auto',[tag]),'de');
@@ -26,4 +26,12 @@ test('Q13: locale-sensitive display and comma/point parsing preserve values', ()
   assert.notEqual(formatDate('2026-11-23','en'),formatDate('2026-11-23','de'));
   for (const number of ['1234,56','1234.56','1.234,56','1,234.56']) assert.equal(parseDecimal(number),1234.56);
   assert.ok(Number.isNaN(parseDecimal('1,2,3')));
+});
+
+test('Q13: plural categories follow the active language', () => {
+  assert.equal(pluralMessage('people.itemCount', 1, 'en'), '1 item');
+  assert.equal(pluralMessage('people.itemCount', 2, 'en'), '2 items');
+  assert.equal(pluralMessage('people.itemCount', 1, 'de'), '1 Gegenstand');
+  assert.equal(pluralMessage('people.itemCount', 2, 'de'), '2 Gegenstände');
+  assert.match(pluralMessage('timeline.future', 1, 'de'), /zukünftiges Ereignis/);
 });

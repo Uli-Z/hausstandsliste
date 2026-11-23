@@ -1,5 +1,5 @@
 <script>
-  import { translate, localizeGermanText } from '../src/lib/i18n.js';
+  import { translate, localizeGermanText, pluralMessage } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE } from '../src/lib/util.js';
   import { money } from '../src/lib/domain.js';
@@ -138,7 +138,7 @@
   <div class="panel-body stack">
     {#if future.length}
       <button class="timeline-more" on:click={() => showFuture = !showFuture}>
-        {future.length} {localizeGermanText('zukünftige Ereignisse')} {localizeGermanText(showFuture ? 'ausblenden' : 'anzeigen')}
+        {pluralMessage('timeline.future', future.length)} {localizeGermanText(showFuture ? 'ausblenden' : 'anzeigen')}
       </button>
       {#if showFuture}
         {#each future as event}

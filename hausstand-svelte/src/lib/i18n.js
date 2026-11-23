@@ -528,7 +528,19 @@ export const dictionaries = {
     "items.give": "gives away {count} shares",
     "settlement.future": "Date after selected day: view advances to {date} when saving.",
     "settlement.paid": "Amount paid in euros",
-    "settlement.amount": "Settlement amount in euros"
+    "settlement.amount": "Settlement amount in euros",
+    "app.futureEvents.one": "{count} event occurs after the selected date. You can show it in the timeline.",
+    "app.futureEvents.other": "{count} events occur after the selected date. You can show them in the timeline.",
+    "app.moreSuggestions.one": "{count} more payment suggestion under Money & settlement.",
+    "app.moreSuggestions.other": "{count} more payment suggestions under Money & settlement.",
+    "people.itemCount.one": "{count} item",
+    "people.itemCount.other": "{count} items",
+    "timeline.future.one": "{count} future event",
+    "timeline.future.other": "{count} future events",
+    "items.receive.one": "receives {count} share",
+    "items.receive.other": "receives {count} shares",
+    "items.give.one": "gives away {count} share",
+    "items.give.other": "gives away {count} shares"
   },
   "de": {
     "nav.overview": "Überblick",
@@ -1055,7 +1067,19 @@ export const dictionaries = {
     "items.give": "gibt {count} Anteile ab",
     "settlement.future": "Datum nach dem Stichtag: Die Ansicht wechselt beim Speichern zum {date}.",
     "settlement.paid": "Gezahlter Betrag in Euro",
-    "settlement.amount": "Ausgleichsbetrag in Euro"
+    "settlement.amount": "Ausgleichsbetrag in Euro",
+    "app.futureEvents.one": "{count} Vorgang liegt nach dem aktuell gewählten Datum. Er kann im Verlauf eingeblendet werden.",
+    "app.futureEvents.other": "{count} Vorgänge liegen nach dem aktuell gewählten Datum. Sie können im Verlauf eingeblendet werden.",
+    "app.moreSuggestions.one": "{count} weitere Verbindung im Bereich „Geld & Ausgleich“.",
+    "app.moreSuggestions.other": "{count} weitere Verbindungen im Bereich „Geld & Ausgleich“.",
+    "people.itemCount.one": "{count} Gegenstand",
+    "people.itemCount.other": "{count} Gegenstände",
+    "timeline.future.one": "{count} zukünftiges Ereignis",
+    "timeline.future.other": "{count} zukünftige Ereignisse",
+    "items.receive.one": "bekommt {count} Anteil",
+    "items.receive.other": "bekommt {count} Anteile",
+    "items.give.one": "gibt {count} Anteil ab",
+    "items.give.other": "gibt {count} Anteile ab"
   }
 };
 export function resolveLocale(preference = 'auto', browserLanguages = []) {
@@ -1114,4 +1138,9 @@ const germanLabelKeys = new Map(Object.entries(dictionaries.de).map(([key, text]
 export function localizeGermanText(text, lang = getLocale()) {
   const key = germanLabelKeys.get(String(text ?? ''));
   return key ? message(key, lang) : text;
+}
+
+export function pluralMessage(key, count, lang = getLocale(), params = {}) {
+  const category = new Intl.PluralRules(lang === 'de' ? 'de-DE' : 'en-GB').select(Number(count));
+  return message(key + '.' + category, lang, { ...params, count });
 }

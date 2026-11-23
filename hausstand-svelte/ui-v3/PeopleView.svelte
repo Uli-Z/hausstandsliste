@@ -1,6 +1,6 @@
 <script>
   import { appState } from '../src/stores/projectStore.js';
-  import { locale, translate } from '../src/lib/i18n.js';
+  import { locale, translate, pluralMessage } from '../src/lib/i18n.js';
   import { money } from '../src/lib/domain.js';
   export let people = [];
   export let ledger = null;
@@ -30,7 +30,7 @@
               <strong>{money(Math.abs(cents) / 100)}</strong>
             </div>
           {/if}
-          <div class="person-bottom"><span>{$translate('people.itemCount', {count:person.holdings?.length || 0})}</span><button on:click={() => appState.setRoute({page:'person',id:person.id})}>{$translate("people.profile")}</button></div>
+          <div class="person-bottom"><span>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</span><button on:click={() => appState.setRoute({page:'person',id:person.id})}>{$translate("people.profile")}</button></div>
         </article>
       {/each}
     </div>

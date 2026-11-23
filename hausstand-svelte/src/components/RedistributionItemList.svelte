@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../lib/i18n.js';
+  import { translate, pluralMessage } from '../lib/i18n.js';
   import { createEventDispatcher } from 'svelte';
   import { money } from '../lib/domain.js';
 
@@ -45,9 +45,9 @@
                 <span>{person.personName}</span>
                 <span class="muted small-text">
                   {#if person.unitsDelta > 0}
-                    {$translate('items.receive', {count:person.unitsDelta})}
+                    {pluralMessage('items.receive', person.unitsDelta)}
                   {:else}
-                    {$translate('items.give', {count:Math.abs(person.unitsDelta)})}
+                    {pluralMessage('items.give', Math.abs(person.unitsDelta))}
                   {/if}
                 </span>
                 <span class:positive={person.valueDelta > 0} class:negative={person.valueDelta < 0} class="money small-text">
