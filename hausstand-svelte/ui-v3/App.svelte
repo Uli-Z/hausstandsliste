@@ -115,7 +115,7 @@
       if ($appState.dirty && !confirm($translate("ui.the-current-working-copy-has-unsav-cc6kgv"))) return;
       appState.importProject(requireProjectFile(data), file.name, false);
       navigate('overview');
-    } catch (err) { alert('Öffnen fehlgeschlagen: ' + err.message); }
+    } catch (err) { alert($translate('app.openFailed') + err.message); }
     finally { input.value = ''; }
   }
   async function exportNow() {
@@ -216,10 +216,10 @@
       </div>
 
       {#if route.page === 'person' && person}
-        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← Zurück zu {activeSection === 'people' ? $translate("nav.people") : 'Übersicht'}</button></div>
+        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← {$translate('app.backTo')} {$translate(activeSection === 'people' ? 'nav.people' : 'nav.overview')}</button></div>
         <PersonDetail {person} projection={$projection} asOfDate={$appState.asOfDate} ledger={$ledger} />
       {:else if route.page === 'item' && item}
-        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← Zurück zu {activeSection === 'items' ? 'Gegenständen' : 'Übersicht'}</button></div>
+        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← {$translate('app.backTo')} {$translate(activeSection === 'items' ? 'nav.items' : 'nav.overview')}</button></div>
         <ItemDetail {item} />
       {:else if route.page !== 'dashboard'}
         <div class="blank-card"><p>{$translate("ui.this-detail-view-could-not-be-foun-d4faaj")}</p><button on:click={() => navigate('overview')}>{$translate("ui.back-to-overview-h1kkqo")}</button></div>
@@ -265,7 +265,7 @@
                 </div>
                 {/each}
               </div>
-              {#if balances.length > 5}<p class="muted">Weitere {balances.length - 5} Verbindungen im Bereich „Geld & Ausgleich“.</p>{/if}
+              {#if balances.length > 5}<p class="muted">{$translate('app.moreSuggestions', {count:balances.length-5})}</p>{/if}
             {:else}
               <div class="gentle-empty"><strong>{$translate("app.settled")}</strong></div>
             {/if}
@@ -314,8 +314,8 @@
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
         <div class="page-heading"><div><h1>{$translate("nav.activity")}</h1></div></div>
-        {#if futureEventCount}<div class="inline-info">{futureEventCount} Vorgang/Vorgänge liegen nach dem aktuell gewählten Datum. Sie können im Verlauf eingeblendet werden.</div>{/if}
-        <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title="Alle Änderungen nach Datum"/>
+        {#if futureEventCount}<div class="inline-info">{$translate('app.futureEvents', {count:futureEventCount})}</div>{/if}
+        <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title={$translate('app.allChanges')}/>
       {:else if activeSection === 'save'}
         <div class="page-heading"><div><h1>{$translate("nav.save")}</h1><HelpTip label={$translate("ui.where-are-project-files-stored-lr7d5h")}>{SERVER_MODE ? $translate("ui.you-can-create-backups-and-manage--16raxo9") : $translate("ui.this-html-version-stores-data-loca-107t5ed")}</HelpTip></div></div>
         <div class="save-top-grid">

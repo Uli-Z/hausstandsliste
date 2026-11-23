@@ -114,7 +114,7 @@
     <div class="modal-header">
       <div class="stack">
         <h3>{$translate("ui.transfer-or-redistribute-shares-1u1uj43")}</h3>
-        <div class="muted">Gültig ab {dateDE(redistribution?.effectiveDate)} · Das Datum wird oben in der Ansicht gewählt</div>
+        <div class="muted">{$translate('redistribution.from', {date:dateDE(redistribution?.effectiveDate)})}</div>
       </div>
       <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>
     </div>

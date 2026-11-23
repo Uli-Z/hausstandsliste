@@ -30,7 +30,7 @@
               <strong>{money(Math.abs(cents) / 100)}</strong>
             </div>
           {/if}
-          <div class="person-bottom"><span>{person.holdings?.length || 0} Gegenstände</span><button on:click={() => appState.setRoute({page:'person',id:person.id})}>{$translate("people.profile")}</button></div>
+          <div class="person-bottom"><span>{$translate('people.itemCount', {count:person.holdings?.length || 0})}</span><button on:click={() => appState.setRoute({page:'person',id:person.id})}>{$translate("people.profile")}</button></div>
         </article>
       {/each}
     </div>

@@ -103,7 +103,7 @@
     </div>
     <form class="settlement-form" on:submit|preventDefault={save}>
       <div class="modal-body stack">
-        {#if date > asOfDate}<p class="settlement-date-note">Datum nach dem Stichtag: Die Ansicht wechselt beim Speichern zum {dateDE(date)}.</p>{/if}
+        {#if date > asOfDate}<p class="settlement-date-note">{$translate('settlement.future', {date:dateDE(date)})}</p>{/if}
         <div class="form-grid">
           <label>{kind === 'paid' ? $translate("ui.who-paid-1tgy0m9") : $translate("ui.who-is-settling-mht70x")}
             <select bind:value={payer}>
@@ -121,7 +121,7 @@
               {/each}
             </select>
           </label>
-          <label>{kind === 'paid' ? 'Gezahlter Betrag in Euro' : 'Ausgleichsbetrag in Euro'}
+          <label>{$translate(kind === 'paid' ? 'settlement.paid' : 'settlement.amount')}
             <input type="text" inputmode="decimal" placeholder="0,00" bind:value={amount} autocomplete="off"/>
           </label>
           <label>{kind === 'paid' ? 'Zahlungsdatum' : $translate("ui.settlement-date-fw9ncy")}

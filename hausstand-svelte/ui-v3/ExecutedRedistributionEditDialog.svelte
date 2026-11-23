@@ -115,7 +115,7 @@
     <div class="modal-header">
       <div class="stack">
         <h3>{$translate("ui.edit-earlier-ownership-change-s1489d")}</h3>
-        <div class="muted">Damals gültig ab: {dateDE(edited?.date)}</div>
+        <div class="muted">{$translate('redistribution.since')} {dateDE(edited?.date)}</div>
       </div>
       <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>
     </div>

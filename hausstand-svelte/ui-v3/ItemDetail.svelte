@@ -40,7 +40,7 @@
           <button on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}>{$translate("ui.edit-item-birsg")}</button>
           <button on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}>{$translate("ui.change-ownership-shares-1x7cqup")}</button>
           <button on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}>Beenden / archivieren</button>
-          <button on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}>Durch neuen Gegenstand ersetzen</button>
+          <button on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}>{$translate('items.replace')}</button>
         </div>
       </div>
     </div>

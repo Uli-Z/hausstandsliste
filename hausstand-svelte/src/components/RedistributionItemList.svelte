@@ -27,7 +27,7 @@
         <div class="split redistribution-item-head">
           <div class="stack compact-gap">
             <strong>{row.itemName}</strong>
-            <div class="muted small-text">Wert: {money(row.itemValue)}</div>
+            <div class="muted small-text">{$translate('items.value')} {money(row.itemValue)}</div>
           </div>
           <div class="row">
             {#if row.changed}
@@ -45,9 +45,9 @@
                 <span>{person.personName}</span>
                 <span class="muted small-text">
                   {#if person.unitsDelta > 0}
-                    bekommt {person.unitsDelta} Anteile
+                    {$translate('items.receive', {count:person.unitsDelta})}
                   {:else}
-                    gibt {Math.abs(person.unitsDelta)} Anteile ab
+                    {$translate('items.give', {count:Math.abs(person.unitsDelta)})}
                   {/if}
                 </span>
                 <span class:positive={person.valueDelta > 0} class:negative={person.valueDelta < 0} class="money small-text">

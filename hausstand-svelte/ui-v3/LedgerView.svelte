@@ -96,7 +96,7 @@
     </div>
 
     {#if data.warnings?.length}
-      <p class="notice warn">{data.warnings.length} ungültige oder doppelte Ausgleichsbuchungen wurden nicht berücksichtigt. Bitte die Buchungen im Verlauf prüfen.</p>
+      <p class="notice warn">{$translate('ledger.invalid', {count:data.warnings.length})}</p>
     {/if}
 
     <div class="audit-area">
@@ -128,7 +128,7 @@
               <div class="audit-row">
                 <div class="audit-main">
                   <strong>{itemName(claim.itemId)}</strong>
-                  <span>{dateDE(claim.date)} · Wert von {personName(claim.creditorPersonId)} an {personName(claim.debtorPersonId)}</span>
+                  <span>{dateDE(claim.date)} · {$translate('ledger.fromTo', {creditor:personName(claim.creditorPersonId),debtor:personName(claim.debtorPersonId)})}</span>
                 </div>
                 <strong class="audit-amount">{money(claim.amountCents / 100)}</strong>
                 <button class="audit-edit" type="button" on:click={() => editClaim(claim)}>{$translate("ui.view-event-8joqb1")}</button>

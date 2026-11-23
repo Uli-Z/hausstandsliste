@@ -270,7 +270,7 @@
           <div class="shared-files">
             <h3>{$translate("ui.available-projects-1cnj4sr")}</h3>
             {#each files as f (f.id)}
-              <div class="shared-file"><div><strong>{f.name}</strong><small>Version {f.revision} · zuletzt geändert: {f.updatedAt}</small></div><button class="outline-action" disabled={busy} on:click={() => run(() => openRemote(f))}>{$translate("ui.open-14klu42")}</button></div>
+              <div class="shared-file"><div><strong>{f.name}</strong><small>{$translate('storage.fileVersion', {revision:f.revision,date:f.updatedAt})}</small></div><button class="outline-action" disabled={busy} on:click={() => run(() => openRemote(f))}>{$translate("ui.open-14klu42")}</button></div>
             {/each}
           </div>
         {/if}

@@ -312,7 +312,7 @@
             {#if deleteEligibility.allowed}
               <div class="notice">{$translate("ui.permanent-deletion-is-only-possible-1k5oppq")}</div>
             {:else}
-              <div class="notice warn">Endgültiges Löschen gesperrt: {deleteEligibility.reason} Bei einem Auszug die Person stattdessen über ihr Profil als ausgezogen markieren.</div>
+              <div class="notice warn">{$translate('dialog.deleteBlocked')} {deleteEligibility.reason} {$translate('dialog.moveOut')}</div>
             {/if}
           {/if}
         {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
@@ -363,7 +363,7 @@
         {:else if dialog.type === 'options'}
           <p class="muted">{$translate("ui.the-project-file-and-its-backup-are-1al4mbb")}</p>
         {:else}
-          <div class="notice warn">Dieser Dialogtyp ist noch nicht implementiert: {dialog.type}</div>
+          <div class="notice warn">{$translate('dialog.missing')} {dialog.type}</div>
         {/if}
       </div>
       <div class="modal-footer"><button on:click={close}>{$translate("ui.cancel-cl4zc9")}</button>
