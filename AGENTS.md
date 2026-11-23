@@ -1,6 +1,6 @@
 # Hausstandsliste — development guidance
 
-**Product:** Hausstandsliste — Shared Ownership Tracker. Main development language: English. The UI currently uses German; language switching is a future task Q13. Do not translate persisted schema or event identifiers.
+**Product:** Hausstandsliste — Shared Ownership Tracker. Main development language: English. The UI supports English/German localization and browser-language detection (Q13 final acceptance pending). Do not translate persisted schema or event identifiers.
 
 ## Single supported application
 
@@ -48,4 +48,4 @@ After every change, inspect the GitHub Actions runs for the exact commit. CI suc
 - [Security](docs/SECURITY-AND-ENCRYPTION.md)
 - [Terminology and future localization](docs/LANGUAGE-AND-TERMINOLOGY.md)
 
-**Open major tasks:** Q10 compact time-travel UI, Q11 additional browser/hosting acceptance of the portable file, Q13 English/German localization. Q12 session Undo/Redo is implemented and tested.
+**Open major tasks:** Q03–Q06 end-to-end and multi-device acceptance, Q11 additional browser/hosting acceptance, and Q13 final language audit. Q10 compact time travel and Q12 session Undo/Redo are implemented (see the to-do list for acceptance).
