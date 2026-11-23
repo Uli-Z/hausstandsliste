@@ -7,6 +7,8 @@ import { unownedActiveTransitions } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
 import { createSessionUndo } from '../lib/sessionUndo.js';
+import { mutationProblem } from '../lib/mutationValidation.js';
+import { message, getLocale } from '../lib/i18n.js';
 import { openDatePicker, dismissDatePicker, selectAsOfDate, returnToToday, syncCalendarDay } from '../lib/timeTravel.js';
 
 const initial = {
@@ -92,14 +94,20 @@ function createStore() {
     mutateProject: mutator => {
       let saved = false;
       update(s => {
-        if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
+        if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
         const project = clone(s.project);
-        mutator(project);
+        try { mutator(project); }
+        catch { alert(message('errors.changeFailed', getLocale())); return s; }
+        const problem = mutationProblem(s.project, project);
+        if (problem) {
+          alert(message(problem.key, getLocale(), problem.params || {}));
+          return s;
+        }
         const invalid = unownedActiveTransitions(project);
         if (invalid.length) {
           const first = invalid[0];
           const name = (project.items || []).find(item => item.id === first.itemId)?.name || first.itemId;
-          alert(`Änderung nicht gespeichert: „${name}“ wäre ab ${first.date} ohne Eigentümer. Bitte Anteile auf eine andere Person übertragen oder den Gegenstand ausdrücklich über „Beenden / archivieren“ beenden.`);
+          alert(message('errors.ownerless', getLocale(), { name, date: first.date }));
           return s;
         }
         saved = true;
@@ -112,7 +120,7 @@ function createStore() {
       return { ...s, activeDialog: { type: 'redistributionEdit', redistribution: r, ...extraDialog } };
     }),
     upsertDraft: draft => update(s => {
-      if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
+      if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
       const project = clone(s.project);
       project.drafts = project.drafts || [];
       const idx = project.drafts.findIndex(d => d.id === draft.id);
@@ -121,7 +129,7 @@ function createStore() {
       return changedProject(s, project);
     }),
     deleteDraft: id => update(s => {
-      if (s.readOnly) { alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.'); return s; }
+      if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
       const project = clone(s.project);
       project.drafts = (project.drafts || []).filter(d => d.id !== id);
       return changedProject(s, project);
