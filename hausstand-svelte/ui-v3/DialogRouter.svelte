@@ -377,9 +377,9 @@
   <ExecutedRedistributionEditDialog {dialog} {project} {projection} />
 {:else if dialog}
   <div class="modal-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-label={$translate("ui.edit-m49ms0")} style="max-width:720px" on:keydown={confirmFromInput}>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="active-dialog-title" style="max-width:720px" on:keydown={confirmFromInput}>
       <div class="modal-header">
-        <h3>{
+        <h3 id="active-dialog-title">{
           dialog.type === 'personAdd' ? $translate("app.personAdd") : 
           dialog.type === 'personMeta' ? $translate("ui.edit-person-jstaod") :
           dialog.type === 'personStatus' ? $translate(dialog.kind === 'deactivate' ? 'ui.mark-as-moved-out-11arjl' : 'ui.reactivate-iggdm2') : 
@@ -390,7 +390,7 @@
           dialog.type === 'itemEnd' ? $translate("ui.archive-item-1j10bca") : 
           dialog.type === 'options' ? '⚙️ Optionen' : 'Dialog'
         }</h3>
-        <button class="ghost" on:click={close}>✕</button>
+        <button type="button" class="ghost" on:click={close} aria-label={$translate("ui.close-1qnddid")}>✕</button>
       </div>
       <div class="modal-body stack">
         {#if hasEventDate}
@@ -479,7 +479,7 @@
                 </section>
               {/if}
             {/if}
-            <details class="item-extra-fields" open={dialog.type === 'itemContinue'}>
+            <details class="item-extra-fields" open={dialog.type === 'itemContinue' || !!dialog.id}>
               <summary>{$translate('items.moreDetails')} · {valuationLabel(currentValuation)}</summary>
               <div class="form-grid">
                 <label>{$translate("ui.how-does-the-value-change-16f9eit")}
