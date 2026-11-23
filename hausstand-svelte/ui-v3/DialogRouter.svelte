@@ -68,7 +68,8 @@
   $: itemCostValid = !itemNeedsOwners || (Number.isFinite(itemCost) && itemCost >= 0 &&
     Number.isSafeInteger(itemCostCents) && Math.abs(itemCost * 100 - itemCostCents) <= 1e-7);
   $: ownersValid = !itemNeedsOwners || Object.keys(normShares(shares)).length > 0;
-  $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid && itemCostValid && ownersValid;
+  $: itemNameValid = !itemNeedsOwners || !!String(itemName || '').trim();
+  $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid && itemCostValid && ownersValid && itemNameValid;
   $: purchaseShares = normShares(shares);
   $: purchaseOwnerCount = Object.keys(purchaseShares).length;
   $: purchaseClaims = dialog?.type === 'itemAdd' && itemCostValid && financedByPersonId
@@ -440,6 +441,7 @@
                 <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}>
               </label>
             </div>
+            {#if !itemNameValid}<p class="notice warn" role="alert">{$translate('items.enterName')}</p>{/if}
             {#if !itemCostValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             <section class="item-ownership-fields">
               <div class="item-flow-heading">
