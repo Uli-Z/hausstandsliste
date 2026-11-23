@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { readFile, mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { chromium } from 'playwright';
+import { chromium, firefox, webkit } from 'playwright';
 import { decryptProject } from '../src/lib/crypto.js';
 import { readPortableVersion } from '../src/lib/versionHistory.js';
 
@@ -487,8 +487,7 @@ async function settlementEndToEnd(browser, url) {
 
 // Q04: Real Chromium checks at phone, tablet and desktop widths. These are
 // viewport/browser-engine checks, not claims about physical device coverage.
-async function responsiveUiAcceptance(browser, url) {
-  const checks = [320, 375, 390, 768, 1280];
+async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768, 1280], engine = 'Chromium') {
   for (const width of checks) {
     const context = await browser.newContext({
       locale: 'de-DE', viewport: { width, height: 640 }, acceptDownloads: true
@@ -626,7 +625,7 @@ async function responsiveUiAcceptance(browser, url) {
       await section('settings');
       await noOverflow('settings');
       assert.deepEqual(errors, [], 'Q04 ' + width + 'px browser errors');
-      console.log('Browser Q04 QA: ' + width +
+      console.log('Browser Q04 ' + engine + ' QA: ' + width +
         'px sticky header, fixed Undo/Redo, UTF-8, icons, help, dialogs, navigation and overflow passed');
     } finally {
       await context.close();
@@ -708,6 +707,7 @@ async function phpOnline(browser) {
 }
 let browser;
 let server;
+const extraBrowsers = [];
 try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
@@ -716,11 +716,19 @@ try {
   await offline(browser, offlineServer.url);
   await settlementEndToEnd(browser, offlineServer.url);
   await responsiveUiAcceptance(browser, offlineServer.url);
+  // Exercise the same responsive interaction sequence in two additional real
+  // browser engines, including the Safari rendering engine (WebKit).
+  for (const [name, browserType] of [['Firefox', firefox], ['WebKit', webkit]]) {
+    const additional = await browserType.launch({ headless: true });
+    extraBrowsers.push(additional);
+    await responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name);
+  }
   await phpOnline(browser);
 } catch (error) {
   console.error('Real-browser QA failed:', error);
   throw error;
 } finally {
+  for (const extra of extraBrowsers) await extra.close();
   if (browser) await browser.close();
   if (server) await new Promise(resolve => server.close(resolve));
 }
