@@ -49,7 +49,9 @@
   $: statusTargetValid = dialog?.type !== 'personStatus' || (
     (project.events || []).some(event => event.type === 'person-added' &&
       event.personId === dialog.personId && event.date <= effectiveDate) &&
-    (dialog.kind !== 'deactivate' || !!entryProjection.peopleById.get(dialog.personId)?.active)
+    (dialog.kind === 'deactivate'
+      ? !!entryProjection.peopleById.get(dialog.personId)?.active
+      : !entryProjection.peopleById.get(dialog.personId)?.active)
   );
   $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid;
   function finishDatedChange(saved) {
