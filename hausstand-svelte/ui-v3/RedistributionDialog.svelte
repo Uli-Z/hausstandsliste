@@ -19,6 +19,7 @@
   import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
   import { uid, clone, dateDE, nextEventOrder } from '../src/lib/util.js';
+  import { validCalendarDate } from '../src/lib/timeTravel.js';
   
   export let dialog;
   export let project;
@@ -31,7 +32,12 @@
   
   $: preview = redistribution ? redistributionPreview(project, redistribution) : { base: null, rows: [], payments: [] };
   
-  $: people = projection.people;
+  $: people = preview.base?.people || projection.people;
+  $: dateValid = validCalendarDate(redistribution?.effectiveDate);
+  // Existing draft changes must still refer to owned items at the chosen date.
+  $: invalidItems = (redistribution?.changes || []).filter(change =>
+    !preview.base?.activeItems.some(item => item.id === change.itemId));
+  $: canExecute = dateValid && !invalidItems.length && !!redistribution?.changes?.length;
   $: itemsAtDate = preview.base?.activeItems || [];
   $: itemRows = preview.base ? buildRedistributionItemRows(preview.base, redistribution.changes || []) : [];
 
@@ -89,15 +95,17 @@
     if (!isEnterForSubmit(event)) return;
     if (activeSubModal) return; // Unterdialog hat eine eigene Bestätigung.
     event.preventDefault();
-    if (redistribution?.changes?.length) execute();
+    if (canExecute) execute();
   }
 
   function saveAsDraft() {
+    if (!dateValid) return;
     appState.upsertDraft(redistribution);
     appState.closeDialog();
   }
 
   function execute() {
+    if (!canExecute) return;
     if (!confirm($translate("ui.apply-this-redistribution-now-kiu6zk"))) return;
     const saved = appState.mutateProject(p => {
       p.events.push({ 
@@ -124,6 +132,7 @@
       <!-- Linke Seite: Spezialaktionen und Items -->
       <div class="stack content-left">
         <section class="mini-card stack">
+          <label>{$translate('timeTravel.effectiveDate')} <input id="redistribution-effective-date" type="date" bind:value={redistribution.effectiveDate}/></label>
           <label>{$translate("ui.description-kc1lkc")} <input bind:value={redistribution.title} placeholder="z. B. Auszug Anna"></label>
           <label>{$translate("ui.should-financial-claims-arise-qd7qky")}
             <select bind:value={redistribution.financialMode}>
@@ -131,6 +140,8 @@
               <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
             </select>
           </label>
+          {#if !dateValid}<p role="alert" class="notice warn">{$translate('timeTravel.invalidDate')}</p>{/if}
+          {#if invalidItems.length}<p role="alert" class="notice warn">{$translate('timeTravel.itemsUnavailable')}</p>{/if}
           <div class="financial-mode-help"><HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip></div>
           <strong>{$translate("ui.quick-actions-j7efqp")}</strong>
           <div class="row">
@@ -193,8 +204,8 @@
     <div class="modal-footer">
       <button on:click={() => appState.closeDialog()}>{$translate("ui.cancel-cl4zc9")}</button>
       <div style="flex:1"></div>
-      <button on:click={saveAsDraft}><ActionIcon name="download" size={17}/>{$translate("ui.save-as-draft-sz9zgy")}</button>
-      <button class="primary" on:click={execute} disabled={!redistribution.changes.length}>{$translate("ui.apply-changes-7tqg8a")}</button>
+      <button on:click={saveAsDraft} disabled={!dateValid || $appState.readOnly}><ActionIcon name="download" size={17}/>{$translate("ui.save-as-draft-sz9zgy")}</button>
+      <button class="primary" on:click={execute} disabled={!canExecute || $appState.readOnly}>{$translate("ui.apply-changes-7tqg8a")}</button>
     </div>
   </div>
 </div>

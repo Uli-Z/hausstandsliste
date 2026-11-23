@@ -99,7 +99,7 @@
     if (saved) appState.closeDialog();
   }
 
-  $: people = projection.people;
+  $: people = preview.base?.people || projection.people;
   $: itemRows = preview.base
     ? buildRedistributionItemRows(preview.base, redistributionForPreview?.changes || [], (edited?.events || []).map(child => child.itemId))
     : [];

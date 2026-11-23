@@ -3,6 +3,7 @@
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE, uid, clone } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';
+  import { projectAt } from '../src/lib/projector.js';
   import ShareEditor from './ShareEditor.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   import { isEnterForSubmit } from './form-behavior.js';
@@ -42,7 +43,8 @@
     if (saved) appState.closeDialog();
   }
 
-  $: people = projection.people;
+  // Date edits see people participating on that event date, not the current view date.
+  $: people = edited?.date ? projectAt(project, edited.date).people : projection.people;
   $: items = projection.items;
 </script>
 

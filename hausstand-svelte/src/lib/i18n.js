@@ -4,6 +4,11 @@ import { writable, derived, get } from 'svelte/store';
 export const LANGUAGE_KEY = 'hausstand-language';
 export const dictionaries = {
   "en": {
+    "timeTravel.effectiveDate": "Effective date",
+    "timeTravel.invalidDate": "Choose a valid calendar date before saving.",
+    "timeTravel.itemsUnavailable": "Some selected items are not owned on this date. Choose another date or remove those changes.",
+    "timeTravel.moveOut": "Moved out",
+    "timeTravel.rejoin": "Moved back in",
     "errors.readOnly": "This project is read-only. Start editing before making changes.",
     "errors.changeFailed": "The change could not be saved. Nothing was changed. Please try again.",
     "errors.ownerless": "Change not saved: “{name}” would have no owner from {date}. Transfer its shares or archive the item.",
@@ -565,6 +570,11 @@ export const dictionaries = {
     "items.give.other": "gives away {count} shares"
   },
   "de": {
+    "timeTravel.effectiveDate": "Datum des Vorgangs",
+    "timeTravel.invalidDate": "Bitte vor dem Speichern ein gültiges Kalenderdatum wählen.",
+    "timeTravel.itemsUnavailable": "Einige ausgewählte Gegenstände gehören an diesem Tag noch nicht oder nicht mehr zur Gemeinschaft. Bitte ein anderes Datum wählen oder diese Änderungen entfernen.",
+    "timeTravel.moveOut": "Auszug",
+    "timeTravel.rejoin": "Wiedereinzug",
     "errors.readOnly": "Dieses Projekt ist schreibgeschützt. Bitte zuerst die Bearbeitung starten.",
     "errors.changeFailed": "Die Änderung konnte nicht gespeichert werden. Die Daten blieben unverändert. Bitte erneut versuchen.",
     "errors.ownerless": "Änderung nicht gespeichert: „{name}“ hätte ab {date} keine Eigentümer mehr. Bitte Anteile übertragen oder den Gegenstand archivieren.",
