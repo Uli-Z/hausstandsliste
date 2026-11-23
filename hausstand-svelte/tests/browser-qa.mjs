@@ -94,10 +94,10 @@ async function openFinance(page) {
   return page.locator('.mobile-bottom-nav').getByRole('button', { name: /Geld/ }).click();
 }
 async function openSave(page) {
-  const desktop = page.locator('.sidebar').getByRole('button', { name: /Sichern & Teilen/ });
+  const desktop = page.locator('.sidebar').getByRole('button', { name: /Sichern & Öffnen/ });
   if (await desktop.isVisible()) return desktop.click();
   await page.getByRole('button', { name: 'Weitere Bereiche öffnen' }).click();
-  return page.locator('.mobile-more-menu').getByRole('button', { name: /Sichern & Teilen/ }).click();
+  return page.locator('.mobile-more-menu').getByRole('button', { name: /Sichern & Öffnen/ }).click();
 }
 async function balance(page, name, amount) {
   await page.waitForFunction(({ name, amount }) => [...document.querySelectorAll('.person-balance-row')]
@@ -114,7 +114,7 @@ async function payment(page, sum) {
 }
 async function download(page) {
   const wait = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+  await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).click();
   const file = await wait;
   return JSON.parse(await readFile(await file.path(), 'utf8'));
 }
@@ -188,13 +188,15 @@ async function offline(browser, url) {
   const width = await mobile.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: innerWidth }));
   assert.ok(width.document <= width.viewport + 2, 'Mobile page overflows: ' + JSON.stringify(width));
   await openSave(mobile);
-  const picker = mobile.locator('section[aria-label="Gespeicherte Dateiversionen"] select');
+  await mobile.locator('.storage-versions > summary').click();
+  const picker = mobile.locator('.storage-versions select');
   await picker.selectOption({ index: 1 });
   mobile.on('dialog', dialog => dialog.accept());
   await mobile.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
   await openFinance(mobile);
   await balance(mobile, 'Anna', '200,00');
-  assert.equal(await mobile.getByText('Ungespeicherte Änderungen').count() > 0, true);
+  await openSave(mobile);
+  assert.match(await mobile.locator('.storage-context').innerText(), /Änderungen seit/);
   const restored = await download(mobile);
   assert.equal(restored.versionHistory.entries.length, 2);
   assert.deepEqual(restored.events.filter(e => e.type === 'claim-settlement-recorded'), []);
@@ -204,7 +206,7 @@ async function offline(browser, url) {
 
   // Local encrypted download carries the same complete portable history.
   await openSave(mobile);
-  await mobile.getByRole('button', { name: /Passwortgeschützte Dateien verwalten/ }).click();
+  await mobile.locator('.storage-main details > summary').click();
   await mobile.getByLabel('Passwort für diese Datei').fill('encrypted-browser-qa-secret');
   await mobile.getByLabel('Name der Sicherung').fill('verschlüsselt');
   const encryptedWait = mobile.waitForEvent('download');
@@ -220,18 +222,19 @@ async function offline(browser, url) {
     encryptedPage.on('pageerror', e => encryptedErrors.push(e.message));
     await encryptedPage.goto(url);
     await openSave(encryptedPage);
-    await encryptedPage.getByRole('button', { name: /Passwortgeschützte Dateien verwalten/ }).click();
-    await encryptedPage.getByLabel('Passwort für diese Datei').fill('encrypted-browser-qa-secret');
-    await encryptedPage.locator('.storage-choices input[accept=".json,.enc"]').setInputFiles({
+    await encryptedPage.locator('.save-basic-actions input[type=file]').setInputFiles({
       name: 'portable-encrypted.json', mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(encryptedFile))
     });
+    await encryptedPage.getByLabel('Dateipasswort').fill('encrypted-browser-qa-secret');
+    await encryptedPage.getByRole('button', { name: 'Verschlüsselte Datei öffnen' }).click();
     await encryptedPage.getByText('Browser-Abnahme').first().waitFor();
     await openFinance(encryptedPage);
     await balance(encryptedPage, 'Anna', '200,00');
     await openSave(encryptedPage);
     // Versions are displayed newest first: index 1 is the payment state.
-    await encryptedPage.locator('section[aria-label="Gespeicherte Dateiversionen"] select')
+    await encryptedPage.locator('.storage-versions > summary').click();
+    await encryptedPage.locator('.storage-versions select')
       .selectOption({ index: 1 });
     encryptedPage.on('dialog', dialog => dialog.accept());
     await encryptedPage.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
@@ -239,14 +242,14 @@ async function offline(browser, url) {
       await encryptedPage.getByText(/Früherer Stand geladen/).waitFor({ timeout: 12000 });
     } catch {
       throw new Error('Encrypted restore did not finish: ' +
-        (await encryptedPage.locator('.storage-choices').innerText()).slice(0, 900));
+        (await encryptedPage.locator('.storage-flow').innerText()).slice(0, 900));
     }
     await openFinance(encryptedPage);
     await balance(encryptedPage, 'Anna', '140,00');
     // Header Save on an opened encrypted local file must directly download
     // an encrypted archive, not direct the user to an unencrypted backup.
     const saveEncryptedWait = encryptedPage.waitForEvent('download');
-    await encryptedPage.getByRole('button', { name: 'Speichern', exact: true }).click();
+    await encryptedPage.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).first().click();
     const savedEncrypted = JSON.parse(await readFile(await (await saveEncryptedWait).path(), 'utf8'));
     assert.equal(savedEncrypted.format, 'hausstand-aesgcm-v1');
     const savedEncryptedProject = (await decryptProject(savedEncrypted, 'encrypted-browser-qa-secret')).project;
@@ -648,13 +651,13 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
         Math.abs(beforeRedo.x - afterRedo.x) <= 1,
         'Q04 ' + width + 'px Undo/Redo shifted when unsaved state changed');
       const wait = page.waitForEvent('download');
-      await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).click();
       await wait;
       await page.locator('.save-feedback[role="status"]').waitFor();
       if (width === 375 && engine === 'Chromium') {
         await page.locator('.save-feedback').waitFor({ state: 'hidden', timeout: 7000 });
         const secondDownload = page.waitForEvent('download');
-        await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+        await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).click();
         await secondDownload;
         await page.locator('.save-feedback[role="status"]').waitFor();
       }
@@ -727,28 +730,27 @@ async function phpOnline(browser) {
       const editor = await first.newPage();
       await bootFixture(editor, host + '/hausstand.php');
       await openSave(editor);
-      await editor.getByRole('button', { name: 'Online-Projekte anzeigen' }).click();
-      await editor.getByLabel('Passwort der Projektdatei').fill('browser-test-passphrase');
-      await editor.getByLabel('Projektname (für neue Datei)').fill('Gemeinsame Browser-Abnahme');
-      await editor.getByRole('button', { name: 'Aktuellen Stand als Online-Projekt anlegen' }).click();
+      await editor.locator('.storage-online details > summary').filter({ hasText: 'Neues Online-Projekt anlegen' }).click();
+      await editor.getByLabel('Passwort des Online-Projekts').fill('browser-test-passphrase');
+      await editor.getByLabel('Name des neuen Online-Projekts').fill('Gemeinsame Browser-Abnahme');
+      await editor.getByRole('button', { name: 'Neues Online-Projekt anlegen' }).click();
       await editor.getByText('Gemeinsame Browser-Abnahme').first().waitFor();
-      await editor.getByRole('button', { name: 'Bearbeitung starten' }).click();
+      await editor.locator('.storage-primary').click();
       await editor.getByRole('button', { name: 'Bearbeitung beenden' }).waitFor();
 
       const viewer = await second.newPage();
       await viewer.goto(host + '/hausstand.php');
       await openSave(viewer);
-      await viewer.getByRole('button', { name: 'Online-Projekte anzeigen' }).click();
-      await viewer.getByLabel('Passwort der Projektdatei').fill('browser-test-passphrase');
-      await viewer.getByRole('button', { name: 'Verfügbare Dateien anzeigen' }).click();
+      await viewer.getByLabel('Passwort des Online-Projekts').fill('browser-test-passphrase');
+      await viewer.locator('.storage-online').getByRole('button', { name: 'Liste aktualisieren' }).click();
       await viewer.locator('.shared-file').getByRole('button', { name: 'Öffnen' }).click();
-      await viewer.getByRole('button', { name: 'Bearbeitung starten' }).click();
+      await viewer.locator('.storage-primary').click();
       await viewer.getByText(/bereits ausgecheckt/).waitFor();
 
       await openFinance(editor);
       await payment(editor, '60');
-      await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
-      await editor.locator('.save-feedback[role="status"]').filter({ hasText: /Revision 2 gespeichert/ }).waitFor();
+      await editor.getByRole('button', { name: 'Online speichern', exact: true }).click();
+      await editor.locator('.save-feedback[role="status"]').filter({ hasText: /Serverversion 2/ }).waitFor();
       const files = (await (await fetch(host + '/hausstand.php?api=files')).json()).files;
       assert.equal(files.length, 1);
       const packet = await (await fetch(host + '/hausstand.php?api=read&id=' + files[0].id)).json();
@@ -757,7 +759,7 @@ async function phpOnline(browser) {
       assert.equal(decoded.events.filter(e => e.type === 'claim-settlement-recorded').length, 1);
       await openSave(editor);
       await editor.getByRole('button', { name: 'Bearbeitung beenden' }).click();
-      await viewer.getByRole('button', { name: 'Bearbeitung starten' }).click();
+      await viewer.locator('.storage-primary').click();
       await viewer.getByText(/neuere Revision|HTTP 409/).waitFor();
       console.log('Browser PHP QA: encrypted create/open, exclusive lease, Save, embedded archive and stale revision passed');
     } finally { await first.close(); await second.close(); }
