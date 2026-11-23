@@ -7,6 +7,6 @@ export const validCalendarDate = date => {
 };
 export const openDatePicker = state => state.datePickerOpen ? state : { ...state, datePickerOpen: true };
 export const dismissDatePicker = state => !state.datePickerOpen ? state : { ...state, datePickerOpen: false };
-export const selectAsOfDate = (state, date) => !validCalendarDate(date) ? state : { ...state, asOfDate: date, datePickerOpen: true, timeTravelActive: true };
+export const selectAsOfDate = (state, date) => !validCalendarDate(date) ? state : { ...state, asOfDate: date, timeTravelActive: true };
 export const returnToToday = (state, today) => ({ ...state, asOfDate: today, datePickerOpen: false, timeTravelActive: false });
 export const syncCalendarDay = (state, today) => !validCalendarDate(today) || state.timeTravelActive || state.asOfDate === today ? state : { ...state, asOfDate: today };
