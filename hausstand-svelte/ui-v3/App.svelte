@@ -171,6 +171,7 @@
 
     <main class="work-content">
       {#if saveMessage}<p role="status" class="inline-info">{saveMessage}</p>{/if}
+      {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">Der Browser konnte die Arbeitskopie nicht zwischenspeichern (Speicher voll oder nicht verfügbar). Bitte jetzt eine Projektdatei herunterladen.</p>{/if}
       <div class="date-toolbar" aria-label="Betrachtungsdatum">
         <div class="date-toolbar-label">
           <span>Stand der Daten</span>
