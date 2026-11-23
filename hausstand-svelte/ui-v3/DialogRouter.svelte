@@ -151,7 +151,7 @@
       alert(`Löschen nicht möglich: ${eligibility.reason}`);
       return;
     }
-    if (!confirm(`Die unbeteiligte Person "${person.name}" endgültig löschen? Ihr Eintragsereignis wird ebenfalls entfernt.`)) return;
+    if (!confirm($translate("dialog.confirmRemovePerson", {name:person.name}))) return;
 
     let deleted = false;
     appState.mutateProject(p => {
@@ -358,6 +358,9 @@
               <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
             </select>
           </label>
+          <div class="financial-mode-help">
+            <HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip>
+          </div>
         {:else if dialog.type === 'itemEnd'}
           <label>{$translate("ui.reason-1rj1mxt")} <input bind:value={reason} placeholder={$translate("ui.broken-sold-taken-over-privately-29sy7l")}></label>
         {:else if dialog.type === 'options'}
