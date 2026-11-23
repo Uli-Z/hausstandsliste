@@ -1,5 +1,13 @@
 # Projektleitfaden für Entwicklungsagenten – Hausstandsliste
 
+
+## Product identity and language direction (23 November 2026)
+
+**Official name:** Hausstandsliste. **English descriptor:** Shared Ownership Tracker. New product documentation should be written in English, with terminology defined in [Product language and terminology](docs/LANGUAGE-AND-TERMINOLOGY.md). The two main README files are already English; older German technical records are pending translation and consistency review under Q08.
+
+**Important:** this change has **not** implemented locale switching. Most UI labels are still German; keep honest `lang="de"` metadata until Q13 delivers complete English/default and automatic German/localized rendering. Do not rename existing JSON/event fields, crypto markers, local storage keys, release filenames, or backend identifiers to translate user-facing copy. See [Q13](docs/WG-PRAXIS-TODO.md).
+
+
 Dieses Dokument ist der kurze Einstieg für neue Entwicklungs-Sitzungen. **Zuerst diese Dateien lesen**:
 
 1. [README.md](README.md) – Ziel, Schnellstart, Funktionsumfang
