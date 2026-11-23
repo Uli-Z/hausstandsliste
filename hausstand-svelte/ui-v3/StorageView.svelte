@@ -5,12 +5,14 @@
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   import { appState } from '../src/stores/projectStore.js';
   import { exportProject } from '../src/lib/persistence.js';
+  import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
   let showProtected = false, showShared = false, busy = false, error = '', message = '';
   let password = '', newPassword = '', fileName = '';
   let serverCanCreate = false, serverReady = false;
-  let files = [], versions = [], selectedVersion = '';
+  let files = [], versions = [], selectedVersion = '', selectedPortableVersion = '';
+  $: portableVersions = [...($appState.project.versionHistory?.entries || [])].reverse();
   let openedId = '', revision = 0, editToken = '', leaseToken = '', leaseExpires = 0;
   let activePassword = '';
 
@@ -72,14 +74,15 @@
   async function exportEncrypted() {
     if (!password) throw new Error('Bitte eine Passphrase eingeben.');
     const token = editToken || randomSecret();
-    const envelope = await encryptProject(exportProject($appState.project, $appState.asOfDate), password, token);
+    const saved = await createPortableSave($appState.project, $appState.savedProject);
+    const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), password, token);
     download(envelope, (fileName.trim() || 'hausstand') + '.hausstand.enc.json');
     if (!openedId) {
       editToken = token;
-      appState.importProject($appState.project, fileName || 'Verschlüsselt', true);
+      appState.importProject(saved, fileName || 'Verschlüsselt', true);
     }
-    appState.markExported();
-    message = 'Verschlüsselte Projektdatei exportiert.';
+    // An online project is not saved on the server by downloading a backup.
+    message = openedId ? 'Verschlüsselte Sicherung heruntergeladen; Online-Änderungen noch nicht gespeichert.' : 'Verschlüsselte Projektdatei heruntergeladen.';
   }
   async function importEncrypted(event) {
     const file = event.currentTarget.files?.[0];
@@ -116,13 +119,14 @@
     if (!password || password.length < 8) throw new Error('Bitte ein Projektpasswort mit mindestens acht Zeichen eingeben.');
     if (!ensureNoOverwrite()) return;
     const id = crypto.randomUUID(), token = randomSecret();
-    const envelope = await encryptProject(exportProject($appState.project, $appState.asOfDate), password, token);
+    const saved = await createPortableSave($appState.project, $appState.savedProject);
+    const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), password, token);
     const result = await api('create', {
       id, name: fileName.trim(), envelope, tokenHash: await hashSecret(token)
     });
     openedId = id; editToken = token; revision = result.revision;
     activePassword = password; leaseToken = ''; leaseExpires = 0;
-    appState.importProject($appState.project, fileName.trim(), true, true);
+    appState.importProject(saved, fileName.trim(), true, true);
     await refreshFiles();
     message = 'Neue verschlüsselte Datei angelegt. Zum Ändern auschecken.';
   }
@@ -139,16 +143,18 @@
   }
   async function commitProject(project, passphrase, token, rotate = false) {
     if (!openedId || !leaseToken) throw new Error('Die Datei muss zuerst ausgecheckt werden.');
-    const envelope = await encryptProject(exportProject(project, $appState.asOfDate), passphrase, token);
+    const saved = await createPortableSave(project, $appState.savedProject);
+    const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), passphrase, token);
     const payload = { id: openedId, expectedRevision: revision, envelope };
     if (rotate) payload.newTokenHash = await hashSecret(token);
     const result = await api('save', payload, {}, true);
     revision = result.revision; leaseExpires = result.expiresAt;
     if (rotate) editToken = token;
-    appState.markExported();
+    appState.markSaved(saved);
     return result;
   }
   async function saveRemote() {
+    if (!$appState.dirty) { message = 'Keine ungespeicherten Änderungen.'; return; }
     const result = await commitProject($appState.project, activePassword, editToken);
     message = 'Revision ' + revision + ' gespeichert. Mailstatus: ' + result.mailStatus + '.';
   }
@@ -158,6 +164,25 @@
     leaseToken = ''; leaseExpires = 0; appState.setReadOnly(true);
     message = 'Eingecheckt, Sperre aufgehoben.';
   }
+  export async function saveFromHeader() {
+    if (!openedId || !leaseToken) return { handled: false };
+    busy = true; error = ''; message = '';
+    try {
+      await saveRemote();
+      return { handled: true, ok: true, message };
+    } catch (e) {
+      report(e);
+      return { handled: true, ok: false, message: error };
+    } finally { busy = false; }
+  }
+  async function restorePortable() {
+    if ($appState.readOnly) throw new Error('Zum Wiederherstellen zuerst die Bearbeitung freigeben.');
+    if (!selectedPortableVersion) throw new Error('Bitte eine gespeicherte Version auswählen.');
+    if (!confirm('Diese Version als ungespeicherten Arbeitsstand öffnen? Der aktuelle gespeicherte Stand bleibt erhalten.')) return;
+    const restored = await readPortableVersion($appState.project, selectedPortableVersion);
+    appState.restoreVersion(restored);
+    message = 'Früherer Stand geladen. Erst nach Speichern wird er zur neuen Version.';
+  }
   async function getVersions() {
     if (!openedId) throw new Error('Bitte eine Online-Datei öffnen.');
     versions = (await api('versions', null, { id: openedId })).versions || [];
@@ -165,12 +190,11 @@
   async function restore() {
     if (!leaseToken || !selectedVersion) throw new Error('Auschecken und Revision auswählen.');
     if (!password) throw new Error('Passwort für diese historische Version eingeben.');
-    if (!confirm('Historische Version als neue Revision speichern?')) return;
+    if (!confirm('Alte Serverrevision als ungespeicherten Arbeitsstand laden? Die bisherige Online-Version wird nicht überschrieben.')) return;
     const payload = await api('version', null, { id: openedId, rev: selectedVersion });
     const restored = await decryptProject(payload.envelope, password);
-    await commitProject(restored.project, activePassword, editToken);
-    appState.importProject(restored.project, fileName, true, false);
-    message = 'Version ' + selectedVersion + ' wurde als Revision ' + revision + ' wiederhergestellt.';
+    appState.restoreVersion({ ...restored.project, versionHistory: $appState.project.versionHistory });
+    message = 'Historische Serverrevision ' + selectedVersion + ' geladen; bitte mit Speichern als neue Dateiversion übernehmen.';
   }
   async function changePassword() {
     if (!leaseToken) throw new Error('Vor Passwortwechsel auschecken.');
@@ -239,8 +263,21 @@
               {/if}
               <button disabled={busy} on:click={() => run(getVersions)}>Ältere Versionen ansehen</button>
             </div>
+            {#if portableVersions.length}
+              <div class="stack">
+                <label>Version aus der Projektdatei
+                  <select bind:value={selectedPortableVersion}>
+                    <option value="">Gespeicherten Stand wählen</option>
+                    {#each portableVersions as v (v.id)}
+                      <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString('de-DE') : 'Früherer Stand (Datum unbekannt)'}</option>
+                    {/each}
+                  </select>
+                </label>
+                <button disabled={busy || $appState.readOnly || !selectedPortableVersion} on:click={() => run(restorePortable)}>Version als Arbeitsstand wiederherstellen</button>
+              </div>
+            {/if}
             {#if versions.length}
-              <label>Frühere Version auswählen<select bind:value={selectedVersion}><option value="">Bitte wählen</option>{#each versions as v}<option value={v.revision}>{v.revision} · {v.createdAt}</option>{/each}</select></label>
+              <label>Alte PHP-Serverrevision (Migration/Altbestand)<select bind:value={selectedVersion}><option value="">Bitte wählen</option>{#each versions as v}<option value={v.revision}>{v.revision} · {v.createdAt}</option>{/each}</select></label>
               <button disabled={busy || !leaseToken || !selectedVersion} on:click={() => run(restore)}>Gewählte Version wiederherstellen</button>
             {/if}
             {#if leaseToken}
