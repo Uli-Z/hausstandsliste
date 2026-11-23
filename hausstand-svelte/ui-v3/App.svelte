@@ -112,7 +112,7 @@
   <aside class="sidebar" aria-label="Hauptnavigation">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">H</span>
-      <div class="brand-name"><strong>Hausstand</strong><span>Gemeinsam verwalten</span></div>
+      <div class="brand-name"><strong>Hausstandsliste</strong><span>Shared Ownership Tracker</span></div>
     </div>
     
     <nav class="sidebar-links" aria-label="Arbeitsbereiche">
@@ -133,7 +133,7 @@
     <header class="app-header">
       <div class="header-context">
         
-        <strong><span class="mobile-header-brand">Hausstand · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
+        <strong><span class="mobile-header-brand">Hausstandsliste · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
       </div>
       <div class="header-actions">
         <span class="working-indicator" title={$appState.secure ? 'Passwortgeschütztes Projekt: keine Klartext-Arbeitskopie im Browser' : 'Nicht verschlüsselte Projekte haben eine lokale Arbeitskopie im Browser'}>

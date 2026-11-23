@@ -37,7 +37,7 @@
 <header>
   <div class="topbar">
     <div class="brand">
-      <h1>🏠 Hausstand – Anteilsverwaltung</h1>
+      <h1>🏠 Hausstandsliste · Shared Ownership Tracker</h1>
       <p>{$appState.project.community?.name || 'Hausgemeinschaft'} · {$appState.fileName || 'keine Datei geladen'} · {$appState.secure ? 'verschlüsselt geöffnet (kein Klartext-Browsercache)' : 'lokale Arbeitskopie'} · {$appState.dirty ? 'ungespeicherte Änderungen' : 'gespeichert/exportiert'}</p>
     </div>
 

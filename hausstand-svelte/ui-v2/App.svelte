@@ -56,7 +56,7 @@
   {#if route.page === 'dashboard'}
     <section class="workspace-intro">
       <div class="workspace-intro-copy">
-        <span class="eyebrow">HAUSSTAND / ÜBERSICHT</span>
+        <span class="eyebrow">HAUSSTANDSLISTE / ÜBERSICHT</span>
         <h1>Alles im Blick.</h1>
         <p>Bestand verwalten, Anteile nachvollziehen und Forderungen transparent ausgleichen.</p>
       </div>
