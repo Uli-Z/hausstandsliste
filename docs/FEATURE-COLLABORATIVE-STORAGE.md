@@ -1,6 +1,6 @@
 # Fach- und Technikentwurf: PHP-Online-Ablage
 
-**Status:** Kernfunktionen implementiert und PHP-API-Smoke-Test bestanden (21.11.2026). Noch kein externer PHP-Server eingerichtet und keine echte E-Mail-Zustellung bestätigt.
+> **Neue Produktentscheidung 23.11.2026:** Das hier dokumentierte **separate** PHP-Versionsarchiv ist nur noch die bestehende Altimplementierung, **nicht mehr das Soll**. Ziel ist eine einzige portable Projektdatei mit eingebetteter, komprimierter Versionshistorie – gleich für Offline-Download und Online-Upload. Siehe [Portable Versionshistorie](FEATURE-PORTABLE-VERSION-HISTORY.md) und [Q11](WG-PRAXIS-TODO.md). Technische Serverrevisionen, Checkout/Lease und Konfliktschutz bleiben; vorhandene PHP-Altdaten werden vor Abschaltung der separaten Archive verlustfrei migriert oder gesichert. Die folgenden älteren Entwurfsabschnitte sind insofern **historisch**, nicht als neuer Auftrag zur separaten PHP-Versionierung zu verstehen.\n\n**Status:** Kernfunktionen implementiert und PHP-API-Smoke-Test bestanden (21.11.2026). Noch kein externer PHP-Server eingerichtet und keine echte E-Mail-Zustellung bestätigt.
 
 ## Ziel
 
