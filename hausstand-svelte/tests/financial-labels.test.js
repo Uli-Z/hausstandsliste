@@ -8,6 +8,8 @@ import {
   FINANCIAL_EVENT_NOTE, ITEM_FUNDING_NOTE, PERSON_BALANCE_NOTE
 } from '../src/lib/financialLabels.js';
 import { ledgerAt } from '../src/lib/ledger.js';
+import { dictionaries } from '../src/lib/i18n.js';
+const hasTranslation = (component, germanText) => Object.entries(dictionaries.de).some(([key, value]) => value === germanText && component.includes(key));
 
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -67,11 +69,11 @@ test('A06: current UI uses consistent financial labels and no payment counts', (
     assert.doesNotMatch(timeline, /preview\.payments\.length/);
     assert.doesNotMatch(timeline, /\} Zahlungen/);
     const panel = source(flavor + 'LedgerView.svelte');
-    assert.match(panel, /Salden der Personen/);
-    assert.match(panel, /Ausgleichen/);
+    assert.ok(hasTranslation(panel, 'Salden der Personen'));
+    assert.ok(hasTranslation(panel, 'Ausgleichen'));
     assert.match(panel, /BalanceBreakdown/);
-    assert.match(panel, /Zahlung erfassen/);
-    assert.match(panel, /Herkunft der Wertverschiebungen/);
+    assert.ok(hasTranslation(panel, 'Zahlung erfassen'));
+    assert.ok(hasTranslation(panel, 'Herkunft der Wertverschiebungen'));
     const prefix = 'ui-v3/';
     for (const name of ['RedistributionDialog.svelte', 'ExecutedRedistributionEditDialog.svelte']) {
       const dialog = source(prefix + name);
@@ -80,7 +82,7 @@ test('A06: current UI uses consistent financial labels and no payment counts', (
     }
   }
   const dashboard = source('ui-v3/App.svelte');
-  assert.match(dashboard, /Ausgleichsvorschläge/);
+  assert.match(dashboard, /Ausgleichsvorschläge|app\.suggestions/);
   assert.match(dashboard, /outstandingCents/);
   assert.doesNotMatch(dashboard, /Keine offenen Beträge/);
 });

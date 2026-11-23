@@ -1,15 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { dictionaries } from '../src/lib/i18n.js';
+const translationKey = de => Object.entries(dictionaries.de).find(([, text]) => text === de)?.[0];
+const atTranslation = (component, de) => { const key = translationKey(de); assert.ok(key, 'missing de translation: ' + de); return component.indexOf(key); };
 
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('settlement proposals are the primary action, before personal balances and optional audit history', () => {
   for (const path of ['ui-v3/LedgerView.svelte']) {
     const s = source(path);
-    const proposal = s.indexOf('So könnt ihr ausgleichen');
-    const personal = s.indexOf('Salden der Personen');
-    const audit = s.indexOf('Dokumentierte Ausgleiche');
+    const proposal = atTranslation(s, 'So könnt ihr ausgleichen');
+    const personal = atTranslation(s, 'Salden der Personen');
+    const audit = atTranslation(s, 'Dokumentierte Ausgleiche');
     assert.ok(proposal !== -1 && personal > proposal && audit > personal, path);
     assert.match(s, /BalanceBreakdown/);
     assert.match(s, /type: 'settlementAdd'/);
@@ -19,9 +22,9 @@ test('settlement proposals are the primary action, before personal balances and 
 
 test('the payment form states the fact of a completed transfer and stays scrollable on mobile', () => {
   const s = source('src/components/SettlementDialog.svelte');
-  assert.match(s, /Ist diese Zahlung bereits erfolgt/);
-  assert.match(s, /Zahlung als erfolgt erfassen/);
-  assert.match(s, /Es wird kein Geld überwiesen|Die App überweist selbst kein Geld/);
+  assert.ok(atTranslation(s, 'Ist diese Zahlung bereits erfolgt?') >= 0);
+  assert.ok(atTranslation(s, 'Zahlung als erfolgt erfassen') >= 0);
+  assert.ok(atTranslation(s, 'Hier hältst du eine Zahlung fest, die bereits stattgefunden hat. Die App überweist selbst kein Geld.') >= 0);
   assert.match(s, /settlement-form/);
   assert.match(s, /grid-template-rows:minmax\(0,1fr\) auto/);
   assert.match(s, /setAsOfDate\(date\)/);
@@ -54,7 +57,7 @@ test('contextual help does not occupy the main layout until requested', () => {
   for (const file of ['ui-v3/LedgerView.svelte']) {
     const s = source(file);
     assert.match(s, /import HelpTip/);
-    assert.match(s, /<HelpTip label="Wie funktionieren die Zahlungsvorschläge\?"/);
+    assert.ok(atTranslation(s, 'Wie funktionieren die Zahlungsvorschläge?') >= 0);
     assert.doesNotMatch(s, /<p class="intro">/);
     assert.doesNotMatch(s, /<p class="section-footnote">/);
   }
@@ -64,6 +67,6 @@ test('contextual help does not occupy the main layout until requested', () => {
     assert.match(source(file), /<HelpTip/);
   }
   const dialog = source('src/components/SettlementDialog.svelte');
-  assert.match(dialog, /Ist diese Zahlung bereits erfolgt/);
+  assert.ok(atTranslation(dialog, 'Ist diese Zahlung bereits erfolgt?') >= 0);
   assert.doesNotMatch(dialog, /<p class="settlement-intro">/);
 });
