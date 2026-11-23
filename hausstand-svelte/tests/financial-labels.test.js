@@ -18,22 +18,22 @@ test('A06: labels always separate derived claims, payment suggestions and booked
   assert.match(BILATERAL_BALANCE_DESCRIPTION, /gegenläufigen Ansprüchen/i);
   assert.match(MULTILATERAL_SUGGESTION_DESCRIPTION, /unverbindlich/i);
   assert.match(MULTILATERAL_SUGGESTION_DESCRIPTION, /Keine Zahlung/i);
-  assert.match(REDISTRIBUTION_SUGGESTION_TITLE, /nicht gebucht/i);
-  assert.match(REDISTRIBUTION_SUGGESTION_NOTICE, /keine gebuchte Zahlung/i);
+  assert.match(REDISTRIBUTION_SUGGESTION_TITLE, /noch keine Zahlung/i);
+  assert.match(REDISTRIBUTION_SUGGESTION_NOTICE, /kein Geld wird überwiesen/i);
   assert.match(DERIVED_CLAIMS_DESCRIPTION, /dokumentierten Ausgleiche/i);
 });
 
 test('A06: historical ownership event never displays a payment as having taken place', () => {
   const derived = FINANCIAL_EVENT_NOTE({ financialMode: 'derived' });
-  assert.match(derived, /Forderungen/i);
-  assert.match(derived, /keine Zahlung gebucht/i);
+  assert.match(derived, /Geldanspruch/i);
+  assert.match(derived, /keine Überweisung/i);
   const gift = FINANCIAL_EVENT_NOTE({ financialMode: 'none' });
-  assert.match(gift, /unentgeltlich/i);
-  assert.match(gift, /keine neue Forderung/i);
-  assert.match(gift, /keine Zahlung gebucht/i);
-  assert.match(FINANCIAL_EVENT_NOTE({ financialMode: 'none' }), /keine neue Forderung/i);
-  assert.match(ITEM_FUNDING_NOTE({ financialMode: 'derived', financedByPersonId: 'anna' }), /keine Zahlung gebucht/i);
-  assert.match(ITEM_FUNDING_NOTE({ financedByPersonId: 'anna' }), /Keine Forderung/i);
+  assert.match(gift, /Schenkung oder Korrektur/i);
+  assert.match(gift, /ohne neuen Geldanspruch/i);
+  assert.match(gift, /ohne Zahlung/i);
+  assert.match(FINANCIAL_EVENT_NOTE({ financialMode: 'none' }), /ohne neuen Geldanspruch/i);
+  assert.match(ITEM_FUNDING_NOTE({ financialMode: 'derived', financedByPersonId: 'anna' }), /noch nicht gebucht/i);
+  assert.match(ITEM_FUNDING_NOTE({ financedByPersonId: 'anna' }), /kein automatischer Geldanspruch/i);
 });
 
 test('A06: zero net balance does not certify a paid debt', () => {
