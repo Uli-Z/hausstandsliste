@@ -56,8 +56,17 @@ async function bootFixture(page, url) {
   await page.reload();
   await page.getByText('Browser-Abnahme').first().waitFor();
 }
-const financeNav = page => page.locator('.sidebar').getByRole('button', { name: /Geld & Ausgleich/ });
-const saveNav = page => page.locator('.sidebar').getByRole('button', { name: /Sichern & Teilen/ });
+async function openFinance(page) {
+  const desktop = page.locator('.sidebar').getByRole('button', { name: /Geld & Ausgleich/ });
+  if (await desktop.isVisible()) return desktop.click();
+  return page.locator('.mobile-bottom-nav').getByRole('button', { name: /Geld/ }).click();
+}
+async function openSave(page) {
+  const desktop = page.locator('.sidebar').getByRole('button', { name: /Sichern & Teilen/ });
+  if (await desktop.isVisible()) return desktop.click();
+  await page.getByRole('button', { name: 'Weitere Bereiche öffnen' }).click();
+  return page.locator('.mobile-more-menu').getByRole('button', { name: /Sichern & Teilen/ }).click();
+}
 async function balance(page, name, amount) {
   await page.waitForFunction(({ name, amount }) => [...document.querySelectorAll('.person-balance-row')]
     .some(row => row.textContent.includes(name) && row.textContent.includes(amount)), { name, amount }, { timeout: 10000 });
@@ -83,7 +92,7 @@ async function offline(browser, url) {
   const failures = [];
   page.on('pageerror', e => failures.push(e.message));
   await bootFixture(page, url);
-  await financeNav(page).click();
+  await openFinance(page);
   await balance(page, 'Anna', '200,00');
   await balance(page, 'Ben', '100,00');
   await payment(page, '60');
@@ -102,7 +111,7 @@ async function offline(browser, url) {
   assert.equal(stored.versionHistory.entries[0].encoding, 'gzip-base64');
   await page.reload();
   assert.equal(await undo.isDisabled(), true, 'fine-grained Undo must not survive reload');
-  await financeNav(page).click(); // route/navigation state is intentionally not persisted.
+  await openFinance(page); // route/navigation state is intentionally not persisted.
   await balance(page, 'Anna', '140,00');
   assert.deepEqual(failures, []);
   await context.close();
@@ -113,23 +122,23 @@ async function offline(browser, url) {
   const errors = [];
   mobile.on('pageerror', e => errors.push(e.message));
   await mobile.goto(url);
-  await saveNav(mobile).click();
+  await openSave(mobile);
   const upload = mobile.locator('.save-basic-actions input[type=file]');
   await upload.setInputFiles({
     name: 'downloaded.json', mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(stored))
   });
   await mobile.getByText('Browser-Abnahme').first().waitFor();
-  await financeNav(mobile).click();
+  await openFinance(mobile);
   await balance(mobile, 'Anna', '140,00');
   const width = await mobile.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: innerWidth }));
   assert.ok(width.document <= width.viewport + 2, 'Mobile page overflows: ' + JSON.stringify(width));
-  await saveNav(mobile).click();
+  await openSave(mobile);
   const picker = mobile.locator('section[aria-label="Gespeicherte Dateiversionen"] select');
   await picker.selectOption({ index: 1 });
   mobile.on('dialog', dialog => dialog.accept());
   await mobile.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
-  await financeNav(mobile).click();
+  await openFinance(mobile);
   await balance(mobile, 'Anna', '200,00');
   assert.equal(await mobile.getByText('Ungespeicherte Änderungen').count() > 0, true);
   const restored = await download(mobile);
@@ -171,7 +180,7 @@ async function phpOnline(browser) {
     try {
       const editor = await first.newPage();
       await bootFixture(editor, host + '/hausstand.php');
-      await saveNav(editor).click();
+      await openSave(editor);
       await editor.getByRole('button', { name: 'Online-Projekte anzeigen' }).click();
       await editor.getByLabel('Passwort der Projektdatei').fill('browser-test-passphrase');
       await editor.getByLabel('Projektname (für neue Datei)').fill('Gemeinsame Browser-Abnahme');
@@ -182,7 +191,7 @@ async function phpOnline(browser) {
 
       const viewer = await second.newPage();
       await viewer.goto(host + '/hausstand.php');
-      await saveNav(viewer).click();
+      await openSave(viewer);
       await viewer.getByRole('button', { name: 'Online-Projekte anzeigen' }).click();
       await viewer.getByLabel('Passwort der Projektdatei').fill('browser-test-passphrase');
       await viewer.getByRole('button', { name: 'Verfügbare Dateien anzeigen' }).click();
@@ -190,7 +199,7 @@ async function phpOnline(browser) {
       await viewer.getByRole('button', { name: 'Bearbeitung starten' }).click();
       await viewer.getByText(/bereits ausgecheckt/).waitFor();
 
-      await financeNav(editor).click();
+      await openFinance(editor);
       await payment(editor, '60');
       await editor.getByRole('button', { name: 'Speichern', exact: true }).click();
       await editor.getByText(/Revision 2 gespeichert/).waitFor();
@@ -200,7 +209,7 @@ async function phpOnline(browser) {
       const decoded = (await decryptProject(packet.envelope, 'browser-test-passphrase')).project;
       assert.equal(decoded.versionHistory.entries.length, 1);
       assert.equal(decoded.events.filter(e => e.type === 'claim-settlement-recorded').length, 1);
-      await saveNav(editor).click();
+      await openSave(editor);
       await editor.getByRole('button', { name: 'Bearbeitung beenden' }).click();
       await viewer.getByRole('button', { name: 'Bearbeitung starten' }).click();
       await viewer.getByText(/neuere Revision|HTTP 409/).waitFor();
