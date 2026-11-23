@@ -32,12 +32,14 @@
   let shareFinancialMode = 'derived';
   let financedByPersonId = '';
   let effectiveDate = '';
+  let dateSharesRebased = false;
   let initializedFor = null;
   // Effective dates are independent of the view once a dialog/draft is opened.
   $: if (dialog && dialog !== initializedFor) {
     initializedFor = dialog;
     const draft = dialog.id ? (project.drafts || []).find(d => d.id === dialog.id) : null;
     effectiveDate = draft?.data?.effectiveDate || asOfDate;
+    dateSharesRebased = false;
   }
   $: dateValid = validCalendarDate(effectiveDate);
   $: entryProjection = dateValid ? projectAt(project, effectiveDate) : projection;
@@ -54,6 +56,31 @@
       : !entryProjection.peopleById.get(dialog.personId)?.active)
   );
   $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid;
+  function changeEffectiveDate(event) {
+    const nextDate = event.currentTarget.value;
+    if (validCalendarDate(nextDate)) {
+      const atDate = projectAt(project, nextDate);
+      if (['shareSet', 'itemContinue'].includes(dialog?.type)) {
+        const item = atDate.activeItems.find(item => item.id === dialog.itemId);
+        if (item) {
+          // Default shares and replacement value must reflect the new date,
+          // not the shares from when the dialog was first opened.
+          shares = { ...item.shares };
+          if (dialog.type === 'itemContinue') {
+            initialValue = Math.round(item.value * 100) / 100;
+          }
+          dateSharesRebased = true;
+        }
+      } else if (dialog?.type === 'itemAdd') {
+        // A future or former participant must not remain silently selected
+        // as an owner when the user chooses another purchase date.
+        shares = Object.fromEntries(Object.entries(shares).filter(([id]) =>
+          atDate.peopleById.get(id)?.active));
+      }
+    }
+    effectiveDate = nextDate;
+  }
+
   function finishDatedChange(saved) {
     if (!saved) return;
     const confirmedDate = effectiveDate;
@@ -346,12 +373,13 @@
       <div class="modal-body stack">
         {#if hasEventDate}
           <label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
-            <input id="event-effective-date" type="date" bind:value={effectiveDate} />
+            <input id="event-effective-date" type="date" bind:value={effectiveDate} on:change={changeEffectiveDate} />
           </label>
           {#if !dateValid}<p role="alert" class="notice warn">{$translate('timeTravel.invalidDate')}</p>{/if}
           {#if dateValid && !itemAvailable}<p role="alert" class="notice warn">{$translate('timeTravel.itemUnavailable')}</p>{/if}
           {#if dateValid && !peopleAvailable}<p role="alert" class="notice warn">{$translate('timeTravel.peopleUnavailable')}</p>{/if}
           {#if dateValid && !statusTargetValid}<p role="alert" class="notice warn">{$translate('timeTravel.statusUnavailable')}</p>{/if}
+          {#if dateSharesRebased}<p role="status" class="muted">{$translate('timeTravel.sharesRebased')}</p>{/if}
         {/if}
         {#if dialog.type === 'personAdd' || dialog.type === 'personMeta'}
           <label class="person-name-field">{$translate("ui.name-4el6o6")} <input bind:value={name} placeholder="Vor- und Nachname" autocomplete="name" enterkeyhint="done"></label>

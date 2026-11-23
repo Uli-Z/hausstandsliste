@@ -18,6 +18,12 @@ test('new dated forms use the selected effective date; saved item drafts retain 
   assert.ok(router.includes('id="event-effective-date"'));
   assert.ok(router.includes('        effectiveDate,'));
   assert.ok(router.includes('projectAt(project, effectiveDate)'));
+  assert.ok(router.includes('on:change={changeEffectiveDate}'));
+  assert.ok(router.includes('shares = { ...item.shares }'));
+  assert.ok(router.includes('dateSharesRebased = true'));
+  assert.ok(router.includes('disabled={!canSubmitDated'));
+  assert.ok(router.includes('itemAvailable'));
+  assert.ok(router.includes('statusTargetValid'));
   const person = source('ui-v3/PersonDetail.svelte');
   assert.ok(person.includes("type:'personStatus'"));
   assert.ok(!person.includes("createEvent('person-deactivated', asOfDate"));
