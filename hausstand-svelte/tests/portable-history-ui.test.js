@@ -21,9 +21,10 @@ test('V3 Save persists an explicit version, and restores open as unsaved drafts'
   const app = source('ui-v3/App.svelte');
   const storage = source('ui-v3/StorageView.svelte');
   const store = source('src/stores/projectStore.js');
-  assert.match(app, /createPortableSave\(\$appState\.project, \$appState\.savedProject\)/);
-  assert.match(app, /downloadProject\(saved, \$appState\.asOfDate\)/);
-  assert.match(app, /appState\.markSaved\(saved\)/);
+  assert.match(storage, /createPortableSave\(\$appState\.project, \$appState\.savedProject\)/);
+  assert.match(storage, /downloadProject\(saved, \$appState\.asOfDate\)/);
+  assert.match(storage, /appState\.markSaved\(saved\)/);
+  assert.match(app, /storageView\?\.saveFromHeader\?\.\(\)/);
   assert.match(app, /restoreWorkingCopy\(copy\)/);
   assert.doesNotMatch(app, /setAsOfDate\(copy\.asOfDate\)/);
   assert.match(storage, /createPortableSave\(project, \$appState\.savedProject\)/);
