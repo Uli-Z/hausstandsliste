@@ -34,7 +34,7 @@
   }
 
   function remove() {
-    if (!confirm('Ereignis wirklich löschen?')) return;
+    if (!confirm($translate("ui.delete-this-event-1nrohzk"))) return;
     const saved = appState.mutateProject(p => {
       p.events = p.events.filter(e => e.id !== event.id);
     });

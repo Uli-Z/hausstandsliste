@@ -66,7 +66,7 @@
       const saved = appState.mutateProject(p => {
         if (original) {
           const i = p.events.findIndex(e => e.id === original.id && e.type === 'claim-settlement-recorded');
-          if (i === -1) throw new Error('Die ursprüngliche Buchung wurde nicht gefunden.');
+          if (i === -1) throw new Error($translate("ui.the-original-settlement-entry-was--1huy9tm"));
           p.events[i] = updated;
         } else p.events.push(updated);
       });
@@ -84,7 +84,7 @@
 
   function remove() {
     if (!original || busy) return;
-    if (!confirm('Diesen dokumentierten Ausgleich wirklich löschen? Der Ausgleichssaldo wird danach neu berechnet.')) return;
+    if (!confirm($translate("ui.delete-this-recorded-settlement-the-sa4wke"))) return;
     busy = true;
     const saved = appState.mutateProject(p => {
       const i = p.events.findIndex(e => e.id === original.id && e.type === 'claim-settlement-recorded');
@@ -128,7 +128,7 @@
             <input type="date" bind:value={date}/>
           </label>
           <label class="wide">{$translate("ui.note-optional-78uues")}
-            <textarea rows="2" bind:value={note} placeholder="z. B. Überweisung am 22.11."></textarea>
+            <textarea rows="2" bind:value={note} placeholder={$translate("ui.e-g-bank-transfer-on-22-nov-bkvarc")}></textarea>
           </label>
         </div>
         <details open={advanced}>

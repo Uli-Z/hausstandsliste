@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../src/lib/i18n.js';
+  import { translate, getLocale } from '../src/lib/i18n.js';
   import { onMount } from 'svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
@@ -43,14 +43,14 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   function ensureNoOverwrite() {
-    return !$appState.dirty || confirm('Ungespeicherte Änderungen vorhanden. Vorher verschlüsselt exportieren? Trotzdem öffnen?');
+    return !$appState.dirty || confirm($translate("ui.there-are-unsaved-changes-export-a-19yj4yk"));
   }
   function apiEndpoint(action, params = {}) {
-    if (!SERVER_MODE) throw new Error('Diese Offline-Version besitzt keine Server-Anbindung.');
+    if (!SERVER_MODE) throw new Error($translate("ui.the-offline-version-has-no-server--16chyt0"));
     const endpoint = new URL(location.pathname, location.origin);
     if (endpoint.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(endpoint.hostname))
-      throw new Error('Die Server-Version muss über HTTPS aufgerufen werden.');
-    if (!endpoint.pathname.endsWith('.php')) throw new Error('Die Server-Version muss aus der PHP-Datei geöffnet werden.');
+      throw new Error($translate("ui.the-server-version-must-be-opened--1m44upg"));
+    if (!endpoint.pathname.endsWith('.php')) throw new Error($translate("ui.the-server-version-must-be-opened--15di5sz"));
     endpoint.searchParams.set('api', action);
     for (const [key, value] of Object.entries(params)) endpoint.searchParams.set(key, value);
     return endpoint.toString();
@@ -59,7 +59,7 @@
     const headers = { Accept: 'application/json' };
     if (body) headers['Content-Type'] = 'application/json';
     if (authorized) {
-      if (!editToken) throw new Error('Zuerst mit dem Dateipasswort öffnen.');
+      if (!editToken) throw new Error($translate("ui.open-the-project-with-its-file-pas-16w4vw1"));
       headers['X-File-Token'] = editToken;
     }
     if (leaseToken) headers['X-Lease-Token'] = leaseToken;
@@ -68,7 +68,7 @@
       body: body ? JSON.stringify(body) : undefined, cache: 'no-store'
     });
     let data;
-    try { data = await response.json(); } catch { throw new Error('Server liefert kein gültiges JSON.'); }
+    try { data = await response.json(); } catch { throw new Error($translate("ui.the-server-returned-invalid-json-n82jl")); }
     if (!response.ok || data.ok === false) {
       if ([409, 423].includes(response.status)) appState.setReadOnly(true);
       throw new Error((data.error || 'Serverfehler') + ' (HTTP ' + response.status + ')');
@@ -76,7 +76,7 @@
     return data;
   }
   async function exportEncrypted() {
-    if (!password) throw new Error('Bitte eine Passphrase eingeben.');
+    if (!password) throw new Error($translate("ui.enter-a-passphrase-1tygzij"));
     const token = editToken || randomSecret();
     const saved = await createPortableSave($appState.project, $appState.savedProject);
     const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), password, token);
@@ -96,12 +96,12 @@
     if (!file) return;
     try {
       if (!ensureNoOverwrite()) return;
-      if (!password) throw new Error('Passwort vor dem Öffnen eingeben.');
+      if (!password) throw new Error($translate("ui.enter-the-password-before-opening-knmdd9"));
       const { project, editToken: token } = await decryptProject(JSON.parse(await file.text()), password);
       appState.importProject(requireProjectFile(project), file.name, true);
       editToken = token; activePassword = password; fileName = file.name;
       openedId = ''; leaseToken = ''; revision = 0; selectedPortableVersion = '';
-      message = 'Verschlüsselte lokale Datei geöffnet.'; error = '';
+      message = $translate("ui.encrypted-local-file-opened-1hrvhww"); error = '';
     } catch (e) { report(e); }
     finally { input.value = ''; }
   }
@@ -111,19 +111,19 @@
   }
   async function openRemote(file) {
     if (!ensureNoOverwrite()) return;
-    if (!password) throw new Error('Bitte Dateipasswort eingeben.');
+    if (!password) throw new Error($translate("ui.enter-the-file-password-pv05g4"));
     const result = await api('read', null, { id: file.id });
     const decrypted = await decryptProject(result.envelope, password);
     editToken = decrypted.editToken; activePassword = password;
     openedId = file.id; fileName = file.name; revision = result.revision;
     leaseToken = ''; leaseExpires = 0; selectedPortableVersion = '';
     appState.importProject(requireProjectFile(decrypted.project), file.name, true, true);
-    message = 'Schreibgeschützt geöffnet. Zum Bearbeiten auschecken.';
+    message = $translate("ui.opened-read-only-check-out-to-edit-3jcsh9");
   }
   async function createRemote() {
-    if (!fileName.trim()) throw new Error('Dateiname fehlt.');
-    if (!serverCanCreate) throw new Error('Neue Projekte sind auf diesem Server nicht freigegeben.');
-    if (!password || password.length < 8) throw new Error('Bitte ein Projektpasswort mit mindestens acht Zeichen eingeben.');
+    if (!fileName.trim()) throw new Error($translate("ui.a-filename-is-required-14d9i2"));
+    if (!serverCanCreate) throw new Error($translate("ui.creating-projects-is-disabled-on-t-1eru9h5"));
+    if (!password || password.length < 8) throw new Error($translate("ui.enter-a-project-password-of-at-lea-1r6gpqg"));
     if (!ensureNoOverwrite()) return;
     const id = crypto.randomUUID(), token = randomSecret();
     const saved = await createPortableSave($appState.project, $appState.savedProject);
@@ -135,21 +135,21 @@
     activePassword = password; leaseToken = ''; leaseExpires = 0;
     appState.importProject(saved, fileName.trim(), true, true);
     await refreshFiles();
-    message = 'Neue verschlüsselte Datei angelegt. Zum Ändern auschecken.';
+    message = $translate("ui.new-encrypted-file-created-check-o-7hax1o");
   }
   async function checkout() {
-    if (!openedId) throw new Error('Keine Datei gewählt.');
+    if (!openedId) throw new Error($translate("ui.no-file-selected-k8inyf"));
     const result = await api('checkout', { id: openedId, expectedRevision: revision }, {}, true);
     leaseToken = result.leaseToken; leaseExpires = result.expiresAt;
     appState.setReadOnly(false);
-    message = 'Ausgecheckt bis ' + new Date(leaseExpires * 1000).toLocaleString('de-DE') + '.';
+    message = 'Ausgecheckt bis ' + new Date(leaseExpires * 1000).toLocaleString(getLocale() === 'de' ? 'de-DE' : 'en-GB') + '.';
   }
   async function renew() {
     const result = await api('renew', { id: openedId }, {}, true);
-    leaseExpires = result.expiresAt; message = 'Sperre um zwei Stunden verlängert.';
+    leaseExpires = result.expiresAt; message = $translate("ui.edit-lease-extended-by-two-hours-fmaa4v");
   }
   async function commitProject(project, passphrase, token, rotate = false) {
-    if (!openedId || !leaseToken) throw new Error('Die Datei muss zuerst ausgecheckt werden.');
+    if (!openedId || !leaseToken) throw new Error($translate("ui.check-out-the-file-first-vyu7fx"));
     const saved = await createPortableSave(project, $appState.savedProject);
     const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), passphrase, token);
     const payload = { id: openedId, expectedRevision: revision, envelope };
@@ -161,15 +161,15 @@
     return result;
   }
   async function saveRemote() {
-    if (!$appState.dirty) { message = 'Keine ungespeicherten Änderungen.'; return; }
+    if (!$appState.dirty) { message = $translate("ui.no-unsaved-changes-s17ea6"); return; }
     const result = await commitProject($appState.project, activePassword, editToken);
     message = 'Revision ' + revision + ' gespeichert. Mailstatus: ' + result.mailStatus + '.';
   }
   async function checkin() {
-    if ($appState.dirty && !confirm('Ungespeicherte Änderungen! Trotzdem einchecken?')) return;
+    if ($appState.dirty && !confirm($translate("ui.there-are-unsaved-changes-check-in-12iq14o"))) return;
     await api('checkin', { id: openedId }, {}, true);
     leaseToken = ''; leaseExpires = 0; appState.setReadOnly(true);
-    message = 'Eingecheckt, Sperre aufgehoben.';
+    message = $translate("ui.checked-in-the-edit-lease-has-been-1ts6shy");
   }
   export async function saveFromHeader() {
     if (busy) return { handled: true, ok: false, message: 'Ein Speichervorgang läuft bereits.' };
@@ -184,7 +184,7 @@
         const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
         download(envelope, (fileName.trim() || 'hausstand') + '.hausstand.enc.json');
         appState.markSaved(saved);
-        message = 'Verschlüsselten Download gestartet. Datei bitte sicher aufbewahren.';
+        message = $translate("ui.encrypted-download-started-keep-th-9p9noq");
         return { handled: true, ok: true, message };
       }
       await saveRemote();
@@ -195,80 +195,80 @@
     } finally { busy = false; }
   }
   async function restorePortable() {
-    if ($appState.readOnly) throw new Error('Zum Wiederherstellen zuerst die Bearbeitung freigeben.');
-    if (!selectedPortableVersion) throw new Error('Bitte eine gespeicherte Version auswählen.');
-    if (!confirm('Diese Version als ungespeicherten Arbeitsstand öffnen? Der aktuelle gespeicherte Stand bleibt erhalten.')) return;
+    if ($appState.readOnly) throw new Error($translate("ui.enable-editing-before-restoring-1xm00bb"));
+    if (!selectedPortableVersion) throw new Error($translate("ui.select-a-saved-version-kmh00f"));
+    if (!confirm($translate("ui.open-this-version-as-an-unsaved-wo-1q3leot"))) return;
     const restored = await readPortableVersion($appState.project, selectedPortableVersion);
     appState.restoreVersion(restored);
-    message = 'Früherer Stand geladen. Erst nach Speichern wird er zur neuen Version.';
+    message = $translate("ui.previous-state-loaded-it-becomes-a-mzgam7");
   }
   async function changePassword() {
-    if (!leaseToken) throw new Error('Vor Passwortwechsel auschecken.');
-    if (!newPassword || newPassword.length < 8) throw new Error('Neues Passwort mit mindestens acht Zeichen wählen.');
-    if (!confirm('Die gesamte Projektdatei einschließlich Versionsarchiv neu verschlüsseln und die alte Bearbeitungsberechtigung sperren? Bereits versandte Backup-Dateien behalten ihr ursprüngliches Passwort.')) return;
+    if (!leaseToken) throw new Error($translate("ui.check-out-before-changing-the-pass-n2lncy"));
+    if (!newPassword || newPassword.length < 8) throw new Error($translate("ui.choose-a-new-password-of-at-least--l9l2yc"));
+    if (!confirm($translate("ui.re-encrypt-the-entire-project-file-13awrak"))) return;
     const newToken = randomSecret();
     await commitProject($appState.project, newPassword, newToken, true);
     activePassword = newPassword; password = newPassword; newPassword = '';
-    message = 'Passwort geändert: Das vollständige Versionsarchiv ist neu verschlüsselt, die alte Schreibberechtigung ist gesperrt.';
+    message = $translate("ui.password-changed-the-full-version--1yx5s3b");
   }
 </script>
 <div class="storage-choices">
-  {#if busy}<p class="storage-feedback muted" role="status">Vorgang wird ausgeführt …</p>{/if}
+  {#if busy}<p class="storage-feedback muted" role="status">{$translate("ui.working-1tl7cca")}</p>{/if}
   {#if error}<p role="alert" class="storage-feedback inline-info warning">{error}</p>{/if}
   {#if message}<p role="status" class="storage-feedback inline-info">{message}</p>{/if}
   <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><div class="storage-help-heading"><h2>Mit Passwort sichern</h2><HelpTip label="Wie funktioniert eine verschlüsselte Sicherung?">Du kannst eine verschlüsselte Datei erstellen oder wieder öffnen. Ohne das Passwort kann sie nicht entschlüsselt werden; eine unverschlüsselte Browserkopie wird bei geschützten Projekten nicht gespeichert.</HelpTip></div></div>
-    <button class="outline-action" aria-expanded={showProtected} on:click={() => showProtected = !showProtected}>{showProtected ? 'Weniger anzeigen' : 'Passwortgeschützte Dateien verwalten'} <span aria-hidden="true">{showProtected ? '↑' : '↓'}</span></button>
+    <div class="storage-choice-top"><div class="storage-help-heading"><h2>{$translate("ui.password-protected-backup-15wmsu8")}</h2><HelpTip label={$translate("ui.how-does-an-encrypted-backup-work-1boievp")}>{$translate("ui.you-can-create-or-open-an-encrypte-1npbaaq")}</HelpTip></div></div>
+    <button class="outline-action" aria-expanded={showProtected} on:click={() => showProtected = !showProtected}>{showProtected ? $translate("ui.show-less-fnh5rv") : $translate("ui.manage-password-protected-files-1syzh81")} <span aria-hidden="true">{showProtected ? '↑' : '↓'}</span></button>
     {#if showProtected}
       <div class="storage-form">
         <div class="form-grid">
-          <label>Passwort für diese Datei<input type="password" autocomplete="off" bind:value={password} placeholder="Langes, sicheres Passwort"/></label>
-          <label>Name der Sicherung<input bind:value={fileName} placeholder={$translate("app.household")}/></label>
+          <label>{$translate("ui.password-for-this-file-119cdf1")}<input type="password" autocomplete="off" bind:value={password} placeholder={$translate("ui.long-secure-password-iwutru")}/></label>
+          <label>{$translate("ui.backup-name-11t2ioh")}<input bind:value={fileName} placeholder={$translate("app.household")}/></label>
         </div>
         <div class="storage-action-row">
-          <button class="solid-action" disabled={busy} on:click={() => run(exportEncrypted)}>Verschlüsselte Datei herunterladen</button>
-          <label class="file-button">Verschlüsselte Datei öffnen<input type="file" accept=".json,.enc" on:change={importEncrypted}/></label>
+          <button class="solid-action" disabled={busy} on:click={() => run(exportEncrypted)}>{$translate("ui.download-encrypted-file-1m533vw")}</button>
+          <label class="file-button">{$translate("ui.open-encrypted-file-wuiwbq")}<input type="file" accept=".json,.enc" on:change={importEncrypted}/></label>
         </div>
 
       </div>
     {/if}
   </section>
   {#if portableVersions.length}
-    <section class="ux-panel storage-choice" aria-label="Gespeicherte Dateiversionen">
-      <h2>Gespeicherte Versionen</h2>
+    <section class="ux-panel storage-choice" aria-label={$translate("ui.saved-file-versions-9wc9wn")}>
+      <h2>{$translate("ui.saved-versions-magvuo")}</h2>
       <div class="stack">
-        <label>Früheren Speicherstand auswählen
+        <label>{$translate("ui.select-a-previous-saved-state-1mfrevx")}
           <select bind:value={selectedPortableVersion}>
             <option value="">{$translate("ui.please-select-1qm0osl")}</option>
             {#each portableVersions as v (v.id)}
-              <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString('de-DE') : 'Frühere Version (Datum unbekannt)'}</option>
+              <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString('de-DE') : $translate("ui.previous-version-date-unknown-1cpadmd")}</option>
             {/each}
           </select>
         </label>
-        <button disabled={busy || $appState.readOnly || !selectedPortableVersion} on:click={() => run(restorePortable)}>Als ungespeicherten Arbeitsstand wiederherstellen</button>
+        <button disabled={busy || $appState.readOnly || !selectedPortableVersion} on:click={() => run(restorePortable)}>{$translate("ui.restore-as-unsaved-working-copy-r3yheu")}</button>
       </div>
     </section>
   {/if}
   {#if SERVER_MODE}
   <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><div class="storage-help-heading"><h2>Online-Projekte</h2><HelpTip label="Wie funktionieren Online-Projekte?">Hier kannst du gemeinsame Projektdateien auf dem bereits konfigurierten Server öffnen und bearbeiten. Dafür benötigst du das Projektpasswort.</HelpTip></div></div>
-    <button class="outline-action" aria-expanded={showShared} on:click={() => showShared = !showShared}>{showShared ? 'Weniger anzeigen' : 'Online-Projekte anzeigen'} <span aria-hidden="true">{showShared ? '↑' : '↓'}</span></button>
+    <div class="storage-choice-top"><div class="storage-help-heading"><h2>{$translate("ui.online-projects-133womh")}</h2><HelpTip label={$translate("ui.how-do-online-projects-work-25z9zy")}>{$translate("ui.open-and-edit-shared-project-files-fzled")}</HelpTip></div></div>
+    <button class="outline-action" aria-expanded={showShared} on:click={() => showShared = !showShared}>{showShared ? $translate("ui.show-less-fnh5rv") : $translate("ui.show-online-projects-s0fco2")} <span aria-hidden="true">{showShared ? '↑' : '↓'}</span></button>
     {#if showShared}
       <div class="storage-form stack">
         <div class="form-grid">
-          <label>Passwort der Projektdatei<input type="password" autocomplete="off" bind:value={password} placeholder="Passwort"/></label>
-          <label>Projektname (für neue Datei)<input bind:value={fileName} placeholder={$translate("app.household")}/></label>
+          <label>{$translate("ui.project-file-password-1618dbp")}<input type="password" autocomplete="off" bind:value={password} placeholder={$translate("ui.password-guxqaw")}/></label>
+          <label>{$translate("ui.project-name-for-new-file-syz2yo")}<input bind:value={fileName} placeholder={$translate("app.household")}/></label>
         </div>
         <div class="storage-action-row">
-          <button class="solid-action" disabled={busy} on:click={() => run(refreshFiles)}>Verfügbare Dateien anzeigen</button>
-          {#if serverCanCreate}<button disabled={busy || !serverReady} on:click={() => run(createRemote)}>Aktuellen Stand als Online-Projekt anlegen</button>{/if}
+          <button class="solid-action" disabled={busy} on:click={() => run(refreshFiles)}>{$translate("ui.show-available-files-13dqiqu")}</button>
+          {#if serverCanCreate}<button disabled={busy || !serverReady} on:click={() => run(createRemote)}>{$translate("ui.create-online-project-from-current-kdw39x")}</button>{/if}
         </div>
         {#if serverReady && !serverCanCreate && !files.length}
-          <p class="muted">Hier sind noch keine Projekte vorhanden. Das Anlegen neuer Projekte ist für diese Installation deaktiviert.</p>
+          <p class="muted">{$translate("ui.there-are-no-projects-yet-creating-1ldmw5h")}</p>
         {/if}
         {#if files.length}
           <div class="shared-files">
-            <h3>Verfügbare Projekte</h3>
+            <h3>{$translate("ui.available-projects-1cnj4sr")}</h3>
             {#each files as f (f.id)}
               <div class="shared-file"><div><strong>{f.name}</strong><small>Version {f.revision} · zuletzt geändert: {f.updatedAt}</small></div><button class="outline-action" disabled={busy} on:click={() => run(() => openRemote(f))}>{$translate("ui.open-14klu42")}</button></div>
             {/each}
@@ -277,19 +277,19 @@
         {#if openedId}
           <div class="current-shared">
             
-            <h3>{fileName}</h3><p>Version {revision} · {leaseToken ? 'Du bearbeitest dieses Projekt. Reserviert bis ' + new Date(leaseExpires * 1000).toLocaleString('de-DE') : 'Zurzeit nur lesbar'}</p>
+            <h3>{fileName}</h3><p>Version {revision} · {leaseToken ? 'Du bearbeitest dieses Projekt. Reserviert bis ' + new Date(leaseExpires * 1000).toLocaleString('de-DE') : $translate("ui.currently-read-only-1lrmnzs")}</p>
             <div class="storage-action-row">
               {#if !leaseToken}
-                <button class="solid-action" disabled={busy} on:click={() => run(checkout)}>Bearbeitung starten</button>
+                <button class="solid-action" disabled={busy} on:click={() => run(checkout)}>{$translate("ui.start-editing-amk33u")}</button>
               {:else}
-                <button class="solid-action" disabled={busy} on:click={() => run(saveRemote)}>Änderungen für alle sichern</button>
-                <button disabled={busy} on:click={() => run(renew)}>Bearbeitungszeit verlängern</button>
-                <button disabled={busy} on:click={() => run(checkin)}>Bearbeitung beenden</button>
+                <button class="solid-action" disabled={busy} on:click={() => run(saveRemote)}>{$translate("ui.save-changes-for-everyone-1usd0bn")}</button>
+                <button disabled={busy} on:click={() => run(renew)}>{$translate("ui.extend-editing-time-ieh1xj")}</button>
+                <button disabled={busy} on:click={() => run(checkin)}>{$translate("ui.stop-editing-14s9xpw")}</button>
               {/if}
             </div>
             {#if leaseToken}
-              <label>Neues Passwort für die gemeinsame Datei<input type="password" autocomplete="new-password" bind:value={newPassword}/></label>
-              <button disabled={busy} on:click={() => run(changePassword)}>Dateipasswort ändern</button>
+              <label>{$translate("ui.new-password-for-the-shared-file-1h62si2")}<input type="password" autocomplete="new-password" bind:value={newPassword}/></label>
+              <button disabled={busy} on:click={() => run(changePassword)}>{$translate("ui.change-file-password-1btazly")}</button>
             {/if}
           </div>
         {/if}

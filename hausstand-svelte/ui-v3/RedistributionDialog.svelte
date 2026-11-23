@@ -43,7 +43,7 @@
   function upsertChange(itemId, shares) {
     const clean = normShares(shares);
     if (shareTotal(clean) <= 0) {
-      alert('Ein aktiver Gegenstand braucht mindestens eine Person mit positivem Eigentumsanteil. Bitte erst Anteile übertragen oder den Gegenstand ausdrücklich beenden.');
+      alert($translate("ui.an-active-item-needs-at-least-one--na47gt"));
       return false;
     }
     const baseItem = preview.base?.items.find(item => item.id === itemId);
@@ -97,7 +97,7 @@
   }
 
   function execute() {
-    if (!confirm('Umverteilung jetzt ausführen?')) return;
+    if (!confirm($translate("ui.apply-this-redistribution-now-kiu6zk"))) return;
     const saved = appState.mutateProject(p => {
       p.events.push({ 
         id: uid('event'), type: 'redistribution-executed', date: redistribution.effectiveDate, order: nextEventOrder(p, redistribution.effectiveDate), title: redistribution.title, financialMode: redistribution.financialMode,

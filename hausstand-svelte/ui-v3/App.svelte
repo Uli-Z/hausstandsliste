@@ -64,13 +64,13 @@
   function personName(id) { return $appState.project.people.find(p => p.id === id)?.name || 'Unbekannt'; }
   function itemName(id) { return $appState.project.items.find(i => i.id === id)?.name || 'Gegenstand'; }
   function eventName(e) {
-    if (e.type === 'item-added') return 'Gegenstand erfasst: ' + (e.name || itemName(e.itemId));
-    if (e.type === 'item-ended') return 'Gegenstand beendet: ' + itemName(e.itemId);
-    if (e.type === 'person-added') return 'Person hinzugefügt: ' + (e.name || personName(e.personId));
-    if (e.type === 'person-deactivated') return 'Person ausgeschieden: ' + personName(e.personId);
-    if (e.type === 'person-reactivated') return 'Person wieder aufgenommen: ' + personName(e.personId);
-    if (e.type === 'redistribution-executed') return 'Anteile verändert: ' + (e.title || 'Übertragung');
-    if (e.type === 'shares-set') return 'Anteile verändert: ' + itemName(e.itemId);
+    if (e.type === 'item-added') return $translate("ui.item-recorded-sylo1j") + " " + (e.name || itemName(e.itemId));
+    if (e.type === 'item-ended') return $translate("ui.item-archived-132z2tu") + " " + itemName(e.itemId);
+    if (e.type === 'person-added') return $translate("ui.person-added-1bh7i23") + " " + (e.name || personName(e.personId));
+    if (e.type === 'person-deactivated') return $translate("ui.person-left-1bmnpom") + " " + personName(e.personId);
+    if (e.type === 'person-reactivated') return $translate("ui.person-rejoined-1rgz8oi") + " " + personName(e.personId);
+    if (e.type === 'redistribution-executed') return $translate("ui.shares-changed-fw5fph") + " " + (e.title || 'Übertragung');
+    if (e.type === 'shares-set') return $translate("ui.shares-changed-fw5fph") + " " + itemName(e.itemId);
     if (e.type === 'claim-settlement-recorded') return (e.settlementKind === 'paid' ? 'Zahlung' : e.settlementKind === 'external' ? 'Extern verbucht' : 'Erlass') + ': ' + personName(e.debtorPersonId) + ' an ' + personName(e.creditorPersonId) + ' (' + money(e.amountCents / 100) + ')';
     return e.title || e.note || 'Änderung';
   }
@@ -110,9 +110,9 @@
       const data = JSON.parse(await file.text());
       if (data?.format?.startsWith('hausstand-aesgcm')) {
         navigate('save');
-        throw new Error('Diese Datei ist passwortgeschützt. Bitte unter „Sichern & Teilen“ → „Mit Passwort sichern“ öffnen.');
+        throw new Error($translate("ui.this-file-is-password-protected-op-1ydtqqs"));
       }
-      if ($appState.dirty && !confirm('Der aktuelle Arbeitsstand hat noch nicht exportierte Änderungen. Trotzdem eine andere Datei öffnen?')) return;
+      if ($appState.dirty && !confirm($translate("ui.the-current-working-copy-has-unsav-cc6kgv"))) return;
       appState.importProject(requireProjectFile(data), file.name, false);
       navigate('overview');
     } catch (err) { alert('Öffnen fehlgeschlagen: ' + err.message); }
@@ -131,7 +131,7 @@
       const saved = await createPortableSave($appState.project, $appState.savedProject);
       downloadProject(saved, $appState.asOfDate);
       appState.markSaved(saved);
-      saveMessage = 'Download gestartet – die Datei bitte sicher aufbewahren.';
+      saveMessage = $translate("ui.download-started-keep-the-file-saf-1wje8bq");
     } catch (error) {
       saveMessage = 'Speichern fehlgeschlagen: ' + (error?.message || error);
     } finally { savingLocal = false; }
@@ -146,7 +146,7 @@
     await exportNow();
   }
   function newProject() {
-    if (!confirm('Neues Projekt beginnen? Der bisherige Arbeitsstand in diesem Browser wird ersetzt. Bitte vorher eine Sicherungskopie erstellen.')) return;
+    if (!confirm($translate("ui.start-a-new-project-the-current-wo-1m8g44d"))) return;
     appState.newProject();
     navigate('overview');
   }
@@ -197,7 +197,7 @@
     <main class="work-content">
       {#key $locale}
       {#if saveMessage}<p role="status" class="inline-info">{saveMessage}</p>{/if}
-      {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">Der Browser konnte die Arbeitskopie nicht zwischenspeichern (Speicher voll oder nicht verfügbar). Bitte jetzt eine Projektdatei herunterladen.</p>{/if}
+      {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">{$translate("ui.the-browser-could-not-cache-the-wo-1u1cj1a")}</p>{/if}
       <div class="date-toolbar" aria-label="Betrachtungsdatum">
         <div class="date-toolbar-label">
           <span>{$translate("app.dateAsOf")}</span>
@@ -212,17 +212,17 @@
           <button title={$translate("app.last")} aria-label={$translate("app.last")} disabled={!lastDate} on:click={() => appState.setAsOfDate(lastDate)}>⇥<span class="mobile-jump-text">Ende</span></button>
           <button class="today-button" on:click={() => appState.setAsOfDate(todayISO())}>{$translate("app.today")}</button>
         </div>
-        {#if dateMode !== 'today'}<span class="date-explanation">{dateMode === 'past' ? 'Du siehst den früheren Besitzstand.' : 'Du siehst den Stand für ein zukünftiges Datum.'}</span>{/if}
+        {#if dateMode !== 'today'}<span class="date-explanation">{dateMode === 'past' ? $translate("ui.you-are-viewing-an-earlier-ownersh-10vlzyi") : $translate("ui.you-are-viewing-a-state-at-a-futur-1s5vjd8")}</span>{/if}
       </div>
 
       {#if route.page === 'person' && person}
-        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← Zurück zu {activeSection === 'people' ? 'Personen' : 'Übersicht'}</button></div>
+        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← Zurück zu {activeSection === 'people' ? $translate("nav.people") : 'Übersicht'}</button></div>
         <PersonDetail {person} projection={$projection} asOfDate={$appState.asOfDate} ledger={$ledger} />
       {:else if route.page === 'item' && item}
         <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← Zurück zu {activeSection === 'items' ? 'Gegenständen' : 'Übersicht'}</button></div>
         <ItemDetail {item} />
       {:else if route.page !== 'dashboard'}
-        <div class="blank-card"><p>Diese Detailansicht wurde nicht gefunden.</p><button on:click={() => navigate('overview')}>Zur Übersicht</button></div>
+        <div class="blank-card"><p>{$translate("ui.this-detail-view-could-not-be-foun-d4faaj")}</p><button on:click={() => navigate('overview')}>{$translate("ui.back-to-overview-h1kkqo")}</button></div>
       {:else if activeSection === 'overview'}
         <section class="page-heading">
           <div><h1>{$translate("nav.overview")}</h1></div>
@@ -254,7 +254,7 @@
             </div>
           </section>
           <section class="ux-panel financial-overview">
-            <div class="section-header"><div class="help-heading"><h2>{$translate("app.suggestions")}</h2><HelpTip label="Wie entstehen die Ausgleichsvorschläge?">Aus dem finanzierten Wert und den Eigentumsanteilen wird berechnet, wer einen Ausgleich erhalten soll. Die Überweisungswege sind Vorschläge, keine dokumentierten Zahlungen.</HelpTip></div><button class="text-action" on:click={() => navigate('money')}>{$translate("app.viewAll")}</button></div>
+            <div class="section-header"><div class="help-heading"><h2>{$translate("app.suggestions")}</h2><HelpTip label={$translate("ui.how-are-settlement-suggestions-cal-6ze5l4")}>{$translate("ui.who-should-receive-a-settlement-is-5lw302")}</HelpTip></div><button class="text-action" on:click={() => navigate('money')}>{$translate("app.viewAll")}</button></div>
             {#if balances.length}
               <div class="simple-debts">
                 {#each balances.slice(0,5) as b}
@@ -290,10 +290,10 @@
               <div class="draft-list">
                 {#each drafts as draft (draft.id)}
                   <div class="draft-row">
-                    <div><strong>{draft.title || draft.data?.name || 'Unbenannter Entwurf'}</strong><small>{draft.type === 'redistribution' ? 'Anteile übertragen' : 'Gegenstand erfassen'}</small></div>
+                    <div><strong>{draft.title || draft.data?.name || $translate("ui.untitled-draft-1uj507g")}</strong><small>{draft.type === 'redistribution' ? $translate("app.transfer") : $translate("ui.record-item-1dj7z2m")}</small></div>
                     <div class="draft-buttons">
                       <button on:click={() => appState.setDialog({type:draft.type==='redistribution'?'redistributionEdit':'itemAdd',id:draft.id})}>{$translate("app.continue")}</button>
-                      <button class="subtle-danger" title="Entwurf löschen" aria-label="Entwurf löschen" on:click={() => { if (confirm('Diesen Entwurf löschen?')) appState.deleteDraft(draft.id); }}>×</button>
+                      <button class="subtle-danger" title={$translate("ui.delete-draft-eyd06t")} aria-label={$translate("ui.delete-draft-eyd06t")} on:click={() => { if (confirm($translate("ui.delete-this-draft-1eyj6m4"))) appState.deleteDraft(draft.id); }}>×</button>
                     </div>
                   </div>
                 {/each}
@@ -317,20 +317,20 @@
         {#if futureEventCount}<div class="inline-info">{futureEventCount} Vorgang/Vorgänge liegen nach dem aktuell gewählten Datum. Sie können im Verlauf eingeblendet werden.</div>{/if}
         <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title="Alle Änderungen nach Datum"/>
       {:else if activeSection === 'save'}
-        <div class="page-heading"><div><h1>{$translate("nav.save")}</h1><HelpTip label="Wo werden die Projektdaten gespeichert?">{SERVER_MODE ? 'Du kannst Sicherungskopien erstellen und deine gemeinsamen Online-Projekte verwalten.' : 'Diese HTML-Version speichert ausschließlich lokal. Sichere deine Daten regelmäßig als Datei.'}</HelpTip></div></div>
+        <div class="page-heading"><div><h1>{$translate("nav.save")}</h1><HelpTip label={$translate("ui.where-are-project-files-stored-lr7d5h")}>{SERVER_MODE ? $translate("ui.you-can-create-backups-and-manage--16raxo9") : $translate("ui.this-html-version-stores-data-loca-107t5ed")}</HelpTip></div></div>
         <div class="save-top-grid">
           <section class="ux-panel save-basic">
-            <div class="section-header"><div class="help-heading"><h2>{$translate("app.backupTitle")}</h2><HelpTip label="Wozu dient die Sicherungskopie?">Lade deine Projektdaten als Datei herunter. So kannst du sie später auf diesem oder einem anderen Gerät wieder öffnen.</HelpTip></div></div>
+            <div class="section-header"><div class="help-heading"><h2>{$translate("app.backupTitle")}</h2><HelpTip label={$translate("ui.what-is-a-backup-for-1ihicbw")}>{$translate("ui.download-your-project-data-to-open-dadpzf")}</HelpTip></div></div>
             <div class="save-basic-actions">
               <button class="solid-action" on:click={exportNow}>{$translate("app.download")}</button>
               <label class="file-button">{$translate("app.openBackup")}<input type="file" accept="application/json,.json" on:change={importFile}/></label>
             </div>
-            <div class="inline-info warning">Diese einfache Sicherung ist <strong>{$translate("app.unencrypted")}</strong>. Bewahre sie an einem geschützten Ort auf.</div>
+            <div class="inline-info warning">{$translate("ui.this-simple-backup-is-1ngb60q")} <strong>{$translate("app.unencrypted")}</strong>{$translate("ui.keep-it-somewhere-safe-1kpyrlh")}</div>
           </section>
           <section class="ux-panel save-help">
-            <div class="section-header"><div class="help-heading"><h2>{$translate("app.whereData")}</h2><HelpTip label="Wie funktioniert die lokale Datenspeicherung?">{$appState.secure ? 'Bei verschlüsselten Projekten wird keine unverschlüsselte Kopie im Browser abgelegt.' : SERVER_MODE ? 'Solange kein Online-Projekt geöffnet wurde, liegt der Arbeitsstand nur in diesem Browser. Für gemeinsame Speicherung nutze Online-Projekte.' : 'Der Arbeitsstand wird nur in diesem Browser gespeichert und nicht automatisch auf andere Geräte übertragen.'} Bitte sichere deine Daten regelmäßig als Datei.</HelpTip></div></div>
-            <div class="status-definition"><div><strong>{$appState.secure ? 'Passwortgeschütztes Projekt' : 'Arbeitskopie in diesem Browser'}</strong></div></div>
-            <div class="status-definition"><div><strong>{$appState.dirty ? 'Änderungen noch nicht exportiert' : 'Keine neuen Änderungen seit der letzten Sicherung'}</strong></div></div>
+            <div class="section-header"><div class="help-heading"><h2>{$translate("app.whereData")}</h2><HelpTip label={$translate("ui.how-is-data-stored-locally-2w2m26")}>{$appState.secure ? $translate("ui.encrypted-projects-are-not-stored--1q6j80z") : SERVER_MODE ? $translate("ui.until-you-open-an-online-project-t-kk13hd") : $translate("ui.the-working-copy-is-stored-only-in-9z0gmz")} Bitte sichere deine Daten regelmäßig als Datei.</HelpTip></div></div>
+            <div class="status-definition"><div><strong>{$appState.secure ? $translate("app.passwordProtected") : $translate("app.localCopy")}</strong></div></div>
+            <div class="status-definition"><div><strong>{$appState.dirty ? $translate("app.notExported") : $translate("app.noNew")}</strong></div></div>
           </section>
         </div>
       {:else if activeSection === 'settings'}
@@ -348,17 +348,17 @@
         </section>
         <section class="ux-panel setting-panel">
           <div class="section-header"><div><h2>{$translate('app.currentProject')}</h2></div></div>
-          <dl class="project-metadata"><div><dt>{$translate("app.household")}</dt><dd>{$appState.project.community?.name || 'Hausgemeinschaft'}</dd></div><div><dt>{$translate("app.openFile")}</dt><dd>{$appState.fileName || $translate('app.noFile')}</dd></div><div><dt>{$translate("app.editing")}</dt><dd>{$appState.readOnly ? $translate('app.readonly') : $translate('app.editable')}</dd></div></dl>
+          <dl class="project-metadata"><div><dt>{$translate("app.household")}</dt><dd>{$appState.project.community?.name || $translate("app.household")}</dd></div><div><dt>{$translate("app.openFile")}</dt><dd>{$appState.fileName || $translate('app.noFile')}</dd></div><div><dt>{$translate("app.editing")}</dt><dd>{$appState.readOnly ? $translate('app.readonly') : $translate('app.editable')}</dd></div></dl>
         </section>
         <section class="ux-panel setting-panel">
-          <div class="section-header"><div class="help-heading"><h2>{$translate("app.inspect")}</h2><HelpTip label="Was enthält die technische Ansicht?">Die technische Ansicht zeigt die vollständige Datenstruktur des Projekts zur Fehlersuche und zum Austausch mit anderen Programmen.</HelpTip></div></div>
+          <div class="section-header"><div class="help-heading"><h2>{$translate("app.inspect")}</h2><HelpTip label={$translate("ui.what-does-the-technical-view-show-fofuc8")}>{$translate("ui.the-technical-view-shows-the-compl-xkqom1")}</HelpTip></div></div>
           <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? $translate('app.technicalClose') : $translate('app.technicalOpen')}</button>
           {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
         </section>
         <section class="ux-panel setting-panel dangerous-settings">
-          <div class="section-header"><div class="help-heading"><h2>{$translate("app.newProject")}</h2><HelpTip label="Was passiert beim Projektwechsel?">Beim Zurücksetzen wird die bisherige Arbeitskopie in diesem Browser ersetzt. Erstelle vorher eine Sicherungskopie.</HelpTip></div></div>
-          <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? 'Abbrechen' : $translate('app.reset')}</button>
-          {#if showDanger}<div class="inline-info warning"><strong>Der aktuelle Stand kann verloren gehen.</strong> Nach dem Zurücksetzen lässt er sich nur aus einer vorhandenen Sicherung wiederherstellen.</div><button class="dangerous-button" on:click={newProject}>Ja, neues Projekt beginnen</button>{/if}
+          <div class="section-header"><div class="help-heading"><h2>{$translate("app.newProject")}</h2><HelpTip label={$translate("ui.what-happens-when-starting-a-new-p-8ivv1x")}>{$translate("ui.resetting-replaces-the-current-wor-6b37pz")}</HelpTip></div></div>
+          <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? $translate("ui.cancel-cl4zc9") : $translate('app.reset')}</button>
+          {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
         </section>
       {/if}
       {/key}
@@ -389,7 +389,7 @@
     {/if}
     <button type="button" class:nav-active={['activity','save','settings'].includes(activeSection)}
       aria-expanded={mobileMoreOpen} aria-controls="mobile-more-menu"
-      aria-label={mobileMoreOpen ? 'Weitere Bereiche schließen' : 'Weitere Bereiche öffnen'}
+      aria-label={mobileMoreOpen ? $translate("ui.close-more-sections-eo21c3") : $translate("ui.open-more-sections-ytrtqo")}
       on:click={() => mobileMoreOpen = !mobileMoreOpen}>
       <span class="mobile-nav-icon" aria-hidden="true">{mobileMoreOpen ? '×' : '⋯'}</span>
       <span class="mobile-nav-label">{$translate("nav.more")}</span>

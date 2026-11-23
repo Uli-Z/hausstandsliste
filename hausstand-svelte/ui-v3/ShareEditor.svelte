@@ -17,7 +17,7 @@
       <label>{$translate("ui.units-1xtsz9u")} <input type="number" min="0" step="0.01" value={units ?? ''} on:input={e => setShare(personId, e.currentTarget.value)}></label>
       <button class="danger" on:click={() => removeShare(personId)} type="button" aria-label={$translate("ui.remove-person-s-share-xybgun")}
         disabled={positiveOwnerCount === 1 && Number(units) > 0}
-        title={positiveOwnerCount === 1 && Number(units) > 0 ? 'Letzte Eigentümerin bzw. letzten Eigentümer erst übertragen oder Gegenstand beenden' : $translate("ui.remove-share-xy7097")}>{$translate("ui.remove-9iqu14")}</button>
+        title={positiveOwnerCount === 1 && Number(units) > 0 ? $translate("ui.transfer-the-last-owner-s-share-fi-1a7v21u") : $translate("ui.remove-share-xy7097")}>{$translate("ui.remove-9iqu14")}</button>
     </div>
   {/each}
   {#if available.length}

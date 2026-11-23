@@ -49,7 +49,7 @@
 
   function startTransfer() {
     if (!activeTargets.length) {
-      alert('Keine aktive Zielperson verfügbar.');
+      alert($translate("ui.no-active-recipient-available-1ybrt33"));
       return;
     }
     if (activeTargets.length === 1) {

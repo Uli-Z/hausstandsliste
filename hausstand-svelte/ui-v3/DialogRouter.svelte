@@ -143,7 +143,7 @@
   function deletePersonCompletely() {
     if (!person) return;
     if ($appState.readOnly) {
-      alert('Online-Datei ist schreibgeschützt. Bitte zuerst auschecken.');
+      alert($translate("ui.online-file-is-read-only-check-out--1kdczcr"));
       return;
     }
     const eligibility = personDeletionEligibility(project, person.id);

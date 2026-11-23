@@ -55,7 +55,7 @@
     if (idx >= 0) {
       const clean = normShares(editedChildShares);
       if (shareTotal(clean) <= 0) {
-        alert('Ein aktiver Gegenstand muss mindestens einer Person gehören. Bitte Anteile übertragen oder den Gegenstand ausdrücklich beenden.');
+        alert($translate("ui.an-active-item-must-have-at-least--1wzqqo1"));
         return;
       }
       const child = edited.events[idx];
@@ -92,7 +92,7 @@
   }
 
   function remove() {
-    if (!confirm('Gesamte Umverteilung wirklich löschen?')) return;
+    if (!confirm($translate("ui.delete-the-entire-redistribution-k464tv"))) return;
     const saved = appState.mutateProject(p => {
       p.events = p.events.filter(e => e.id !== event.id);
     });
