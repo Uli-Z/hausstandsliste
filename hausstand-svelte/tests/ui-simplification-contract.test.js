@@ -69,3 +69,30 @@ test('person detail puts the personal balance and settlement first, without losi
   assert.ok(person.includes('<BalanceBreakdown detail={balanceDetail} {balanceCents}/>'));
   assert.ok(person.includes('<Timeline project='));
 });
+
+
+test('finance view leads with settlement suggestions rather than ownership transfers', () => {
+  const app = source('ui-v3/App.svelte');
+  const finance = app.slice(app.indexOf("{:else if activeSection === 'money'}"), app.indexOf("{:else if activeSection === 'activity'}"));
+  assert.ok(finance.includes('nav.money'));
+  assert.ok(!finance.includes('appState.startRedistribution()'));
+  const ledger = source('ui-v3/LedgerView.svelte');
+  assert.ok(!ledger.includes('ui.value-settlement-19afpms'));
+  assert.ok(ledger.indexOf('ui.how-to-settle-balances-1hpc1r') < ledger.indexOf('ui.personal-balances-6tb5zl'));
+  assert.ok(ledger.includes('on:click={() => addSettlement(transfer)}'));
+});
+
+test('settings show one language selector and place rarely used commands in advanced options', () => {
+  const app = source('ui-v3/App.svelte');
+  const settings = app.slice(app.indexOf("{:else if activeSection === 'settings'}"), app.indexOf('      {/key}'));
+  assert.equal((settings.match(/id="language-selection"/g) || []).length, 1);
+  assert.ok(settings.includes("resolveLocale('auto'") === false); // Resolution is shared with the app script.
+  assert.ok(app.includes("const autoLanguage = resolveLocale('auto'"));
+  assert.ok(settings.includes('settings.advanced'));
+  assert.ok(settings.includes('<details class="ux-panel setting-panel settings-advanced">'));
+  assert.ok(settings.includes('showJson'));
+  assert.ok(settings.includes('showDanger'));
+  const language = source('src/lib/i18n.js');
+  assert.equal((language.match(/"settings.advanced"/g) || []).length, 2);
+  assert.equal((language.match(/"ui.moreActions"/g) || []).length, 2);
+});
