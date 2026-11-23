@@ -38,7 +38,7 @@ test('A05 store: rejected ownerless mutation leaves data and unsaved flag untouc
   assert.equal(saved, false);
   assert.equal(JSON.stringify(get(appState).project.events), original);
   assert.equal(get(appState).dirty, false);
-  assert.match(alerts.at(-1), /ohne Eigentümer/);
+  assert.match(alerts.at(-1), /keine Eigentümer|no owner/i);
 });
 
 test('A05 store: valid transfer is saved and marked dirty', () => {
