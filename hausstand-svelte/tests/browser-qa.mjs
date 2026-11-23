@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { chromium, firefox, webkit } from 'playwright';
 import { decryptProject } from '../src/lib/crypto.js';
 import { readPortableVersion } from '../src/lib/versionHistory.js';
+import { portableFileAcceptance } from './portable-file-qa.mjs';
 
 const fixture = {
   schemaVersion: 1, appVersion: '0.7.0-svelte', currency: 'EUR',
@@ -749,6 +750,7 @@ try {
   server = offlineServer.server;
   await localization(browser, offlineServer.url);
   await offline(browser, offlineServer.url);
+  await portableFileAcceptance(browser, offlineServer.url, 'Chromium');
   await settlementEndToEnd(browser, offlineServer.url);
   await responsiveUiAcceptance(browser, offlineServer.url);
   // Exercise the same responsive interaction sequence in two additional real
@@ -757,6 +759,7 @@ try {
     const additional = await browserType.launch({ headless: true });
     extraBrowsers.push(additional);
     await responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name);
+    await portableFileAcceptance(additional, offlineServer.url, name);
   }
   await phpOnline(browser);
 } catch (error) {
