@@ -1,7 +1,7 @@
 <script>
   import { translate } from '../lib/i18n.js';
   import { appState } from '../stores/projectStore.js';
-  import { createClaimSettlementEvent, claimSettlementErrors } from '../lib/claimSettlement.js';
+  import { createClaimSettlementEvent, claimSettlementErrors, validISODate } from '../lib/claimSettlement.js';
   import { money } from '../lib/domain.js';
   import HelpTip from './HelpTip.svelte';
   import { nextEventOrder, todayISO, dateDE } from '../lib/util.js';
@@ -43,7 +43,9 @@
   $: valid = payer && recipient && payer !== recipient
     && people.some(p => p.id === payer) && people.some(p => p.id === recipient)
     && Number.isSafeInteger(cents) && cents > 0
-    && /^\d{4}-\d{2}-\d{2}$/.test(date);
+    && validISODate(date);
+  $: amountInvalid = amount.trim().length > 0 && (!Number.isSafeInteger(cents) || cents <= 0);
+  $: samePerson = !!payer && payer === recipient;
   $: editing = !!dialog?.eventId;
 
   function close() { appState.closeDialog(); }
@@ -131,6 +133,8 @@
             <textarea rows="2" bind:value={note} placeholder={$translate("ui.e-g-bank-transfer-on-22-nov-bkvarc")}></textarea>
           </label>
         </div>
+        {#if amountInvalid}<p class="settlement-form-error" role="alert">{$translate('errors.paymentAmount')}</p>{/if}
+        {#if samePerson}<p class="settlement-form-error" role="alert">{$translate('errors.samePerson')}</p>{/if}
         <details open={advanced}>
           <summary>{$translate("ui.other-settlement-types-1d7grug")}</summary>
           <label>{$translate("ui.settlement-type-rrljhk")}
@@ -174,6 +178,7 @@
   .settlement-confirmation strong{font-size:14px}
   .settlement-confirmation p{font-size:12px;color:var(--muted);line-height:1.55;margin:0}
   .settlement-effect{font-size:12px;color:var(--muted);line-height:1.55;margin:0}
+  .settlement-form-error{margin:0;font-size:12px;color:var(--danger, #a12a2a)}
   .settlement-effect strong{font-variant-numeric:tabular-nums;color:var(--text)}
   details summary{cursor:pointer;font-size:12px;color:var(--muted);padding:8px 0}
   details label{margin-top:12px}
