@@ -251,7 +251,9 @@
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </span>
-        <button class="header-save" on:click={saveNow}><ActionIcon name={onlineEditing ? 'check' : 'download'} size={17}/><span>{$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span></button>
+        {#if !(route.page === 'dashboard' && activeSection === 'save')}
+          <button class="header-save" on:click={saveNow}><ActionIcon name={onlineEditing ? 'check' : 'download'} size={17}/><span>{$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span></button>
+        {/if}
       </div>
     </header>
 
