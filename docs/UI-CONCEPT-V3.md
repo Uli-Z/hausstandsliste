@@ -1,6 +1,6 @@
 # UI concept — Hausstandsliste V3
 
-**Status:** Partially implemented (first dashboard, list, detail, finance, and settings simplification batch on 23 November 2026). Dialog, storage, activity, contextual help, and browser acceptance work remains open; not approved as a finished UI.  
+**Status:** Partially implemented (dashboard, lists/details, finance, settings, guided item entry, and share redistribution on 23 November 2026). Storage, activity, contextual help, and full browser/device acceptance remain open; not approved as a finished UI.  
 **Date:** 23 November 2026  
 **Basis:** [32-screen browser/UX audit](UX-AUDIT-2026-11-23.md), the existing Svelte V3 screens, the [product terminology](LANGUAGE-AND-TERMINOLOGY.md), and the [prioritized tasks](WG-PRAXIS-TODO.md).  
 **Scope:** One shared interface for standalone HTML / GitHub Pages and the PHP version. No domain-model, file-format, valuation, or settlement-mathematics changes.
