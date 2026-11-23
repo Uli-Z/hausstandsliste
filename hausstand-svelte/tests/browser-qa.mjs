@@ -10,6 +10,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import { decryptProject } from '../src/lib/crypto.js';
 import { readPortableVersion } from '../src/lib/versionHistory.js';
 import { portableFileAcceptance } from './portable-file-qa.mjs';
+import { invalidInputAcceptance } from './invalid-input-qa.mjs';
 
 const fixture = {
   schemaVersion: 1, appVersion: '0.7.0-svelte', currency: 'EUR',
@@ -752,6 +753,7 @@ try {
   await offline(browser, offlineServer.url);
   await portableFileAcceptance(browser, offlineServer.url, 'Chromium');
   await settlementEndToEnd(browser, offlineServer.url);
+  await invalidInputAcceptance(browser, offlineServer.url);
   await responsiveUiAcceptance(browser, offlineServer.url);
   // Exercise the same responsive interaction sequence in two additional real
   // browser engines, including the Safari rendering engine (WebKit).
