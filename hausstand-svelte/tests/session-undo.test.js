@@ -129,3 +129,20 @@ test('keyboard shortcuts work in normal pages, preserve native input Undo and ig
   assert.equal(historyShortcut(ev('z', { altKey: true })), null);
   assert.equal(historyShortcut(ev('z'), true), null);
 });
+
+test('quota failure leaves edits possible, warns visibly and discards stale working copy', () => {
+  appState.importProject(project('A'));
+  const original = globalThis.localStorage.setItem;
+  try {
+    globalThis.localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
+    assert.equal(rename('B'), true);
+    assert.equal(get(appState).project.community.name, 'B');
+    assert.equal(get(appState).localCacheWarning, true);
+    assert.equal(values.has('hausstand_svelte_v07_working_copy'), false);
+    assert.equal(appState.undo(), true);
+    assert.equal(get(appState).project.community.name, 'A');
+    assert.equal(get(appState).localCacheWarning, true);
+  } finally {
+    globalThis.localStorage.setItem = original;
+  }
+});
