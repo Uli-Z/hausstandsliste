@@ -85,7 +85,11 @@ export async function invalidInputAcceptance(browser, url) {
     // Move the as-of date earlier: future payment remains stored but has no
     // influence on the displayed balance. Return to its date to edit it.
     await page.locator('#state-date').fill('2026-02-20');
-    await page.locator('.person-balance-row').filter({ hasText: 'Ben' }).getByText(/50,00/).waitFor();
+    const benAmount = page.locator('.person-balance-row').filter({
+      has: page.locator('.person-balance-name', { hasText: 'Ben' })
+    }).locator('summary .person-balance-amount strong');
+    await benAmount.waitFor();
+    assert.match(await benAmount.innerText(), /50,00/, 'historical Ben balance must be unchanged');
     assert.equal(await page.locator('.audit-row').filter({ hasText: '12,48' }).count(), 0);
     await page.locator('#state-date').fill('2032-03-20');
     await page.locator('.audit-disclosure').first().locator('summary').click();

@@ -40,5 +40,6 @@ jobs:
         working-directory: hausstand-svelte
         run: npm run test:browser
       - name: All-pages and dialogs visual inventory and screenshots
+        if: always()
         working-directory: hausstand-svelte
         run: node tests/screen-audit-qa.mjs
