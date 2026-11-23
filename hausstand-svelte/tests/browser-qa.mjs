@@ -249,6 +249,262 @@ async function offline(browser, url) {
   await fresh.close();
   console.log('Browser offline QA: money, Undo/Redo, JSON download, fresh-browser restore, encrypted file roundtrip and 375px layout passed');
 }
+
+// Q03: The real UI is the system under test. Do not manufacture balances or
+// call domain functions to assert results: inspect the rendered ledger after
+// purchases, completed payments, edits, deletions and ownership changes.
+async function settlementEndToEnd(browser, url) {
+  const context = await browser.newContext({
+    locale: 'de-DE', viewport: { width: 1280, height: 850 }, acceptDownloads: true
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', error => failures.push(error.message));
+  page.on('dialog', dialog => dialog.accept());
+  const readProject = () => page.evaluate(storageKey => {
+    const record = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    return record.project;
+  }, key);
+  const visitActivity = async () => {
+    await page.locator('.sidebar-links').getByRole('button', { name: /Änderungen/ }).click();
+  };
+  const closeDialog = async () => {
+    await page.locator('[role="dialog"]').waitFor({ state: 'hidden' });
+  };
+  const openEvent = async (needle) => {
+    await visitActivity();
+    const card = page.locator('.timeline-event-card').filter({ hasText: needle });
+    assert.equal(await card.count(), 1, 'Expected exactly one event containing ' + needle);
+    await card.locator('.edit-button').click();
+    return page.locator('[role="dialog"]');
+  };
+  const assertBalances = async expected => {
+    await openFinance(page);
+    // Assert every person, direction, cents and absence of extraneous rows.
+    // A zero balance is intentionally not displayed in the ledger.
+    await page.waitForFunction(expectedBalances => {
+      const rows = [...document.querySelectorAll('.person-balance-row')];
+      const nonzero = Object.entries(expectedBalances).filter(([, cents]) => cents !== 0);
+      if (rows.length !== nonzero.length) return false;
+      return rows.every(row => {
+        const name = row.querySelector('.person-balance-name')?.textContent?.trim();
+        const amount = row.querySelector('.person-balance-amount');
+        const raw = amount?.querySelector('strong')?.textContent || '';
+        const cents = Math.round(Number(raw.replace(/[^0-9,.-]/g, '')
+          .replace(/\./g, '').replace(',', '.')) * 100);
+        const direction = amount?.textContent?.includes('Erhält') ? 1 :
+          amount?.textContent?.includes('Gleicht aus') ? -1 : 0;
+        return Object.hasOwn(expectedBalances, name) &&
+          expectedBalances[name] === direction * cents;
+      });
+    }, expected, { timeout: 10000 }).catch(async error => {
+      const rendered = await page.locator('.person-balance-row').allTextContents();
+      throw new Error('Expected ledger ' + JSON.stringify(expected) +
+        ', rendered ' + JSON.stringify(rendered) + ': ' + error.message);
+    });
+    const sum = Object.values(expected).reduce((a, b) => a + b, 0);
+    assert.equal(sum, 0, 'Test fixture expectations must remain zero-sum');
+  };
+  const setDate = async date => {
+    const panel = page.locator('#time-travel-panel');
+    if (!(await panel.isVisible().catch(() => false))) {
+      await page.getByRole('button', { name: 'Stichtag wählen' }).click();
+    }
+    await page.locator('#state-date').fill(date);
+    assert.equal(await page.locator('#state-date').inputValue(), date);
+  };
+  const returnToday = async () => {
+    await page.getByRole('button', { name: 'Zurück zu heute' }).click();
+    assert.equal(await page.locator('#time-travel-panel').count(), 0);
+  };
+  const makePayment = async (payer, recipient, amount, date, note, suggested = false) => {
+    await openFinance(page);
+    if (suggested) {
+      const proposal = page.locator('.transfer-row').filter({ hasText: 'Ben zahlt an Anna' });
+      assert.equal(await proposal.count(), 1);
+      await proposal.getByRole('button', { name: 'Ausgleichen' }).click();
+    } else {
+      await page.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
+    }
+    const dialog = page.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
+    if (suggested) {
+      assert.equal(await dialog.getByLabel('Wer hat bezahlt?').inputValue(), payer);
+      assert.equal(await dialog.getByLabel('Wer hat das Geld erhalten?').inputValue(), recipient);
+      assert.equal(await dialog.getByLabel('Gezahlter Betrag in Euro').inputValue(), String(amount) + ',00');
+    }
+    await dialog.getByLabel('Wer hat bezahlt?').selectOption(payer);
+    await dialog.getByLabel('Wer hat das Geld erhalten?').selectOption(recipient);
+    await dialog.getByLabel('Gezahlter Betrag in Euro').fill(String(amount));
+    await dialog.locator('input[type=date]').fill(date);
+    await dialog.locator('textarea').fill(note);
+    await dialog.getByRole('button', { name: 'Zahlung als erfolgt erfassen' }).click();
+    await closeDialog();
+  };
+
+  try {
+    // A: Create the purchase through the actual UI, then settle it completely.
+    await page.goto(url);
+    const empty = structuredClone(fixture);
+    empty.community.name = 'Q03 Browser-Wertausgleich';
+    empty.items = [];
+    empty.events = empty.events.filter(event => event.type === 'person-added');
+    await page.evaluate(({ storageKey, copy }) => {
+      localStorage.setItem(storageKey, JSON.stringify(copy));
+    }, { storageKey: key, copy: oneSaved(empty) });
+    await page.reload();
+    await page.getByText('Q03 Browser-Wertausgleich').first().waitFor();
+    await setDate('2025-01-02');
+    await page.locator('.page-heading').getByRole('button', { name: /Gegenstand hinzufügen/ }).click();
+    const purchase = page.locator('[role="dialog"]');
+    await purchase.locator('.form-grid > label').first().locator('input').fill('Q03 Kühlschrank');
+    await purchase.locator('input[type=number][step="0.01"]').first().fill('300');
+    await purchase.locator('select').filter({ has: page.locator('option[value="fixed"]') })
+      .first().selectOption('fixed');
+    await purchase.locator('select').filter({ has: page.locator('option[value="anna"]') })
+      .last().selectOption('anna');
+    await purchase.locator('.modal-footer button.primary').click();
+    await closeDialog();
+    const afterPurchase = await readProject();
+    const itemEvent = afterPurchase.events.find(event => event.type === 'item-added');
+    assert.equal(itemEvent?.date, '2025-01-02');
+    assert.equal(itemEvent?.initialValue, 300);
+    assert.equal(itemEvent?.financedByPersonId, 'anna');
+    assert.deepEqual(itemEvent?.shares, { anna: 1, ben: 1, clara: 1 });
+    await returnToday();
+    await assertBalances({ Anna: 20000, Ben: -10000, Clara: -10000 });
+
+    await makePayment('ben', 'anna', 60, '2025-01-03', 'Q03 Ben 60', true);
+    await assertBalances({ Anna: 14000, Ben: -4000, Clara: -10000 });
+    await setDate('2025-01-02');
+    await assertBalances({ Anna: 20000, Ben: -10000, Clara: -10000 });
+    await setDate('2025-01-03');
+    await assertBalances({ Anna: 14000, Ben: -4000, Clara: -10000 });
+    await returnToday();
+
+    await makePayment('clara', 'anna', 100, '2025-01-04', 'Q03 Clara 100');
+    await assertBalances({ Anna: 4000, Ben: -4000, Clara: 0 });
+    await makePayment('ben', 'anna', 40, '2025-01-05', 'Q03 Ben 40');
+    await assertBalances({ Anna: 0, Ben: 0, Clara: 0 });
+    // An overpayment becomes a reversed receivable, never discarded/capped.
+    await makePayment('ben', 'anna', 25, '2025-01-06', 'Q03 overpayment');
+    await assertBalances({ Anna: -2500, Ben: 2500, Clara: 0 });
+    await makePayment('anna', 'ben', 25, '2025-01-07', 'Q03 reverse claim');
+    await assertBalances({ Anna: 0, Ben: 0, Clara: 0 });
+
+    // Change an acquisition retroactively. Completed payments keep their
+    // original amount/date/identity while only derived claims recalculate.
+    const beforeEdit = await readProject();
+    const paymentsBefore = beforeEdit.events.filter(event =>
+      event.type === 'claim-settlement-recorded');
+    const purchaseEdit = await openEvent('Q03 Kühlschrank');
+    await purchaseEdit.locator('input[type=number][step="0.01"]').first().fill('330');
+    await purchaseEdit.locator('.modal-footer button.primary').click();
+    await closeDialog();
+    await assertBalances({ Anna: 2000, Ben: -1000, Clara: -1000 });
+    const afterEdit = await readProject();
+    assert.deepEqual(afterEdit.events.filter(event =>
+      event.type === 'claim-settlement-recorded'), paymentsBefore,
+      'Recorded money must survive edits to the underlying purchase unchanged');
+
+    const paymentEdit = await openEvent('Q03 Ben 60');
+    assert.equal(await paymentEdit.locator('input[type=date]').inputValue(), '2025-01-03');
+    await paymentEdit.locator('input[inputmode=decimal]').fill('50');
+    await paymentEdit.locator('.modal-footer button.primary').click();
+    await closeDialog();
+    await assertBalances({ Anna: 3000, Ben: -2000, Clara: -1000 });
+    const editedPayments = (await readProject()).events.filter(event =>
+      event.type === 'claim-settlement-recorded');
+    assert.equal(editedPayments.length, 5);
+    assert.equal(editedPayments.find(event => event.note === 'Q03 Ben 60')?.amountCents, 5000);
+    assert.equal(editedPayments.find(event => event.note === 'Q03 Ben 60')?.id,
+      paymentsBefore.find(event => event.note === 'Q03 Ben 60')?.id);
+
+    const removePayment = await openEvent('Q03 Ben 60');
+    await removePayment.locator('.modal-footer button.danger').click();
+    await closeDialog();
+    await assertBalances({ Anna: 8000, Ben: -7000, Clara: -1000 });
+    assert.equal((await readProject()).events.filter(event =>
+      event.type === 'claim-settlement-recorded').length, 4);
+
+    const removePurchase = await openEvent('Q03 Kühlschrank');
+    await removePurchase.locator('.modal-footer button.danger').click();
+    await closeDialog();
+    await assertBalances({ Anna: -14000, Ben: 4000, Clara: 10000 });
+    const afterRemoval = await readProject();
+    assert.equal(afterRemoval.events.some(event => event.type === 'item-added'), false);
+    assert.equal(afterRemoval.events.filter(event =>
+      event.type === 'claim-settlement-recorded').length, 4);
+
+    // B: Paid and gifted ownership changes must have different financial
+    // effects. A group-agreed payment can go to a different recipient.
+    const ownership = await context.newPage();
+    ownership.on('pageerror', error => failures.push(error.message));
+    await bootFixture(ownership, url);
+    await ownership.locator('.sidebar-links').getByRole('button', { name: /Änderungen/ }).click();
+    await ownership.locator('.timeline-event-card')
+      .filter({ hasText: 'Kühlschrank' }).locator('.entity-link').first().click();
+    const changeShares = async (first, second, mode) => {
+      await ownership.getByRole('button', { name: 'Eigentumsanteile ändern' }).click();
+      const modal = ownership.locator('[role="dialog"]');
+      await modal.locator('.share-row').nth(0).locator('input[type=number]').fill(first);
+      await modal.locator('.share-row').nth(1).locator('input[type=number]').fill(second);
+      await modal.locator('select').last().selectOption(mode);
+      await modal.locator('.modal-footer button.primary').click();
+      await modal.waitFor({ state: 'hidden' });
+    };
+    await changeShares('0', '2', 'derived');
+    await openFinance(ownership);
+    await ownership.waitForFunction(() => {
+      const rendered = [...document.querySelectorAll('.person-balance-row')]
+        .map(row => row.textContent.replace(/\s+/g, ' '));
+      return rendered.length === 3 && rendered.some(x => x.includes('Anna') && x.includes('300,00')) &&
+        rendered.some(x => x.includes('Ben') && x.includes('200,00')) &&
+        rendered.some(x => x.includes('Clara') && x.includes('100,00'));
+    });
+    await ownership.locator('.sidebar-links').getByRole('button', { name: /Änderungen/ }).click();
+    await ownership.locator('.timeline-event-card')
+      .filter({ hasText: 'Kühlschrank' }).first().locator('.entity-link').first().click();
+    // Anna has zero shares after the paid transfer, so the remaining rows
+    // are Ben and Clara. Gift one of Ben's units to Clara.
+    await changeShares('1', '2', 'none');
+    await openFinance(ownership);
+    await ownership.waitForFunction(() => {
+      const rendered = [...document.querySelectorAll('.person-balance-row')]
+        .map(row => row.textContent.replace(/\s+/g, ' '));
+      return rendered.length === 3 && rendered.some(x => x.includes('Anna') && x.includes('300,00')) &&
+        rendered.some(x => x.includes('Ben') && x.includes('200,00')) &&
+        rendered.some(x => x.includes('Clara') && x.includes('100,00'));
+    });
+    await ownership.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
+    const groupPayment = ownership.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
+    await groupPayment.getByLabel('Wer hat bezahlt?').selectOption('ben');
+    await groupPayment.getByLabel('Wer hat das Geld erhalten?').selectOption('clara');
+    await groupPayment.getByLabel('Gezahlter Betrag in Euro').fill('50');
+    await groupPayment.locator('input[type=date]').fill('2025-01-05');
+    await groupPayment.locator('textarea').fill('Q03 vereinbarte Gruppensaldierung');
+    await groupPayment.getByRole('button', { name: 'Zahlung als erfolgt erfassen' }).click();
+    await groupPayment.waitFor({ state: 'hidden' });
+    await ownership.waitForFunction(() => {
+      const rendered = [...document.querySelectorAll('.person-balance-row')]
+        .map(row => row.textContent.replace(/\s+/g, ' '));
+      return rendered.length === 3 && rendered.some(x => x.includes('Anna') && x.includes('300,00')) &&
+        rendered.some(x => x.includes('Ben') && x.includes('150,00')) &&
+        rendered.some(x => x.includes('Clara') && x.includes('150,00'));
+    });
+    const secondCopy = await ownership.evaluate(storageKey =>
+      JSON.parse(localStorage.getItem(storageKey)).project, key);
+    assert.deepEqual(secondCopy.events.filter(e => e.type === 'shares-set')
+      .map(e => e.financialMode), ['derived', 'none']);
+    assert.equal(secondCopy.events.filter(e => e.type === 'claim-settlement-recorded').length, 1);
+    assert.deepEqual(failures, [], 'No browser page errors are permitted');
+    await ownership.close();
+    console.log('Browser Q03 QA: purchased shares, complete/partial/over-payments, ' +
+      'counterclaims, historical dates, edits/deletes, paid/gifted transfers and group settlement passed');
+  } finally {
+    await context.close();
+  }
+}
+
 async function freePort() {
   const srv = createServer();
   await new Promise(resolve => srv.listen(0, '127.0.0.1', resolve));
@@ -329,6 +585,7 @@ try {
   server = offlineServer.server;
   await localization(browser, offlineServer.url);
   await offline(browser, offlineServer.url);
+  await settlementEndToEnd(browser, offlineServer.url);
   await phpOnline(browser);
 } catch (error) {
   console.error('Real-browser QA failed:', error);
