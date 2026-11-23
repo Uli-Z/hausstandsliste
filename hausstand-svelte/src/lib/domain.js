@@ -22,8 +22,7 @@ export const normalize = raw => {
   p.people = Array.isArray(raw?.people) ? raw.people : [];
   p.items = Array.isArray(raw?.items) ? raw.items : [];
   p.events = Array.isArray(raw?.events) ? raw.events : [];
-  p.drafts = Array.isArray(raw?.drafts) ? raw.drafts : (Array.isArray(raw?.redistributions) ? raw.redistributions : []);
-  delete p.redistributions;
+  p.drafts = Array.isArray(raw?.drafts) ? raw.drafts : [];
   p.currency = 'EUR';
   return p;
 };
