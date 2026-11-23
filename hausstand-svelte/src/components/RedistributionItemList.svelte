@@ -29,13 +29,9 @@
             <strong>{row.itemName}</strong>
             <div class="muted small-text">{$translate('items.value')} {money(row.itemValue)}</div>
           </div>
-          <div class="row">
-            {#if row.changed}
-              <span class="badge ok">{$translate("ui.changed-rt7uq6")}</span>
-            {:else}
-              <span class="badge">{$translate("ui.unchanged-gts2gw")}</span>
-            {/if}
-          </div>
+          {#if row.changed}
+            <span class="redistribution-change-status">{$translate("ui.changed-rt7uq6")}</span>
+          {/if}
         </div>
 
         {#if row.changedPeople.length}
@@ -96,6 +92,7 @@
   .redistribution-item-head {
     align-items: start;
   }
+  .redistribution-change-status {font-size:12px;color:var(--ok);font-weight:650}
 
   .compact-gap {
     gap: 4px;
