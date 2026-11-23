@@ -17,10 +17,6 @@
 
 <section class="panel">
   <div class="panel-body">
-    <div class="breadcrumb">
-      <button on:click={() => appState.setRoute({ page: 'dashboard' })}>{$translate("ui.overview-10nvstx")}</button>
-      <span>{$translate("ui.item-7uthuv")}</span>
-    </div>
     <div class="detail-hero">
       <div class="stack">
         <div class="detail-title">
@@ -29,28 +25,33 @@
         </div>
         {#if item.tags?.length}<p class="item-categories">Kategorien: {item.tags.join(', ')}</p>{/if}
         {#if item.note}<p class="item-description">{item.note}</p>{/if}
-        <div class="grid-3">
+        <div class="grid-2 item-core-facts">
           <div class="mini-card"><div class="muted">{$translate("ui.value-opx6hb")}</div><strong>{money(item.value)}</strong></div>
           <div class="mini-card"><div class="muted">{$translate("ui.owners-1df2egp")}</div><strong>{item.shareRows.length}</strong></div>
-          <div class="mini-card"><div class="muted">{$translate("ui.valuation-13jfos6")}</div><strong>{valuationLabel(item.runtime.valuation)}</strong></div>
         </div>
+        <details class="valuation-detail">
+          <summary>{$translate("ui.valuation-13jfos6")}</summary>
+          <div>{valuationLabel(item.runtime.valuation)}</div>
+        </details>
       </div>
-      <div class="mini-card stack">
-        <strong>{$translate("ui.available-actions-1pvpibj")}</strong>
+      <details class="secondary-actions">
+        <summary>{$translate("ui.moreActions")}</summary>
         <div class="action-grid">
-          <button on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-item-birsg")}</button>
-          <button on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}><ActionIcon name="arrows" size={17}/>{$translate("ui.change-ownership-shares-1x7cqup")}</button>
-          <button on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}><ActionIcon name="archive" size={17}/>{$translate("ui.archive-qlwwpx")}</button>
-          <button on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}><ActionIcon name="plus" size={17}/>{$translate('items.replace')}</button>
+          <button disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-item-birsg")}</button>
+          <button disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}><ActionIcon name="archive" size={17}/>{$translate("ui.archive-qlwwpx")}</button>
+          <button disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}><ActionIcon name="plus" size={17}/>{$translate('items.replace')}</button>
         </div>
-      </div>
+      </details>
     </div>
   </div>
 </section>
 
 <section class="grid-2" style="margin-top:16px">
   <section class="panel">
-    <div class="panel-header"><h2>{$translate("ui.who-owns-what-16guwgm")}</h2></div>
+    <div class="panel-header ownership-header">
+      <h2>{$translate("ui.who-owns-what-16guwgm")}</h2>
+      <button class="outline-action" disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}><ActionIcon name="arrows" size={17}/>{$translate("ui.change-ownership-shares-1x7cqup")}</button>
+    </div>
     <div class="panel-body">
       {#if item.shareRows.length}
         <table>
@@ -109,6 +110,14 @@
   .action-grid button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
   .help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .item-status-text{color:var(--muted);font-size:12px}
+  .item-core-facts{margin:0}
+  .valuation-detail{font-size:12px;color:var(--muted)}
+  .valuation-detail summary,.secondary-actions summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:#246f85;font-weight:650}
+  .valuation-detail>div{padding:0 0 8px 14px}
+  .secondary-actions{align-self:start}
+  .secondary-actions .action-grid{padding:8px 0;display:grid;gap:8px}
+  .ownership-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .ownership-header .outline-action{display:inline-flex;gap:8px;align-items:center}
   .funding-fact{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border)}
   .funding-fact span{color:var(--muted)}
   .item-categories,.item-description{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
