@@ -190,6 +190,15 @@ async function offline(browser, url) {
     }
     await openFinance(encryptedPage);
     await balance(encryptedPage, 'Anna', '140,00');
+    // Header Save on an opened encrypted local file must directly download
+    // an encrypted archive, not direct the user to an unencrypted backup.
+    const saveEncryptedWait = encryptedPage.waitForEvent('download');
+    await encryptedPage.getByRole('button', { name: 'Speichern', exact: true }).click();
+    const savedEncrypted = JSON.parse(await readFile(await (await saveEncryptedWait).path(), 'utf8'));
+    assert.equal(savedEncrypted.format, 'hausstand-aesgcm-v1');
+    const savedEncryptedProject = (await decryptProject(savedEncrypted, 'encrypted-browser-qa-secret')).project;
+    assert.equal(savedEncryptedProject.events.filter(e => e.type === 'claim-settlement-recorded').length, 1);
+    assert.equal(savedEncryptedProject.versionHistory.entries.length, 3);
     assert.deepEqual(encryptedErrors, []);
   } finally { await encryptedContext.close(); }
   assert.deepEqual(errors, []);
