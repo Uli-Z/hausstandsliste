@@ -16,15 +16,16 @@
   import PeopleView from './PeopleView.svelte';
   import LedgerView from './LedgerView.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
+  import ActionIcon from '../src/components/ActionIcon.svelte';
   import StorageView from './StorageView.svelte';
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
 
   const navigation = [
-    { id: 'overview', label: 'Überblick', glyph: '⌂' },
-    { id: 'items', label: 'Gegenstände', glyph: '▦' },
-    { id: 'people', label: 'Personen', glyph: '♙' },
-    { id: 'money', label: 'Geld & Ausgleich', glyph: '⇄' },
-    { id: 'activity', label: 'Änderungen', glyph: '◷' }
+    { id: 'overview', icon: 'home' },
+    { id: 'items', icon: 'box' },
+    { id: 'people', icon: 'people' },
+    { id: 'money', icon: 'arrows' },
+    { id: 'activity', icon: 'list' }
   ];
   let activeSection = 'overview';
   let showJson = false;
@@ -33,6 +34,20 @@
   let storageView;
   let savingLocal = false;
   let saveMessage = '';
+  let saveMessageError = false;
+  let feedbackTimer;
+  function dismissFeedback() {
+    if (feedbackTimer) window.clearTimeout(feedbackTimer);
+    feedbackTimer = undefined;
+    saveMessage = '';
+  }
+  function showFeedback(message, isError = false) {
+    dismissFeedback();
+    saveMessage = message;
+    saveMessageError = isError;
+    // Success is a brief, non-blocking notification. Errors remain until dismissed.
+    if (!isError) feedbackTimer = window.setTimeout(() => { saveMessage = ''; feedbackTimer = undefined; }, 4500);
+  }
 
   onMount(() => {
     const stop = locale.subscribe(language => {
@@ -54,6 +69,7 @@
       window.clearInterval(clock);
       window.removeEventListener('focus', refreshDay);
       document.removeEventListener('visibilitychange', refreshDay);
+      if (feedbackTimer) window.clearTimeout(feedbackTimer);
     };
   });
 
@@ -86,6 +102,7 @@
     return e.title || e.note || 'Änderung';
   }
   function navigate(id) {
+    dismissFeedback();
     mobileMoreOpen = false;
     activeSection = id;
     if ($appState.route.page !== 'dashboard') appState.setRoute({ page: 'dashboard' });
@@ -145,15 +162,15 @@
       const saved = await createPortableSave($appState.project, $appState.savedProject);
       downloadProject(saved, $appState.asOfDate);
       appState.markSaved(saved);
-      saveMessage = $translate("ui.download-started-keep-the-file-saf-1wje8bq");
+      showFeedback($translate("ui.download-started-keep-the-file-saf-1wje8bq"));
     } catch (error) {
-      saveMessage = 'Speichern fehlgeschlagen: ' + (error?.message || error);
+      showFeedback($translate('app.saveFailed') + ': ' + (error?.message || error), true);
     } finally { savingLocal = false; }
   }
   async function saveNow() {
     if ($appState.secure) {
       const result = await storageView?.saveFromHeader?.();
-      if (result?.handled) { saveMessage = result.message || ''; return; }
+      if (result?.handled) { if (result.message) showFeedback(result.message); return; }
       navigate('save'); // Encrypted local file: requires the file password.
       return;
     }
@@ -178,7 +195,7 @@
     <nav class="sidebar-links" aria-label="Arbeitsbereiche">
       {#each navigation as nav (nav.id)}
         <button class:nav-active={route.page === 'dashboard' && activeSection === nav.id} aria-current={route.page === 'dashboard' && activeSection === nav.id ? 'page' : undefined} on:click={() => navigate(nav.id)}>
-          <span class="nav-glyph" aria-hidden="true">{nav.glyph}</span><span>{$translate('nav.' + nav.id)}</span>
+          <span class="nav-glyph"><ActionIcon name={nav.icon} size={20}/></span><span>{$translate('nav.' + nav.id)}</span>
         </button>
       {/each}
     </nav>
@@ -196,22 +213,30 @@
         <strong><span class="mobile-header-brand">Hausstandsliste · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
       </div>
       <div class="header-actions">
-        <button type="button" class="time-travel-toggle" aria-label={$translate('app.openTimeTravel')} title={$translate('app.openTimeTravel')} aria-expanded={$appState.datePickerOpen || $appState.timeTravelActive} aria-controls="time-travel-panel" aria-pressed={$appState.timeTravelActive} on:click={showDatePicker}><span aria-hidden="true" class="clock-glyph">◷</span><span class="time-travel-toggle-label">{$translate('app.timeTravel')}</span></button>
+        <button type="button" class="time-travel-toggle" aria-label={$translate('app.openTimeTravel')} title={$translate('app.openTimeTravel')} aria-expanded={$appState.datePickerOpen || $appState.timeTravelActive} aria-controls="time-travel-panel" aria-pressed={$appState.timeTravelActive} on:click={showDatePicker}><ActionIcon name="clock" size={19}/><span class="time-travel-toggle-label">{$translate('app.timeTravel')}</span></button>
         <div class="session-history-actions" role="group" aria-label={$translate('app.undo')}>
-          <button type="button" class="session-history-button" aria-label={$translate('app.undo')} title={$translate("app.undo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}>↶</button>
-          <button type="button" class="session-history-button" aria-label={$translate('app.redo')} title="Wiederholen (Strg+Y / Strg+Umschalt+Z)" disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}>↷</button>
+          <button type="button" class="session-history-button" aria-label={$translate('app.undo')} title={$translate("app.undo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}><ActionIcon name="undo" size={20}/></button>
+          <button type="button" class="session-history-button" aria-label={$translate('app.redo')} title={$translate("app.redo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}><ActionIcon name="redo" size={20}/></button>
         </div>
         <span class="working-indicator" title={$appState.secure ? 'Passwortgeschütztes Projekt: keine Klartext-Arbeitskopie im Browser' : 'Nicht verschlüsselte Projekte haben eine lokale Arbeitskopie im Browser'}>
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </span>
-        <button class="header-save" disabled={savingLocal} on:click={saveNow}>{$translate(savingLocal ? 'app.saving' : 'app.save')}</button>
+        <button class="header-save" disabled={savingLocal} on:click={saveNow}><ActionIcon name="download" size={17}/><span>{$translate(savingLocal ? 'app.saving' : 'app.save')}</span></button>
       </div>
     </header>
 
+    {#if saveMessage}
+      <div class="save-feedback" class:save-feedback-error={saveMessageError}
+        role={saveMessageError ? 'alert' : 'status'}>
+        <span>{saveMessage}</span>
+        <button type="button" on:click={dismissFeedback} aria-label={$translate("ui.close-1qnddid")}>
+          <ActionIcon name="close" size={17}/>
+        </button>
+      </div>
+    {/if}
     <main class="work-content">
       {#key $locale}
-      {#if saveMessage}<p role="status" class="inline-info">{saveMessage}</p>{/if}
       {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">{$translate("ui.the-browser-could-not-cache-the-wo-1u1cj1a")}</p>{/if}
       {#if $appState.datePickerOpen || $appState.timeTravelActive}
         <div id="time-travel-panel" class="date-toolbar" class:date-toolbar-active={$appState.timeTravelActive} data-period={dateMode} role="region" aria-label={$translate('app.timeTravel')}>
@@ -266,10 +291,10 @@
           <section class="ux-panel quick-actions">
             <div class="section-header"><div><h2>{$translate("app.tasks")}</h2></div></div>
             <div class="task-grid">
-              <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><strong>{$translate("app.addSomething")}</strong><small>{$translate("app.recordItem")}</small></button>
-              <button on:click={() => appState.startRedistribution()}><strong>{$translate("app.transfer")}</strong><small>{$translate("app.split")}</small></button>
-              <button on:click={() => appState.setDialog({ type: 'personAdd' })}><strong>{$translate("app.personAdd")}</strong><small>{$translate("app.join")}</small></button>
-              <button on:click={() => navigate('save')}><strong>{$translate("app.backup")}</strong><small>{$translate("app.share")}</small></button>
+              <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><span class="task-icon"><ActionIcon name="box" size={22}/></span><strong>{$translate("app.addSomething")}</strong><small>{$translate("app.recordItem")}</small></button>
+              <button on:click={() => appState.startRedistribution()}><span class="task-icon"><ActionIcon name="arrows" size={22}/></span><strong>{$translate("app.transfer")}</strong><small>{$translate("app.split")}</small></button>
+              <button on:click={() => appState.setDialog({ type: 'personAdd' })}><span class="task-icon"><ActionIcon name="person-add" size={22}/></span><strong>{$translate("app.personAdd")}</strong><small>{$translate("app.join")}</small></button>
+              <button on:click={() => navigate('save')}><span class="task-icon"><ActionIcon name="download" size={22}/></span><strong>{$translate("app.backup")}</strong><small>{$translate("app.share")}</small></button>
             </div>
           </section>
           <section class="ux-panel financial-overview">
@@ -280,7 +305,7 @@
                   <div class="debt-row">
                   <span>{personName(b.fromPersonId)} an {personName(b.toPersonId)}</span>
                   <strong>{money(b.amountCents / 100)}</strong>
-                  <button class="debt-action" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})} disabled={$appState.readOnly}>{$translate("app.settle")}</button>
+                  <button class="debt-action" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})} disabled={$appState.readOnly}><ActionIcon name="wallet" size={16}/>{$translate("app.settle")}</button>
                 </div>
                 {/each}
               </div>
@@ -394,16 +419,16 @@
   {#each navigation.slice(0,4) as nav (nav.id)}
     <button type="button" class:nav-active={activeSection === nav.id}
       aria-current={activeSection === nav.id ? 'page' : undefined} on:click={() => navigate(nav.id)}>
-      <span class="mobile-nav-icon" aria-hidden="true">{nav.glyph}</span>
+      <span class="mobile-nav-icon"><ActionIcon name={nav.icon} size={23}/></span>
       <span class="mobile-nav-label">{$translate(nav.id === 'overview' ? 'nav.home' : nav.id === 'items' ? 'nav.things' : nav.id === 'people' ? 'nav.people' : 'nav.cash')}</span>
     </button>
   {/each}
   <div class="mobile-more-slot">
     {#if mobileMoreOpen}
       <div class="mobile-more-menu" id="mobile-more-menu">
-        <button type="button" class:nav-active={activeSection === 'activity'} on:click={() => navigate('activity')}><span aria-hidden="true">◷</span> {$translate("nav.activity")}</button>
-        <button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><span aria-hidden="true">⇩</span> {$translate("nav.save")}</button>
-        <button type="button" class:nav-active={activeSection === 'settings'} on:click={() => navigate('settings')}><span aria-hidden="true">⚙</span> {$translate("nav.settings")}</button>
+        <button type="button" class:nav-active={activeSection === 'activity'} on:click={() => navigate('activity')}><ActionIcon name="list" size={20}/> {$translate("nav.activity")}</button>
+        <button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><ActionIcon name="download" size={20}/> {$translate("nav.save")}</button>
+        <button type="button" class:nav-active={activeSection === 'settings'} on:click={() => navigate('settings')}><ActionIcon name="settings" size={20}/> {$translate("nav.settings")}</button>
       </div>
     {/if}
     <button type="button" class:nav-active={['activity','save','settings'].includes(activeSection)}
