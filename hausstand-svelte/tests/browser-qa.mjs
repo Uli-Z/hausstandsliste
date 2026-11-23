@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { chromium } from 'playwright';
 import { decryptProject } from '../src/lib/crypto.js';
+import { readPortableVersion } from '../src/lib/versionHistory.js';
 
 const fixture = {
   schemaVersion: 1, appVersion: '0.7.0-svelte', currency: 'EUR',
@@ -144,6 +145,9 @@ async function offline(browser, url) {
   const restored = await download(mobile);
   assert.equal(restored.versionHistory.entries.length, 2);
   assert.deepEqual(restored.events.filter(e => e.type === 'claim-settlement-recorded'), []);
+  const beforeRestore = await readPortableVersion(restored, restored.versionHistory.entries[1].id);
+  assert.equal(beforeRestore.events.filter(e => e.type === 'claim-settlement-recorded').length, 1,
+    'Restoring the previous current file must archive the completed payment snapshot');
 
   // Local encrypted download carries the same complete portable history.
   await openSave(mobile);
@@ -177,6 +181,12 @@ async function offline(browser, url) {
       .selectOption({ index: 2 });
     encryptedPage.on('dialog', dialog => dialog.accept());
     await encryptedPage.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
+    try {
+      await encryptedPage.getByText(/Früherer Stand geladen/).waitFor({ timeout: 12000 });
+    } catch {
+      throw new Error('Encrypted restore did not finish: ' +
+        (await encryptedPage.locator('.storage-choices').innerText()).slice(0, 900));
+    }
     await openFinance(encryptedPage);
     await balance(encryptedPage, 'Anna', '140,00');
     assert.deepEqual(encryptedErrors, []);
