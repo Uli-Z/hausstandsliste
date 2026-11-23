@@ -114,7 +114,7 @@ async function payment(page, sum) {
 }
 async function download(page) {
   const wait = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).click();
+  await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).first().click();
   const file = await wait;
   return JSON.parse(await readFile(await file.path(), 'utf8'));
 }
@@ -651,13 +651,13 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
         Math.abs(beforeRedo.x - afterRedo.x) <= 1,
         'Q04 ' + width + 'px Undo/Redo shifted when unsaved state changed');
       const wait = page.waitForEvent('download');
-      await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).click();
+      await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).first().click();
       await wait;
       await page.locator('.save-feedback[role="status"]').waitFor();
       if (width === 375 && engine === 'Chromium') {
         await page.locator('.save-feedback').waitFor({ state: 'hidden', timeout: 7000 });
         const secondDownload = page.waitForEvent('download');
-        await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).click();
+        await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).first().click();
         await secondDownload;
         await page.locator('.save-feedback[role="status"]').waitFor();
       }
@@ -733,7 +733,7 @@ async function phpOnline(browser) {
       await editor.locator('.storage-online details > summary').filter({ hasText: 'Neues Online-Projekt anlegen' }).click();
       await editor.getByLabel('Passwort des Online-Projekts').fill('browser-test-passphrase');
       await editor.getByLabel('Name des neuen Online-Projekts').fill('Gemeinsame Browser-Abnahme');
-      await editor.getByRole('button', { name: 'Neues Online-Projekt anlegen' }).click();
+      await editor.locator('.storage-online details .storage-form button').click();
       await editor.getByText('Gemeinsame Browser-Abnahme').first().waitFor();
       await editor.locator('.storage-primary').click();
       await editor.getByRole('button', { name: 'Bearbeitung beenden' }).waitFor();
