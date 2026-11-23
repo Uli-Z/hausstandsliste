@@ -12,25 +12,25 @@ export const MULTILATERAL_SUGGESTION_DESCRIPTION =
   'Unverbindlicher Vorschlag zum Ausgleich der persönlichen Gemeinschaftssalden mit möglichst wenigen weiteren Überweisungen. Keine Zahlung wird durch diesen Vorschlag gebucht.';
 
 export const REDISTRIBUTION_SUGGESTION_TITLE =
-  'Rechnerischer Überweisungsvorschlag (nicht gebucht)';
+  'Zahlungsvorschlag – noch keine Zahlung eingetragen';
 
 export const REDISTRIBUTION_SUGGESTION_NOTICE =
-  'Nur eine Vorschau der Wertverschiebung, keine gebuchte Zahlung. Die tatsächlich entstandenen Forderungen stehen in „Geld & Ausgleich“.';
+  'Hier ändern sich Eigentumsanteile, kein Geld wird überwiesen. Falls tatsächlich Geld geflossen ist, erfasse die Zahlung gesondert.';
 
 export const DERIVED_CLAIMS_DESCRIPTION =
   'Wertverschiebungen aus Anschaffungen und Anteilsänderungen sowie ihre dokumentierten Ausgleiche. Sie ergeben den persönlichen Gemeinschaftssaldo. Extern verbucht bedeutet nicht bezahlt.';
 
 export const FINANCIAL_EVENT_NOTE = event => {
   if (event?.financialMode === 'derived') {
-    return 'entgeltlich · mögliche Forderungen werden abgeleitet · keine Zahlung gebucht';
+    return 'Für die übernommenen Anteile entsteht ein entsprechender Geldanspruch, aber keine Überweisung.';
   }
-  return 'unentgeltlich · keine neue Forderung · keine Zahlung gebucht';
+  return 'Schenkung oder Korrektur: Eigentum ändert sich ohne neuen Geldanspruch und ohne Zahlung.';
 };
 
 export const ITEM_FUNDING_NOTE = event => (
   event?.financialMode === 'derived' && event?.financedByPersonId
-    ? 'Finanzierung zugeordnet · mögliche Forderungen werden abgeleitet · keine Zahlung gebucht'
-    : 'Keine Forderung aus der Anschaffung erfasst'
+    ? 'Die zahlende Person ist eingetragen. Daraus können Geldsalden berechnet werden; eine Zahlung wird noch nicht gebucht.'
+    : 'Ohne eingetragene zahlende Person entsteht bei diesem Kauf kein automatischer Geldanspruch.'
 );
 
 export const PERSON_BALANCE_NOTE = cents => (
