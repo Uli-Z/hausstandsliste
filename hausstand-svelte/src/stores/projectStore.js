@@ -5,11 +5,12 @@ import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
 import { newUnownedActiveTransitions } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
-import { hasProjectChanges } from '../lib/versionHistory.js';
+import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
 
 const initial = {
   project: emptyProject(),
   savedProject: null, // Last explicitly saved/loaded version, not the working copy.
+  localCacheWarning: false,
   asOfDate: todayISO(),
   fileName: null,
   dirty: false,
@@ -22,20 +23,43 @@ const initial = {
 function createStore() {
   const { subscribe, set, update } = writable(initial);
   const persist = state => {
-    // Never persist a decrypted protected project into browser localStorage.
-    if (state.secure) clearWorkingCopy();
-    else saveWorkingCopy({ project: state.project, savedProject: state.savedProject, asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty });
-    return state;
+    // Never persist decrypted protected data into browser storage.
+    if (state.secure) { clearWorkingCopy(); return { ...state, localCacheWarning: false }; }
+    try {
+      // Do not duplicate the entire compressed archive in localStorage merely
+      // to keep the saved baseline for dirty detection after reload.
+      const savedHistoryIds = state.savedProject?.versionHistory?.entries?.map(v => v.id) || [];
+      saveWorkingCopy({
+        project: state.project,
+        savedProject: state.savedProject ? withoutHistory(state.savedProject) : null,
+        savedHistoryIds,
+        asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty
+      });
+      return { ...state, localCacheWarning: false };
+    } catch {
+      // Full browser quota must not prevent editing; do not leave stale cached
+      // data masquerading as the most recent version.
+      clearWorkingCopy();
+      return { ...state, localCacheWarning: true };
+    }
   };
   return {
     subscribe,
     setAsOfDate: asOfDate => update(s => persist({ ...s, asOfDate })),
-    restoreWorkingCopy: copy => update(s => ({ ...s,
-      project: normalize(copy.project),
-      savedProject: copy.savedProject ? normalize(copy.savedProject) : copy.dirty ? null : normalize(copy.project),
-      fileName: copy.fileName || null, dirty: !!copy.dirty,
-      secure: false, readOnly: false, asOfDate: todayISO(), route: { page: 'dashboard' }
-    })),
+    restoreWorkingCopy: copy => update(s => {
+      // Saved state has a smaller copy without history; reconstruct its exact
+      // prior archive from the persisted entry IDs.
+      const savedArchiveEntries = (copy.project?.versionHistory?.entries || [])
+        .filter(entry => (copy.savedHistoryIds || []).includes(entry.id));
+      const saved = copy.savedProject
+        ? normalize({ ...copy.savedProject, ...(copy.savedHistoryIds?.length
+          ? { versionHistory: { format: 'portable-v1', entries: savedArchiveEntries } }
+          : {}) })
+        : copy.dirty ? null : normalize(copy.project);
+      return { ...s, project: normalize(copy.project), savedProject: saved,
+        fileName: copy.fileName || null, dirty: !!copy.dirty, localCacheWarning: false,
+        secure: false, readOnly: false, asOfDate: todayISO(), route: { page: 'dashboard' } };
+    }),
     setRoute: route => update(s => ({ ...s, route })),
     setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
     closeDialog: () => update(s => ({ ...s, activeDialog: null })),
