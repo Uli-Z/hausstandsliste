@@ -22,6 +22,9 @@ export const exportProject = (project, asOfDate) => {
     schemaVersion: 1,
     currency: 'EUR',
     humanReadableSnapshot: {
+      // Informational only: the authoritative project is people/items/events/drafts.
+      // Valid JSON has no comment syntax, so keep this explanation as metadata.
+      note: 'Generated overview for manual reading only. Do not edit this section to change project data; the authoritative values are in people, items and events.',
       generatedAt: nowISO(),
       asOfDate,
       summary: [
@@ -32,9 +35,13 @@ export const exportProject = (project, asOfDate) => {
       ],
       people: projection.people.map(p => ({ name: p.name, active: !!p.active, totalValue: Math.round(p.totalValue * 100) / 100 })),
       items: projection.activeItems.map(i => ({
+        id: i.id,
         name: i.name,
         currentValue: Math.round(i.value * 100) / 100,
-        valuation: valuationLabel(i.runtime.valuation),
+        // Keep the same machine-readable rule as the canonical item-added event.
+        valuation: { ...i.runtime.valuation },
+        // Optional human description; calculations never read this text.
+        valuationDescription: valuationLabel(i.runtime.valuation),
         tags: i.tags || [],
         shares: Object.fromEntries(i.shareRows.map(r => [r.personName, r.units]))
       }))
