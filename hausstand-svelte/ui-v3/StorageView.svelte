@@ -88,7 +88,8 @@
     message = openedId ? 'Verschlüsselte Sicherung heruntergeladen; Online-Änderungen noch nicht gespeichert.' : 'Verschlüsselte Projektdatei heruntergeladen.';
   }
   async function importEncrypted(event) {
-    const file = event.currentTarget.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
     try {
       if (!ensureNoOverwrite()) return;
@@ -99,7 +100,7 @@
       openedId = ''; leaseToken = ''; revision = 0; selectedPortableVersion = '';
       message = 'Verschlüsselte lokale Datei geöffnet.'; error = '';
     } catch (e) { report(e); }
-    finally { event.currentTarget.value = ''; }
+    finally { input.value = ''; }
   }
   async function refreshFiles() {
     files = (await api('files')).files || [];
