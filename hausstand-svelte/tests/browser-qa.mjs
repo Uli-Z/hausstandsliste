@@ -573,6 +573,9 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
         'Q04 ' + width + 'px help popup clipped horizontally: ' + JSON.stringify(popup));
       await page.keyboard.press('Escape');
       assert.equal(await help.count(), 0, 'Help should close on Escape');
+      await helpButton.click();
+      await page.locator('.page-heading').click();
+      assert.equal(await help.count(), 0, 'Help should close when clicking outside');
       const undo = page.getByRole('button', { name: /Rückgängig \(Strg\+Z\)/ });
       const redo = page.getByRole('button', { name: /Wiederholen \(Strg\+Y\)/ });
       const beforeUndo = await undo.boundingBox();
@@ -597,6 +600,13 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       await page.getByRole('button', { name: 'Speichern', exact: true }).click();
       await wait;
       await page.locator('.save-feedback[role="status"]').waitFor();
+      if (width === 375 && engine === 'Chromium') {
+        await page.locator('.save-feedback').waitFor({ state: 'hidden', timeout: 7000 });
+        const secondDownload = page.waitForEvent('download');
+        await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+        await secondDownload;
+        await page.locator('.save-feedback[role="status"]').waitFor();
+      }
       const savedUndo = await undo.boundingBox();
       assert.ok(Math.abs(beforeUndo.x - savedUndo.x) <= 1,
         'Q04 ' + width + 'px Undo shifted after saving');
