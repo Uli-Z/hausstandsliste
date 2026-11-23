@@ -82,6 +82,18 @@ if ($api !== '') {
         $dir = $root . '/files/' . $id;
         return [$dir, readJson($dir . '/meta.json')];
     }
+    function currentPath(string $dir, array $meta): string {
+        // currentFile is a server-generated name, never user input.
+        if (isset($meta['currentFile'])) {
+            if (!is_string($meta['currentFile'])
+                || !preg_match('/^current-[1-9][0-9]*\.json$/D', $meta['currentFile']))
+                fail(500, 'Ungültiger Server-Dateizeiger.');
+            return $dir . '/' . $meta['currentFile'];
+        }
+        // Transitional single-file and original pre-migration legacy layout.
+        if (is_file($dir . '/current.json')) return $dir . '/current.json';
+        return $dir . '/versions/' . $meta['revision'] . '.json';
+    }
     function authorize(array $meta): void {
         $token = (string) ($_SERVER['HTTP_X_FILE_TOKEN'] ?? '');
         if (!preg_match('/^[0-9a-f]{64}$/D', $token)
@@ -211,8 +223,7 @@ if ($api !== '') {
         }
         // New files use a single current.json; pre-migration files keep their
         // former current revision readable until the first new Save.
-        $path = is_file($dir . '/current.json') ? $dir . '/current.json'
-            : $dir . '/versions/' . $meta['revision'] . '.json';
+        $path = currentPath($dir, $meta);
         reply(['revision' => $meta['revision'], 'envelope' => readJson($path)]);
     }
     if ($method !== 'POST') fail(405, 'POST erforderlich.');
@@ -228,9 +239,9 @@ if ($api !== '') {
         if (file_exists($dir) || !mkdir($dir, 0700, true)) fail(409, 'Datei-ID bereits vergeben.');
         // Only ONE current encrypted document. Its embedded versionHistory is
         // the portable record; no new server-side revisions directory.
-        atomicJson($dir . '/current.json', $envelope);
+        atomicJson($dir . '/current-1.json', $envelope);
         $meta = [
-            'id' => $id, 'name' => $name, 'revision' => 1, 'tokenHash' => $tokenHash,
+            'id' => $id, 'name' => $name, 'revision' => 1, 'currentFile' => 'current-1.json', 'tokenHash' => $tokenHash,
             'leaseHash' => null, 'leaseExpires' => 0, 'updatedAt' => gmdate('c'),
             'versions' => [], 'mailQueue' => []
         ];
@@ -272,7 +283,13 @@ if ($api !== '') {
         $next = (int) $meta['revision'] + 1;
         // Technical server revision still increments, but is NOT a second
         // historical project file. Legacy versions stay untouched/read-only.
-        atomicJson($dir . '/current.json', $envelope);
+        // Two-phase pointer swap: a crash before meta.json is committed keeps
+        // the prior encrypted file authoritative. No previous state is treated
+        // as a separately browsable server revision.
+        $previousCurrent = $meta['currentFile'] ?? (is_file($dir . '/current.json') ? 'current.json' : null);
+        $nextCurrent = 'current-' . $next . '.json';
+        atomicJson($dir . '/' . $nextCurrent, $envelope);
+        $meta['currentFile'] = $nextCurrent;
         $meta['revision'] = $next;
         if ($rotateHash !== null) $meta['tokenHash'] = $rotateHash;
         $meta['updatedAt'] = gmdate('c');
@@ -280,6 +297,9 @@ if ($api !== '') {
         $mailStatus = stageMailCopy($dir, $meta, $next, $envelope);
         atomicJson($dir . '/meta.json', $meta);
         mailPending($dir, $meta);
+        if ($previousCurrent && $previousCurrent !== $nextCurrent) {
+            @unlink($dir . '/' . $previousCurrent); // after successful meta commit only
+        }
         $queue = $meta['mailQueue'] ?? [];
         $status = $queue ? $queue[count($queue) - 1]['mailStatus'] : $mailStatus;
         reply(['revision' => $next, 'expiresAt' => $meta['leaseExpires'],
