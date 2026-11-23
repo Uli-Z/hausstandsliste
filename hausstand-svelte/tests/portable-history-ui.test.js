@@ -28,16 +28,14 @@ test('V3 Save persists an explicit version, and restores open as unsaved drafts'
   assert.doesNotMatch(app, /setAsOfDate\(copy\.asOfDate\)/);
   assert.match(storage, /createPortableSave\(project, \$appState\.savedProject\)/);
   assert.match(storage, /await api\('save', payload/);
-  assert.match(storage, /mergeLegacyVersions\(/);
   assert.match(storage, /readPortableVersion\(/);
-  assert.match(store, /stagePortableHistory/);
   assert.match(store, /restoreVersion/);
 });
 
-test('PHP uses crash-safe current pointer, keeps old revisions for migration and does not append new server versions', () => {
+test('PHP uses only current encrypted file and has no separate history API', () => {
   const php = source('server-php/backend.php');
   assert.match(php, /function currentPath\(/);
   assert.match(php, /currentFile/);
-  assert.match(php, /legacy/i);
+  assert.doesNotMatch(php, /\$api === 'versions'|\$api === 'version'/);
   assert.doesNotMatch(php, /atomicJson\(\$dir \. '\/versions\/' \. \$next/);
 });
