@@ -46,6 +46,7 @@ test('purchase preview uses the exact same cent allocator as the financial ledge
   assert.ok(dialog.includes("import { allocateCents } from '../src/lib/ledger.js'"));
   assert.ok(dialog.includes('allocateCents(itemCostCents, purchaseShares)'));
   assert.ok(dialog.includes('personId !== financedByPersonId && amountCents > 0'));
+  assert.ok(dialog.includes("items.purchaseClaimRow"));
   assert.ok(dialog.includes("items.purchaseNoPayment"));
   assert.ok(dialog.includes("items.noPurchaseClaims"));
   const allocation = allocateCents(10001, {anna: 1, ben: 1, clara: 1});
@@ -89,7 +90,7 @@ test('new fields have complete English and German translations', () => {
   const strings = source('src/lib/i18n.js');
   for (const key of [
     'items.equalShares', 'items.selectOwner', 'items.moreDetails', 'items.purchasePreview',
-    'items.purchaseSummary', 'items.purchaseClaims', 'items.purchaseNoPayment',
+    'items.purchaseSummary', 'items.purchaseClaims', 'items.purchaseClaimRow', 'items.purchaseNoPayment',
     'items.noPurchaseClaims', 'redistribution.moreActions', 'redistribution.titleExample',
     'redistribution.noItems', 'redistribution.claimEffect', 'redistribution.withoutClaims',
     'redistribution.noPaymentRecorded', 'redistribution.export', 'redistribution.selectItemFirst'
