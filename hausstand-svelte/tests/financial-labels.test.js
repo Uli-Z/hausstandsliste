@@ -74,12 +74,15 @@ test('A06: current UI uses consistent financial labels and no payment counts', (
     assert.match(panel, /BalanceBreakdown/);
     assert.ok(hasTranslation(panel, 'Zahlung erfassen'));
     assert.ok(hasTranslation(panel, 'Woher die Beträge stammen'));
-    const prefix = 'ui-v3/';
-    for (const name of ['RedistributionDialog.svelte', 'ExecutedRedistributionEditDialog.svelte']) {
-      const dialog = source(prefix + name);
-      assert.match(dialog, /REDISTRIBUTION_SUGGESTION_TITLE/);
-      assert.match(dialog, /REDISTRIBUTION_SUGGESTION_NOTICE/);
-    }
+    const transfer = source('ui-v3/RedistributionDialog.svelte');
+    // The simplified transfer dialog now uses localized, visible wording
+    // instead of the older technical suggestion-title helper.
+    assert.match(transfer, /redistribution\.claimEffect/);
+    assert.match(transfer, /redistribution\.noPaymentRecorded/);
+    assert.match(transfer, /redistribution\.withoutClaims/);
+    const existingTransfer = source('ui-v3/ExecutedRedistributionEditDialog.svelte');
+    assert.match(existingTransfer, /REDISTRIBUTION_SUGGESTION_TITLE/);
+    assert.match(existingTransfer, /REDISTRIBUTION_SUGGESTION_NOTICE/);
   }
   const dashboard = source('ui-v3/App.svelte');
   assert.match(dashboard, /Ausgleichsvorschläge|app\.suggestions/);
