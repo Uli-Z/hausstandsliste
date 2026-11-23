@@ -1,7 +1,9 @@
 <script>
   import { translate } from '../src/lib/i18n.js';
   import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
-  import { uid, parseTags } from '../src/lib/util.js';
+  import { uid, parseTags, nextEventOrder } from '../src/lib/util.js';
+  import { projectAt } from '../src/lib/projector.js';
+  import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { normShares } from '../src/lib/domain.js';
   import { personDeletionEligibility, deleteUnusedPerson } from '../src/lib/personDeletion.js';
   import RedistributionDialog from './RedistributionDialog.svelte';
@@ -29,6 +31,23 @@
   let shares = {};
   let shareFinancialMode = 'derived';
   let financedByPersonId = '';
+  let effectiveDate = '';
+  let initializedFor = null;
+  // Effective dates are independent of the view once a dialog/draft is opened.
+  $: if (dialog && dialog !== initializedFor) {
+    initializedFor = dialog;
+    const draft = dialog.id ? (project.drafts || []).find(d => d.id === dialog.id) : null;
+    effectiveDate = draft?.data?.effectiveDate || asOfDate;
+  }
+  $: dateValid = validCalendarDate(effectiveDate);
+  $: entryProjection = dateValid ? projectAt(project, effectiveDate) : projection;
+  $: hasEventDate = ['personAdd', 'personStatus', 'itemAdd', 'itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
+  function finishDatedChange(saved) {
+    if (!saved) return;
+    const confirmedDate = effectiveDate;
+    close();
+    if (confirmedDate > asOfDate) appState.setAsOfDate(confirmedDate);
+  }
   const normalizePersonName = value => String(value || '').trim().toLocaleLowerCase('de');
 
   $: normalizedName = normalizePersonName(name);
@@ -37,12 +56,12 @@
     : (dialog?.type === 'personMeta'
       ? (project.people || []).find(p => String(p.id) !== String(person?.id) && normalizePersonName(p.name) === normalizedName)
       : null);
-  $: duplicateProjection = duplicatePerson ? projection.peopleById.get(duplicatePerson.id) : null;
+  $: duplicateProjection = duplicatePerson ? entryProjection.peopleById.get(duplicatePerson.id) : null;
   $: duplicateIsActive = !!duplicateProjection?.active;
   $: duplicateAddedEvent = duplicatePerson
     ? (project.events || []).find(e => e.type === 'person-added' && String(e.personId) === String(duplicatePerson.id))
     : null;
-  $: duplicateIsFutureMoveIn = !!(duplicateAddedEvent?.date && duplicateAddedEvent.date > asOfDate);
+  $: duplicateIsFutureMoveIn = !!(duplicateAddedEvent?.date && duplicateAddedEvent.date > effectiveDate);
   $: duplicateLatestDeactivation = duplicatePerson
     ? [...(project.events || [])]
       .reverse()
@@ -90,6 +109,7 @@
     if (!isEnterForSubmit(event)) return;
     const action = {
       personAdd: addPerson,
+      personStatus: savePersonStatus,
       personMeta: savePersonMeta,
       itemAdd: addItem,
       itemContinue: continueItem,
@@ -100,6 +120,7 @@
     if (!action) return;
     event.preventDefault();
     if (['personAdd', 'personMeta'].includes(dialog.type) && !canSavePersonName) return;
+    if (hasEventDate && !dateValid) return;
     action();
   }
 
@@ -107,37 +128,42 @@
   function addPerson() {
     if (!canSavePersonName) return;
     const personId = uid('person');
-    appState.mutateProject(p => { 
-      p.people.push({ id: personId, name: name || 'Neue Person' }); 
-      p.events.push(createEvent('person-added', asOfDate, { personId, name: name || 'Neue Person' }, p)); 
+    if (!dateValid) return;
+    const saved = appState.mutateProject(p => {
+      p.people.push({ id: personId, name: name || 'Neue Person' });
+      p.events.push(createEvent('person-added', effectiveDate, { personId, name: name || 'Neue Person' }, p));
     });
-    close();
+    finishDatedChange(saved);
   }
   function savePersonMeta() {
     if (!canSavePersonName) return;
-    appState.mutateProject(p => { const x = p.people.find(y => y.id === person.id); if (x) x.name = name || x.name; });
-    close();
+    const saved = appState.mutateProject(p => { const x = p.people.find(y => y.id === person.id); if (x) x.name = name || x.name; });
+    if (saved) close();
   }
 
   function pullMoveInForward(existingPerson) {
     if (!existingPerson) return;
-    appState.mutateProject(p => {
+    if (!dateValid) return;
+    const saved = appState.mutateProject(p => {
       const event = p.events.find(e => e.type === 'person-added' && String(e.personId) === String(existingPerson.id));
-      if (event) event.date = asOfDate;
+      if (event) {
+        if (event.date !== effectiveDate) event.order = nextEventOrder(p, effectiveDate);
+        event.date = effectiveDate;
+      }
     });
-    close();
+    finishDatedChange(saved);
   }
 
   function deleteMoveOut(existingPerson) {
     if (!existingPerson) return;
-    appState.mutateProject(p => {
+    const saved = appState.mutateProject(p => {
       const index = [...p.events].map((e, i) => ({ e, i }))
         .reverse()
         .find(x => x.e.type === 'person-deactivated' && String(x.e.personId) === String(existingPerson.id))?.i;
       if (index === undefined) return;
       p.events.splice(index, 1);
     });
-    close();
+    if (saved) close();
   }
 
   function deletePersonCompletely() {
@@ -165,9 +191,20 @@
     appState.setRoute({ page: 'dashboard' });
   }
 
+  function savePersonStatus() {
+    if (!dateValid || !person) return;
+    const type = dialog.kind === 'deactivate' ? 'person-deactivated' : 'person-reactivated';
+    const reasonText = reason.trim() || $translate(dialog.kind === 'deactivate' ? 'timeTravel.moveOut' : 'timeTravel.rejoin');
+    const saved = appState.mutateProject(p => {
+      p.events.push(createEvent(type, effectiveDate, { personId: person.id, reason: reasonText }, p));
+    });
+    finishDatedChange(saved);
+  }
+
   function saveItemDraft() {
+    if (!dateValid) return;
     const draftId = dialog.id || uid('draft_item');
-    const activePeople = projection.people.filter(p => p.active);
+    const activePeople = entryProjection.people.filter(p => p.active);
     const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
     appState.upsertDraft({
       id: draftId,
@@ -175,6 +212,7 @@
       title: itemName || 'Neuer Gegenstand (Entwurf)',
       createdAt: new Date().toISOString(),
       data: {
+        effectiveDate,
         name: itemName || 'Neuer Gegenstand',
         tags: parseTags(tags),
         note,
@@ -193,12 +231,13 @@
   }
 
   function addItem() {
+    if (!dateValid) return;
     const itemId = uid('item');
-    const activePeople = projection.people.filter(p => p.active);
+    const activePeople = entryProjection.people.filter(p => p.active);
     const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
     const saved = appState.mutateProject(p => {
       p.items.push({ id: itemId, name: itemName || 'Neuer Gegenstand', tags: parseTags(tags), note });
-      p.events.push(createEvent('item-added', asOfDate, { 
+      p.events.push(createEvent('item-added', effectiveDate, { 
         itemId, 
         name: itemName || 'Neuer Gegenstand', 
         initialValue: Number(initialValue) || 0, 
@@ -216,14 +255,15 @@
         p.drafts = (p.drafts || []).filter(d => d.id !== dialog.id);
       }
     });
-    if (saved) close();
+    finishDatedChange(saved);
   }
 
   function continueItem() {
+    if (!dateValid) return;
     const newItemId = uid('item');
     const saved = appState.mutateProject(p => {
       // 1. Altes Item beenden
-      p.events.push(createEvent('item-ended', asOfDate, { 
+      p.events.push(createEvent('item-ended', effectiveDate, { 
         itemId: projectedItem.id, 
         statusAfter: 'succeeded', 
         reason: 'Als neue Version fortgeführt' 
@@ -237,7 +277,7 @@
         predecessorItemId: projectedItem.id
       });
       // 3. Neues Item Event
-      p.events.push(createEvent('item-added', asOfDate, { 
+      p.events.push(createEvent('item-added', effectiveDate, { 
         itemId: newItemId, 
         name: itemName || projectedItem.name, 
         initialValue: Number(initialValue) || 0, 
@@ -251,18 +291,19 @@
       }, p));
     });
     if (!saved) return;
-    close();
+    finishDatedChange(saved);
     appState.setRoute({ page: 'item', id: newItemId });
   }
 
-  function saveItemMeta() { appState.mutateProject(p => { const x = p.items.find(y => y.id === item.id); if (x) { x.name = itemName || x.name; x.tags = parseTags(tags); x.note = note; } }); close(); }
+  function saveItemMeta() { const saved = appState.mutateProject(p => { const x = p.items.find(y => y.id === item.id); if (x) { x.name = itemName || x.name; x.tags = parseTags(tags); x.note = note; } }); if (saved) close(); }
   function saveShareSet() {
-    const saved = appState.mutateProject(p => p.events.push(createEvent('shares-set', asOfDate, {
+    if (!dateValid) return;
+    const saved = appState.mutateProject(p => p.events.push(createEvent('shares-set', effectiveDate, {
       itemId: projectedItem.id, shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert'
     }, p)));
-    if (saved) close();
+    finishDatedChange(saved);
   }
-  function endItem() { appState.mutateProject(p => p.events.push(createEvent('item-ended', asOfDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }, p))); close(); }
+  function endItem() { if (!dateValid) return; const saved = appState.mutateProject(p => p.events.push(createEvent('item-ended', effectiveDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }, p))); finishDatedChange(saved); }
 </script>
 
 {#if dialog?.type === 'settlementAdd' || dialog?.type === 'settlementEdit'}
@@ -279,7 +320,8 @@
       <div class="modal-header">
         <h3>{
           dialog.type === 'personAdd' ? $translate("app.personAdd") : 
-          dialog.type === 'personMeta' ? $translate("ui.edit-person-jstaod") : 
+          dialog.type === 'personMeta' ? $translate("ui.edit-person-jstaod") :
+          dialog.type === 'personStatus' ? $translate(dialog.kind === 'deactivate' ? 'ui.mark-as-moved-out-11arjl' : 'ui.reactivate-iggdm2') : 
           dialog.type === 'itemAdd' ? $translate("app.recordItem") : 
           dialog.type === 'itemContinue' ? $translate("ui.replace-item-1p7orxr") :
           dialog.type === 'itemMeta' ? $translate("ui.edit-item-birsg") : 
@@ -290,6 +332,12 @@
         <button class="ghost" on:click={close}>✕</button>
       </div>
       <div class="modal-body stack">
+        {#if hasEventDate}
+          <label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
+            <input id="event-effective-date" type="date" bind:value={effectiveDate} />
+          </label>
+          {#if !dateValid}<p role="alert" class="notice warn">{$translate('timeTravel.invalidDate')}</p>{/if}
+        {/if}
         {#if dialog.type === 'personAdd' || dialog.type === 'personMeta'}
           <label class="person-name-field">{$translate("ui.name-4el6o6")} <input bind:value={name} placeholder="Vor- und Nachname" autocomplete="name" enterkeyhint="done"></label>
           {#if duplicatePerson}
@@ -315,6 +363,8 @@
               <div class="notice warn">{$translate('dialog.deleteBlocked')} {deleteEligibility.reason} {$translate('dialog.moveOut')}</div>
             {/if}
           {/if}
+        {:else if dialog.type === 'personStatus'}
+          <label>{$translate("ui.reason-1rj1mxt")} <input bind:value={reason} placeholder={dialog.kind === 'deactivate' ? $translate('timeTravel.moveOut') : $translate('timeTravel.rejoin')} /></label>
         {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
           <div class="form-grid">
             <label>{$translate("ui.name-4el6o6")} <input bind:value={itemName} enterkeyhint="done"></label>
@@ -334,12 +384,12 @@
             <label class="wide">{$translate("ui.note-86vuh")} <textarea bind:value={note}></textarea></label>
             <section class="wide mini-card stack">
               <strong>{$translate("ui.who-owns-this-item-nnrc3g")}</strong>
-              <ShareEditor people={projection.people} bind:shares />
+              <ShareEditor people={entryProjection.people} bind:shares />
               {#if dialog.type === 'itemAdd'}
                 <label>{$translate("ui.who-paid-for-this-item-57n9ck")}
                   <select bind:value={financedByPersonId}>
                     <option value="">{$translate("ui.no-financing-recorded-no-claim-8fndbn")}</option>
-                    {#each project.people || [] as person}
+                    {#each entryProjection.people.filter(p => p.active) as person}
                       <option value={person.id}>{person.name}</option>
                     {/each}
                   </select>
@@ -351,7 +401,7 @@
         {:else if dialog.type === 'itemMeta'}
           <div class="form-grid"><label>{$translate("ui.name-4el6o6")} <input bind:value={itemName} enterkeyhint="done"></label><label>{$translate("ui.categories-2lwhku")} <input bind:value={tags}></label><label class="wide">{$translate("ui.note-86vuh")} <textarea bind:value={note}></textarea></label></div>
         {:else if dialog.type === 'shareSet'}
-          <ShareEditor people={projection.people} bind:shares />
+          <ShareEditor people={entryProjection.people} bind:shares />
           <label>{$translate("ui.should-financial-claims-arise-qd7qky")}
             <select bind:value={shareFinancialMode}>
               <option value="derived">{$translate("ui.yes-calculate-automatically-1jfscg7")}</option>
@@ -371,17 +421,18 @@
       </div>
       <div class="modal-footer"><button on:click={close}>{$translate("ui.cancel-cl4zc9")}</button>
         <div style="flex:1"></div>
-        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName}>{$translate("ui.create-zqi05d")}</button>{/if}
+        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName || !dateValid}>{$translate("ui.create-zqi05d")}</button>{/if}
+        {#if dialog.type === 'personStatus'}<button class="primary" on:click={savePersonStatus} disabled={!dateValid || $appState.readOnly}>{$translate(dialog.kind === 'deactivate' ? 'ui.mark-as-moved-out-11arjl' : 'ui.reactivate-iggdm2')}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>{$translate("ui.save-sq2189")}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely} disabled={!deleteEligibility.allowed || $appState.readOnly}>{$translate("ui.delete-person-permanently-e06bgl")}</button>{/if}
         {#if dialog.type === 'itemAdd'}
-          <button on:click={saveItemDraft}>{$translate("ui.save-as-draft-sz9zgy")}</button>
-          <button class="primary" on:click={addItem}>{$translate("ui.create-zqi05d")}</button>
+          <button on:click={saveItemDraft} disabled={!dateValid || $appState.readOnly}>{$translate("ui.save-as-draft-sz9zgy")}</button>
+          <button class="primary" on:click={addItem} disabled={!dateValid || $appState.readOnly}>{$translate("ui.create-zqi05d")}</button>
         {/if}
-        {#if dialog.type === 'itemContinue'}<button class="primary" on:click={continueItem}>{$translate("ui.replace-and-archive-old-item-y6ooa2")}</button>{/if}
+        {#if dialog.type === 'itemContinue'}<button class="primary" on:click={continueItem} disabled={!dateValid || $appState.readOnly}>{$translate("ui.replace-and-archive-old-item-y6ooa2")}</button>{/if}
         {#if dialog.type === 'itemMeta'}<button class="primary" on:click={saveItemMeta}>{$translate("ui.save-sq2189")}</button>{/if}
-        {#if dialog.type === 'shareSet'}<button class="primary" on:click={saveShareSet}>{$translate("ui.apply-changes-7tqg8a")}</button>{/if}
-        {#if dialog.type === 'itemEnd'}<button class="danger" on:click={endItem}>{$translate("ui.archive-qlwwpx")}</button>{/if}
+        {#if dialog.type === 'shareSet'}<button class="primary" on:click={saveShareSet} disabled={!dateValid || $appState.readOnly}>{$translate("ui.apply-changes-7tqg8a")}</button>{/if}
+        {#if dialog.type === 'itemEnd'}<button class="danger" on:click={endItem} disabled={!dateValid || $appState.readOnly}>{$translate("ui.archive-qlwwpx")}</button>{/if}
       </div>
     </div>
   </div>
