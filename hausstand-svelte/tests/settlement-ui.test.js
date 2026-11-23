@@ -11,8 +11,8 @@ test('settlement proposals are the primary action, before personal balances and 
   for (const path of ['ui-v3/LedgerView.svelte']) {
     const s = source(path);
     const proposal = atTranslation(s, 'So könnt ihr ausgleichen');
-    const personal = atTranslation(s, 'Salden der Personen');
-    const audit = atTranslation(s, 'Dokumentierte Ausgleiche');
+    const personal = atTranslation(s, 'Offene Beträge pro Person');
+    const audit = atTranslation(s, 'Eingetragene Zahlungen und Verrechnungen');
     assert.ok(proposal !== -1 && personal > proposal && audit > personal, path);
     assert.match(s, /BalanceBreakdown/);
     assert.match(s, /type: 'settlementAdd'/);
