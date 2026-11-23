@@ -2,6 +2,7 @@
   import { translate, localizeGermanText, pluralMessage } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE } from '../src/lib/util.js';
+  import { splitHistoryAt } from '../src/lib/eventHistory.js';
   import { money } from '../src/lib/domain.js';
   import { projectBeforeEvent, shareDeltasForChange } from '../src/lib/projector.js';
   import { FINANCIAL_EVENT_NOTE, ITEM_FUNDING_NOTE } from '../src/lib/financialLabels.js';
@@ -15,7 +16,8 @@
   let pastLimit = 10;
   let showFuture = false;
 
-  $: allEvents = [...(project.events || [])].sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || (a.order ?? 0) - (b.order ?? 0));
+    // View-only order: newest first on either side of the time-travel cutoff.
+  $: allEvents = project.events || [];
   $: peopleById = new Map((project.people || []).map(person => [person.id, person.name || person.id]));
   $: itemsById = new Map((project.items || []).map(item => [item.id, item.name || item.id]));
 
@@ -73,8 +75,9 @@
     if (personId) return eventAffectsPerson(e);
     return true;
   });
-  $: future = events.filter(e => e.date > asOfDate);
-  $: past = events.filter(e => e.date <= asOfDate).reverse();
+  $: history = splitHistoryAt(events, asOfDate);
+  $: future = history.future;
+  $: past = history.past;
   $: visiblePast = past.slice(0, pastLimit);
 
   const labels = {
