@@ -102,6 +102,7 @@ async function offline(browser, url) {
   assert.equal(stored.versionHistory.entries[0].encoding, 'gzip-base64');
   await page.reload();
   assert.equal(await undo.isDisabled(), true, 'fine-grained Undo must not survive reload');
+  await financeNav(page).click(); // route/navigation state is intentionally not persisted.
   await balance(page, 'Anna', '140,00');
   assert.deepEqual(failures, []);
   await context.close();
