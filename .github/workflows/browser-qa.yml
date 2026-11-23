@@ -1,8 +1,8 @@
 name: Browser acceptance QA
 
+# Browser engines and Playwright dependencies are costly to run.
+# Trigger this suite explicitly under Actions > Browser acceptance QA > Run workflow.
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 permissions:
