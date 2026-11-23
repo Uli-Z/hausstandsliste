@@ -1,6 +1,15 @@
 # Einheitliche portable Versionshistorie – Zieldesign
 
-**Status: beschlossenes Fachkonzept (23.11.2026), noch nicht implementiert.** Gilt für lokale Standalone-HTML-, verschlüsselte lokale und PHP-Online-Projekte. Ersetzt das bisherige Produktmodell mit einer separaten serverseitigen Versionshistorie. Entwicklungs- und Abnahmetasks: [Q11/Q12](WG-PRAXIS-TODO.md).
+**Status: erste Implementierung auf `master` (23.11.2026), automatisierte CI erfolgreich; praktische Browser-/Hosting-Abnahme und Undo/Redo noch offen.** Gilt für lokale Standalone-HTML-, verschlüsselte lokale und PHP-Online-Projekte. Ersetzt das bisherige Produktmodell mit einer separaten serverseitigen Versionshistorie. Entwicklungs- und Abnahmetasks: [Q11/Q12](WG-PRAXIS-TODO.md).
+
+## Erster Implementierungsstand (23.11.2026)
+
+- `src/lib/versionHistory.js`: komprimierte SHA-256-geprüfte vollständige Snapshots; Vorversionen wiederherstellen und alte PHP-Revisionen idempotent in die Datei übernehmen.
+- `src/stores/projectStore.js`: letzter ausdrücklich gespeicherter Zustand getrennt vom Arbeitsstand, ungespeicherter Restore, Browser-Cache-Warnung, Wiederherstellung nach Neuladen auf den heutigen Stichtag.
+- `ui-v3/App.svelte` / `ui-v3/StorageView.svelte`: zentraler Speicherknopf, Dirty-Status, lokaler JSON-Download, verschlüsselter Download/Upload, gemeinsame Versionsauswahl und manueller Migrationsweg.
+- `server-php/backend.php`: neue Server-Speicherstände als eine aktuelle verschlüsselte Datei (atomarer Revisionszeiger); nur technische Revisionen bleiben. Frühere `versions/`-Dateien bleiben **unverändert und lesbar** zur Migration. Die externe verschlüsselte E-Mail-Kopie bleibt unabhängig davon.
+- Automatischer Testnachweis: [CI-Lauf 45139312801](https://github.com/Uli-Z/hausstandsliste/actions/runs/45139312801), 98 erfolgreiche Tests einschließlich PHP-Smoke, PHP-Lint, Standalone und V3.
+- **Noch ausstehend:** manueller Cross-Browser-Test, große Dateiarchive/Quotagrenzen, Migration über mehrere frühere Passwörter, reales PHP-Hosting, E-Mail-Zustellung, UX-Abnahme und das separat geplante Sitzungs-Undo/Redo (Q12). Alte PHP-Archive werden nicht automatisch gelöscht; ihre endgültige Bereinigung erfordert nachprüfbare Migration und separate Backups.
 
 ## Grundsatz: eine Projektdatei als vollständige Quelle
 
