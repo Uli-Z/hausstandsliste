@@ -42,10 +42,6 @@
 </script>
 
 <section class="panel ledger-v3 settlement-screen">
-  <div class="panel-header">
-    <div class="help-heading"><h2>{$translate("ui.value-settlement-19afpms")}</h2><HelpTip label={$translate("ui.what-does-value-settlement-mean-9p85pk")}>{$translate("ui.when-people-finance-items-or-acquir-mc1vof")}</HelpTip></div>
-    <span class="hint">Stand {dateDE(asOfDate)}</span>
-  </div>
   <div class="panel-body settlement-content">
 
     <section class="settlement-section">
