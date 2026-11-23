@@ -77,7 +77,8 @@ try {
   const current = (await decryptProject(r.envelope, 'integration-password')).project;
   assert.equal(current.people[0].name, 'Anna');
   assert.equal((await readPortableVersion(current, current.versionHistory.entries[0].id)).community.name, 'Test');
-  await access(join(root, 'files', id, 'current.json'));
+  await access(join(root, 'files', id, 'current-2.json'));
+  await assert.rejects(access(join(root, 'files', id, 'current-1.json')));
   await assert.rejects(access(join(root, 'files', id, 'versions', '2.json')));
 
   const token2 = randomSecret();
@@ -88,6 +89,8 @@ try {
   const saving2 = { ...saving, 'X-File-Token': token2 };
   assert.equal((await call('checkin', { id }, {}, saving2)).status, 200);
   assert.equal((await call('checkout', { id, expectedRevision: 3 }, {}, { 'X-File-Token': token2 })).status, 200);
+  await access(join(root, 'files', id, 'current-3.json'));
+  await assert.rejects(access(join(root, 'files', id, 'current-2.json')));
 
   // Legacy revision directories remain readable, even after the new current-file
   // layout is used for subsequent saves. This prevents migration data loss.
@@ -114,6 +117,7 @@ try {
   assert.equal((await call('read', null, { id: oldId })).revision, 2);
   assert.equal((await readFile(join(oldDir, 'versions', '1.json'), 'utf8')), JSON.stringify(oldEnvelope));
   await assert.rejects(access(join(oldDir, 'versions', '2.json')));
+  await access(join(oldDir, 'current-2.json'));
   process.stdout.write('PHP API portable-history and legacy migration smoke test passed\\n');
 } finally {
   server.kill();
