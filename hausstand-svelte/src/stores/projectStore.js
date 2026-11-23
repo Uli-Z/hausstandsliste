@@ -84,6 +84,12 @@ function createStore() {
       return persist({ ...s, project, dirty: true });
     }),
     // The archive enters the working project only after the download/upload has been started/confirmed.
+    stagePortableHistory: project => update(s => {
+      if (s.readOnly) return s;
+      // Importing old encrypted PHP revisions changes the portable file even
+      // if its current business data is identical.
+      return persist({ ...s, project: normalize(project), dirty: true });
+    }),
     restoreVersion: restored => update(s => {
       if (s.readOnly) return s;
       // Restoring is an editable draft, not an implicit file/server save.
