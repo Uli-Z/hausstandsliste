@@ -224,6 +224,22 @@
       </div>
     {/if}
   </section>
+  {#if portableVersions.length}
+    <section class="ux-panel storage-choice" aria-label="Gespeicherte Dateiversionen">
+      <h2>Gespeicherte Versionen</h2>
+      <div class="stack">
+        <label>Früheren Speicherstand auswählen
+          <select bind:value={selectedPortableVersion}>
+            <option value="">Bitte wählen</option>
+            {#each portableVersions as v (v.id)}
+              <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString('de-DE') : 'Frühere Version (Datum unbekannt)'}</option>
+            {/each}
+          </select>
+        </label>
+        <button disabled={busy || $appState.readOnly || !selectedPortableVersion} on:click={() => run(restorePortable)}>Als ungespeicherten Arbeitsstand wiederherstellen</button>
+      </div>
+    </section>
+  {/if}
   {#if SERVER_MODE}
   <section class="ux-panel storage-choice">
     <div class="storage-choice-top"><div class="storage-help-heading"><h2>Online-Projekte</h2><HelpTip label="Wie funktionieren Online-Projekte?">Hier kannst du gemeinsame Projektdateien auf dem bereits konfigurierten Server öffnen und bearbeiten. Dafür benötigst du das Projektpasswort.</HelpTip></div></div>
@@ -263,19 +279,6 @@
               {/if}
               <button disabled={busy} on:click={() => run(getVersions)}>Ältere Versionen ansehen</button>
             </div>
-            {#if portableVersions.length}
-              <div class="stack">
-                <label>Version aus der Projektdatei
-                  <select bind:value={selectedPortableVersion}>
-                    <option value="">Gespeicherten Stand wählen</option>
-                    {#each portableVersions as v (v.id)}
-                      <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString('de-DE') : 'Früherer Stand (Datum unbekannt)'}</option>
-                    {/each}
-                  </select>
-                </label>
-                <button disabled={busy || $appState.readOnly || !selectedPortableVersion} on:click={() => run(restorePortable)}>Version als Arbeitsstand wiederherstellen</button>
-              </div>
-            {/if}
             {#if versions.length}
               <label>Alte PHP-Serverrevision (Migration/Altbestand)<select bind:value={selectedVersion}><option value="">Bitte wählen</option>{#each versions as v}<option value={v.revision}>{v.revision} · {v.createdAt}</option>{/each}</select></label>
               <button disabled={busy || !leaseToken || !selectedVersion} on:click={() => run(restore)}>Gewählte Version wiederherstellen</button>
