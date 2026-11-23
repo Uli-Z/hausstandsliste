@@ -20,7 +20,7 @@ assert.match(html,/safe-area-inset-bottom/,'Mobile safe-area CSS missing');
 // with data-label="Betrag" cells. Verify its real mobile layout instead.
 const ledgerSource = await readFile(path.join(root,'ui-v3','LedgerView.svelte'),'utf8');
 for (const className of ['transfer-row', 'transfer-amount', 'person-balance-row', 'audit-row']) {
- assert.match(ledgerSource,new RegExp('class=["\\'][^"\\']*\\b'+className+'\\b'), 'Finance screen markup missing: '+className);
+ assert.ok(ledgerSource.includes('class="'+className+'"'), 'Finance screen markup missing: '+className);
  assert.ok(html.includes(className), 'Finance screen missing from compiled bundle: '+className);
 }
 assert.match(ledgerSource,/@media\(max-width:620px\)/,'Finance screen mobile breakpoint missing');
