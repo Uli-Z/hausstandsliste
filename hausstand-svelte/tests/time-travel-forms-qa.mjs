@@ -69,6 +69,27 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.equal((await snapshot()).events.find(e=>e.name==='Zeitreise-Lampe')?.date,'2031-01-15');
     assert.equal(await page.locator('#state-date').inputValue(),'2031-01-15');
 
+    // Share changes and archiving use the selected date, even when edited in
+    // the open form. The current item must still exist on that effective date.
+    await nav('Gegenstände').click();
+    await page.locator('.item-tile').filter({hasText:'Zeitreise-Lampe'}).locator('.tile-open').click();
+    await page.getByRole('button',{name:'Eigentumsanteile ändern'}).click();
+    assert.equal(await dateField.inputValue(),'2031-01-15');
+    await dateField.fill('2031-02-01');
+    await dialog.locator('.share-row input[type="number"]').first().fill('2');
+    await dialog.locator('.modal-footer .primary').click();
+    await dialog.waitFor({state:'hidden'});
+    assert.ok((await snapshot()).events.some(e=>e.type==='shares-set' &&
+      e.itemId===lamp.itemId && e.date==='2031-02-01'));
+
+    await page.getByRole('button',{name:'Gegenstand beenden'}).click();
+    assert.equal(await dateField.inputValue(),'2031-02-01');
+    await dateField.fill('2031-03-01');
+    await dialog.locator('.modal-footer .danger').click();
+    await dialog.waitFor({state:'hidden'});
+    assert.ok((await snapshot()).events.some(e=>e.type==='item-ended' &&
+      e.itemId===lamp.itemId && e.date==='2031-03-01'));
+
     await nav('Personen').click();
     await page.locator('.page-heading button').first().click();
     assert.equal(await dateField.inputValue(),'2031-01-15');
@@ -85,18 +106,34 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
     assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId==='anna')?.date,'2032-04-05');
+    await page.getByRole('button',{name:'Wieder aufnehmen'}).click();
+    assert.equal(await dateField.inputValue(),'2032-04-05');
+    await dateField.fill('2032-05-05');
+    await dialog.locator('.modal-footer .primary').click();
+    await dialog.waitFor({state:'hidden'});
+    assert.equal((await snapshot()).events.find(e=>e.type==='person-reactivated'&&e.personId==='anna')?.date,'2032-05-05');
 
     await nav('Geld & Ausgleich').click();
     await page.locator('.page-heading button').first().click();
-    assert.equal(await page.locator('#redistribution-effective-date').inputValue(),'2032-04-05');
+    assert.equal(await page.locator('#redistribution-effective-date').inputValue(),'2032-05-05');
     await page.locator('#redistribution-effective-date').fill('2024-01-01');
     assert.equal(await dialog.locator('.redistribution-item-card').count(),0);
-    await page.locator('#redistribution-effective-date').fill('2032-04-05');
+    await page.locator('#redistribution-effective-date').fill('2032-05-05');
     assert.ok(await dialog.locator('.redistribution-item-card').count()>0);
     await dialog.locator('.modal-header button').click();
 
     await page.getByRole('button',{name:'Zahlung erfassen',exact:true}).click();
-    assert.equal(await dialog.getByLabel('Zahlungsdatum').inputValue(),'2032-04-05');
+    assert.equal(await dialog.getByLabel('Zahlungsdatum').inputValue(),'2032-05-05');
+    await dialog.locator('.modal-header button').click();
+
+    // Replacement forms are dated; plain metadata edits are intentionally not.
+    await nav('Gegenstände').click();
+    await page.locator('.item-tile').filter({hasText:'Sessel'}).locator('.tile-open').click();
+    await page.locator('.action-grid button').nth(3).click();
+    assert.equal(await dateField.inputValue(),'2032-05-05');
+    await dialog.locator('.modal-header button').click();
+    await page.locator('.action-grid button').first().click();
+    assert.equal(await dateField.count(),0);
     await dialog.locator('.modal-header button').click();
 
     await nav('Gegenstände').click();
