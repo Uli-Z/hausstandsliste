@@ -132,6 +132,7 @@
                   <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
                 </select>
               </label>
+              <div class="financial-mode-help"><HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip></div>
             </div>
             <div class="workflow-help"><HelpTip label={$translate("ui.process-help-e5wlpe")}>{$translate("ui.select-an-item-to-edit-its-shares-r-owkt2c")}</HelpTip></div>
           </section>
