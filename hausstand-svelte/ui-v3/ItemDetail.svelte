@@ -23,7 +23,7 @@
           <h2>{item.name}</h2>
           {#if item.status !== 'active'}<span class="item-status-text">{$translate("ui.no-longer-owned-2uva14")}</span>{/if}
         </div>
-        {#if item.tags?.length}<p class="item-categories">Kategorien: {item.tags.join(', ')}</p>{/if}
+        {#if item.tags?.length}<p class="item-categories">{item.tags.join(' · ')}</p>{/if}
         {#if item.note}<p class="item-description">{item.note}</p>{/if}
         <div class="grid-2 item-core-facts">
           <div class="mini-card"><div class="muted">{$translate("ui.value-opx6hb")}</div><strong>{money(item.value)}</strong></div>
