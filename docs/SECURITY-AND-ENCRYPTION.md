@@ -7,7 +7,7 @@
 - Der Server speichert und verschickt **nur Ciphertext** der Hausstandsdaten.
 - Entschlüsselung und Verschlüsselung passieren im **Browser** nach Eingabe einer pro Datei gewählten Passphrase. Lokaler verschlüsselter Export nutzt **exakt das gleiche Format**.
 - Projekt-JSON im Klartext darf auf Wunsch weiterhin bewusst exportiert werden; die App muss das erkennbar anzeigen.
-- Dateinamen, Datei-IDs, Größen, Änderungstermine, Sperrstatus und Versionen können als **absichtlich öffentliche Metadaten** sichtbar sein.
+- Dateinamen, Datei-IDs, Größen, Änderungstermine, Sperrstatus und technische Revisionsnummern können als **absichtlich öffentliche Metadaten** sichtbar sein.
 
 ## Bedrohungsmodell und Grenze
 
@@ -33,14 +33,14 @@ Clientseitige Verschlüsselung schützt gegen den Einblick in gespeicherte Serve
 - Bei Dateianlage im Browser eine zufällige **256-Bit-Bearbeitungs-Capability** erzeugen. Der Server speichert nur ihren Hash zur Autorisierung; die Capability liegt **innerhalb** des verschlüsselten Datei-Containers und kann nur nach erfolgreicher Entschlüsselung gelesen werden.
 - Nach Entschlüsselung kann der Browser die Capability für Checkout/Checkin/Speichern über **HTTPS** verwenden; keine Passphrase an PHP. Sessions/kurzlebige Tokens statt ständiger Übertragung prüfen; Autorisierung vor jedem schreibenden API-Aufruf.
 - Datei-Anlage/Löschung eines **öffentlich** gelisteten Arbeitsordners zusätzlich gegen Spam/Denial-of-Service schützen (z. B. separates Workspace-Admin-Recht). Ein Lesezugriff auf Ciphertext ist nicht automatisch ein Schreibrecht.
-- Server-Dateikonfiguration und Versionen niemals über erratbare Pfade direkt aus dem Webroot anbieten; Versionsabruf erfordert Prüfung der Datei-Berechtigung.
+- Server-Dateikonfiguration und aktuelle verschlüsselte Projektdateien niemals über erratbare Pfade direkt aus dem Webroot anbieten.
 - Als sicherheitsrelevantes Design vor Implementierung ein kurzes Bedrohungsmodell und Integrations-/Penetrationstests durchführen. Capability ist **kein** vollständiges Identitäts- oder Rechtemanagement; alle mit derselben Passphrase können gleichberechtigt editieren.
 
 ### Passwortwechsel
 
 Der Passwortwechsel muss im Browser mit **altem** Passwort/Schlüssel autorisiert und die aktuelle Version unter neuem Passwort neu verschlüsselt werden, **zusammen mit einer Rotation der Bearbeitungs-Capability**. Die Behandlung historischer Versionen ist ausdrücklich Teil der Operation:
 
-- Bevorzugtes Verhalten: Alle serverseitig behaltenen alten Versionen unter dem neuen Passwort/Schlüssel **neu verschlüsseln** und unter derselben exklusiven Lease atomar ersetzen, sodass die neue Passphrase die Versionshistorie öffnen kann und die alte nicht mehr zum Online-Öffnen genügt.
+- Implementiert: Die **ganze aktuelle Datei mit eingebettetem Versionsarchiv** wird clientseitig unter neuem Passwort verschlüsselt, bei unverändertem Checkout-/Revisionsschutz.
 - Alte **bereits heruntergeladene oder per E-Mail verschickte** verschlüsselte Kopien lassen sich **nicht rückwirkend unlesbar machen**. Altes Passwort + alte Kopie können frühere Inhalte weiter öffnen.
 - Bei Key-Rotation alle Nonces erneut erzeugen; konsistente Umstellung oder vollständiger Abbruch, kein gemischter halbfertiger Zustand.
 - Der Server darf die Bearbeitungs-Capability nicht im Klartext in Metadaten ausgeben. Hashvergleich zeitkonstant; Log-/Error-Ausgaben ohne Token.
@@ -59,7 +59,7 @@ Heute enthält der `localStorage` die **Klartext-Arbeitskopie** (`hausstand_svel
 ## Server- und E-Mail-Betrieb
 
 - Datenverzeichnis außerhalb Webroot; PHP-Dateien und Konfiguration ohne Schreibzugriff durch fremde Benutzer.
-- Kurze `flock()`-Locks für Metadaten-/Versionsoperationen (keine stundenlangen OS-Locks), temporäre Datei + möglichst atomare Umbenennung innerhalb desselben Dateisystems, Revisionsvergleich zur Konfliktvermeidung.
+- Kurze `flock()`-Locks für Metadaten-/Speicheroperationen (keine stundenlangen OS-Locks), temporäre Datei + möglichst atomare Umbenennung innerhalb desselben Dateisystems, Revisionsvergleich zur Konfliktvermeidung.
 - API-Request-Limits, sinnvolle Maximalgrößen, Serverlimits, Fehlerprotokoll ohne vertrauliche Daten, konfigurierte SMTP-Zugangsdaten ausschließlich serverseitig.
 - E-Mail-Versand ausschließlich **verschlüsselter** Anhang; Betreff darf keine vertraulichen Details enthalten. SMTP über TLS. Versandfehler ohne Datenverlust protokollieren und erneut versuchen.
 
@@ -83,6 +83,6 @@ Heute enthält der `localStorage` die **Klartext-Arbeitskopie** (`hausstand_svel
 - Payload enthält Projekt-JSON plus zufälligen 256-Bit-`editToken`. Nur der SHA-256-Hash dieses Bearbeitungs-Tokens steht beim PHP-Server. Passwort wird nicht an PHP gesendet.
 - Für verschlüsselt geöffnete Projekte wird die bestehende Klartext-`localStorage`-Arbeitskopie gelöscht und nicht fortgesetzt. Speicher nicht per Browsercache absichern; ungespeicherte Daten vor Verlassen exportieren.
 - Falsche Passphrase, beschädigte Authentifizierungsdaten und beschädigte Container werden beim lokalen automatisierten Test erkannt.
-- Bei **Passwortwechsel** wird der aktuell gespeicherte Stand neu verschlüsselt und die Bearbeitungs-Capability rotiert. **Bereits archivierte Versionen und versandte E-Mails bleiben mit ihren alten Passwörtern zugänglich.** Das ist ein noch offener Sicherheitsunterschied zum ursprünglich gewünschten vollständigen History-Rekey. Alte Passwörter daher nicht als rückwirkend widerrufen betrachten.
+- Bei **Passwortwechsel** werden der aktuelle Stand **und die in der Projektdatei enthaltenen Vorversionen** zusammen neu verschlüsselt; die Bearbeitungs-Capability wird rotiert. **Nur bereits versandte E-Mail-Kopien** behalten frühere Passwörter, die nicht rückwirkend widerrufen werden können.
 - JavaScript und PHP werden zusammen veröffentlicht; eine kompromittierte Auslieferung kann trotz Verschlüsselung Passwörter beim Eingeben abgreifen. Es gibt keine Identitätsprüfung pro Nutzer, sondern ein gemeinsames Dateipasswort.
 - Bei starken Datenschutzanforderungen vor produktivem Betrieb Codeprüfung, Browser-/CORS-/XSS-/Headerprüfung, Threat Modeling und ein von unabhängiger Stelle bestätigtes Testprotokoll einplanen.
