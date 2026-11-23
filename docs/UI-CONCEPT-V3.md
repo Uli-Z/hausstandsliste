@@ -1,6 +1,6 @@
 # UI concept — Hausstandsliste V3
 
-**Status:** Partially implemented (dashboard, lists/details, finance, settings, guided item entry, and share redistribution on 23 November 2026). Storage, activity, contextual help, and full browser/device acceptance remain open; not approved as a finished UI.  
+**Status:** Dashboard, lists/details, finance, settings, guided item entry, redistribution, interactive history and Save & open have been implemented (23 November 2026). Full browser/device and screenreader acceptance remain open; not approved as a finished UI.  
 **Date:** 23 November 2026  
 **Basis:** [32-screen browser/UX audit](UX-AUDIT-2026-11-23.md), the existing Svelte V3 screens, the [product terminology](LANGUAGE-AND-TERMINOLOGY.md), and the [prioritized tasks](WG-PRAXIS-TODO.md).  
 **Scope:** One shared interface for standalone HTML / GitHub Pages and the PHP version. No domain-model, file-format, valuation, or settlement-mathematics changes.
@@ -32,10 +32,10 @@ The improvement is **progressive disclosure in workflows and detail pages**, *no
 | Personen / People | Who participates and what is their position? | Person hinzufügen / Add person | Departures, permanent deletion, detailed balance derivation |
 | Geld & Ausgleich / Money & settlement | Who should settle how much with whom? | Ausgleichen / Record a settlement, on each suggestion | Manual settlement, source events, non-cash adjustments |
 | Änderungen / Activity | What happened and when? | Open an event | Editing, historical details |
-| Sichern & Teilen / Save & share | How do I save, open or share this project safely? | One context-sensitive Save action | Encrypted exports, archive restore, online management |
+| Sichern & Öffnen / Save & open | How do I save, open or share this project safely? | One context-sensitive Save action | Encrypted exports, archive restore, online management |
 | Einstellungen / Settings | Which personal preferences and project options exist? | Language | Technical JSON, reset and security |
 
-Desktop: keep the permanent sidebar. Mobile: keep **Start / Dinge / Personen / Geld / Mehr** in the bottom navigation, including safe-area spacing; "Mehr" holds Activity, Save & share and Settings. Do not introduce new top-level destinations for calculations, payments or archives.
+Desktop: keep the permanent sidebar. Mobile: keep **Start / Dinge / Personen / Geld / Mehr** in the bottom navigation, including safe-area spacing; "Mehr" holds Activity, Save & open and Settings. Do not introduce new top-level destinations for calculations, payments or archives.
 
 ### Global header
 
@@ -152,7 +152,7 @@ Avoid a redundant extra \`Geld ausgleichen\` subheading and do not place "Transf
 ### 4.7 Settings
 
 - One compact \`Sprache / Language\` selector with \`Automatisch (Deutsch)\` or \`Automatic (English)\` showing the *resolved* language, not an opaque "Auto".
-- \`Aktuelles Projekt\` in 1–2 compact rows, with project name/file name and editing status (also present in Save & share, so avoid repeating a giant card).
+- No status-only “current project” panel or supposed open local file. Show project name and working-copy status on Save & open; settings contain actual controls.
 - One collapsed \`Erweiterte Optionen / Advanced\` containing technical JSON view and \`Neues Projekt beginnen\` / Reset. Confirmation for reset explicitly identifies unsaved work and available backup.
 - No duplicate heading "Sprache" followed by an identical label without purpose.
 
@@ -207,23 +207,19 @@ If chosen date is before a participant joins or before the item exists, explain 
 - **Edit existing event:** show the *stored* original date (never replace it merely because time travel is active), difference/preview and save; preserve other payments and history.
 - Destructive actions should be relegated to a distinct secondary action, not visually equal to ordinary Save.
 
-## 6. Save & share: replace storage architecture in the UI, not the data layer
+## 6. Save & open: replace storage architecture in the UI, not the data layer
 
 The present screen is structurally fragmented. Rebuild its information architecture using **the current project as the anchor**. Preserve one in-file \`versionHistory\`, encrypted envelopes, and PHP revision/lease protections; do not introduce a parallel server history or incompatible JSON.
 
 ### At-a-glance layout
 
-\`\`\`text
-Sichern & Teilen
-Aktuelles Projekt: Hausgemeinschaft · Lokal · Ungesicherte Änderungen
-[ Projektdatei herunterladen ]  [ Projekt öffnen ]
+Current design (Q20, Q24):
 
-Weitere Möglichkeiten
-  ▸ Datei mit Passwort schützen
-  ▸ Frühere Version wiederherstellen
-  ▸ Online zusammenarbeiten    (PHP only)
-  ▸ Sicherheit & weitere Optionen
-\`\`\`
+- **Current browser working copy:** project name, local/online and changed/unchanged status; never an allegedly connected local file.
+- **Save:** one primary action for local download or online commit. Plaintext warning remains visible. A password-protected download is a secondary, separate copy.
+- **Open:** one JSON picker; decrypt only if the selected file is encrypted, then confirm replacement when unsaved work exists.
+- **Online collaboration (PHP):** list, open read-only, start editing, online save, stop editing, and optional new project.
+- **Earlier versions:** collapsed and restored as unsaved work.
 
 No separate large "Where are my data?" card. Display **one short context-sensitive status** and only the relevant actions.
 
@@ -241,11 +237,11 @@ No separate large "Where are my data?" card. Display **one short context-sensiti
 | New online project (PHP) | \`Online-Projekt erstellen\` under collaboration | Name, password and explicit creation, not mixed into the normal local file action. |
 | Password rotation or lease extension | Advanced/security only | Preserve current encryption semantics and confirmation; do not make these primary CTAs. |
 
-Use \`Sichern & Teilen\` as a navigation name for now, but within the screen distinguish **Datei weitergeben** (share a downloaded file) from **Online zusammenarbeiten** (work in a shared server project). "Share" must not imply invitations/permissions that do not exist.
+Use “Sichern & Öffnen” in navigation. Downloaded files are not linked to the browser working copy; only PHP projects have a real server identity. There are no sharing/invitation controls.
 
 **Concrete flow:** \`Open file → detect format/encryption → ask password if needed → warn if replacing unsaved state → load\`. PHP: \`Select online file → read-only → start editing → modify → save online → end editing\`; ensure changing sections does not discard checkout status. Advanced history: \`Select earlier archive entry → compare date/summary if available → confirm → restore as unsaved\`.
 
-Technical ownership: recompose \`App.svelte\` Save section and \`StorageView.svelte\` into a coordinated **single screen** rather than two independent card trees. Avoid parallel password/filename controls; scope each input to its specific operation. Maintain portable-version archive and crypto code unchanged.
+Technical ownership: **implemented** in StorageView.svelte with duplicate save cards removed from App.svelte. The distinct server revision/lease logic remains in place. See [storage interaction flow](STORAGE-FLOW-V3.md); browser-device and screenreader acceptance are pending.
 
 ## 7. Layout system and microcopy rules
 
@@ -281,7 +277,7 @@ Technical ownership: recompose \`App.svelte\` Save section and \`StorageView.sve
 
 **Phase 2 — forms with consequence previews.** Reorder Add item fields, introduce \`Weitere Angaben\` and share-preview; redesign transfer defaults and financial consequences; streamline settlement confirmation while preserving all validation and dated-event behaviour. Primarily \`DialogRouter.svelte\`, \`ShareEditor.svelte\`, \`RedistributionDialog.svelte\`, \`SettlementDialog.svelte\`. Add UI regression cases, but no schema change.
 
-**Phase 3 — coherent Save & share.** Implement one state-driven screen across \`App.svelte\` and \`StorageView.svelte\`, preserving PHP checkout, encrypted backup, archive and conflict semantics. Align header Save with actual storage mode. Q20 owns this phase.
+**Phase 3 — coherent Save & open (code implemented 23 November 2026; browser acceptance open).** One state-driven screen across App.svelte and StorageView.svelte, preserving PHP checkout, encrypted backup and archive protections.
 
 **Phase 4 — timeline, accessibility and localization polish.** Compact event rows (Q18); help inventory (Q17), modal focus, keyboard controls, long-label i18n and PHP-only states (Q13). Close prior open browser acceptance checks only with actual evidence.
 
