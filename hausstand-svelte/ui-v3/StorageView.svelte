@@ -102,16 +102,15 @@
   }
   async function exportEncrypted() {
     if (!password) throw new Error($translate("ui.enter-a-passphrase-1tygzij"));
-    const token = editToken || randomSecret();
+    // Always create a detached encrypted copy, not a new credential for
+    // the active working copy or a disclosure of the online edit capability.
+    const token = randomSecret();
     const saved = await createPortableSave($appState.project, $appState.savedProject);
     const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), password, token);
     download(envelope, (fileName.trim() || $appState.project.community?.name || 'hausstand') + '.hausstand.enc.json');
-    if (!openedId) {
-      editToken = token;
-      activePassword = password;
-      if ($appState.secure) appState.markSaved(saved); // Keep session Undo across saves.
-      else appState.importProject(saved, null, true);
-    }
+    // A local export counts as an explicit backup. It must not silently
+    // switch a plaintext browser working copy to protected mode (or vice versa).
+    if (!openedId) appState.markSaved(saved);
     // An online project is not saved on the server by downloading a backup.
     message = $translate(openedId ? 'storage.backupNotOnlineSave' : 'storage.encryptedDownloaded');
   }
@@ -131,7 +130,9 @@
       appState.importProject(verified, null, false);
       error = ''; message = $translate('storage.importedWorkingCopy');
       onProjectLoaded();
-    } catch (e) { report(e); }
+    } catch (e) {
+      report(new Error($translate('storage.importFailed') + ': ' + (e?.message || String(e))));
+    }
     finally { input.value = ''; }
   }
   async function finishEncryptedImport() {
