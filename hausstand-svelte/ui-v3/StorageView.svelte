@@ -12,7 +12,8 @@
   let password = '', newPassword = '', fileName = '';
   let serverCanCreate = false, serverReady = false;
   let files = [], versions = [], selectedVersion = '', selectedPortableVersion = '';
-  $: portableVersions = [...($appState.project.versionHistory?.entries || [])].reverse();
+  $: portableVersions = Array.isArray($appState.project.versionHistory?.entries)
+    ? [...$appState.project.versionHistory.entries].reverse() : [];
   let openedId = '', revision = 0, editToken = '', leaseToken = '', leaseExpires = 0;
   let activePassword = '';
 
