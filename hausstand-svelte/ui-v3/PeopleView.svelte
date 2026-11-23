@@ -12,7 +12,9 @@
 <section class="ux-panel">
   <div class="list-tools">
     <label class="search-wrap"><span class="sr-only">{$translate("people.searchLabel")}</span><input type="search" bind:value={search} placeholder={$translate("people.search")}/></label>
-    <span class="result-count">{filtered.length} / {people.length} {$translate("nav.people")}</span>
+    {#if search.trim()}
+      <span class="result-count" aria-live="polite">{filtered.length} / {people.length} {$translate("nav.people")}</span>
+    {/if}
   </div>
   {#if filtered.length}
     <div class="people-grid">
@@ -43,6 +45,10 @@
 </section>
 
 <style>
+  .person-tile{padding:15px;gap:8px}
+  .person-value{margin:2px 0}
+  .person-value strong{font-size:20px}
+  .person-bottom{padding-top:8px}
   .person-heading{align-items:baseline;flex-wrap:wrap}
   .person-heading h2{margin:0}
   .person-status-text{color:var(--muted);font-size:12px}
