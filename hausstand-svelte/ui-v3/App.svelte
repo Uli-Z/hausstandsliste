@@ -28,6 +28,7 @@
   let showJson = false;
   let showDanger = false;
   let mobileMoreOpen = false;
+  let storageView;
   let savingLocal = false;
   let saveMessage = '';
 
@@ -114,6 +115,15 @@
       saveMessage = 'Speichern fehlgeschlagen: ' + (error?.message || error);
     } finally { savingLocal = false; }
   }
+  async function saveNow() {
+    if ($appState.secure) {
+      const result = await storageView?.saveFromHeader?.();
+      if (result?.handled) { saveMessage = result.message || ''; return; }
+      navigate('save'); // Encrypted local file: requires the file password.
+      return;
+    }
+    await exportNow();
+  }
   function newProject() {
     if (!confirm('Neues Projekt beginnen? Der bisherige Arbeitsstand in diesem Browser wird ersetzt. Bitte vorher eine Sicherungskopie erstellen.')) return;
     appState.newProject();
@@ -155,7 +165,7 @@
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
           {$appState.dirty ? 'Ungespeicherte Änderungen' : 'Keine ungespeicherten Änderungen'}
         </span>
-        <button class="header-save" disabled={savingLocal} on:click={exportNow}>{savingLocal ? 'Speichert …' : 'Speichern'}</button>
+        <button class="header-save" disabled={savingLocal} on:click={saveNow}>{savingLocal ? 'Speichert …' : 'Speichern'}</button>
       </div>
     </header>
 
@@ -316,7 +326,7 @@
       <!-- Keep the collaborative-storage component mounted: the server lease, edit token,
            selected remote file and password must survive tab/detail navigation. -->
       <div class:storage-not-visible={route.page !== 'dashboard' || activeSection !== 'save'}>
-        <StorageView/>
+        <StorageView bind:this={storageView}/>
       </div>
     </main>
   </div>
