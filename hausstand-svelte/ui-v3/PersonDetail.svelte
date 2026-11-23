@@ -73,7 +73,7 @@
     <div class="stack">
       <div class="detail-title"><h2>{person.name}</h2>{#if !person.active}<span class="person-inactive">{person.inactiveFrom ? $translate("people.moved") : $translate("people.inactive")}</span>{/if}</div>
       <div class="grid-2 person-core-facts">
-        <div class="mini-card"><div class="muted">{balanceCents > 0 ? $translate("people.toReceive") : balanceCents < 0 ? $translate("people.toSettle") : $translate('people.balance')}</div><strong>{money(Math.abs(balanceCents) / 100)}</strong></div>
+        <div class="mini-card"><div class="muted">{balanceCents > 0 ? $translate("people.toReceive") : balanceCents < 0 ? $translate("people.toSettle") : $translate('balance.zero')}</div><strong>{money(Math.abs(balanceCents) / 100)}</strong></div>
         <div class="mini-card"><div class="muted">{$translate("ui.total-value-1bsjxfe")}</div><strong>{money(person.totalValue || 0)}</strong><small>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</small></div>
       </div>
     </div>
