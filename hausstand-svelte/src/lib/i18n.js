@@ -476,7 +476,37 @@ export const dictionaries = {
     "balance.received": "Settlement payments received",
     "balance.credit": "Other settlements (credit)",
     "balance.debit": "Other settlements (debit)",
-    "balance.zero": "Settled"
+    "balance.zero": "Settled",
+    "timeline.event": "Event",
+    "timeline.unknownPerson": "Unknown person",
+    "timeline.unknownItem": "Unknown item",
+    "timeline.redistribution": "Redistribution",
+    "timeline.shareSet": "Ownership change",
+    "timeline.arrival": "Moved in",
+    "timeline.departure": "Moved out",
+    "timeline.return": "Returned",
+    "timeline.purchased": "Purchase",
+    "timeline.ended": "Archived",
+    "timeline.settlement": "Settlement",
+    "timeline.future": "future events",
+    "timeline.show": "show",
+    "timeline.hide": "hide",
+    "timeline.asof": "As of",
+    "timeline.changes": "changes",
+    "timeline.startValue": "Initial value",
+    "timeline.manualCorrection": "Manual correction",
+    "timeline.completed": "Ended",
+    "timeline.paid": "Payment recorded",
+    "timeline.external": "Settled externally",
+    "timeline.waiver": "Waived",
+    "timeline.financial": "Financial effect",
+    "timeline.welcome": "Welcome,",
+    "financial.suggestionTitle": "Calculated transfer suggestion (not recorded)",
+    "financial.suggestionNotice": "Only a preview of the change in value, not a recorded payment. Actual claims appear in Money & settlement.",
+    "financial.eventDerived": "for value · potential claims derived · no payment recorded",
+    "financial.eventFree": "without consideration · no new claim · no payment recorded",
+    "financial.itemFunded": "Financing specified · potential claims derived · no payment recorded",
+    "financial.itemNoClaims": "No claim recorded for this purchase"
   },
   "de": {
     "nav.overview": "Überblick",
@@ -951,7 +981,37 @@ export const dictionaries = {
     "balance.received": "Erhaltene Ausgleichszahlungen",
     "balance.credit": "Sonstige Ausgleiche (Gutschrift)",
     "balance.debit": "Sonstige Ausgleiche (Belastung)",
-    "balance.zero": "Ausgeglichen"
+    "balance.zero": "Ausgeglichen",
+    "timeline.event": "Ereignis",
+    "timeline.unknownPerson": "Unbekannte Person",
+    "timeline.unknownItem": "Unbekannter Gegenstand",
+    "timeline.redistribution": "Umverteilung",
+    "timeline.shareSet": "Anteilssatz",
+    "timeline.arrival": "Einzug",
+    "timeline.departure": "Auszug",
+    "timeline.return": "Wiedereinzug",
+    "timeline.purchased": "Neuanschaffung",
+    "timeline.ended": "Ausbuchung",
+    "timeline.settlement": "Ausgleich",
+    "timeline.future": "zukünftige Ereignisse",
+    "timeline.show": "anzeigen",
+    "timeline.hide": "ausblenden",
+    "timeline.asof": "Stichtag",
+    "timeline.changes": "Änderungen",
+    "timeline.startValue": "Startwert",
+    "timeline.manualCorrection": "Manuelle Korrektur",
+    "timeline.completed": "Beendet",
+    "timeline.paid": "Zahlung dokumentiert",
+    "timeline.external": "Extern verbucht",
+    "timeline.waiver": "Erlass",
+    "timeline.financial": "Finanzielle Wirkung",
+    "timeline.welcome": "Willkommen,",
+    "financial.suggestionTitle": "Rechnerischer Überweisungsvorschlag (nicht gebucht)",
+    "financial.suggestionNotice": "Nur eine Vorschau der Wertverschiebung, keine gebuchte Zahlung. Die tatsächlich entstandenen Forderungen stehen in „Geld & Ausgleich“.",
+    "financial.eventDerived": "entgeltlich · mögliche Forderungen werden abgeleitet · keine Zahlung gebucht",
+    "financial.eventFree": "unentgeltlich · keine neue Forderung · keine Zahlung gebucht",
+    "financial.itemFunded": "Finanzierung zugeordnet · mögliche Forderungen werden abgeleitet · keine Zahlung gebucht",
+    "financial.itemNoClaims": "Keine Forderung aus der Anschaffung erfasst"
   }
 };
 export function resolveLocale(preference = 'auto', browserLanguages = []) {
@@ -1003,4 +1063,11 @@ export function parseDecimal(value) {
     s=s.split(group).join('').replace(decimal,'.');
   } else if (comma>=0) s=s.replace(',','.');
   return /^[+-]?\d+(?:\.\d+)?$/.test(s) ? Number(s) : NaN;
+}
+
+// Translate existing financial-domain notices without changing the durable event schema.
+const germanLabelKeys = new Map(Object.entries(dictionaries.de).map(([key, text]) => [text, key]));
+export function localizeGermanText(text, lang = getLocale()) {
+  const key = germanLabelKeys.get(String(text ?? ''));
+  return key ? message(key, lang) : text;
 }

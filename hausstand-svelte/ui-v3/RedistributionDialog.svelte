@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../src/lib/i18n.js';
+  import { translate, localizeGermanText } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
@@ -171,7 +171,7 @@
               </table>
             {:else}<div class="empty-small">{$translate("ui.no-transfer-of-value-awxg5c")}</div>{/if}
             
-            <div class="financial-help-heading"><strong>{redistribution.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label={$translate("ui.what-is-the-financial-effect-of-thi-g85db9")}>{REDISTRIBUTION_SUGGESTION_TITLE} {REDISTRIBUTION_SUGGESTION_NOTICE}</HelpTip></div>
+            <div class="financial-help-heading"><strong>{redistribution.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label={$translate("ui.what-is-the-financial-effect-of-thi-g85db9")}>{localizeGermanText(REDISTRIBUTION_SUGGESTION_TITLE)} {localizeGermanText(REDISTRIBUTION_SUGGESTION_NOTICE)}</HelpTip></div>
             {#if preview.payments.length}
               <table class="tight">
                 <tbody>

@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../src/lib/i18n.js';
+  import { translate, localizeGermanText } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE } from '../src/lib/util.js';
   import { money } from '../src/lib/domain.js';
@@ -20,12 +20,12 @@
   $: itemsById = new Map((project.items || []).map(item => [item.id, item.name || item.id]));
 
   function personName(personId) {
-    if (!personId) return 'Unbekannte Person';
+    if (!personId) return localizeGermanText('Unbekannte Person');
     return peopleById.get(personId) || personId;
   }
 
   function itemName(itemId, fallbackName = '') {
-    if (!itemId) return fallbackName || 'Unbekannter Gegenstand';
+    if (!itemId) return fallbackName || localizeGermanText('Unbekannter Gegenstand');
     return itemsById.get(itemId) || fallbackName || itemId;
   }
 
@@ -40,7 +40,7 @@
   }
 
   function eventLabel(eventType) {
-    return labels[eventType] || eventType?.replaceAll('-', ' ') || 'Ereignis';
+    return labels[eventType] ? localizeGermanText(labels[eventType]) : eventType?.replaceAll('-', ' ') || localizeGermanText('Ereignis');
   }
 
   function affectsPersonByShareDelta(baseProjection, change) {
@@ -78,10 +78,10 @@
   $: visiblePast = past.slice(0, pastLimit);
 
   const labels = {
-    'redistribution-executed': 'Umverteilung',
+    'redistribution-executed': localizeGermanText('Umverteilung'),
     'shares-set': 'Anteilssatz',
     'person-added': 'Einzug',
-    'person-deactivated': 'Auszug',
+    'person-deactivated': localizeGermanText('Auszug'),
     'person-reactivated': 'Wiedereinzug',
     'item-added': 'Neuanschaffung',
     'item-ended': 'Ausbuchung',
@@ -90,27 +90,27 @@
 
   function summary(event) {
     if (event.type === 'claim-settlement-recorded') {
-      const kind = event.settlementKind === 'paid' ? 'Zahlung dokumentiert'
-        : event.settlementKind === 'external' ? 'Extern verbucht' : 'Erlass';
+      const kind = event.settlementKind === 'paid' ? localizeGermanText('Zahlung dokumentiert')
+        : event.settlementKind === 'external' ? localizeGermanText('Extern verbucht') : localizeGermanText('Erlass');
       return `${kind}: ${personName(event.debtorPersonId)} → ${personName(event.creditorPersonId)} · ${money(event.amountCents / 100)}${event.note ? ' · ' + event.note : ''}`;
     }
     if (event.type === 'redistribution-executed') {
       const affectedItems = [...new Set((event.events || []).filter(e => e.type === 'shares-set').map(e => itemName(e.itemId)).filter(Boolean))];
       const itemInfo = affectedItems.length ? ` · ${affectedItems.join(', ')}` : '';
-      return `${event.title || 'Umverteilung'} · ${(event.events || []).length} Änderungen · ${FINANCIAL_EVENT_NOTE(event)}${itemInfo}`;
+      return `${event.title || localizeGermanText('Umverteilung')} · ${(event.events || []).length} Änderungen · ${localizeGermanText(FINANCIAL_EVENT_NOTE(event))}${itemInfo}`;
     }
     if (event.type === 'shares-set') {
       const before = projectBeforeEvent(project, event.id, event.date);
       const deltas = shareDeltasForChange(before, event);
       const item = itemName(event.itemId);
-      if (deltas.length === 0) return `${item} · ${event.note || 'Manuelle Korrektur'}`;
+      if (deltas.length === 0) return `${item} · ${event.note || localizeGermanText('Manuelle Korrektur')}`;
       return `${item} · ${event.note || 'Anteile'} · ${deltas.map(d => `${d.personName} ${d.delta >= 0 ? '+' : ''}${money(d.delta)}`).join(' · ')}`;
     }
-    if (event.type === 'person-added') return `Willkommen, ${event.name || personName(event.personId)}!`;
-    if (event.type === 'person-deactivated') return `${personName(event.personId)} · ${event.reason || 'Auszug'}`;
+    if (event.type === 'person-added') return `${localizeGermanText('Willkommen,')} ${event.name || personName(event.personId)}!`;
+    if (event.type === 'person-deactivated') return `${personName(event.personId)} · ${event.reason || localizeGermanText('Auszug')}`;
     if (event.type === 'person-reactivated') return `${personName(event.personId)} · ${event.reason || 'Rückkehr'}`;
-    if (event.type === 'item-added') return `${itemName(event.itemId, event.name)} · Startwert ${money(event.initialValue)}`;
-    if (event.type === 'item-ended') return `${itemName(event.itemId)} · ${event.reason || 'Beendet'}`;
+    if (event.type === 'item-added') return `${itemName(event.itemId, event.name)} · ${localizeGermanText('Startwert')} ${money(event.initialValue)}`;
+    if (event.type === 'item-ended') return `${itemName(event.itemId)} · ${event.reason || localizeGermanText('Beendet')}`;
     return event.note || event.name || event.reason || event.type;
   }
 
@@ -134,11 +134,11 @@
 </script>
 
 <section class="panel timeline-panel">
-  <div class="panel-header"><h2>{title}</h2><span class="hint">{$translate("ui.you-can-correct-events-using-edit-1bvsp4q")}</span></div>
+  <div class="panel-header"><h2>{localizeGermanText(title)}</h2><span class="hint">{$translate("ui.you-can-correct-events-using-edit-1bvsp4q")}</span></div>
   <div class="panel-body stack">
     {#if future.length}
       <button class="timeline-more" on:click={() => showFuture = !showFuture}>
-        {future.length} zukünftige Ereignisse {showFuture ? 'ausblenden' : 'anzeigen'}
+        {future.length} {localizeGermanText('zukünftige Ereignisse')} {localizeGermanText(showFuture ? 'ausblenden' : 'anzeigen')}
       </button>
       {#if showFuture}
         {#each future as event}
@@ -150,7 +150,7 @@
             <div class="event-summary">
               {#if event.type === 'redistribution-executed'}
                 {@const data = redistributionData(event)}
-                <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen</span><HelpTip label="Finanzielle Wirkung">{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
+                <span>{event.title || localizeGermanText('Umverteilung')} · {(event.events || []).length} {localizeGermanText('Änderungen')}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
                 {#if data.affectedItems.length}
                   <span> · </span>
                   {#each data.affectedItems as currentItemId, index}
@@ -168,17 +168,17 @@
                     <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
                   {/each}
                 {/if}
-                <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
+                <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
               {:else if event.type === 'person-added'}
                 <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
               {:else if event.type === 'person-deactivated'}
-                <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Auszug'}</span>
+                <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || localizeGermanText('Auszug')}</span>
               {:else if event.type === 'person-reactivated'}
                 <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || $translate("ui.return-lfxhdv")}</span>
               {:else if event.type === 'item-added'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span><HelpTip label={$translate("ui.financing-of-this-purchase-1s2bh1x")}>{ITEM_FUNDING_NOTE(event)}</HelpTip>
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · {localizeGermanText('Startwert')} {money(event.initialValue)}</span><HelpTip label={$translate("ui.financing-of-this-purchase-1s2bh1x")}>{localizeGermanText(ITEM_FUNDING_NOTE(event))}</HelpTip>
               {:else if event.type === 'item-ended'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || localizeGermanText('Beendet')}</span>
               {:else}
                 {summary(event)}
               {/if}
@@ -191,7 +191,7 @@
       {/if}
     {/if}
 
-    <div class="timeline-marker">Stichtag {dateDE(asOfDate)}</div>
+    <div class="timeline-marker">{localizeGermanText('Stichtag')} {dateDE(asOfDate)}</div>
 
     {#if visiblePast.length}
       {#each visiblePast as event}
@@ -203,7 +203,7 @@
           <div class="event-summary">
             {#if event.type === 'redistribution-executed'}
               {@const data = redistributionData(event)}
-              <span>{event.title || 'Umverteilung'} · {(event.events || []).length} Änderungen</span><HelpTip label="Finanzielle Wirkung">{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
+              <span>{event.title || localizeGermanText('Umverteilung')} · {(event.events || []).length} {localizeGermanText('Änderungen')}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
               {#if data.affectedItems.length}
                 <span> · </span>
                 {#each data.affectedItems as currentItemId, index}
@@ -221,17 +221,17 @@
                   <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
                 {/each}
               {/if}
-              <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{FINANCIAL_EVENT_NOTE(event)}</HelpTip>
+              <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
             {:else if event.type === 'person-added'}
               <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
             {:else if event.type === 'person-deactivated'}
-              <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || 'Auszug'}</span>
+              <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || localizeGermanText('Auszug')}</span>
             {:else if event.type === 'person-reactivated'}
               <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || $translate("ui.return-lfxhdv")}</span>
             {:else if event.type === 'item-added'}
-              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · Startwert {money(event.initialValue)}</span><HelpTip label={$translate("ui.financing-of-this-purchase-1s2bh1x")}>{ITEM_FUNDING_NOTE(event)}</HelpTip>
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · {localizeGermanText('Startwert')} {money(event.initialValue)}</span><HelpTip label={$translate("ui.financing-of-this-purchase-1s2bh1x")}>{localizeGermanText(ITEM_FUNDING_NOTE(event))}</HelpTip>
             {:else if event.type === 'item-ended'}
-              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || 'Beendet'}</span>
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || localizeGermanText('Beendet')}</span>
             {:else}
               {summary(event)}
             {/if}
