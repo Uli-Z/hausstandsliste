@@ -66,8 +66,9 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await dialog.locator('.form-grid input').first().fill('Zeitreise-Lampe');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
-    assert.equal((await snapshot()).events.find(e=>e.name==='Zeitreise-Lampe')?.date,'2031-01-15');
-    assert.equal(await page.locator('#state-date').inputValue(),'2031-01-15');
+    const lamp = (await snapshot()).events.find(e=>e.name==='Zeitreise-Lampe');
+    assert.equal(lamp?.date,'2031-01-15');
+    assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /15\.01\.2031/);
 
     // Share changes and archiving use the selected date, even when edited in
     // the open form. The current item must still exist on that effective date.
