@@ -366,10 +366,11 @@ async function settlementEndToEnd(browser, url) {
     await page.reload();
     await page.getByText('Q03 Browser-Wertausgleich').first().waitFor();
     await setDate('2025-01-02');
-    await page.locator('.page-heading').getByRole('button', { name: /Gegenstand hinzufügen/ }).click();
+    await page.locator('.quick-actions .task-grid > button').first().click();
     const purchase = page.locator('[role="dialog"]');
     await purchase.locator('.form-grid > label').first().locator('input').fill('Q03 Kühlschrank');
     await purchase.locator('input[type=number][step="0.01"]').first().fill('300');
+    await purchase.locator('.item-extra-fields summary').click();
     await purchase.locator('select').filter({ has: page.locator('option[value="fixed"]') })
       .first().selectOption('fixed');
     await purchase.locator('select').filter({ has: page.locator('option[value="anna"]') })
@@ -588,7 +589,8 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       await ownershipDialog.waitFor({ state: 'hidden' });
 
       await section('items');
-      await page.locator('.inventory-bottom .outline-action').click();
+      await section('overview');
+      await page.locator('.quick-actions .task-grid > button').nth(1).click();
       const transferDialog = page.locator('[role="dialog"]');
       await noOverflow('transfer dialog');
       const transferFooter = await transferDialog.locator('.modal-footer').first().boundingBox();
