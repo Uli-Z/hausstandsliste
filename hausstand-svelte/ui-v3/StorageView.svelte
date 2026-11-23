@@ -169,7 +169,6 @@
     pendingEncrypted = null; remotePassword = '';
     appState.importProject(verified, null, true, true);
     message = $translate("ui.opened-read-only-check-out-to-edit-3jcsh9");
-    onProjectLoaded();
   }
   async function createRemote() {
     requireLeaseReleased();
@@ -188,7 +187,6 @@
     appState.importProject(saved, null, true, true);
     await refreshFiles();
     message = $translate("ui.new-encrypted-file-created-check-o-7hax1o");
-    onProjectLoaded();
   }
   async function checkout() {
     if (!openedId) throw new Error($translate("ui.no-file-selected-k8inyf"));
@@ -325,8 +323,6 @@
             {#if leaseToken}
               <button type="button" disabled={busy} on:click={() => run(checkin)}>{$translate("ui.stop-editing-14s9xpw")}</button>
               <button type="button" disabled={busy} on:click={() => run(renew)}>{$translate("ui.extend-editing-time-ieh1xj")}</button>
-            {:else}
-              <button type="button" disabled={busy} on:click={() => run(checkout)}>{$translate('storage.startEditing')}</button>
             {/if}
           </div>
         </div>
