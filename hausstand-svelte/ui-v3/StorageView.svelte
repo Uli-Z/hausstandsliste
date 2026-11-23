@@ -279,6 +279,9 @@
   <section class="ux-panel storage-main">
     <h2>{$translate('storage.save')}</h2>
     <p class="storage-explanation">{$translate(openedId ? 'storage.onlineSaveExplanation' : ($appState.secure ? 'storage.secureSaveExplanation' : 'storage.localSaveExplanation'))}</p>
+    {#if !openedId && !$appState.secure}
+      <p class="inline-info warning storage-plain-warning">{$translate('storage.plainWarning')}</p>
+    {/if}
     <button type="button" class="solid-action storage-primary" disabled={busy} on:click={savePrimary}>
       {$translate(openedId ? (leaseToken ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
     </button>
@@ -390,6 +393,7 @@
   .storage-context div { display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px; }
   .storage-context span,.storage-context p { color:var(--muted);font-size:.84rem; }
   .storage-context p { margin:0; }
+  .storage-plain-warning { margin:0 0 12px;font-size:.84rem; }
   .storage-primary { min-height:44px; }
   .storage-secondary { margin-top:18px;padding-top:12px;border-top:1px solid var(--border); }
   .storage-secondary > summary,.storage-versions > summary { cursor:pointer;font-weight:600;min-height:38px; }
