@@ -561,3 +561,10 @@ tr.clickable-row:hover td{background:#eef7f8}
 .modal-body input:disabled,
 .modal-body select:disabled,
 .modal-body textarea:disabled{background:#eef2f4;color:#677986;opacity:1;cursor:not-allowed}
+
+/* Save remains unmistakable but compact in the narrow sticky header. */
+.header-save-short{display:none}
+@media(max-width:650px){
+  .header-save-long{display:none}
+  .header-save-short{display:inline}
+}
