@@ -1,4 +1,4 @@
-**Nacharbeit Bedienoberfläche (22.11.2026):** Dauerhaft sichtbare Erklärungstexte aus Geldübersicht, Personen-/Gegenstandsdetails, Anschaffungs- und Zahlungsdialog, Zeitleiste, Anteilsübertragung, Dashboard und Speichernansicht entfernt oder deutlich gekürzt. Fachliche Erläuterungen stehen bei Bedarf hinter einer kleinen, mit Tastatur bedienbaren ?-Hilfe (`src/components/HelpTip.svelte`, außerhalb/Escape schließen). **Direkt sichtbar bleiben** erforderliche Warnungen sowie die Bestätigung, dass eine Zahlung tatsächlich stattgefunden hat. Tests für die textarme Oberfläche und den Hilfe-Trigger ergänzt. CI-Build/Smartphone-Abnahme noch nicht bestätigt.
+**Produktentscheidung vom 23.11.2026 – neue Zielarchitektur der Versionshistorie:** [Portable Versionshistorie](FEATURE-PORTABLE-VERSION-HISTORY.md) und [Q11/Q12](WG-PRAXIS-TODO.md): **Die bisher serverseitig separat gespeicherten vollständigen Vorversionen werden durch ein einziges, in der Projektdatei eingebettetes Archiv ersetzt** – identisch bei lokalem Download und PHP-Upload. Beim Server bleiben **nur technische Revisionsnummer, Lease und Konfliktschutz**; bestehende historische PHP-Fassungen müssen zuvor verlustfrei migriert/gesichert werden. Nachfolgend beschriebene serverseitige Versionsdateien sind aktueller **Altimplementierungsstand**, nicht mehr das Zielmodell.\n\n**Nacharbeit Bedienoberfläche (22.11.2026):** Dauerhaft sichtbare Erklärungstexte aus Geldübersicht, Personen-/Gegenstandsdetails, Anschaffungs- und Zahlungsdialog, Zeitleiste, Anteilsübertragung, Dashboard und Speichernansicht entfernt oder deutlich gekürzt. Fachliche Erläuterungen stehen bei Bedarf hinter einer kleinen, mit Tastatur bedienbaren ?-Hilfe (`src/components/HelpTip.svelte`, außerhalb/Escape schließen). **Direkt sichtbar bleiben** erforderliche Warnungen sowie die Bestätigung, dass eine Zahlung tatsächlich stattgefunden hat. Tests für die textarme Oberfläche und den Hilfe-Trigger ergänzt. CI-Build/Smartphone-Abnahme noch nicht bestätigt.
 
 **UI-Nacharbeit am 22.11.2026:** Geld & Ausgleich zeigt zuerst vorgeschlagene Zahlungswege, danach aufklappbare persönliche Salden mit centgenauer Herleitung aus finanzierten Anschaffungen, Wertverschiebungen und Zahlungen; Historie bleibt separat einsehbar. Personen- und Gegenstandsansichten sind von redundanten Badges und Kategorie-Chips bereinigt. Zahlungserfassung zeigt ausdrücklich, ob Geld bereits geflossen ist, und wechselt bei späterem Zahlungsdatum nach Speicherung auf das wirksame Datum. Tests ergänzt in `tests/community-balances.test.js` und `tests/settlement-ui.test.js`. **Noch offen:** tatsächlicher `npm test`-/Build-/Mobilbrowser-Abnahmelauf nach der Änderung.
 
@@ -62,9 +62,9 @@
 - [x] Mehrere Dateien, öffentliche Anzeigenamen, eigenes Passphrase-geschütztes Projekt pro Datei.
 - [x] Checkout/Checkin pro Datei mit **2-Stunden-Lease**, manuelle Verlängerung, automatische Ungültigkeit bei Fristende.
 - [x] Schreiboperationen mit Lease und `expectedRevision`; keine stillen Überschreibungen.
-- [x] Verschlüsselte Vorversionen und Wiederherstellung als neue Revision.
+- [x] **Altimplementierung (noch im aktuellen Code):** separate verschlüsselte PHP-Vorversionen und Wiederherstellung als neue Revision. **Ziel nach Q11:** portable Historie in der Datei statt separatem PHP-Archiv.
 - [x] Passwort für aktuelle Version ändern; **Bearbeitungsberechtigung rotieren**.
-- [ ] Historische Serverversionen bei Passwortwechsel ebenfalls vollständig neu verschlüsseln (aktuell alte Passphrase nötig).
+- [ ] Mit Q11 ersetzen: altes PHP-Versionsarchiv sicher migrieren und dann ablösen; **neu** wird der gesamte Dateiinhalt inklusive Archiv beim Passwortwechsel im Browser neu verschlüsselt. Bereits versandte Mail-Backups und nicht migrierte Altstände bleiben gesondert zu behandeln.
 - [x] Datei-API sieht nur Ciphertext und Bearbeitungs-Token-Hash; Datenordner außerhalb des Webroots erforderlich.
 - [x] Gleiches verschlüsseltes Format für lokale Dateien und PHP-Ablage.
 - [ ] Server mit HTTPS produktiv einrichten, Zwei-Browser-Tests, Sicherheitsreview.
@@ -104,7 +104,7 @@ Als Unterfunktion des Online-Modus:
 | Komplettauflösung ohne Rest-Eigentümer? | Übernehmer/Verwertung explizit erfassen |
 | Mehrere online bearbeitende Personen? | Ein Checkout-Inhaber pro Datei, keine Live-Merge-Funktion |
 | Lease-Zeit? | 2 h seit letzter **echter** Bearbeitungsaktivität, keine passive Dauerverlängerung |
-| Versionen? | Jede bestätigte neue Revision erhalten, Restore ist neuer Commit |
+| Versionen? | Jede explizit gespeicherte Fassung wandert als komprimierter Snapshot ins **Archiv der Projektdatei**; lokaler Download und PHP-Upload enthalten es vollständig. Restore wird zunächst ungespeicherter Arbeitsstand; technische Serverrevision bleibt für Konfliktschutz. |
 | Dateinamen öffentlich? | Ja, Inhaltsverschlüsselung pro Datei; das ist bewusste Metadaten-Offenlegung |
 | Alle dürfen Dateien anlegen/löschen? | Nein, öffentlich erreichbare Instanz braucht zusätzliches Workspace-Verwaltungsrecht |
 | Passwort/Krypto? | Browserseitig, starkes KDF und AES-GCM; Details mit Security-Review finalisieren |
