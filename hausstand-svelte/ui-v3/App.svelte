@@ -3,6 +3,7 @@
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
+  import { createPortableSave } from '../src/lib/versionHistory.js';
   import { money } from '../src/lib/domain.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
@@ -27,12 +28,13 @@
   let showJson = false;
   let showDanger = false;
   let mobileMoreOpen = false;
+  let savingLocal = false;
+  let saveMessage = '';
 
   onMount(() => {
     const copy = loadWorkingCopy();
     if (copy && copy.project) {
-      appState.importProject(copy.project, copy.fileName);
-      if (copy.asOfDate) appState.setAsOfDate(copy.asOfDate);
+      appState.restoreWorkingCopy(copy); // The view always opens at today, never at a stale historical date.
     }
   });
 
@@ -94,10 +96,23 @@
     } catch (err) { alert('Öffnen fehlgeschlagen: ' + err.message); }
     finally { event.currentTarget.value = ''; }
   }
-  function exportNow() {
-    if ($appState.secure && !confirm('Diese Sicherungskopie ist nicht verschlüsselt. Soll sie trotzdem heruntergeladen werden?')) return;
-    downloadProject($appState.project, $appState.asOfDate);
-    appState.markExported();
+  async function exportNow() {
+    if (savingLocal) return;
+    if ($appState.secure) {
+      // Protected projects must not silently export sensitive history in plaintext.
+      navigate('save');
+      return;
+    }
+    savingLocal = true;
+    saveMessage = '';
+    try {
+      const saved = await createPortableSave($appState.project, $appState.savedProject);
+      downloadProject(saved, $appState.asOfDate);
+      appState.markSaved(saved);
+      saveMessage = 'Download gestartet – die Datei bitte sicher aufbewahren.';
+    } catch (error) {
+      saveMessage = 'Speichern fehlgeschlagen: ' + (error?.message || error);
+    } finally { savingLocal = false; }
   }
   function newProject() {
     if (!confirm('Neues Projekt beginnen? Der bisherige Arbeitsstand in diesem Browser wird ersetzt. Bitte vorher eine Sicherungskopie erstellen.')) return;
@@ -138,13 +153,14 @@
       <div class="header-actions">
         <span class="working-indicator" title={$appState.secure ? 'Passwortgeschütztes Projekt: keine Klartext-Arbeitskopie im Browser' : 'Nicht verschlüsselte Projekte haben eine lokale Arbeitskopie im Browser'}>
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
-          {$appState.secure ? 'Geschützt geöffnet' : $appState.dirty ? 'Änderungen sichern' : 'Lokale Arbeitskopie'}
+          {$appState.dirty ? 'Ungespeicherte Änderungen' : 'Keine ungespeicherten Änderungen'}
         </span>
-        <button class="header-save" on:click={() => navigate('save')}>Sichern</button>
+        <button class="header-save" disabled={savingLocal} on:click={exportNow}>{savingLocal ? 'Speichert …' : 'Speichern'}</button>
       </div>
     </header>
 
     <main class="work-content">
+      {#if saveMessage}<p role="status" class="inline-info">{saveMessage}</p>{/if}
       <div class="date-toolbar" aria-label="Betrachtungsdatum">
         <div class="date-toolbar-label">
           <span>Stand der Daten</span>
