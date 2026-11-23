@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../srclib/i18n.js';
+  import { translate } from '../src/lib/i18n.js';
   import { appState, createEvent } from '../src/stores/projectStore.js';
   import { money, normShares } from '../src/lib/domain.js';
   import { dateDE } from '../src/lib/util.js';

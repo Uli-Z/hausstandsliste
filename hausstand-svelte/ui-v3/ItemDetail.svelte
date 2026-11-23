@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../srclib/i18n.js';
+  import { translate } from '../src/lib/i18n.js';
   import { appState, ledger } from '../src/stores/projectStore.js';
   import { money, pct } from '../src/lib/domain.js';
   import { label as valuationLabel } from '../src/lib/valuation.js';

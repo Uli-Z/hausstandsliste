@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../srclib/i18n.js';
+  import { translate } from '../src/lib/i18n.js';
   import { onMount } from 'svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.

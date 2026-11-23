@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../srclib/i18n.js';
+  import { translate } from '../src/lib/i18n.js';
   import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
   import { uid, parseTags } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';

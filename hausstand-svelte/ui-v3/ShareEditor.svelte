@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../srclib/i18n.js';
+  import { translate } from '../src/lib/i18n.js';
   import { normShares } from '../src/lib/domain.js';
   import { parseShareInput } from './form-behavior.js';
   export let people = [];
