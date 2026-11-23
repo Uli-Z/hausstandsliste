@@ -24,12 +24,12 @@ jobs:
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.65.1
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium firefox webkit
       - name: Build offline HTML and encrypted PHP release
         working-directory: hausstand-svelte
         run: |
           npm run build:single
           npm run build:php
-      - name: Exercise two browsers, file history and session Undo/Redo
+      - name: Exercise Chromium, Firefox, WebKit, portable history and responsive UI
         working-directory: hausstand-svelte
         run: npm run test:browser
