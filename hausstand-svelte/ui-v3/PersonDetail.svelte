@@ -6,6 +6,7 @@
   import Timeline from './Timeline.svelte';
   import BalanceBreakdown from '../src/components/BalanceBreakdown.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
+  import ActionIcon from '../src/components/ActionIcon.svelte';
   export let person;
   export let projection;
   export let asOfDate;
@@ -75,10 +76,10 @@
       <div class="grid-3"><div class="mini-card"><div class="muted">{$translate("ui.total-value-1bsjxfe")}</div><strong>{money(person.totalValue || 0)}</strong></div><div class="mini-card"><div class="muted">{$translate("nav.items")}</div><strong>{person.holdings?.length || 0}</strong></div><div class="mini-card"><div class="muted">{balanceCents > 0 ? $translate("people.toReceive") : balanceCents < 0 ? $translate("people.toSettle") : 'Ausgleichssaldo'}</div><strong>{money(Math.abs(balanceCents) / 100)}</strong></div></div>
     </div>
     <div class="mini-card stack"><strong>{$translate("ui.available-actions-1pvpibj")}</strong><div class="action-grid">
-      <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}>{$translate("ui.edit-person-jstaod")}</button>
-      {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' }, p)))}>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' }, p)))}>{$translate("ui.reactivate-iggdm2")}</button>{/if}
-      <button on:click={startTransfer}>{$translate("app.transfer")}</button>
-      <button on:click={startDissolve}>{$translate("ui.remove-shares-5g2njo")}</button>
+      <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-person-jstaod")}</button>
+      {#if person.active}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-deactivated', asOfDate, { personId: person.id, reason: 'Auszug' }, p)))}><ActionIcon name="archive" size={17}/>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else}<button on:click={() => appState.mutateProject(p => p.events.push(createEvent('person-reactivated', asOfDate, { personId: person.id, reason: 'Wiedereinzug' }, p)))}><ActionIcon name="person-add" size={17}/>{$translate("ui.reactivate-iggdm2")}</button>{/if}
+      <button on:click={startTransfer}><ActionIcon name="arrows" size={17}/>{$translate("app.transfer")}</button>
+      <button on:click={startDissolve}><ActionIcon name="archive" size={17}/>{$translate("ui.remove-shares-5g2njo")}</button>
     </div></div>
   </div>
 </div></section>
@@ -95,7 +96,7 @@
       {#each transfersForPerson as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
         <div class="split">
           <span>{nameOf(transfer.fromPersonId)} an {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
-          <button on:click={() => appState.setDialog({ type: 'settlementAdd', payerPersonId: transfer.fromPersonId, recipientPersonId: transfer.toPersonId, amountCents: transfer.amountCents })} disabled={$appState.readOnly}>{$translate("app.settle")}</button>
+          <button on:click={() => appState.setDialog({ type: 'settlementAdd', payerPersonId: transfer.fromPersonId, recipientPersonId: transfer.toPersonId, amountCents: transfer.amountCents })} disabled={$appState.readOnly}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
         </div>
       {/each}
     </div>
@@ -137,6 +138,7 @@
 {/if}
 
 <style>
+  .action-grid button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
   .help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .person-inactive { color:var(--muted);font-size:13px; }
 </style>
