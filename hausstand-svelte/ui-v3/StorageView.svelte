@@ -5,6 +5,7 @@
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   import { appState } from '../src/stores/projectStore.js';
   import { exportProject } from '../src/lib/persistence.js';
+  import { requireProjectFile } from '../src/lib/domain.js';
   import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
@@ -92,7 +93,7 @@
       if (!ensureNoOverwrite()) return;
       if (!password) throw new Error('Passwort vor dem Öffnen eingeben.');
       const { project, editToken: token } = await decryptProject(JSON.parse(await file.text()), password);
-      appState.importProject(project, file.name, true);
+      appState.importProject(requireProjectFile(project), file.name, true);
       editToken = token; activePassword = password; fileName = file.name;
       openedId = ''; leaseToken = ''; revision = 0;
       message = 'Verschlüsselte lokale Datei geöffnet.'; error = '';
@@ -111,7 +112,7 @@
     editToken = decrypted.editToken; activePassword = password;
     openedId = file.id; fileName = file.name; revision = result.revision;
     leaseToken = ''; leaseExpires = 0; selectedPortableVersion = '';
-    appState.importProject(decrypted.project, file.name, true, true);
+    appState.importProject(requireProjectFile(decrypted.project), file.name, true, true);
     message = 'Schreibgeschützt geöffnet. Zum Bearbeiten auschecken.';
   }
   async function createRemote() {

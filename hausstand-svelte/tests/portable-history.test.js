@@ -4,6 +4,7 @@ import {
   createPortableSave, readPortableVersion, getVersionEntries, hasProjectChanges
 } from '../src/lib/versionHistory.js';
 import { encryptProject, decryptProject } from '../src/lib/crypto.js';
+import { requireProjectFile } from '../src/lib/domain.js';
 
 const project = name => ({
   schemaVersion: 1, currency: 'EUR', community: { name },
@@ -74,4 +75,16 @@ test('a missing previously saved history entry blocks download instead of deleti
   const a = await createPortableSave(project('A'), null);
   const b = await createPortableSave({ ...a, community: { name: 'B' } }, a);
   await assert.rejects(() => createPortableSave({ ...b, versionHistory: { format: 'portable-v1', entries: [] } }, b), /unvollständig/);
+});
+
+test('only current standalone or encrypted project files are accepted for import', async () => {
+  const saved = await createPortableSave({
+    ...project('current'), appVersion: '0.7.0-svelte'
+  }, null, '2026-11-23T09:00:00.000Z');
+  assert.equal(requireProjectFile(saved).community.name, 'current');
+  const cipher = await encryptProject(saved, 'valid-project-password');
+  assert.equal(requireProjectFile((await decryptProject(cipher, 'valid-project-password')).project).versionHistory.format, 'portable-v1');
+  assert.throws(() => requireProjectFile({ ...saved, schemaVersion: 0 }), /Nicht unterstütztes/);
+  assert.throws(() => requireProjectFile({ ...saved, versionHistory: undefined }), /Nicht unterstütztes/);
+  assert.throws(() => requireProjectFile({ ...saved, redistributions: [], drafts: undefined }), /Nicht unterstütztes/);
 });

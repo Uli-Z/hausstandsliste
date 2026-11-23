@@ -4,7 +4,7 @@
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
   import { createPortableSave } from '../src/lib/versionHistory.js';
-  import { money } from '../src/lib/domain.js';
+  import { money, requireProjectFile } from '../src/lib/domain.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
   import PersonDetail from './PersonDetail.svelte';
@@ -92,7 +92,7 @@
         throw new Error('Diese Datei ist passwortgeschützt. Bitte unter „Sichern & Teilen“ → „Mit Passwort sichern“ öffnen.');
       }
       if ($appState.dirty && !confirm('Der aktuelle Arbeitsstand hat noch nicht exportierte Änderungen. Trotzdem eine andere Datei öffnen?')) return;
-      appState.importProject(data, file.name, false);
+      appState.importProject(requireProjectFile(data), file.name, false);
       navigate('overview');
     } catch (err) { alert('Öffnen fehlgeschlagen: ' + err.message); }
     finally { event.currentTarget.value = ''; }
