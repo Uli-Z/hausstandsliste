@@ -130,6 +130,7 @@
               <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
             </select>
           </label>
+          <div class="financial-mode-help"><HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip></div>
           <strong>{$translate("ui.quick-actions-j7efqp")}</strong>
           <div class="row">
             <button class="small" on:click={() => { activeSubModal = 'special-transfer'; subModalData = { sourceId: dialog.sourcePersonId || '', targetId: '' }; }}>{$translate("ui.transfer-all-shares-to-one-person-m0ednu")}</button>
