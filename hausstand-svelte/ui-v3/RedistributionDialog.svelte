@@ -3,6 +3,7 @@
   import { appState } from '../src/stores/projectStore.js';
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
+  import ActionIcon from '../src/components/ActionIcon.svelte';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { 
     redistributionPreview, 
@@ -192,7 +193,7 @@
     <div class="modal-footer">
       <button on:click={() => appState.closeDialog()}>{$translate("ui.cancel-cl4zc9")}</button>
       <div style="flex:1"></div>
-      <button on:click={saveAsDraft}>💾 Als Entwurf speichern</button>
+      <button on:click={saveAsDraft}><ActionIcon name="download" size={17}/>{$translate("ui.save-as-draft-sz9zgy")}</button>
       <button class="primary" on:click={execute} disabled={!redistribution.changes.length}>{$translate("ui.apply-changes-7tqg8a")}</button>
     </div>
   </div>
@@ -250,6 +251,8 @@
 {/if}
 
 <style>
+  .modal-footer button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+
   .large-modal { width: 95vw; max-width: 1100px; height: 85vh; display: flex; flex-direction: column; }
   .grid-redistribution { display: grid; grid-template-columns: 1fr 340px; gap: 24px; flex: 1; overflow: hidden; }
   .small-text { font-size: 0.85rem; }
