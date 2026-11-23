@@ -84,6 +84,13 @@ function createStore() {
       return persist({ ...s, project, dirty: true });
     }),
     // The archive enters the working project only after the download/upload has been started/confirmed.
+    restoreVersion: restored => update(s => {
+      if (s.readOnly) return s;
+      // Restoring is an editable draft, not an implicit file/server save.
+      const project = normalize(restored);
+      return persist({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
+        activeDialog: null, route: { page: 'dashboard' }, asOfDate: todayISO() });
+    }),
     markSaved: saved => update(s => {
       const savedProject = normalize(saved);
       const dirty = hasProjectChanges(s.project, savedProject);
