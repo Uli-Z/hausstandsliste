@@ -465,7 +465,11 @@
                     <p>{$translate('items.purchaseClaims')}</p>
                     <ul>
                       {#each purchaseClaims as claim}
-                        <li>{claim.name}: {money(claim.amountCents / 100)}</li>
+                        <li>{$translate('items.purchaseClaimRow', {
+                          debtor: claim.name,
+                          creditor: entryProjection.peopleById.get(financedByPersonId)?.name || financedByPersonId,
+                          amount: money(claim.amountCents / 100)
+                        })}</li>
                       {/each}
                     </ul>
                     <small>{$translate('items.purchaseNoPayment')}</small>
