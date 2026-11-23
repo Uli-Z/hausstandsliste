@@ -24,6 +24,10 @@
     <path d="M12 3v12m-4-4 4 4 4-4M4 17v4h16v-4"/>
   {:else if name === 'clock'}
     <circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/>
+  {:else if name === 'chevron-left'}
+    <path d="m15 18-6-6 6-6"/>
+  {:else if name === 'chevron-right'}
+    <path d="m9 18 6-6-6-6"/>
   {:else if name === 'undo'}
     <path d="M9 14 4 9l5-5M4 9h9a7 7 0 0 1 0 14"/>
   {:else if name === 'redo'}
