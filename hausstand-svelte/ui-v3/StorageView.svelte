@@ -212,6 +212,9 @@
   }
 </script>
 <div class="storage-choices">
+  {#if busy}<p class="storage-feedback muted" role="status">Vorgang wird ausgeführt …</p>{/if}
+  {#if error}<p role="alert" class="storage-feedback inline-info warning">{error}</p>{/if}
+  {#if message}<p role="status" class="storage-feedback inline-info">{message}</p>{/if}
   <section class="ux-panel storage-choice">
     <div class="storage-choice-top"><div class="storage-help-heading"><h2>Mit Passwort sichern</h2><HelpTip label="Wie funktioniert eine verschlüsselte Sicherung?">Du kannst eine verschlüsselte Datei erstellen oder wieder öffnen. Ohne das Passwort kann sie nicht entschlüsselt werden; eine unverschlüsselte Browserkopie wird bei geschützten Projekten nicht gespeichert.</HelpTip></div></div>
     <button class="outline-action" aria-expanded={showProtected} on:click={() => showProtected = !showProtected}>{showProtected ? 'Weniger anzeigen' : 'Passwortgeschützte Dateien verwalten'} <span aria-hidden="true">{showProtected ? '↑' : '↓'}</span></button>
@@ -289,9 +292,6 @@
             {/if}
           </div>
         {/if}
-        {#if busy}<div class="muted" role="status">Vorgang wird ausgeführt …</div>{/if}
-        {#if error}<div role="alert" class="inline-info warning">{error}</div>{/if}
-        {#if message}<div role="status" class="inline-info">{message}</div>{/if}
       </div>
     {/if}
   </section>
@@ -299,6 +299,7 @@
 </div>
 
 <style>
+  .storage-feedback{grid-column:1/-1;margin:0}
   .storage-help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .storage-help-heading h2{margin:0}
 </style>
