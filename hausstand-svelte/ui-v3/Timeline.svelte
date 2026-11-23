@@ -7,6 +7,8 @@
   import { projectBeforeEvent, shareDeltasForChange } from '../src/lib/projector.js';
   import { FINANCIAL_EVENT_NOTE, ITEM_FUNDING_NOTE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
+  import ActionIcon from '../src/components/ActionIcon.svelte';
+  import { iconForTimelineEvent, interactionForTimelineEvent } from '../src/lib/timelineActions.js';
   export let project;
   export let asOfDate;
   export let itemId = null;
@@ -15,6 +17,7 @@
 
   let pastLimit = 10;
   let showFuture = false;
+  let expandedEventId = null;
 
     // View-only order: newest first on either side of the time-travel cutoff.
   $: allEvents = project.events || [];
@@ -129,15 +132,24 @@
   }
 
   function openEdit(event) {
-    appState.setDialog({ 
-      type: event.type === 'claim-settlement-recorded' ? 'settlementEdit' : event.type === 'redistribution-executed' ? 'executedRedistributionEdit' : 'eventEdit', 
-      eventId: event.id 
+    appState.setDialog({
+      type: event.type === 'claim-settlement-recorded' ? 'settlementEdit' : event.type === 'redistribution-executed' ? 'executedRedistributionEdit' : 'eventEdit',
+      eventId: event.id
     });
+  }
+
+  function activateEvent(event) {
+    if (interactionForTimelineEvent(event.type, $appState.readOnly) === 'edit') {
+      expandedEventId = null;
+      openEdit(event);
+    } else {
+      expandedEventId = expandedEventId === event.id ? null : event.id;
+    }
   }
 </script>
 
 <section class="panel timeline-panel">
-  <div class="panel-header"><h2>{localizeGermanText(title)}</h2><span class="hint">{$translate("ui.you-can-correct-events-using-edit-1bvsp4q")}</span></div>
+  <div class="panel-header"><h2>{localizeGermanText(title)}</h2></div>
   <div class="panel-body stack">
     {#if future.length}
       <button class="timeline-more" on:click={() => showFuture = !showFuture}>
@@ -145,9 +157,16 @@
       </button>
       {#if showFuture}
         {#each future as event}
-          <div class="event-card timeline-event-card">
+          <div class="event-card timeline-event-card" class:future-event={event.date > asOfDate}>
+            <button
+              type="button"
+              class="event-open-overlay"
+              aria-label={`${$translate(interactionForTimelineEvent(event.type, $appState.readOnly) === 'edit' ? 'timeline.editEvent' : 'timeline.viewDetails')}: ${eventLabel(event.type)} · ${dateDE(event.date)}`}
+              aria-expanded={interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' ? expandedEventId === event.id : undefined}
+              on:click={() => activateEvent(event)}
+            ></button>
             <div class="event-meta">
-              <span class="label">{eventLabel(event.type)}</span>
+              <span class="event-kind"><span class="event-icon" aria-hidden="true"><ActionIcon name={iconForTimelineEvent(event.type)} size={17}/></span><span class="label">{eventLabel(event.type)}</span></span>
               <span class="date">{dateDE(event.date)}</span>
             </div>
             <div class="event-summary">
@@ -186,9 +205,13 @@
                 {summary(event)}
               {/if}
             </div>
-            <div class="event-actions">
-              <button class="small ghost edit-button" title={$translate("ui.edit-change-1t2xk03")} on:click={() => openEdit(event)}>{$translate("ui.edit-m49ms0")}</button>
-            </div>
+            {#if interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' && expandedEventId === event.id}
+              <div class="event-readonly-details" role="region" aria-label={$translate('timeline.viewDetails')}>
+                <p>{summary(event)}</p>
+                {#if event.note}<p>{event.note}</p>{/if}
+                <p class="muted">{$translate($appState.readOnly ? 'errors.readOnly' : 'timeline.viewOnly')}</p>
+              </div>
+            {/if}
           </div>
         {/each}
       {/if}
@@ -198,9 +221,16 @@
 
     {#if visiblePast.length}
       {#each visiblePast as event}
-        <div class="event-card timeline-event-card">
+        <div class="event-card timeline-event-card" class:future-event={event.date > asOfDate}>
+            <button
+              type="button"
+              class="event-open-overlay"
+              aria-label={`${$translate(interactionForTimelineEvent(event.type, $appState.readOnly) === 'edit' ? 'timeline.editEvent' : 'timeline.viewDetails')}: ${eventLabel(event.type)} · ${dateDE(event.date)}`}
+              aria-expanded={interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' ? expandedEventId === event.id : undefined}
+              on:click={() => activateEvent(event)}
+            ></button>
           <div class="event-meta">
-            <span class="label">{eventLabel(event.type)}</span>
+            <span class="event-kind"><span class="event-icon" aria-hidden="true"><ActionIcon name={iconForTimelineEvent(event.type)} size={17}/></span><span class="label">{eventLabel(event.type)}</span></span>
             <span class="date">{dateDE(event.date)}</span>
           </div>
           <div class="event-summary">
@@ -239,9 +269,13 @@
               {summary(event)}
             {/if}
           </div>
-          <div class="event-actions">
-            <button class="small ghost edit-button" title={$translate("ui.edit-change-1t2xk03")} on:click={() => openEdit(event)}>{$translate("ui.edit-m49ms0")}</button>
-          </div>
+          {#if interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' && expandedEventId === event.id}
+            <div class="event-readonly-details" role="region" aria-label={$translate('timeline.viewDetails')}>
+              <p>{summary(event)}</p>
+              {#if event.note}<p>{event.note}</p>{/if}
+              <p class="muted">{$translate($appState.readOnly ? 'errors.readOnly' : 'timeline.viewOnly')}</p>
+            </div>
+          {/if}
         </div>
       {/each}
       {#if past.length > visiblePast.length}
@@ -258,13 +292,37 @@
     font-size: 0.9rem;
   }
   .timeline-event-card {
-    padding: 10px;
+    position: relative;
+    padding: 12px 14px;
+    min-height: 66px;
     border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--panel);
     display: grid;
     gap: 6px;
   }
+  .timeline-event-card:hover { border-color: var(--accent); background: var(--soft); }
+  .timeline-event-card:focus-within { border-color: var(--accent); }
+  .future-event { border-left: 3px solid var(--accent); }
+  .event-open-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    cursor: pointer;
+  }
+  .event-open-overlay:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .event-kind { display: inline-flex; align-items: center; gap: 8px; }
+  .event-icon { display: inline-flex; color: var(--muted); }
   .event-meta {
     display: flex;
     justify-content: space-between;
@@ -286,6 +344,20 @@
     color: var(--text);
     line-height: 1.3;
   }
+  .event-summary :global(.help-wrap),
+  .event-summary .entity-link {
+    position: relative;
+    z-index: 2;
+  }
+  .event-readonly-details {
+    position: relative;
+    z-index: 2;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+    line-height: 1.4;
+  }
+  .event-readonly-details p { margin: 0 0 6px; }
+  .event-readonly-details .muted { color: var(--muted); }
   .entity-link {
     border: 1px solid transparent;
     background: var(--accent-soft);
@@ -314,15 +386,6 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(47, 111, 237, 0.22);
-  }
-  .event-actions {
-    display: flex;
-    justify-content: flex-end;
-  }
-  .edit-button {
-    min-width: 86px;
-    min-height: 30px;
-    padding: 3px 6px;
   }
   .timeline-marker {
     font-size: 0.8rem;
