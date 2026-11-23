@@ -5,13 +5,13 @@
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   import { appState } from '../src/stores/projectStore.js';
   import { exportProject } from '../src/lib/persistence.js';
-  import { createPortableSave, readPortableVersion, mergeLegacyVersions } from '../src/lib/versionHistory.js';
+  import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
   let showProtected = false, showShared = false, busy = false, error = '', message = '';
   let password = '', newPassword = '', fileName = '';
   let serverCanCreate = false, serverReady = false;
-  let files = [], versions = [], selectedVersion = '', selectedPortableVersion = '';
+  let files = [], selectedPortableVersion = '';
   $: portableVersions = Array.isArray($appState.project.versionHistory?.entries)
     ? [...$appState.project.versionHistory.entries].reverse() : [];
   let openedId = '', revision = 0, editToken = '', leaseToken = '', leaseExpires = 0;
@@ -94,7 +94,7 @@
       const { project, editToken: token } = await decryptProject(JSON.parse(await file.text()), password);
       appState.importProject(project, file.name, true);
       editToken = token; activePassword = password; fileName = file.name;
-      openedId = ''; leaseToken = ''; revision = 0; versions = [];
+      openedId = ''; leaseToken = ''; revision = 0;
       message = 'Verschlüsselte lokale Datei geöffnet.'; error = '';
     } catch (e) { report(e); }
     finally { event.currentTarget.value = ''; }
@@ -110,7 +110,7 @@
     const decrypted = await decryptProject(result.envelope, password);
     editToken = decrypted.editToken; activePassword = password;
     openedId = file.id; fileName = file.name; revision = result.revision;
-    leaseToken = ''; leaseExpires = 0; versions = []; selectedVersion = '';
+    leaseToken = ''; leaseExpires = 0; selectedPortableVersion = '';
     appState.importProject(decrypted.project, file.name, true, true);
     message = 'Schreibgeschützt geöffnet. Zum Bearbeiten auschecken.';
   }
@@ -184,60 +184,14 @@
     appState.restoreVersion(restored);
     message = 'Früherer Stand geladen. Erst nach Speichern wird er zur neuen Version.';
   }
-  async function getVersions() {
-    if (!openedId) throw new Error('Bitte eine Online-Datei öffnen.');
-    versions = (await api('versions', null, { id: openedId })).versions || [];
-  }
-  async function migrateLegacyVersions() {
-    if (!openedId || !leaseToken || $appState.readOnly) {
-      throw new Error('Für die Migration muss die Online-Datei ausgecheckt sein.');
-    }
-    // Read and decrypt *every* legacy revision before changing the active project.
-    // Failed password / corrupt revision => keep the server archive untouched.
-    const old = (await api('versions', null, { id: openedId })).versions || [];
-    if (!old.length) { message = 'Keine alten PHP-Versionen vorhanden.'; return; }
-    const snapshots = [];
-    for (const entry of [...old].sort((a, b) => a.revision - b.revision)) {
-      const packet = await api('version', null, { id: openedId, rev: entry.revision });
-      let decrypted;
-      try {
-        decrypted = await decryptProject(packet.envelope, password || activePassword);
-      } catch {
-        const previousPassword = prompt('Passwort für die alte Serverrevision ' + entry.revision +
-          ' eingeben. Es wird nur im Browser verwendet. Abbrechen lässt die Historie unverändert.');
-        if (!previousPassword) throw new Error('Migration abgebrochen; alle Altversionen bleiben auf dem Server.');
-        try {
-          decrypted = await decryptProject(packet.envelope, previousPassword);
-        } catch {
-          throw new Error('Revision ' + entry.revision + ' konnte nicht entschlüsselt werden. Keine Änderungen übernommen.');
-        }
-      }
-      snapshots.push({ revision: entry.revision, createdAt: entry.createdAt, project: decrypted.project });
-    }
-    const before = $appState.project.versionHistory?.entries?.length || 0;
-    const merged = await mergeLegacyVersions($appState.project, snapshots, openedId, $appState.savedProject);
-    const count = merged.versionHistory.entries.length - before;
-    if (count) appState.stagePortableHistory(merged);
-    message = count ? count + ' alte Versionen in das Dateiarchiv übernommen. Bitte jetzt explizit Speichern.' :
-      'Alle historischen Serverstände sind bereits in der Projektdatei enthalten.';
-  }
-  async function restore() {
-    if (!leaseToken || !selectedVersion) throw new Error('Auschecken und Revision auswählen.');
-    if (!password) throw new Error('Passwort für diese historische Version eingeben.');
-    if (!confirm('Alte Serverrevision als ungespeicherten Arbeitsstand laden? Die bisherige Online-Version wird nicht überschrieben.')) return;
-    const payload = await api('version', null, { id: openedId, rev: selectedVersion });
-    const restored = await decryptProject(payload.envelope, password);
-    appState.restoreVersion({ ...restored.project, versionHistory: $appState.project.versionHistory });
-    message = 'Historische Serverrevision ' + selectedVersion + ' geladen; bitte mit Speichern als neue Dateiversion übernehmen.';
-  }
   async function changePassword() {
     if (!leaseToken) throw new Error('Vor Passwortwechsel auschecken.');
     if (!newPassword || newPassword.length < 8) throw new Error('Neues Passwort mit mindestens acht Zeichen wählen.');
-    if (!confirm('Aktuelle Revision neu verschlüsseln und alte Bearbeitungsberechtigung sperren? Historische Revisionen und versandte Backups können weiterhin mit ihren alten Passwörtern entschlüsselt werden.')) return;
+    if (!confirm('Die gesamte Projektdatei einschließlich Versionsarchiv neu verschlüsseln und die alte Bearbeitungsberechtigung sperren? Bereits versandte Backup-Dateien behalten ihr ursprüngliches Passwort.')) return;
     const newToken = randomSecret();
     await commitProject($appState.project, newPassword, newToken, true);
     activePassword = newPassword; password = newPassword; newPassword = '';
-    message = 'Passwort geändert und alte Schreibberechtigung widerrufen; ältere Revisionen behalten ihre bisherigen Passwörter.';
+    message = 'Passwort geändert: Das vollständige Versionsarchiv ist neu verschlüsselt, die alte Schreibberechtigung ist gesperrt.';
   }
 </script>
 <div class="storage-choices">
@@ -311,14 +265,7 @@
                 <button disabled={busy} on:click={() => run(renew)}>Bearbeitungszeit verlängern</button>
                 <button disabled={busy} on:click={() => run(checkin)}>Bearbeitung beenden</button>
               {/if}
-              <button disabled={busy} on:click={() => run(getVersions)}>Alte Serverversionen prüfen</button>
             </div>
-            {#if versions.length}
-              <p class="muted">Diese alten Serverversionen liegen noch getrennt vor. Übernimm sie in das portable Dateiarchiv, bevor die alten Serverdateien irgendwann entfernt werden.</p>
-              <button disabled={busy || !leaseToken} on:click={() => run(migrateLegacyVersions)}>Alte Serverversionen in Datei übernehmen</button>
-              <label>Alte PHP-Serverrevision (Migration/Altbestand)<select bind:value={selectedVersion}><option value="">Bitte wählen</option>{#each versions as v}<option value={v.revision}>{v.revision} · {v.createdAt}</option>{/each}</select></label>
-              <button disabled={busy || !leaseToken || !selectedVersion} on:click={() => run(restore)}>Gewählte Version wiederherstellen</button>
-            {/if}
             {#if leaseToken}
               <label>Neues Passwort für die gemeinsame Datei<input type="password" autocomplete="new-password" bind:value={newPassword}/></label>
               <button disabled={busy} on:click={() => run(changePassword)}>Dateipasswort ändern</button>
