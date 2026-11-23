@@ -121,7 +121,7 @@
   <div class="modal large-modal" role="dialog" aria-modal="true" aria-label={$translate("app.transfer")} on:keydown={confirmFromInput}>
     <div class="modal-header">
       <h3>{$translate("ui.transfer-or-redistribute-shares-1u1uj43")}</h3>
-      <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>
+      <button type="button" class="ghost" on:click={() => appState.closeDialog()} aria-label={$translate("ui.close-1qnddid")}>✕</button>
     </div>
     
     <div class="modal-body grid-redistribution">
