@@ -484,6 +484,156 @@ async function settlementEndToEnd(browser, url) {
   }
 }
 
+
+// Q04: Real Chromium checks at phone, tablet and desktop widths. These are
+// viewport/browser-engine checks, not claims about physical device coverage.
+async function responsiveUiAcceptance(browser, url) {
+  const checks = [320, 375, 390, 768, 1280];
+  for (const width of checks) {
+    const context = await browser.newContext({
+      locale: 'de-DE', viewport: { width, height: 640 }, acceptDownloads: true
+    });
+    try {
+      const page = await context.newPage();
+      const errors = [];
+      page.on('pageerror', e => errors.push(e.message));
+      const project = structuredClone(fixture);
+      project.community.name = 'Übungs-WG Q04';
+      // Enough actual content to scroll; do not inject fake DOM into the app.
+      const purchase = project.events.find(e => e.type === 'item-added');
+      for (let i = 1; i <= 20; i++) {
+        const id = 'q04-item-' + i;
+        const name = 'Küchenmöbel ' + i;
+        project.items.push({ id, name, tags: [] });
+        project.events.push({ ...purchase, id: 'q04-purchase-' + i,
+          itemId: id, name, date: '2025-01-02', order: i + 1,
+          initialValue: 30 + i });
+      }
+      await page.goto(url);
+      await page.evaluate(({ storageKey, copy }) =>
+        localStorage.setItem(storageKey, JSON.stringify(copy)),
+        { storageKey: key, copy: oneSaved(project) });
+      await page.reload();
+      await page.getByText('Übungs-WG Q04').first().waitFor();
+
+      async function section(id) {
+        const ids = ['overview', 'items', 'people', 'money', 'activity'];
+        if (width > 780) {
+          if (['save', 'settings'].includes(id)) {
+            await page.locator('.sidebar-bottom button').nth(id === 'save' ? 0 : 1).click();
+          } else {
+            await page.locator('.sidebar-links button').nth(ids.indexOf(id)).click();
+          }
+        } else if (ids.indexOf(id) < 4 && ids.includes(id)) {
+          await page.locator('.mobile-bottom-nav > button').nth(ids.indexOf(id)).click();
+        } else {
+          await page.locator('.mobile-more-slot > button').click();
+          await page.locator('.mobile-more-menu > button')
+            .nth(({ activity: 0, save: 1, settings: 2 })[id]).click();
+        }
+      }
+      async function noOverflow(stage) {
+        const dimensions = await page.evaluate(() => ({
+          document: document.documentElement.scrollWidth,
+          viewport: innerWidth
+        }));
+        assert.ok(dimensions.document <= dimensions.viewport + 2,
+          'Q04 ' + width + 'px ' + stage + ' horizontal overflow: ' +
+          JSON.stringify(dimensions));
+      }
+      await noOverflow('overview');
+      await section('items');
+      await noOverflow('inventory');
+      const header = page.locator('.app-header');
+      const cssPosition = await header.evaluate(el => getComputedStyle(el).position);
+      assert.equal(cssPosition, 'sticky', 'Header must use sticky positioning at ' + width + 'px');
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForFunction(() => window.scrollY > 100, null, { timeout: 2000 });
+      const headerOnScroll = await header.boundingBox();
+      assert.ok(Math.abs(headerOnScroll.y) <= 1,
+        'Q04 ' + width + 'px header left the viewport: ' + JSON.stringify(headerOnScroll));
+
+      // Item details must render umlauts and an ampersand as real characters.
+      await page.locator('.item-tile').filter({ hasText: 'Kühlschrank' })
+        .getByRole('button').click();
+      await page.getByRole('heading', { name: 'Finanzierung & Wertausgleich' }).waitFor();
+      assert.equal(await page.getByText('&amp;', { exact: false }).count(), 0);
+      assert.ok(await page.locator('.action-grid button svg').count() >= 3);
+      await noOverflow('item detail');
+
+      await section('money');
+      await noOverflow('settlement');
+      const helpButton = page.locator('.ledger-v3 .help-trigger').first();
+      await helpButton.click();
+      const help = page.locator('.help-popup');
+      await help.waitFor();
+      assert.match(await help.innerText(), /Anna/);
+      assert.match(await help.innerText(), /300/);
+      const popup = await help.boundingBox();
+      assert.ok(popup.x >= 0 && popup.x + popup.width <= width + 2,
+        'Q04 ' + width + 'px help popup clipped horizontally: ' + JSON.stringify(popup));
+      await page.keyboard.press('Escape');
+      assert.equal(await help.count(), 0, 'Help should close on Escape');
+      const undo = page.getByRole('button', { name: /Rückgängig \(Strg\+Z\)/ });
+      const redo = page.getByRole('button', { name: /Wiederholen \(Strg\+Y\)/ });
+      const beforeUndo = await undo.boundingBox();
+      const beforeRedo = await redo.boundingBox();
+      // Check chosen historical date is the default for new payments.
+      await page.getByRole('button', { name: 'Stichtag wählen' }).click();
+      await page.locator('#state-date').fill('2025-01-05');
+      await page.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
+      const paymentDialog = page.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
+      assert.equal(await paymentDialog.locator('input[type=date]').inputValue(), '2025-01-05');
+      await paymentDialog.getByRole('button', { name: 'Abbrechen' }).click();
+      await paymentDialog.waitFor({ state: 'hidden' });
+      await page.getByRole('button', { name: 'Zurück zu heute' }).click();
+
+      await payment(page, '5');
+      const afterUndo = await undo.boundingBox();
+      const afterRedo = await redo.boundingBox();
+      assert.ok(Math.abs(beforeUndo.x - afterUndo.x) <= 1 &&
+        Math.abs(beforeRedo.x - afterRedo.x) <= 1,
+        'Q04 ' + width + 'px Undo/Redo shifted when unsaved state changed');
+      const wait = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await wait;
+      await page.locator('.save-feedback[role="status"]').waitFor();
+      const savedUndo = await undo.boundingBox();
+      assert.ok(Math.abs(beforeUndo.x - savedUndo.x) <= 1,
+        'Q04 ' + width + 'px Undo shifted after saving');
+      // Navigating away must remove a success message, not leave it on every page.
+      await section('people');
+      assert.equal(await page.locator('.save-feedback').count(), 0);
+      await noOverflow('people');
+
+      // Person editor must stay within viewport and Enter must confirm.
+      const addPerson = page.locator('.page-heading button').first();
+      await addPerson.click();
+      const personInput = page.locator('.person-name-field input');
+      const field = await personInput.boundingBox();
+      assert.ok(field.width < width && field.x >= -1 && field.x + field.width <= width + 2,
+        'Q04 ' + width + 'px person field extends outside viewport');
+      await personInput.fill('Änne Über');
+      await personInput.press('Enter');
+      await page.locator('[role="dialog"]').waitFor({ state: 'hidden' });
+      assert.equal(await page.getByText('Änne Über').count() > 0, true);
+      await noOverflow('person added');
+
+      await section('activity');
+      await noOverflow('timeline');
+      await section('save');
+      await noOverflow('storage');
+      await section('settings');
+      await noOverflow('settings');
+      assert.deepEqual(errors, [], 'Q04 ' + width + 'px browser errors');
+      console.log('Browser Q04 QA: ' + width +
+        'px sticky header, fixed Undo/Redo, UTF-8, icons, help, dialogs, navigation and overflow passed');
+    } finally {
+      await context.close();
+    }
+  }
+}
+
 async function freePort() {
   const srv = createServer();
   await new Promise(resolve => srv.listen(0, '127.0.0.1', resolve));
@@ -565,6 +715,7 @@ try {
   await localization(browser, offlineServer.url);
   await offline(browser, offlineServer.url);
   await settlementEndToEnd(browser, offlineServer.url);
+  await responsiveUiAcceptance(browser, offlineServer.url);
   await phpOnline(browser);
 } catch (error) {
   console.error('Real-browser QA failed:', error);
