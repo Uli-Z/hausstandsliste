@@ -38,12 +38,6 @@ jobs:
       - name: Verify standalone HTML bootstrap
         working-directory: hausstand-svelte
         run: node scripts/check-standalone.mjs
-      - name: Build and verify separate UI V2
-        working-directory: hausstand-svelte
-        run: npm run build:ui-v2
-      - name: Build and verify separate UI V3
-        working-directory: hausstand-svelte
-        run: npm run build:ui-v3
       - name: Confirm standalone artifact
         working-directory: hausstand-svelte
         run: |

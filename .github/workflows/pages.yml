@@ -40,8 +40,6 @@ jobs:
           node scripts/check-standalone.mjs
           mkdir -p dist/pages
           cp dist/hausstand-standalone.html dist/pages/index.html
-          npm run build:ui-v2
-          npm run build:ui-v3
           touch dist/pages/.nojekyll
       - name: Downloadable Pages preview (also if Pages not yet enabled)
         uses: actions/upload-artifact@v4

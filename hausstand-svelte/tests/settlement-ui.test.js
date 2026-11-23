@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('settlement proposals are the primary action, before personal balances and optional audit history', () => {
-  for (const path of ['ui-v3/LedgerView.svelte', 'src/components/LedgerPanel.svelte']) {
+  for (const path of ['ui-v3/LedgerView.svelte']) {
     const s = source(path);
     const proposal = s.indexOf('So könnt ihr ausgleichen');
     const personal = s.indexOf('Salden der Personen');
@@ -51,7 +51,7 @@ test('contextual help does not occupy the main layout until requested', () => {
   assert.match(help, /event\.key === 'Escape'/);
   assert.match(help, /onWindowClick/);
 
-  for (const file of ['ui-v3/LedgerView.svelte', 'src/components/LedgerPanel.svelte']) {
+  for (const file of ['ui-v3/LedgerView.svelte']) {
     const s = source(file);
     assert.match(s, /import HelpTip/);
     assert.match(s, /<HelpTip label="Wie funktionieren die Zahlungsvorschläge\?"/);

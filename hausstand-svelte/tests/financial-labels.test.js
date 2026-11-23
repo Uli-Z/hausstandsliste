@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import {
   PAYMENT_STATUS_NOTICE, BILATERAL_BALANCE_DESCRIPTION,
   MULTILATERAL_SUGGESTION_DESCRIPTION, REDISTRIBUTION_SUGGESTION_TITLE,
@@ -10,7 +9,6 @@ import {
 } from '../src/lib/financialLabels.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
 test('A06: labels always separate derived claims, payment suggestions and booked payments', () => {
@@ -62,19 +60,19 @@ test('A06: zero net balance does not certify a paid debt', () => {
 });
 
 test('A06: both interfaces use the same semantic labels and timelines never show payment counts', () => {
-  for (const flavor of ['src/components/', 'ui-v3/']) {
+  for (const flavor of ['ui-v3/']) {
     const timeline = source(flavor + 'Timeline.svelte');
     assert.match(timeline, /FINANCIAL_EVENT_NOTE\(event\)/);
     assert.match(timeline, /ITEM_FUNDING_NOTE\(event\)/);
     assert.doesNotMatch(timeline, /preview\.payments\.length/);
     assert.doesNotMatch(timeline, /\} Zahlungen/);
-    const panel = source(flavor + (flavor.startsWith('ui-') ? 'LedgerView.svelte' : 'LedgerPanel.svelte'));
+    const panel = source(flavor + 'LedgerView.svelte');
     assert.match(panel, /Salden der Personen/);
     assert.match(panel, /Ausgleichen/);
     assert.match(panel, /BalanceBreakdown/);
     assert.match(panel, /Zahlung erfassen/);
     assert.match(panel, /Herkunft der Wertverschiebungen/);
-    const prefix = flavor.startsWith('ui-') ? 'ui-v3/' : 'src/components/';
+    const prefix = 'ui-v3/';
     for (const name of ['RedistributionDialog.svelte', 'ExecutedRedistributionEditDialog.svelte']) {
       const dialog = source(prefix + name);
       assert.match(dialog, /REDISTRIBUTION_SUGGESTION_TITLE/);

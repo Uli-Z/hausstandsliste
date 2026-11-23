@@ -30,8 +30,9 @@ assert.match(html,/person-name-field/,'Person name field must be layout-bounded'
 assert.match(await readFile(path.join(root,'ui-v3','DialogRouter.svelte'),'utf8'),/confirmFromInput/,'Dialog Enter handling missing');
 
 const phpMode=process.argv.includes('--php');
-const out=phpMode ? path.join(root,'dist') : path.join(root,'dist','pages','ui-v3');
-const filename=phpMode?'php-ui.html':'index.html';
+const standaloneMode = process.argv.includes('--standalone');
+const out = phpMode || standaloneMode ? path.join(root,'dist') : path.join(root,'dist','pages');
+const filename = phpMode ? 'php-ui.html' : standaloneMode ? 'hausstand-standalone.html' : 'index.html';
 await mkdir(out,{recursive:true});
 await writeFile(path.join(out,filename),html,'utf8');
-console.log((phpMode?'PHP UI V3':'Standalone UI V3')+' validated: '+path.join(out,filename));
+console.log((phpMode?'PHP UI': 'Offline UI')+' validated: '+path.join(out,filename));
