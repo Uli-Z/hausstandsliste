@@ -72,6 +72,7 @@ async function localization(browser, url) {
     assert.equal(await page.locator('html').getAttribute('lang'), 'de');
     await page.locator('.sidebar').getByRole('button', { name: 'Einstellungen' }).waitFor();
     await page.reload();
+    await page.locator('.sidebar').getByRole('button', { name: 'Einstellungen' }).click();
     assert.equal(await page.locator('html').getAttribute('lang'), 'de');
     assert.equal(await page.locator('#language-selection').inputValue(), 'de');
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hausstand_svelte_v07_working_copy')));
