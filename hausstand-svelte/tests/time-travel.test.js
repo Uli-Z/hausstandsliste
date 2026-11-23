@@ -6,6 +6,14 @@ import { appState } from '../src/stores/projectStore.js';
 import { todayISO } from '../src/lib/util.js';
 import { validCalendarDate, openDatePicker, dismissDatePicker, selectAsOfDate, returnToToday, syncCalendarDay } from '../src/lib/timeTravel.js';
 
+// The project store writes an ordinary browser working copy; Node has no DOM.
+const localValues = new Map();
+globalThis.localStorage = {
+  setItem: (key, value) => localValues.set(key, value),
+  getItem: key => localValues.get(key) ?? null,
+  removeItem: key => localValues.delete(key)
+};
+
 const base = { asOfDate: '2026-11-23', datePickerOpen: false, timeTravelActive: false, dirty: true };
 test('only valid calendar dates can be selected', () => {
   for (const x of ['', 'tomorrow', '2026-02-30', '2026-2-03', '2025-02-29', '2026-12-01T00:00:00']) {
