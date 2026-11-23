@@ -559,6 +559,31 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       assert.equal(await page.getByText('&amp;', { exact: false }).count(), 0);
       assert.ok(await page.locator('.action-grid button svg').count() >= 3);
       await noOverflow('item detail');
+      // Ownership shares: editor fields and its save footer stay usable on a
+      // narrow phone; accepting a change must close the dialog cleanly.
+      await page.getByRole('button', { name: 'Eigentumsanteile ändern' }).click();
+      const ownershipDialog = page.locator('[role="dialog"]');
+      await noOverflow('share editor');
+      const firstShare = ownershipDialog.locator('.share-row input[type=number]').first();
+      const shareBounds = await firstShare.boundingBox();
+      assert.ok(shareBounds.x >= 0 && shareBounds.x + shareBounds.width <= width + 2,
+        'Q04 ' + width + 'px ownership field clipped');
+      await firstShare.fill('2');
+      const ownershipFooter = await ownershipDialog.locator('.modal-footer').boundingBox();
+      assert.ok(ownershipFooter.y + ownershipFooter.height <= 642,
+        'Q04 ' + width + 'px ownership save footer not visible');
+      await ownershipDialog.locator('.modal-footer button.primary').click();
+      await ownershipDialog.waitFor({ state: 'hidden' });
+
+      await section('items');
+      await page.locator('.inventory-bottom .outline-action').click();
+      const transferDialog = page.locator('[role="dialog"]');
+      await noOverflow('transfer dialog');
+      const transferFooter = await transferDialog.locator('.modal-footer').first().boundingBox();
+      assert.ok(transferFooter.y + transferFooter.height <= 642,
+        'Q04 ' + width + 'px transfer footer clipped');
+      await transferDialog.locator('.modal-footer button').first().click();
+      await transferDialog.waitFor({ state: 'hidden' });
 
       await section('money');
       await noOverflow('settlement');
