@@ -6,6 +6,7 @@
   import { dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
+  import ActionIcon from '../src/components/ActionIcon.svelte';
   export let item;
   $: itemClaims = ($ledger.claims || []).filter(claim => claim.itemId === item.id);
   $: fundingEvents = ($appState.project.events || []).filter(event =>
@@ -37,10 +38,10 @@
       <div class="mini-card stack">
         <strong>{$translate("ui.available-actions-1pvpibj")}</strong>
         <div class="action-grid">
-          <button on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}>{$translate("ui.edit-item-birsg")}</button>
-          <button on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}>{$translate("ui.change-ownership-shares-1x7cqup")}</button>
-          <button on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}>Beenden / archivieren</button>
-          <button on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}>{$translate('items.replace')}</button>
+          <button on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-item-birsg")}</button>
+          <button on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}><ActionIcon name="arrows" size={17}/>{$translate("ui.change-ownership-shares-1x7cqup")}</button>
+          <button on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}><ActionIcon name="archive" size={17}/>{$translate("ui.archive-qlwwpx")}</button>
+          <button on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}><ActionIcon name="plus" size={17}/>{$translate('items.replace')}</button>
         </div>
       </div>
     </div>
@@ -105,6 +106,7 @@
 </section>
 
 <style>
+  .action-grid button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
   .help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .item-status-text{color:var(--muted);font-size:12px}
   .funding-fact{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border)}
