@@ -83,16 +83,11 @@ if ($api !== '') {
         return [$dir, readJson($dir . '/meta.json')];
     }
     function currentPath(string $dir, array $meta): string {
-        // currentFile is a server-generated name, never user input.
-        if (isset($meta['currentFile'])) {
-            if (!is_string($meta['currentFile'])
-                || !preg_match('/^current-[1-9][0-9]*\.json$/D', $meta['currentFile']))
-                fail(500, 'Ungültiger Server-Dateizeiger.');
-            return $dir . '/' . $meta['currentFile'];
-        }
-        // Transitional single-file and original pre-migration legacy layout.
-        if (is_file($dir . '/current.json')) return $dir . '/current.json';
-        return $dir . '/versions/' . $meta['revision'] . '.json';
+        // Technical revision pointer is controlled by PHP, not the client.
+        $current = $meta['currentFile'] ?? null;
+        if (!is_string($current) || !preg_match('/^current-[1-9][0-9]*\.json$/D', $current))
+            fail(500, 'Ungültiger Server-Dateizeiger.');
+        return $dir . '/' . $current;
     }
     function authorize(array $meta): void {
         $token = (string) ($_SERVER['HTTP_X_FILE_TOKEN'] ?? '');
@@ -119,7 +114,6 @@ if ($api !== '') {
         return [$email, $from];
     }
     // E-mail is a separate encrypted backup transport, never the project history.
-    // Retain old versions/ as READ-ONLY legacy data until explicit client migration.
     function stageMailCopy(string $dir, array &$meta, int $rev, array $envelope): string {
         [$email, $from] = mailConfig();
         if ($email === '') return 'disabled';
@@ -136,32 +130,29 @@ if ($api !== '') {
     function mailPending(string $dir, array &$meta): void {
         [$email, $from] = mailConfig();
         if ($email === '') return;
-        foreach (['versions' => 'versions', 'mailQueue' => 'mail-queue'] as $field => $subfolder) {
-            if (empty($meta[$field])) continue;
-            foreach ($meta[$field] as &$entry) {
-                if (($entry['mailStatus'] ?? '') === 'sent' || ($entry['mailStatus'] ?? '') === 'disabled') continue;
-                if (($entry['attempts'] ?? 0) >= 5) continue;
-                if ((int) ($entry['lastAttempt'] ?? 0) + 300 > time()) continue;
-                $rev = $entry['revision'];
-                $source = $dir . '/' . $subfolder . '/' . $rev . '.json';
-                $content = @file_get_contents($source);
-                if ($content === false) continue;
-                $boundary = 'hausstand-' . bin2hex(random_bytes(12));
-                $body = "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n"
-                    . "Verschluesselte Hausstand-Projektdatei, Revision $rev. Das Passwort wird nicht mitgesendet.\r\n"
-                    . "--$boundary\r\nContent-Type: application/octet-stream; name=\"hausstand-$rev.enc.json\"\r\n"
-                    . "Content-Disposition: attachment; filename=\"hausstand-$rev.enc.json\"\r\n"
-                    . "Content-Transfer-Encoding: base64\r\n\r\n"
-                    . chunk_split(base64_encode($content)) . "\r\n--$boundary--\r\n";
-                $headers = "From: $from\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"$boundary\"";
-                $ok = @mail($email, "Hausstand verschluesselte Sicherung Revision $rev", $body, $headers);
-                $entry['attempts'] = ((int) ($entry['attempts'] ?? 0)) + 1;
-                $entry['lastAttempt'] = time();
-                $entry['mailStatus'] = $ok ? 'sent' : 'pending';
-                if ($ok && $field === 'mailQueue') @unlink($source);
-            }
-            unset($entry);
+        foreach ($meta['mailQueue'] ?? [] as &$entry) {
+            if (($entry['mailStatus'] ?? '') === 'sent') continue;
+            if (($entry['attempts'] ?? 0) >= 5) continue;
+            if (($entry['lastAttempt'] ?? 0) + 300 > time()) continue;
+            $rev = $entry['revision'];
+            $source = $dir . '/mail-queue/' . $rev . '.json';
+            $content = @file_get_contents($source);
+            if ($content === false) continue;
+            $boundary = 'hausstand-' . bin2hex(random_bytes(12));
+            $body = "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n"
+                . "Verschluesselte Hausstand-Projektdatei, Revision $rev. Das Passwort wird nicht mitgesendet.\r\n"
+                . "--$boundary\r\nContent-Type: application/octet-stream; name=\"hausstand-$rev.enc.json\"\r\n"
+                . "Content-Disposition: attachment; filename=\"hausstand-$rev.enc.json\"\r\n"
+                . "Content-Transfer-Encoding: base64\r\n\r\n"
+                . chunk_split(base64_encode($content)) . "\r\n--$boundary--\r\n";
+            $headers = "From: $from\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"$boundary\"";
+            $ok = @mail($email, "Hausstand verschluesselte Sicherung Revision $rev", $body, $headers);
+            $entry['attempts'] = ((int) ($entry['attempts'] ?? 0)) + 1;
+            $entry['lastAttempt'] = time();
+            $entry['mailStatus'] = $ok ? 'sent' : 'pending';
+            if ($ok) @unlink($source);
         }
+        unset($entry);
         atomicJson($dir . '/meta.json', $meta);
     }
     $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
@@ -199,7 +190,7 @@ if ($api !== '') {
     $lockHandle = fopen($root . '/.mutex', 'c');
     if (!$lockHandle || !flock($lockHandle, LOCK_EX)) fail(503, 'Server-Sperre nicht verfügbar.');
     $method = $_SERVER['REQUEST_METHOD'];
-    $readActions = ['config', 'files', 'read', 'versions', 'version'];
+    $readActions = ['config', 'files', 'read'];
     if (in_array($api, $readActions, true)) {
         if ($method !== 'GET') fail(405, 'GET erforderlich.');
         if ($api === 'config') reply(['canCreate' => $allowCreate]);
@@ -215,16 +206,7 @@ if ($api !== '') {
         }
         $id = requireId($_GET['id'] ?? '');
         [$dir, $meta] = checkedFile($root, $id);
-        if ($api === 'versions') reply(['versions' => array_reverse($meta['versions'] ?? [])]); // Legacy migration only
-        if ($api === 'version') {
-            $rev = filter_var($_GET['rev'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-            if (!$rev || !is_file($dir . '/versions/' . $rev . '.json')) fail(404, 'Alte Revision nicht vorhanden.');
-            reply(['revision' => $rev, 'envelope' => readJson($dir . '/versions/' . $rev . '.json')]);
-        }
-        // New files use a single current.json; pre-migration files keep their
-        // former current revision readable until the first new Save.
-        $path = currentPath($dir, $meta);
-        reply(['revision' => $meta['revision'], 'envelope' => readJson($path)]);
+        reply(['revision' => $meta['revision'], 'envelope' => readJson(currentPath($dir, $meta))]);
     }
     if ($method !== 'POST') fail(405, 'POST erforderlich.');
     $body = submitted();
@@ -237,13 +219,12 @@ if ($api !== '') {
         $tokenHash = requireHash($body['tokenHash'] ?? null);
         $dir = $root . '/files/' . $id;
         if (file_exists($dir) || !mkdir($dir, 0700, true)) fail(409, 'Datei-ID bereits vergeben.');
-        // Only ONE current encrypted document. Its embedded versionHistory is
-        // the portable record; no new server-side revisions directory.
+        // The encrypted project contains its own complete versionHistory.
         atomicJson($dir . '/current-1.json', $envelope);
         $meta = [
             'id' => $id, 'name' => $name, 'revision' => 1, 'currentFile' => 'current-1.json', 'tokenHash' => $tokenHash,
             'leaseHash' => null, 'leaseExpires' => 0, 'updatedAt' => gmdate('c'),
-            'versions' => [], 'mailQueue' => []
+            'mailQueue' => []
         ];
         $mailStatus = stageMailCopy($dir, $meta, 1, $envelope);
         atomicJson($dir . '/meta.json', $meta);
@@ -281,12 +262,9 @@ if ($api !== '') {
         $envelope = requireEnvelope($body['envelope'] ?? null);
         $rotateHash = isset($body['newTokenHash']) ? requireHash($body['newTokenHash']) : null;
         $next = (int) $meta['revision'] + 1;
-        // Technical server revision still increments, but is NOT a second
-        // historical project file. Legacy versions stay untouched/read-only.
-        // Two-phase pointer swap: a crash before meta.json is committed keeps
-        // the prior encrypted file authoritative. No previous state is treated
-        // as a separately browsable server revision.
-        $previousCurrent = $meta['currentFile'] ?? (is_file($dir . '/current.json') ? 'current.json' : null);
+        // Two-phase pointer swap: a crash before meta.json is committed leaves
+        // the prior encrypted file authoritative, without keeping a history.
+        $previousCurrent = $meta['currentFile'];
         $nextCurrent = 'current-' . $next . '.json';
         atomicJson($dir . '/' . $nextCurrent, $envelope);
         $meta['currentFile'] = $nextCurrent;
