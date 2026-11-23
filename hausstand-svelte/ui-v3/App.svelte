@@ -311,7 +311,6 @@
       {:else if activeSection === 'overview'}
         <section class="page-heading">
           <div><h1>{$translate("nav.overview")}</h1></div>
-          <button class="solid-action" on:click={() => appState.setDialog({ type: 'itemAdd' })}>＋ {$translate("app.itemAdd")}</button>
         </section>
 
         {#if $appState.project.people.length === 0 && $appState.project.items.length === 0}
@@ -356,7 +355,7 @@
             {/if}
           </section>
         </div>
-        <div class="overview-layout second-row">
+        <div class="overview-layout second-row" class:only-recent={!drafts.length}>
           <section class="ux-panel">
             <div class="section-header"><div><h2>{$translate("app.recent")}</h2></div><button class="text-action" on:click={() => navigate('activity')}>{$translate("app.viewActivity")}</button></div>
             {#if latestEvents.length}
@@ -369,9 +368,9 @@
               <div class="gentle-empty"><p>{$translate("app.none")}</p></div>
             {/if}
           </section>
+          {#if drafts.length}
           <section class="ux-panel">
             <div class="section-header"><div><h2>{$translate("app.drafts")}</h2></div></div>
-            {#if drafts.length}
               <div class="draft-list">
                 {#each drafts as draft (draft.id)}
                   <div class="draft-row">
@@ -383,10 +382,8 @@
                   </div>
                 {/each}
               </div>
-            {:else}
-              <div class="gentle-empty"><p>{$translate("app.noDrafts")}</p></div>
-            {/if}
           </section>
+          {/if}
         </div>
       {:else if activeSection === 'items'}
         <div class="page-heading"><div><h1>{$translate("nav.items")}</h1></div><button class="solid-action" on:click={() => appState.setDialog({type:'itemAdd'})}>＋ {$translate("app.itemAdd")}</button></div>
