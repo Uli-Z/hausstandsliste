@@ -132,8 +132,14 @@ async function offline(browser, url) {
   assert.equal(await page.locator('#time-travel-panel').isVisible(), true);
   await page.locator('#state-date').fill('2025-01-02');
   assert.equal(await page.locator('#state-date').inputValue(), '2025-01-02');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#time-travel-panel').count(), 0, 'Escape closes date popover');
+  assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /02\.01\.2025/);
+  await page.getByRole('button', { name: 'Stichtag wählen' }).click();
   await openFinance(page);
-  assert.equal(await page.locator('#time-travel-panel').isVisible(), true);
+  assert.equal(await page.locator('#time-travel-panel').count(), 0, 'picker closes on navigation');
+  assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /02\.01\.2025/);
+  await page.getByRole('button', { name: 'Stichtag wählen' }).click();
   await page.getByRole('button', { name: 'Zurück zu heute' }).click();
   assert.equal(await page.locator('#time-travel-panel').count(), 0);
   await page.getByRole('button', { name: 'Stichtag wählen' }).click();
@@ -317,6 +323,9 @@ async function settlementEndToEnd(browser, url) {
     assert.equal(await page.locator('#state-date').inputValue(), date);
   };
   const returnToday = async () => {
+    if (!await page.locator('#time-travel-panel').count()) {
+      await page.getByRole('button', { name: 'Stichtag wählen' }).click();
+    }
     await page.getByRole('button', { name: 'Zurück zu heute' }).click();
     assert.equal(await page.locator('#time-travel-panel').count(), 0);
   };
@@ -616,6 +625,8 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       assert.equal(await paymentDialog.locator('input[type=date]').inputValue(), '2025-01-05');
       await paymentDialog.getByRole('button', { name: 'Abbrechen' }).click();
       await paymentDialog.waitFor({ state: 'hidden' });
+      assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /05\.01\.2025/);
+      await page.getByRole('button', { name: 'Stichtag wählen' }).click();
       await page.getByRole('button', { name: 'Zurück zu heute' }).click();
 
       await payment(page, '5');
