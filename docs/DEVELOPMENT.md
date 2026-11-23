@@ -24,21 +24,25 @@ The Node test suite under `tests/` covers historical ownership and event order, 
 
 Only the **current** file schema is supported. Imported project JSON must have `schemaVersion: 1`, `currency: EUR`, `lastSavedAt` and embedded `versionHistory`; unsupported files must be rejected. No alternative historical file formats or PHP version archives are supported.
 
-## Automated browser acceptance (Chromium)
+## Full browser acceptance (manual GitHub Actions only)
 
-The separate [Browser acceptance QA](../.github/workflows/browser-qa.yml) workflow builds offline HTML and PHP, installs Playwright/Chromium, and runs `node tests/browser-qa.mjs`. It exercises financial balances, payment entry, Ctrl+Z/Ctrl+Y, downloading and reopening a portable project in another browser context, Restore, narrow mobile layout, and two-browser encrypted PHP checkout/revision conflict handling.
+The separate [Browser acceptance QA](../.github/workflows/browser-qa.yml) workflow is **not triggered by pushes or pull requests**. It is intentionally a manual `workflow_dispatch` job to avoid consuming GitHub Actions minutes installing and running all three Playwright browsers on every commit. In the GitHub repository, open **Actions → Browser acceptance QA → Run workflow → master → Run workflow** when a full browser regression is needed (for example before a release or after changing storage, UI navigation or cross-browser behavior).
 
-To execute locally with browser dependencies already installed:
+The suite builds offline HTML and PHP, installs Playwright with **Chromium, Firefox and WebKit**, and runs `node tests/browser-qa.mjs`. It exercises financial balances, payments, time travel, Undo/Redo, portable file archives, encrypted download/reimport and restore, responsive UI and PHP checkout/revision conflicts.
+
+Normal commits still trigger the separate **Svelte app checks** workflow (syntax checks, Node unit tests, standalone/PHP builds, PHP smoke test); the Pages deployment remains automated independently. Neither of those runs Playwright browser acceptance tests.
+
+To execute the full browser suite locally with browser dependencies installed:
 
 ```bash
 npm install --no-save --package-lock=false playwright@1.65.1
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 npm run build:single
 npm run build:php
 npm run test:browser
 ```
 
-Only the Chromium-specific successful parts from an actual workflow run may be claimed verified. Browser-engine diversity, real mobile devices and real HTTPS/PHP deployment remain additional checks.
+Automated browser coverage uses simulated viewport dimensions rather than physical mobile devices. Real mobile devices and external HTTPS/PHP deployment remain additional release checks.
 
 ## Manual browser acceptance (still necessary)
 
