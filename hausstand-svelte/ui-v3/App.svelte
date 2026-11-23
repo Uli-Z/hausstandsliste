@@ -3,10 +3,9 @@
   import { locale, languagePreference, setLanguage, resolveLocale, translate, pluralMessage, formatDate } from '../src/lib/i18n.js';
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
-  import { loadWorkingCopy, downloadProject, exportProject } from '../src/lib/persistence.js';
-  import { createPortableSave } from '../src/lib/versionHistory.js';
+  import { loadWorkingCopy, exportProject } from '../src/lib/persistence.js';
   import { historyShortcut } from '../src/lib/sessionUndo.js';
-  import { money, requireProjectFile } from '../src/lib/domain.js';
+  import { money } from '../src/lib/domain.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
   import PersonDetail from './PersonDetail.svelte';
@@ -33,7 +32,8 @@
   let showDanger = false;
   let mobileMoreOpen = false;
   let storageView;
-  let savingLocal = false;
+  let onlineEditing = false;
+  let onlineProjectOpen = false;
   let saveMessage = '';
   let saveMessageError = false;
   let feedbackTimer;
@@ -154,51 +154,17 @@
     if (e.key === 'Escape' && mobileMoreOpen) { mobileMoreOpen = false; return; }
     if (e.key === 'Escape' && $appState.datePickerOpen) { e.preventDefault(); dismissPicker(true); }
   }
-  async function importFile(event) {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    if (!file) return;
-    try {
-      const data = JSON.parse(await file.text());
-      if (data?.format?.startsWith('hausstand-aesgcm')) {
-        navigate('save');
-        throw new Error($translate("ui.this-file-is-password-protected-op-1ydtqqs"));
-      }
-      if ($appState.dirty && !confirm($translate("ui.the-current-working-copy-has-unsav-cc6kgv"))) return;
-      appState.importProject(requireProjectFile(data), file.name, false);
-      navigate('overview');
-    } catch (err) { alert($translate('app.openFailed') + err.message); }
-    finally { input.value = ''; }
-  }
-  async function exportNow() {
-    if (savingLocal) return;
-    if ($appState.secure) {
-      // Protected projects must not silently export sensitive history in plaintext.
-      navigate('save');
-      return;
-    }
-    savingLocal = true;
-    saveMessage = '';
-    try {
-      const saved = await createPortableSave($appState.project, $appState.savedProject);
-      downloadProject(saved, $appState.asOfDate);
-      appState.markSaved(saved);
-      showFeedback($translate("ui.download-started-keep-the-file-saf-1wje8bq"));
-    } catch (error) {
-      showFeedback($translate('app.saveFailed') + ': ' + (error?.message || error), true);
-    } finally { savingLocal = false; }
-  }
   async function saveNow() {
-    if ($appState.secure) {
-      const result = await storageView?.saveFromHeader?.();
-      if (result?.handled) { if (result.message) showFeedback(result.message, result.ok === false); return; }
-      navigate('save'); // Encrypted local file: requires the file password.
+    const result = await storageView?.saveFromHeader?.();
+    if (result?.handled) {
+      if (result.message) showFeedback(result.message, result.ok === false);
       return;
     }
-    await exportNow();
+    navigate('save');
   }
   function newProject() {
     if (!confirm($translate("ui.start-a-new-project-the-current-wo-1m8g44d"))) return;
+    if (storageView?.prepareToReplace?.() === false) return;
     appState.newProject();
     navigate('overview');
   }
@@ -285,7 +251,7 @@
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </span>
-        <button class="header-save" disabled={savingLocal} on:click={saveNow}><ActionIcon name="download" size={17}/><span>{$translate(savingLocal ? 'app.saving' : 'app.save')}</span></button>
+        <button class="header-save" on:click={saveNow}><ActionIcon name={onlineEditing ? 'check' : 'download'} size={17}/><span>{$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span></button>
       </div>
     </header>
 
@@ -400,22 +366,7 @@
         {#if futureEventCount}<div class="inline-info">{pluralMessage('app.futureEvents', futureEventCount)}</div>{/if}
         <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title={$translate('app.allChanges')}/>
       {:else if activeSection === 'save'}
-        <div class="page-heading"><div><h1>{$translate("nav.save")}</h1></div></div>
-        <div class="save-top-grid">
-          <section class="ux-panel save-basic">
-            <div class="section-header"><h2>{$translate("app.backupTitle")}</h2></div>
-            <div class="save-basic-actions">
-              <button class="solid-action" on:click={exportNow}>{$translate("app.download")}</button>
-              <label class="file-button">{$translate("app.openBackup")}<input type="file" accept="application/json,.json" on:change={importFile}/></label>
-            </div>
-            <div class="inline-info warning">{$translate("ui.this-simple-backup-is-1ngb60q")} <strong>{$translate("app.unencrypted")}</strong>{$translate("ui.keep-it-somewhere-safe-1kpyrlh")}</div>
-          </section>
-          <section class="ux-panel save-help">
-            <div class="section-header"><div class="help-heading"><h2>{$translate("app.whereData")}</h2><HelpTip label={$translate("ui.how-is-data-stored-locally-2w2m26")}>{$appState.secure ? $translate("ui.encrypted-projects-are-not-stored--1q6j80z") : SERVER_MODE ? $translate("ui.until-you-open-an-online-project-t-kk13hd") : $translate("ui.the-working-copy-is-stored-only-in-9z0gmz")}</HelpTip></div></div>
-            <div class="status-definition"><div><strong>{$appState.secure ? $translate("app.passwordProtected") : $translate("app.localCopy")}</strong></div></div>
-            <div class="status-definition"><div><strong>{$appState.dirty ? $translate("app.notExported") : $translate("app.noNew")}</strong></div></div>
-          </section>
-        </div>
+        <div class="page-heading"><div><h1>{$translate('storage.pageTitle')}</h1></div></div>
       {:else if activeSection === 'settings'}
         <div class="page-heading"><div><h1>{$translate("nav.settings")}</h1></div></div>
         <section class="ux-panel setting-panel">
@@ -425,10 +376,6 @@
             <option value="en">English</option>
             <option value="de">Deutsch</option>
           </select>
-        </section>
-        <section class="ux-panel setting-panel">
-          <div class="section-header"><div><h2>{$translate('app.currentProject')}</h2></div></div>
-          <dl class="project-metadata"><div><dt>{$translate("app.household")}</dt><dd>{$appState.project.community?.name || $translate("app.household")}</dd></div><div><dt>{$translate("app.openFile")}</dt><dd>{$appState.fileName || $translate('app.noFile')}</dd></div><div><dt>{$translate("app.editing")}</dt><dd>{$appState.readOnly ? $translate('app.readonly') : $translate('app.editable')}</dd></div></dl>
         </section>
         <details class="ux-panel setting-panel settings-advanced">
           <summary>{$translate('settings.advanced')}</summary>
@@ -450,7 +397,7 @@
       <!-- Keep the collaborative-storage component mounted: the server lease, edit token,
            selected remote file and password must survive tab/detail navigation. -->
       <div class:storage-not-visible={route.page !== 'dashboard' || activeSection !== 'save'}>
-        <StorageView bind:this={storageView}/>
+        <StorageView bind:this={storageView} bind:onlineEditing bind:onlineProjectOpen onProjectLoaded={() => navigate('overview')}/>
       </div>
     </main>
   </div>
