@@ -94,7 +94,10 @@ async function exerciseQuota(page, entryCount) {
   // Fill available storage *after* a valid import, leaving less than a single
   // project save's space. This tests the real QuotaExceededError path without
   // depending on a browser-specific fixed quota size.
-  const filled = await page.evaluate(() => {
+  const filled = await page.evaluate(key => {
+    // Release the old browser cache, then consume its freed capacity as well.
+    // The in-memory document remains open; the next edit must re-cache it.
+    localStorage.removeItem(key);
     let largest = 0;
     for (let n = 1; n <= 80; n++) {
       try {
@@ -106,7 +109,7 @@ async function exerciseQuota(page, entryCount) {
       }
     }
     return largest;
-  });
+  }, STORAGE_KEY);
   assert.ok(filled >= 256 * 1024, 'A browser quota could not be simulated');
   const picker = page.locator('section[aria-label="Gespeicherte Dateiversionen"] select');
   await picker.selectOption({ index: entryCount }); // oldest saved version
