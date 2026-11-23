@@ -148,7 +148,6 @@
         </details>
         <div class="settlement-confirmation">
           <strong>{kind === 'paid' ? $translate("ui.has-this-payment-already-been-made-120a38k") : $translate("ui.has-this-settlement-been-agreed-and-uy5i03")}</strong>
-          <HelpTip label={$translate("ui.what-does-confirmation-mean-1c76cot")}>{$translate("ui.the-event-is-recorded-in-the-timeli-1tcq3sk")}</HelpTip>
         </div>
         {#if Number.isSafeInteger(cents) && cents > 0 && payer !== recipient && payer && recipient}
           <p class="settlement-effect">Saldo: {people.find(p => p.id === payer)?.name} <strong>+{money(cents / 100)}</strong> · {people.find(p => p.id === recipient)?.name} <strong>−{money(cents / 100)}</strong></p>

@@ -400,10 +400,10 @@
         {#if futureEventCount}<div class="inline-info">{pluralMessage('app.futureEvents', futureEventCount)}</div>{/if}
         <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title={$translate('app.allChanges')}/>
       {:else if activeSection === 'save'}
-        <div class="page-heading"><div><h1>{$translate("nav.save")}</h1><HelpTip label={$translate("ui.where-are-project-files-stored-lr7d5h")}>{SERVER_MODE ? $translate("ui.you-can-create-backups-and-manage--16raxo9") : $translate("ui.this-html-version-stores-data-loca-107t5ed")}</HelpTip></div></div>
+        <div class="page-heading"><div><h1>{$translate("nav.save")}</h1></div></div>
         <div class="save-top-grid">
           <section class="ux-panel save-basic">
-            <div class="section-header"><div class="help-heading"><h2>{$translate("app.backupTitle")}</h2><HelpTip label={$translate("ui.what-is-a-backup-for-1ihicbw")}>{$translate("ui.download-your-project-data-to-open-dadpzf")}</HelpTip></div></div>
+            <div class="section-header"><h2>{$translate("app.backupTitle")}</h2></div>
             <div class="save-basic-actions">
               <button class="solid-action" on:click={exportNow}>{$translate("app.download")}</button>
               <label class="file-button">{$translate("app.openBackup")}<input type="file" accept="application/json,.json" on:change={importFile}/></label>
@@ -411,7 +411,7 @@
             <div class="inline-info warning">{$translate("ui.this-simple-backup-is-1ngb60q")} <strong>{$translate("app.unencrypted")}</strong>{$translate("ui.keep-it-somewhere-safe-1kpyrlh")}</div>
           </section>
           <section class="ux-panel save-help">
-            <div class="section-header"><div class="help-heading"><h2>{$translate("app.whereData")}</h2><HelpTip label={$translate("ui.how-is-data-stored-locally-2w2m26")}>{$appState.secure ? $translate("ui.encrypted-projects-are-not-stored--1q6j80z") : SERVER_MODE ? $translate("ui.until-you-open-an-online-project-t-kk13hd") : $translate("ui.the-working-copy-is-stored-only-in-9z0gmz")} Bitte sichere deine Daten regelmäßig als Datei.</HelpTip></div></div>
+            <div class="section-header"><div class="help-heading"><h2>{$translate("app.whereData")}</h2><HelpTip label={$translate("ui.how-is-data-stored-locally-2w2m26")}>{$appState.secure ? $translate("ui.encrypted-projects-are-not-stored--1q6j80z") : SERVER_MODE ? $translate("ui.until-you-open-an-online-project-t-kk13hd") : $translate("ui.the-working-copy-is-stored-only-in-9z0gmz")}</HelpTip></div></div>
             <div class="status-definition"><div><strong>{$appState.secure ? $translate("app.passwordProtected") : $translate("app.localCopy")}</strong></div></div>
             <div class="status-definition"><div><strong>{$appState.dirty ? $translate("app.notExported") : $translate("app.noNew")}</strong></div></div>
           </section>
@@ -419,10 +419,7 @@
       {:else if activeSection === 'settings'}
         <div class="page-heading"><div><h1>{$translate("nav.settings")}</h1></div></div>
         <section class="ux-panel setting-panel">
-          <div class="help-heading">
-            <label for="language-selection">{$translate('language.title')}</label>
-            <HelpTip label={$translate('language.title')}>{$translate('language.help')}</HelpTip>
-          </div>
+          <label for="language-selection">{$translate('language.title')}</label>
           <select id="language-selection" value={$languagePreference} on:change={e => setLanguage(e.currentTarget.value)}>
             <option value="auto">{$translate('language.auto')} ({autoLanguage === 'de' ? $translate('language.german') : $translate('language.english')})</option>
             <option value="en">English</option>
@@ -442,7 +439,7 @@
               {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
             </section>
             <section class="setting-advanced-block dangerous-settings">
-              <div class="section-header"><div class="help-heading"><h2>{$translate("app.newProject")}</h2><HelpTip label={$translate("ui.what-happens-when-starting-a-new-p-8ivv1x")}>{$translate("ui.resetting-replaces-the-current-wor-6b37pz")}</HelpTip></div></div>
+              <div class="section-header"><h2>{$translate("app.newProject")}</h2></div>
               <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? $translate("ui.cancel-cl4zc9") : $translate('app.reset')}</button>
               {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
             </section>

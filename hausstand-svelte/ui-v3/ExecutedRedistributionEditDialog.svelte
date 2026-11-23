@@ -134,7 +134,6 @@
               </label>
               <div class="financial-mode-help"><HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip></div>
             </div>
-            <div class="workflow-help"><HelpTip label={$translate("ui.process-help-e5wlpe")}>{$translate("ui.select-an-item-to-edit-its-shares-r-owkt2c")}</HelpTip></div>
           </section>
 
           <section class="stack" style="flex: 1; overflow: hidden;">
