@@ -1,23 +1,20 @@
-# Einstieg für KI-unterstützte Entwicklung
+# Hausstandsliste — repository entry point
 
+**Product:** Hausstandsliste — Shared Ownership Tracker. The current UI is in German; English-first localization (Q13) is planned. Documentation should be English. Persisted project keys and event identifiers do not change when the UI is localized.
 
-## Product naming and localization (23 November 2026)
+Read the current project guidance before editing:
 
-Use **Hausstandsliste — Shared Ownership Tracker** in app titles and new English-language documentation. The active UI is still mostly German until localization task **Q13**; see [language guidance](docs/LANGUAGE-AND-TERMINOLOGY.md) and [prioritized tasks](docs/WG-PRAXIS-TODO.md). Keep stored data identifiers and artifact filenames unchanged.
+- [AGENTS.md](AGENTS.md) — canonical implementation rules
+- [README.md](README.md) — goals and quick start
+- [Architecture](docs/ARCHITECTURE.md) — current event, project and storage model
+- [Development](docs/DEVELOPMENT.md) — builds and tests
+- [Roadmap](docs/ROADMAP.md) and [prioritized tasks](docs/WG-PRAXIS-TODO.md)
+- [Communal settlements](docs/FEATURE-COMMUNAL-SETTLEMENT.md)
+- [Portable file history](docs/FEATURE-PORTABLE-VERSION-HISTORY.md)
+- [Encrypted collaborative storage](docs/FEATURE-COLLABORATIVE-STORAGE.md)
+- [Security and encryption](docs/SECURITY-AND-ENCRYPTION.md)
+- [Deployment](docs/DEPLOYMENT.md)
 
+The **only** UI is `hausstand-svelte/ui-v3/` (with shared components under `src/components/`). Both the offline HTML build and optional PHP release use it. The **only** project file format is current schema v1 with an embedded compressed portable history; no old file or separate server version migrations are supported. See [application-specific notes](hausstand-svelte/GEMINI.md).
 
-Die aktuelle Hausstandsliste wird unter `hausstand-svelte/` entwickelt. Bitte vor Änderungen lesen:
-
-- [AGENTS.md](AGENTS.md) – Arbeitsregeln und Lesereihenfolge
-- [README.md](README.md) – Projektzweck und Schnellstart
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – Fachmodell
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) – Build und Tests
-- [docs/ROADMAP.md](docs/ROADMAP.md) – aktueller Stand
-- [docs/FEATURE-DEBT-LEDGER.md](docs/FEATURE-DEBT-LEDGER.md) – Planung Forderungen/Nettoschulden
-- [docs/FEATURE-COLLABORATIVE-STORAGE.md](docs/FEATURE-COLLABORATIVE-STORAGE.md) – PHP-Kollaboration, Lock/Versionen/E-Mail
-- [docs/SECURITY-AND-ENCRYPTION.md](docs/SECURITY-AND-ENCRYPTION.md) – Browser-Verschlüsselung und Sicherheitsgrenzen
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) – GitHub Pages / PHP-Hosting
-
-Ergänzende Svelte-spezifische Hinweise stehen in [hausstand-svelte/GEMINI.md](hausstand-svelte/GEMINI.md).
-
-**Wichtig:** Es gibt aktuell keine persistente Erfassung tatsächlich geleisteter Ausgleichszahlungen; nur Vorschläge. Keine Zahlungsbestätigung mit der Ausführung einer Anteilsumverteilung verwechseln.
+**Important:** Actual completed payments are already recorded as independent dated events and must not be confused with suggested payments or automatic transfer proposals. Financial balances are derived from ownership and settlement events, not persisted paid/unpaid flags.
