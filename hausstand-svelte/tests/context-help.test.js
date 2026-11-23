@@ -27,7 +27,10 @@ test('context help can be discovered and dismissed via touch and keyboard', () =
 test('redundant help icons are removed while meaningful explanations and warnings remain', () => {
   const app = source('ui-v3/App.svelte');
   const save = app.slice(app.indexOf("{:else if activeSection === 'save'}"), app.indexOf("{:else if activeSection === 'settings'}"));
-  assert.equal((save.match(/<HelpTip/g) || []).length, 1, 'only storage-context help remains in the backup summary');
+  assert.equal((save.match(/<HelpTip/g) || []).length, 0, 'the saving task is explained directly without redundant help buttons');
+  const storage = source('ui-v3/StorageView.svelte');
+  assert.equal((storage.match(/<HelpTip/g) || []).length, 1, 'only online collaboration needs contextual help');
+  assert.match(storage, /storage\.openExplanation/);
   const settings = app.slice(app.indexOf("{:else if activeSection === 'settings'}"), app.indexOf("{/key}"));
   assert.ok(!settings.includes("<HelpTip label={$translate('language.title')}"));
   assert.ok(!settings.includes('ui.what-happens-when-starting-a-new-p-8ivv1x'));
