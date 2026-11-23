@@ -121,6 +121,22 @@ async function offline(browser, url) {
   const failures = [];
   page.on('pageerror', e => failures.push(e.message));
   await bootFixture(page, url);
+  // Q10: date controls are opt-in, remain across pages and reset on reload.
+  assert.equal(await page.locator('#time-travel-panel').count(), 0);
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await page.locator('#time-travel-panel').count(), 0);
+  await page.getByRole('button', { name: 'Stichtag wählen' }).click();
+  assert.equal(await page.locator('#time-travel-panel').isVisible(), true);
+  await page.locator('#state-date').fill('2025-01-02');
+  assert.equal(await page.locator('#state-date').inputValue(), '2025-01-02');
+  await openFinance(page);
+  assert.equal(await page.locator('#time-travel-panel').isVisible(), true);
+  await page.getByRole('button', { name: 'Zurück zu heute' }).click();
+  assert.equal(await page.locator('#time-travel-panel').count(), 0);
+  await page.getByRole('button', { name: 'Stichtag wählen' }).click();
+  await page.locator('#state-date').fill('2025-01-02');
+  await page.reload();
+  assert.equal(await page.locator('#time-travel-panel').count(), 0);
   await openFinance(page);
   await balance(page, 'Anna', '200,00');
   await balance(page, 'Ben', '100,00');
