@@ -82,7 +82,9 @@
     download(envelope, (fileName.trim() || 'hausstand') + '.hausstand.enc.json');
     if (!openedId) {
       editToken = token;
-      appState.importProject(saved, fileName || 'Verschlüsselt', true);
+      activePassword = password;
+      if ($appState.secure) appState.markSaved(saved); // Keep session Undo across saves.
+      else appState.importProject(saved, fileName || 'Verschlüsselt', true);
     }
     // An online project is not saved on the server by downloading a backup.
     message = openedId ? 'Verschlüsselte Sicherung heruntergeladen; Online-Änderungen noch nicht gespeichert.' : 'Verschlüsselte Projektdatei heruntergeladen.';
@@ -170,9 +172,20 @@
   }
   export async function saveFromHeader() {
     if (busy) return { handled: true, ok: false, message: 'Ein Speichervorgang läuft bereits.' };
-    if (!openedId || !leaseToken) return { handled: false };
+    if (!openedId && (!$appState.secure || !activePassword)) return { handled: false };
+    if (openedId && !leaseToken) return { handled: false };
     busy = true; error = ''; message = '';
     try {
+      if (!openedId) {
+        // A decrypted local file has an in-memory password from this session.
+        // Re-export with that password; never convert it to a plaintext download.
+        const saved = await createPortableSave($appState.project, $appState.savedProject);
+        const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
+        download(envelope, (fileName.trim() || 'hausstand') + '.hausstand.enc.json');
+        appState.markSaved(saved);
+        message = 'Verschlüsselten Download gestartet. Datei bitte sicher aufbewahren.';
+        return { handled: true, ok: true, message };
+      }
       await saveRemote();
       return { handled: true, ok: true, message };
     } catch (e) {
