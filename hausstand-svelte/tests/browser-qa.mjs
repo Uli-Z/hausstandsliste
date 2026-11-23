@@ -177,8 +177,9 @@ async function offline(browser, url) {
     await openFinance(encryptedPage);
     await balance(encryptedPage, 'Anna', '200,00');
     await openSave(encryptedPage);
+    // Versions are displayed newest first: index 1 is the payment state.
     await encryptedPage.locator('section[aria-label="Gespeicherte Dateiversionen"] select')
-      .selectOption({ index: 2 });
+      .selectOption({ index: 1 });
     encryptedPage.on('dialog', dialog => dialog.accept());
     await encryptedPage.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
     try {
