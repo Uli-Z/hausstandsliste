@@ -69,11 +69,11 @@ test('A06: current UI uses consistent financial labels and no payment counts', (
     assert.doesNotMatch(timeline, /preview\.payments\.length/);
     assert.doesNotMatch(timeline, /\} Zahlungen/);
     const panel = source(flavor + 'LedgerView.svelte');
-    assert.ok(hasTranslation(panel, 'Salden der Personen'));
+    assert.ok(hasTranslation(panel, 'Offene Beträge pro Person'));
     assert.ok(hasTranslation(panel, 'Ausgleichen'));
     assert.match(panel, /BalanceBreakdown/);
     assert.ok(hasTranslation(panel, 'Zahlung erfassen'));
-    assert.ok(hasTranslation(panel, 'Herkunft der Wertverschiebungen'));
+    assert.ok(hasTranslation(panel, 'Woher die Beträge stammen'));
     const prefix = 'ui-v3/';
     for (const name of ['RedistributionDialog.svelte', 'ExecutedRedistributionEditDialog.svelte']) {
       const dialog = source(prefix + name);
