@@ -1,12 +1,12 @@
-# Hausstand – Svelte-Quellprojekt
+# Hausstandsliste — Svelte application
 
-Dies ist die **maßgebliche** Anwendung im Repository [`hausstandsliste`](../README.md). Die frühere Ein-Datei-App `../vorlage.html` ist eine Referenz; die laufende Entwicklung findet hier statt.
+This directory contains the **active source code** for [Hausstandsliste — Shared Ownership Tracker](../README.md), a local-first browser app for jointly owned belongings. The older [single-file prototype](../vorlage.html) is only a historical reference.
 
-Die Quelldateien werden mit Svelte/Vite modular gepflegt und bei Bedarf als **eigenständige Offline-HTML-Datei** gebündelt. Der verwendete Projektzustand lässt sich als JSON-Datei exportieren und wieder importieren.
+The Svelte/Vite source produces a standalone offline HTML application and a separately configured PHP release. Both builds share the domain logic, event history, and user interface; PHP is **not** required for local use.
 
-## Lokal starten
+## Development
 
-Node.js und npm vorausgesetzt:
+Install Node.js and npm:
 
 ```bash
 cd hausstand-svelte
@@ -14,60 +14,55 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` startet den lokalen Vite-Server (konfiguriert mit `127.0.0.1`). Weitere Befehle:
+Other commands:
 
 ```bash
-npm run check:js      # prüft Syntax des Inline-Build-Skripts
-npm run build         # Vite-Produktionsbuild nach dist/
-npm run build:single  # Build plus dist/hausstand-standalone.html
-npm run build:php     # MANUELL: mobile V3 mit PHP-API, dist/hausstand.php
-npm test              # Ledger- und Kryptotests
+npm run check:js      # check the inline build script
+npm test              # domain, settlement, and crypto regression tests
+npm run build         # Vite production build
+npm run build:single  # self-contained dist/hausstand-standalone.html
+npm run build:ui-v3   # current mobile UI V3, used by the Pages workflow
+npm run build:ui-v2   # older preview interface
+npm run build:php     # standalone PHP release, dist/hausstand.php
 ```
 
-Die Datei `dist/hausstand-standalone.html` soll direkt im Browser und ohne Server funktionieren. Der Build ist dokumentiert, aber bei der Dokumentationsüberarbeitung vom 20.11.2026 **nicht erneut ausgeführt** worden. Ein GitHub-Pages-Workflow existiert. Falls die automatische Aktivierung mangels GitHub-Permissions scheitert, unter Settings → Pages als Quelle GitHub Actions wählen und Workflow neu ausführen.
+The `dist/` files are generated and not versioned. The HTML distribution can run from `file://` and must not depend on the PHP API. The PHP distribution is built **manually** and configured by the operator inside the PHP file, not by the end user. See [Build variants](../docs/BUILD-VARIANTS.md) and [Deployment](../docs/DEPLOYMENT.md).
 
-## Projektübersicht
+## Code map
 
-- `src/App.svelte`: Hauptoberfläche und Navigation
-- `src/components/`: Dashboard-Bausteine, Detailseiten, Timeline, Dialoge
-- `src/stores/projectStore.js`: zentrale reaktive Zustandsverwaltung
-- `src/lib/projector.js`: Rekonstruktion des Zustands aus Ereignissen
-- `src/lib/redistribution.js`: Anteilsänderungen und **empfohlene** Ausgleichszahlungen
-- `src/lib/valuation.js`: Bewertungsmodelle
-- `src/lib/persistence.js`: `localStorage`, Import-/Exportunterstützung und JSON-Ausgabe
-- `scripts/inline-build.mjs`: fügt Build-Assets in eine HTML-Datei ein
+- `ui-v3/App.svelte` and `ui-v3/`: **current** mobile-first interface and navigation.
+- `src/App.svelte`, `src/components/`: classic interface, shared components, and dialogs.
+- `src/stores/projectStore.js`: project state and controlled mutations.
+- `src/lib/projector.js`: reconstruction from dated project events.
+- `src/lib/ledger.js` and `src/lib/claimSettlement.js`: derived ownership-related claims, personal balances, and independently recorded settlements.
+- `src/lib/redistribution.js`: ownership transfers and settlement previews.
+- `src/lib/valuation.js`: valuation/depreciation methods.
+- `src/lib/persistence.js`, `src/lib/crypto.js`: JSON export, temporary working copy, and encryption.
+- `server-php/backend.php`: PHP server template, not a second application.
+- `scripts/`: standalone HTML and PHP bundling.
+- `tests/`: regression tests.
 
-## Fachliche Grenzen
+## Ownership and financial boundaries
 
-Die App verwaltet in erster Linie **Eigentums- und Wertanteile**. Sie kann bereits geleistete Ausgleichszahlungen als eigenständige datierte Ereignisse dokumentieren, bearbeiten und löschen, überweist aber kein Geld. Der Button „Umverteilung ausführen“ speichert Anteilsänderungen, **keine** Zahlung. Das persönliche Wertkonto ergibt sich aus Finanzierung, Anteilen, Anteilsübertragungen und dokumentierten Zahlungen; ein zusätzlicher Bezahlstatus wird nicht geführt.
+The app is an **ownership tracker**, not a shared household budget or bank payment service. Purchases and compensated ownership transfers can produce derived claims; the finance screen shows personal net group balances and proposed settlement routes. Actual payments are recorded as **independent dated events**, and may be edited or deleted. Payments do not change ownership, are not matched to individual purchases, and may produce an opposing balance when they exceed an amount owed.
 
-Ein gespeicherter Browser-Arbeitsstand ist **keine Datensicherung**. Projekt-JSON regelmäßig exportieren und extern sichern. Keine echten persönlichen Hausgemeinschaftsdaten in Git committen.
+The application does not send bank transfers. Group-level netting requires the participants' agreement; see [Community settlement](../docs/FEATURE-COMMUNAL-SETTLEMENT.md). Original claims remain available for audit but are not a second paid/unpaid checklist.
 
-## Weitere Dokumentation
+Import/export compatibility is essential. Old JSON records without an explicit financial mode must not retroactively acquire new claims. An encrypted project must never be silently cached unencrypted. Browser working copies are not durable backups.
 
-- [Architektur und Datenmodell](../docs/ARCHITECTURE.md)
-- [Entwicklung, Tests und Build](../docs/DEVELOPMENT.md)
-- [Roadmap und offene Fragen](../docs/ROADMAP.md)
-- [KI- und Entwicklerregeln](../AGENTS.md), [lokale technische Hinweise](GEMINI.md)
+## Language and naming
 
+**Hausstandsliste** is the product name; **Shared Ownership Tracker** is the English descriptor. Product titles and visible branding now use these terms in UI V3 and the earlier entry points. **This is not yet a localized UI:** most interface strings are still German, so HTML `lang="de"` remains accurate.
 
-## Nächste Entwicklungsetappe (geplant)
+Planned task **Q13** introduces English as the default UI language, German detection through browser preferences, a persistent manual override, translation keys, locale-aware formatting, and accessibility/testing coverage. Do not replace persisted JSON field names, event identifiers, storage keys, or release filenames simply to translate the UI. See [Language and terminology](../docs/LANGUAGE-AND-TERMINOLOGY.md) and the [to-do list](../docs/WG-PRAXIS-TODO.md).
 
-Fachlich: [Forderungen je Anteilsbewegung, Ausgleichsstatus und Nettoschulden](../docs/FEATURE-DEBT-LEDGER.md). Technisch: [optionale Online-Ablage per PHP](../docs/FEATURE-COLLABORATIVE-STORAGE.md) und [lokale wie serverseitige verschlüsselte Dateien](../docs/SECURITY-AND-ENCRYPTION.md). Die gleiche Svelte-App soll zwei Artefakte erzeugen, `hausstand-standalone.html` und `hausstand.php`; die PHP-Datei ist **ein generiertes Release-Artefakt, keine separate UI**. Server-API und Mailanbindung sind implementiert, benötigen aber einen separaten PHP-Webserver und ein funktionierendes PHP-Mailtransport-Setup; siehe [Deployment](../docs/DEPLOYMENT.md).
+## Verification and further documentation
 
+The last recorded complete CI run on 23 November 2026 ([run 45122479125](https://github.com/Uli-Z/hausstandsliste/actions/runs/45122479125)) passed 87 unit tests, JS checks, standalone/UI builds, PHP build/lint, and PHP API smoke tests. New commits must be tested independently. Full interactive browser/mobile testing, old/new JSON round trips, real hosting/email validation, and the portable in-file version history are still open.
 
-## Forderungsprojektion (`master`, implementiert)
-
-`src/lib/ledger.js` berechnet bei explizit entgeltlichen Anteilsänderungen die Forderungen automatisch aus der Ereignishistorie; Gegenforderungen werden in `LedgerPanel.svelte` saldiert. Alte Ereignisse ohne `financialMode` bleiben finanziell neutral. Die Fachlogik speichert keine Forderungsbeträge und keine Abhak-Statuswerte. `npm test` prüft die wichtigsten historischen Fälle. Dazu kommen jetzt unabhängige Zahlungsevents und die nachvollziehbare Zerlegung der persönlichen Salden mit `ledgerAt().details` (ohne zusätzliche Persistenz).
-
-## Build-Trennung (22.11.2026)
-
-- HTML-/Pages-Build: ausschließlich lokale Speicherung und Datei-Import/-Export. Keine PHP-API-URL, keine Online-Speicherung.
-- PHP-Build: `npm run build:php`; erzeugt `dist/hausstand.php` aus der **aktuellen V3-UI** plus PHP-Backend. Datenordner und Berechtigungen werden **oben in der PHP-Datei** durch den Betreiber eingestellt. Endanwender brauchen keine Serverdaten einzugeben.
-- Manueller GitHub-Workflow: [PHP-Datei bauen](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml).
-- Details: [Getrennte Buildvarianten](../docs/BUILD-VARIANTS.md).
-
-
-## Einfache Ausgleichsbedienung (22.11.2026)
-
-Die mobile V3-Oberfläche führt über **Ausgleichsvorschläge → Ausgleichen → bereits erfolgte Zahlung bestätigen**. Die Zahlung ist im Verlauf bearbeitbar/löschbar. Der Personenbereich erklärt den Saldo als Summe von Finanzierungen, aufgenommenen/abgegebenen Anteilen und Zahlungen. Zahlungen werden keinem bestimmten Gegenstand zugeordnet; die ursprünglichen Wertverschiebungen bleiben als Herkunft einsehbar. Kategorien werden gefiltert, aber nicht als wiederholte Badge-Chips präsentiert. Details und rechtliche Abgrenzung: [gemeinschaftlicher Wertausgleich](../docs/FEATURE-COMMUNAL-SETTLEMENT.md).
+- [Developer rules](../AGENTS.md) and [Svelte-specific notes](GEMINI.md)
+- [Architecture](../docs/ARCHITECTURE.md)
+- [Development and test instructions](../docs/DEVELOPMENT.md)
+- [Current prioritized tasks](../docs/WG-PRAXIS-TODO.md)
+- [Roadmap](../docs/ROADMAP.md)
+- [Portable version history proposal](../docs/FEATURE-PORTABLE-VERSION-HISTORY.md)
