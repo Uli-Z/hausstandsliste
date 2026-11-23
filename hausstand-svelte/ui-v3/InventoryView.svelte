@@ -37,7 +37,7 @@
   {/if}
 </section>
 <section class="ux-panel inventory-bottom">
-  <div class="section-header"><div class="inventory-help-heading"><h2>{$translate("items.change")}</h2><HelpTip label={$translate('inventory.transferHelp')}>Wenn jemand Anteile übernimmt oder abgibt, kannst du die Änderungen gemeinsam prüfen. Entgeltliche Änderungen verändern die persönlichen Ausgleichssalden; eine tatsächliche Zahlung wird separat dokumentiert.</HelpTip></div><button class="outline-action" on:click={() => appState.startRedistribution()}>{$translate("items.prepare")}</button></div>
+  <div class="section-header"><div class="inventory-help-heading"><h2>{$translate("items.change")}</h2><HelpTip label={$translate('inventory.transferHelp')}>{$translate("inventory.transferExplanation")}</HelpTip></div><button class="outline-action" on:click={() => appState.startRedistribution()}>{$translate("items.prepare")}</button></div>
 </section>
 <section class="ux-panel archive-view">
   <div class="section-header"><div><h2>{$translate("items.old")}{#if archived.length} ({archived.length}){/if}</h2></div><button class="text-action" aria-expanded={showArchive} on:click={() => showArchive = !showArchive}>{showArchive ? $translate('items.hide') : $translate('items.show')} {showArchive ? '↑' : '↓'}</button></div>
