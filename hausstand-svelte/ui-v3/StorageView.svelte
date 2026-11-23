@@ -5,19 +5,25 @@
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   import { appState } from '../src/stores/projectStore.js';
-  import { exportProject } from '../src/lib/persistence.js';
+  import { exportProject, downloadProject } from '../src/lib/persistence.js';
   import { requireProjectFile } from '../src/lib/domain.js';
   import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
-  let showProtected = false, showShared = false, busy = false, error = '', message = '';
-  let password = '', newPassword = '', fileName = '';
+  export let onProjectLoaded = () => {};
+  let showProtected = false, busy = false, error = '', message = '';
+  let password = '', remotePassword = '', openPassword = '', newPassword = '';
+  let fileName = '', remoteDraftName = '', openedName = '', pendingEncrypted = null, pendingFileName = '';
   let serverCanCreate = false, serverReady = false;
   let files = [], selectedPortableVersion = '';
   $: portableVersions = Array.isArray($appState.project.versionHistory?.entries)
     ? [...$appState.project.versionHistory.entries].reverse() : [];
   let openedId = '', revision = 0, editToken = '', leaseToken = '', leaseExpires = 0;
   let activePassword = '';
+  export let onlineEditing = false;
+  export let onlineProjectOpen = false;
+  $: onlineEditing = !!(openedId && leaseToken);
+  $: onlineProjectOpen = !!openedId;
 
   onMount(() => {
     if (!SERVER_MODE) return;
@@ -43,7 +49,26 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   function ensureNoOverwrite() {
-    return !$appState.dirty || confirm($translate("ui.there-are-unsaved-changes-export-a-19yj4yk"));
+    return !$appState.dirty || confirm($translate('storage.replaceWorkingCopy'));
+  }
+  function requireLeaseReleased() {
+    if (openedId && leaseToken) throw new Error($translate('storage.endEditingFirst'));
+  }
+  function clearOnlineLink() {
+    openedId = ''; openedName = ''; revision = 0;
+    leaseToken = ''; leaseExpires = 0; editToken = '';
+    activePassword = ''; remotePassword = ''; selectedPortableVersion = '';
+  }
+  export function prepareToReplace() {
+    try { requireLeaseReleased(); clearOnlineLink(); return true; }
+    catch (e) { alert(e.message); return false; }
+  }
+  async function exportPlain() {
+    if ($appState.secure || openedId) throw new Error($translate('storage.plainExportUnavailable'));
+    const saved = await createPortableSave($appState.project, $appState.savedProject);
+    downloadProject(saved, $appState.asOfDate);
+    appState.markSaved(saved);
+    message = $translate('storage.plainDownloaded');
   }
   function apiEndpoint(action, params = {}) {
     if (!SERVER_MODE) throw new Error($translate("ui.the-offline-version-has-no-server--16chyt0"));
@@ -80,69 +105,97 @@
     const token = editToken || randomSecret();
     const saved = await createPortableSave($appState.project, $appState.savedProject);
     const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), password, token);
-    download(envelope, (fileName.trim() || 'hausstand') + '.hausstand.enc.json');
+    download(envelope, (fileName.trim() || $appState.project.community?.name || 'hausstand') + '.hausstand.enc.json');
     if (!openedId) {
       editToken = token;
       activePassword = password;
       if ($appState.secure) appState.markSaved(saved); // Keep session Undo across saves.
-      else appState.importProject(saved, fileName || 'Verschlüsselt', true);
+      else appState.importProject(saved, null, true);
     }
     // An online project is not saved on the server by downloading a backup.
-    message = openedId ? 'Verschlüsselte Sicherung heruntergeladen; Online-Änderungen noch nicht gespeichert.' : 'Verschlüsselte Projektdatei heruntergeladen.';
+    message = $translate(openedId ? 'storage.backupNotOnlineSave' : 'storage.encryptedDownloaded');
   }
-  async function importEncrypted(event) {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
+  async function openLocalFile(event) {
+    const input = event.currentTarget, file = input.files?.[0];
     if (!file) return;
     try {
+      requireLeaseReleased();
+      const data = JSON.parse(await file.text());
+      if (data?.format?.startsWith('hausstand-aesgcm')) {
+        pendingEncrypted = data; pendingFileName = file.name; openPassword = '';
+        error = ''; message = $translate('storage.encryptedPasswordNeeded'); return;
+      }
+      const verified = requireProjectFile(data);
       if (!ensureNoOverwrite()) return;
-      if (!password) throw new Error($translate("ui.enter-the-password-before-opening-knmdd9"));
-      const { project, editToken: token } = await decryptProject(JSON.parse(await file.text()), password);
-      appState.importProject(requireProjectFile(project), file.name, true);
-      editToken = token; activePassword = password; fileName = file.name;
-      openedId = ''; leaseToken = ''; revision = 0; selectedPortableVersion = '';
-      message = $translate("ui.encrypted-local-file-opened-1hrvhww"); error = '';
+      clearOnlineLink(); pendingEncrypted = null; pendingFileName = ''; openPassword = '';
+      appState.importProject(verified, null, false);
+      error = ''; message = $translate('storage.importedWorkingCopy');
+      onProjectLoaded();
     } catch (e) { report(e); }
     finally { input.value = ''; }
   }
+  async function finishEncryptedImport() {
+    if (!pendingEncrypted) return;
+    if (!openPassword) throw new Error($translate('storage.encryptedPasswordNeeded'));
+    requireLeaseReleased();
+    const { project, editToken: token } = await decryptProject(pendingEncrypted, openPassword);
+    const verified = requireProjectFile(project);
+    if (!ensureNoOverwrite()) return;
+    clearOnlineLink();
+    appState.importProject(verified, null, true);
+    editToken = token; activePassword = openPassword;
+    fileName = pendingFileName.replace(/\\.hausstand\\.enc\\.json$|\\.json$/i, '');
+    pendingEncrypted = null; pendingFileName = ''; openPassword = '';
+    error = ''; message = $translate('storage.importedProtectedCopy');
+    onProjectLoaded();
+  }
+  function cancelEncryptedImport() {
+    pendingEncrypted = null; pendingFileName = ''; openPassword = ''; message = '';
+  }
   async function refreshFiles() {
     files = (await api('files')).files || [];
-    message = files.length + ' Datei(en) in der Online-Ablage.';
+    // Refresh does not overwrite user feedback.
   }
   async function openRemote(file) {
+    requireLeaseReleased();
+    if (!remotePassword) throw new Error($translate("ui.enter-the-file-password-pv05g4"));
     if (!ensureNoOverwrite()) return;
-    if (!password) throw new Error($translate("ui.enter-the-file-password-pv05g4"));
     const result = await api('read', null, { id: file.id });
-    const decrypted = await decryptProject(result.envelope, password);
-    editToken = decrypted.editToken; activePassword = password;
-    openedId = file.id; fileName = file.name; revision = result.revision;
+    const decrypted = await decryptProject(result.envelope, remotePassword);
+    const verified = requireProjectFile(decrypted.project);
+    editToken = decrypted.editToken; activePassword = remotePassword;
+    openedId = file.id; openedName = file.name; revision = result.revision;
     leaseToken = ''; leaseExpires = 0; selectedPortableVersion = '';
-    appState.importProject(requireProjectFile(decrypted.project), file.name, true, true);
+    pendingEncrypted = null; remotePassword = '';
+    appState.importProject(verified, null, true, true);
     message = $translate("ui.opened-read-only-check-out-to-edit-3jcsh9");
+    onProjectLoaded();
   }
   async function createRemote() {
-    if (!fileName.trim()) throw new Error($translate("ui.a-filename-is-required-14d9i2"));
+    requireLeaseReleased();
+    if (!remoteDraftName.trim()) throw new Error($translate("ui.a-filename-is-required-14d9i2"));
     if (!serverCanCreate) throw new Error($translate("ui.creating-projects-is-disabled-on-t-1eru9h5"));
-    if (!password || password.length < 8) throw new Error($translate("ui.enter-a-project-password-of-at-lea-1r6gpqg"));
+    if (!remotePassword || remotePassword.length < 8) throw new Error($translate("ui.enter-a-project-password-of-at-lea-1r6gpqg"));
     if (!ensureNoOverwrite()) return;
     const id = crypto.randomUUID(), token = randomSecret();
     const saved = await createPortableSave($appState.project, $appState.savedProject);
-    const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), password, token);
+    const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), remotePassword, token);
     const result = await api('create', {
-      id, name: fileName.trim(), envelope, tokenHash: await hashSecret(token)
+      id, name: remoteDraftName.trim(), envelope, tokenHash: await hashSecret(token)
     });
-    openedId = id; editToken = token; revision = result.revision;
-    activePassword = password; leaseToken = ''; leaseExpires = 0;
-    appState.importProject(saved, fileName.trim(), true, true);
+    openedId = id; openedName = remoteDraftName.trim(); editToken = token; revision = result.revision;
+    activePassword = remotePassword; remotePassword = ''; leaseToken = ''; leaseExpires = 0;
+    appState.importProject(saved, null, true, true);
     await refreshFiles();
     message = $translate("ui.new-encrypted-file-created-check-o-7hax1o");
+    onProjectLoaded();
   }
   async function checkout() {
     if (!openedId) throw new Error($translate("ui.no-file-selected-k8inyf"));
     const result = await api('checkout', { id: openedId, expectedRevision: revision }, {}, true);
     leaseToken = result.leaseToken; leaseExpires = result.expiresAt;
     appState.setReadOnly(false);
-    message = 'Ausgecheckt bis ' + new Date(leaseExpires * 1000).toLocaleString(getLocale() === 'de' ? 'de-DE' : 'en-GB') + '.';
+    message = $translate('storage.editingUntil', { date: new Date(leaseExpires * 1000).toLocaleString(getLocale() === 'de' ? 'de-DE' : 'en-GB') });
   }
   async function renew() {
     const result = await api('renew', { id: openedId }, {}, true);
@@ -163,7 +216,7 @@
   async function saveRemote() {
     if (!$appState.dirty) { message = $translate("ui.no-unsaved-changes-s17ea6"); return; }
     const result = await commitProject($appState.project, activePassword, editToken);
-    message = 'Revision ' + revision + ' gespeichert. Mailstatus: ' + result.mailStatus + '.';
+    message = $translate('storage.onlineSaved', { revision });
   }
   async function checkin() {
     if ($appState.dirty && !confirm($translate("ui.there-are-unsaved-changes-check-in-12iq14o"))) return;
@@ -172,27 +225,30 @@
     message = $translate("ui.checked-in-the-edit-lease-has-been-1ts6shy");
   }
   export async function saveFromHeader() {
-    if (busy) return { handled: true, ok: false, message: 'Ein Speichervorgang läuft bereits.' };
-    if (!openedId && (!$appState.secure || !activePassword)) return { handled: false };
+    if (busy) return { handled: true, ok: false, message: $translate('storage.busy') };
+    // Never confuse a read-only online project with a local backup.
     if (openedId && !leaseToken) return { handled: false };
+    if (!openedId && $appState.secure && !activePassword) return { handled: false };
     busy = true; error = ''; message = '';
     try {
-      if (!openedId) {
-        // A decrypted local file has an in-memory password from this session.
-        // Re-export with that password; never convert it to a plaintext download.
+      if (openedId) await saveRemote();
+      else if ($appState.secure) {
         const saved = await createPortableSave($appState.project, $appState.savedProject);
         const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
-        download(envelope, (fileName.trim() || 'hausstand') + '.hausstand.enc.json');
+        download(envelope, (fileName.trim() || $appState.project.community?.name || 'hausstand') + '.hausstand.enc.json');
         appState.markSaved(saved);
-        message = $translate("ui.encrypted-download-started-keep-th-9p9noq");
-        return { handled: true, ok: true, message };
-      }
-      await saveRemote();
+        message = $translate('storage.encryptedDownloaded');
+      } else await exportPlain();
       return { handled: true, ok: true, message };
-    } catch (e) {
-      report(e);
-      return { handled: true, ok: false, message: error };
-    } finally { busy = false; }
+    } catch (e) { report(e); return { handled: true, ok: false, message: error }; }
+    finally { busy = false; }
+  }
+  async function savePrimary() {
+    if (openedId && !leaseToken) { await run(checkout); return; }
+    if ($appState.secure && !activePassword && !openedId) {
+      showProtected = true; message = $translate('storage.protectedSessionUnavailable'); return;
+    }
+    await saveFromHeader();
   }
   async function restorePortable() {
     if ($appState.readOnly) throw new Error($translate("ui.enable-editing-before-restoring-1xm00bb"));
@@ -212,95 +268,153 @@
     message = $translate("ui.password-changed-the-full-version--1yx5s3b");
   }
 </script>
-<div class="storage-choices">
+
+<div class="storage-flow">
   {#if busy}<p class="storage-feedback muted" role="status">{$translate("ui.working-1tl7cca")}</p>{/if}
   {#if error}<p role="alert" class="storage-feedback inline-info warning">{error}</p>{/if}
   {#if message}<p role="status" class="storage-feedback inline-info">{message}</p>{/if}
-  <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><div class="storage-help-heading"><h2>{$translate("ui.password-protected-backup-15wmsu8")}</h2><HelpTip label={$translate("ui.how-does-an-encrypted-backup-work-1boievp")}>{$translate("ui.you-can-create-or-open-an-encrypte-1npbaaq")}</HelpTip></div></div>
-    <button class="outline-action" aria-expanded={showProtected} on:click={() => showProtected = !showProtected}>{showProtected ? $translate("ui.show-less-fnh5rv") : $translate("ui.manage-password-protected-files-1syzh81")} <span aria-hidden="true">{showProtected ? '↑' : '↓'}</span></button>
-    {#if showProtected}
+  <section class="storage-context" aria-label={$translate('storage.current')}>
+    <div><strong>{$appState.project.community?.name || $translate('app.household')}</strong><span>{$translate(openedId ? 'storage.online' : 'storage.local')}</span></div>
+    <p>{$translate(openedId ? ($appState.dirty ? 'storage.dirtyOnline' : 'storage.cleanOnline') : ($appState.dirty ? 'storage.dirtyLocal' : 'storage.cleanLocal'))}</p>
+  </section>
+  <section class="ux-panel storage-main">
+    <h2>{$translate('storage.save')}</h2>
+    <p class="storage-explanation">{$translate(openedId ? 'storage.onlineSaveExplanation' : ($appState.secure ? 'storage.secureSaveExplanation' : 'storage.localSaveExplanation'))}</p>
+    <button type="button" class="solid-action storage-primary" disabled={busy} on:click={savePrimary}>
+      {$translate(openedId ? (leaseToken ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
+    </button>
+    <details class="storage-secondary" bind:open={showProtected}>
+      <summary>{$translate('storage.protectCopy')}</summary>
+      <p class="muted">{$translate('storage.protectCopyExplanation')}</p>
       <div class="storage-form">
         <div class="form-grid">
-          <label>{$translate("ui.password-for-this-file-119cdf1")}<input type="password" autocomplete="off" bind:value={password} placeholder={$translate("ui.long-secure-password-iwutru")}/></label>
-          <label>{$translate("ui.backup-name-11t2ioh")}<input bind:value={fileName} placeholder={$translate("app.household")}/></label>
+          <label>{$translate("ui.password-for-this-file-119cdf1")}<input type="password" autocomplete="new-password" bind:value={password} placeholder={$translate("ui.long-secure-password-iwutru")}/></label>
+          <label>{$translate("ui.backup-name-11t2ioh")}<input bind:value={fileName} placeholder={$appState.project.community?.name || $translate("app.household")}/></label>
         </div>
+        <button type="button" disabled={busy || !password} on:click={() => run(exportEncrypted)}>{$translate("ui.download-encrypted-file-1m533vw")}</button>
+        {#if openedId}<p class="muted">{$translate('storage.backupNotOnlineSave')}</p>{/if}
+      </div>
+    </details>
+  </section>
+  <section class="ux-panel storage-open">
+    <h2>{$translate('storage.open')}</h2>
+    <p class="storage-explanation">{$translate('storage.openExplanation')}</p>
+    <div class="save-basic-actions">
+      <label class="file-button">{$translate('storage.pickFile')}<input type="file" accept="application/json,.json" on:change={openLocalFile} disabled={busy}/></label>
+    </div>
+    {#if pendingEncrypted}
+      <div class="storage-form storage-unlock" role="group" aria-label={$translate('storage.unlockFile')}>
+        <p>{$translate('storage.encryptedPasswordNeeded')} <strong>{pendingFileName}</strong></p>
+        <label>{$translate('storage.filePassword')}<input type="password" autocomplete="off" bind:value={openPassword} on:keydown={e => { if (e.key === 'Enter') { e.preventDefault(); run(finishEncryptedImport); } }}/></label>
         <div class="storage-action-row">
-          <button class="solid-action" disabled={busy} on:click={() => run(exportEncrypted)}>{$translate("ui.download-encrypted-file-1m533vw")}</button>
-          <label class="file-button">{$translate("ui.open-encrypted-file-wuiwbq")}<input type="file" accept=".json,.enc" on:change={importEncrypted}/></label>
+          <button type="button" class="solid-action" disabled={busy || !openPassword} on:click={() => run(finishEncryptedImport)}>{$translate('storage.unlockFile')}</button>
+          <button type="button" disabled={busy} on:click={cancelEncryptedImport}>{$translate('ui.cancel-cl4zc9')}</button>
         </div>
-
       </div>
     {/if}
   </section>
+  {#if SERVER_MODE}
+    <section class="ux-panel storage-online">
+      <div class="storage-heading"><h2>{$translate('storage.collaborate')}</h2><HelpTip label={$translate("ui.how-do-online-projects-work-25z9zy")}>{$translate("ui.open-and-edit-shared-project-files-fzled")}</HelpTip></div>
+      <p class="storage-explanation">{$translate('storage.onlineExplanation')}</p>
+      {#if openedId}
+        <div class="storage-online-current">
+          <strong>{openedName}</strong><span>{$translate(leaseToken ? 'storage.editingOnline' : 'storage.readingOnline')}</span>
+          <small>{$translate('storage.revision', { revision })}</small>
+          <div class="storage-action-row">
+            {#if leaseToken}
+              <button type="button" disabled={busy} on:click={() => run(checkin)}>{$translate("ui.stop-editing-14s9xpw")}</button>
+              <button type="button" disabled={busy} on:click={() => run(renew)}>{$translate("ui.extend-editing-time-ieh1xj")}</button>
+            {:else}
+              <button type="button" disabled={busy} on:click={() => run(checkout)}>{$translate('storage.startEditing')}</button>
+            {/if}
+          </div>
+        </div>
+      {/if}
+      <div class="storage-online-list">
+        <div class="storage-heading"><h3>{$translate("ui.available-projects-1cnj4sr")}</h3><button type="button" class="outline-action" disabled={busy} on:click={() => run(refreshFiles)}>{$translate('storage.refresh')}</button></div>
+        {#if files.length}
+          {#if !openedId || !leaseToken}
+            <label>{$translate('storage.onlinePassword')}<input type="password" autocomplete="off" bind:value={remotePassword}/></label>
+          {/if}
+          <div class="shared-files">
+            {#each files as f (f.id)}
+              <div class="shared-file"><div><strong>{f.name}</strong><small>{$translate('storage.fileVersion', {revision:f.revision,date:f.updatedAt})}</small></div>
+                <button type="button" class="outline-action" disabled={busy || !!leaseToken} on:click={() => run(() => openRemote(f))}>{$translate("ui.open-14klu42")}</button></div>
+            {/each}
+          </div>
+        {:else if serverReady}<p class="muted">{$translate('storage.noProjects')}</p>{/if}
+      </div>
+      {#if serverCanCreate}
+        <details class="storage-secondary">
+          <summary>{$translate('storage.createOnline')}</summary>
+          <div class="storage-form stack">
+            <label>{$translate('storage.newOnlineName')}<input bind:value={remoteDraftName}/></label>
+            <label>{$translate('storage.onlinePassword')}<input type="password" autocomplete="new-password" bind:value={remotePassword}/></label>
+            <button type="button" disabled={busy || !!leaseToken || !serverReady} on:click={() => run(createRemote)}>{$translate('storage.createOnline')}</button>
+          </div>
+        </details>
+      {/if}
+      {#if openedId && leaseToken}
+        <details class="storage-secondary">
+          <summary>{$translate('storage.securityOptions')}</summary>
+          <div class="storage-form stack">
+            <label>{$translate("ui.new-password-for-the-shared-file-1h62si2")}<input type="password" autocomplete="new-password" bind:value={newPassword}/></label>
+            <button type="button" disabled={busy} on:click={() => run(changePassword)}>{$translate("ui.change-file-password-1btazly")}</button>
+          </div>
+        </details>
+      {/if}
+    </section>
+  {/if}
   {#if portableVersions.length}
-    <section class="ux-panel storage-choice" aria-label={$translate("ui.saved-file-versions-9wc9wn")}>
-      <h2>{$translate("ui.saved-versions-magvuo")}</h2>
-      <div class="stack">
+    <details class="ux-panel storage-versions" aria-label={$translate("ui.saved-file-versions-9wc9wn")}>
+      <summary>{$translate('storage.earlierVersions')}</summary>
+      <p class="muted">{$translate('storage.restoreExplanation')}</p>
+      <div class="storage-form stack">
         <label>{$translate("ui.select-a-previous-saved-state-1mfrevx")}
           <select bind:value={selectedPortableVersion}>
             <option value="">{$translate("ui.please-select-1qm0osl")}</option>
             {#each portableVersions as v (v.id)}
-              <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString('de-DE') : $translate("ui.previous-version-date-unknown-1cpadmd")}</option>
+              <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString(getLocale() === 'de' ? 'de-DE' : 'en-GB') : $translate("ui.previous-version-date-unknown-1cpadmd")}</option>
             {/each}
           </select>
         </label>
-        <button disabled={busy || $appState.readOnly || !selectedPortableVersion} on:click={() => run(restorePortable)}>{$translate("ui.restore-as-unsaved-working-copy-r3yheu")}</button>
+        <button type="button" disabled={busy || $appState.readOnly || !selectedPortableVersion} on:click={() => run(restorePortable)}>{$translate("ui.restore-as-unsaved-working-copy-r3yheu")}</button>
       </div>
-    </section>
-  {/if}
-  {#if SERVER_MODE}
-  <section class="ux-panel storage-choice">
-    <div class="storage-choice-top"><div class="storage-help-heading"><h2>{$translate("ui.online-projects-133womh")}</h2><HelpTip label={$translate("ui.how-do-online-projects-work-25z9zy")}>{$translate("ui.open-and-edit-shared-project-files-fzled")}</HelpTip></div></div>
-    <button class="outline-action" aria-expanded={showShared} on:click={() => showShared = !showShared}>{showShared ? $translate("ui.show-less-fnh5rv") : $translate("ui.show-online-projects-s0fco2")} <span aria-hidden="true">{showShared ? '↑' : '↓'}</span></button>
-    {#if showShared}
-      <div class="storage-form stack">
-        <div class="form-grid">
-          <label>{$translate("ui.project-file-password-1618dbp")}<input type="password" autocomplete="off" bind:value={password} placeholder={$translate("ui.password-guxqaw")}/></label>
-          <label>{$translate("ui.project-name-for-new-file-syz2yo")}<input bind:value={fileName} placeholder={$translate("app.household")}/></label>
-        </div>
-        <div class="storage-action-row">
-          <button class="solid-action" disabled={busy} on:click={() => run(refreshFiles)}>{$translate("ui.show-available-files-13dqiqu")}</button>
-          {#if serverCanCreate}<button disabled={busy || !serverReady} on:click={() => run(createRemote)}>{$translate("ui.create-online-project-from-current-kdw39x")}</button>{/if}
-        </div>
-        {#if serverReady && !serverCanCreate && !files.length}
-          <p class="muted">{$translate("ui.there-are-no-projects-yet-creating-1ldmw5h")}</p>
-        {/if}
-        {#if files.length}
-          <div class="shared-files">
-            <h3>{$translate("ui.available-projects-1cnj4sr")}</h3>
-            {#each files as f (f.id)}
-              <div class="shared-file"><div><strong>{f.name}</strong><small>{$translate('storage.fileVersion', {revision:f.revision,date:f.updatedAt})}</small></div><button class="outline-action" disabled={busy} on:click={() => run(() => openRemote(f))}>{$translate("ui.open-14klu42")}</button></div>
-            {/each}
-          </div>
-        {/if}
-        {#if openedId}
-          <div class="current-shared">
-            
-            <h3>{fileName}</h3><p>Version {revision} · {leaseToken ? 'Du bearbeitest dieses Projekt. Reserviert bis ' + new Date(leaseExpires * 1000).toLocaleString('de-DE') : $translate("ui.currently-read-only-1lrmnzs")}</p>
-            <div class="storage-action-row">
-              {#if !leaseToken}
-                <button class="solid-action" disabled={busy} on:click={() => run(checkout)}>{$translate("ui.start-editing-amk33u")}</button>
-              {:else}
-                <button class="solid-action" disabled={busy} on:click={() => run(saveRemote)}>{$translate("ui.save-changes-for-everyone-1usd0bn")}</button>
-                <button disabled={busy} on:click={() => run(renew)}>{$translate("ui.extend-editing-time-ieh1xj")}</button>
-                <button disabled={busy} on:click={() => run(checkin)}>{$translate("ui.stop-editing-14s9xpw")}</button>
-              {/if}
-            </div>
-            {#if leaseToken}
-              <label>{$translate("ui.new-password-for-the-shared-file-1h62si2")}<input type="password" autocomplete="new-password" bind:value={newPassword}/></label>
-              <button disabled={busy} on:click={() => run(changePassword)}>{$translate("ui.change-file-password-1btazly")}</button>
-            {/if}
-          </div>
-        {/if}
-      </div>
-    {/if}
-  </section>
+    </details>
   {/if}
 </div>
-
 <style>
-  .storage-feedback{grid-column:1/-1;margin:0}
-  .storage-help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .storage-help-heading h2{margin:0}
+  .storage-flow { display:grid;gap:14px;max-width:840px; }
+  .storage-flow .ux-panel { padding:20px; }
+  .storage-flow h2 { margin:0 0 6px;font-size:1.12rem; }
+  .storage-explanation { margin:0 0 16px;color:var(--muted);font-size:.9rem;line-height:1.5; }
+  .storage-context { display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:7px 22px;padding:11px 16px;border:1px solid var(--border);border-radius:13px;background:var(--soft); }
+  .storage-context div { display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px; }
+  .storage-context span,.storage-context p { color:var(--muted);font-size:.84rem; }
+  .storage-context p { margin:0; }
+  .storage-primary { min-height:44px; }
+  .storage-secondary { margin-top:18px;padding-top:12px;border-top:1px solid var(--border); }
+  .storage-secondary > summary,.storage-versions > summary { cursor:pointer;font-weight:600;min-height:38px; }
+  .storage-secondary > summary:focus-visible,.storage-versions > summary:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
+  .storage-form { display:grid;gap:12px;margin-top:12px; }
+  .storage-form .form-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+  .storage-form label,.storage-form input { min-width:0;width:100%; }
+  .storage-unlock { padding:14px;background:var(--soft);border-radius:12px; }
+  .storage-unlock p { margin:0; }
+  .storage-online-current { display:grid;gap:6px;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:20px; }
+  .storage-online-current span,.storage-online-current small { color:var(--muted); }
+  .storage-heading { display:flex;justify-content:space-between;align-items:center;gap:8px; }
+  .storage-heading h2,.storage-heading h3 { margin:0; }
+  .storage-online-list { display:grid;gap:12px; }
+  .storage-online-list .storage-heading h3 { font-size:1rem; }
+  .storage-online-list .shared-files { display:grid;gap:8px; }
+  .storage-online-list .shared-file { display:flex;justify-content:space-between;align-items:center;gap:12px; }
+  .storage-online-list .shared-file small { display:block;color:var(--muted); }
+  .storage-feedback { margin:0; }
+  @media(max-width:540px) {
+    .storage-flow .ux-panel { padding:16px; }
+    .storage-form .form-grid { grid-template-columns:1fr; }
+    .storage-primary { width:100%; }
+  }
 </style>
