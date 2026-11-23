@@ -3,7 +3,7 @@
 **Product:** Hausstandsliste  
 **English descriptor:** Shared Ownership Tracker  
 **Decision date:** 23 November 2026  
-**Status:** product naming and main READMEs updated; full user-interface internationalization is **planned**, not implemented. Track implementation in [Q13](WG-PRAXIS-TODO.md).
+**Status (23 November 2026):** Core V3 UI internationalization is implemented, with browser-locale detection, browser-local manual override, English fallback, locale-aware formatting and regression tests. Most views and dialogs are translated; remaining dynamic/domain/server messages and cross-browser accessibility acceptance are tracked as [Q13](WG-PRAXIS-TODO.md).
 
 ## Positioning
 
@@ -51,7 +51,7 @@ Terminology rules:
 - The product is not a `shared expense app`; avoid `expense` as the primary product noun.
 - Prefer ordinary human-readable UI labels; avoid long explanatory paragraphs, badges, and technical ledger jargon in normal views. Put nonessential explanations behind contextual help.
 
-## Internationalization design (Q13, pending)
+## Internationalization design (Q13, in progress)
 
 1. **Canonical authoring language:** English for new documentation, product text, UI translation keys, accessibility labels, and developer-facing descriptions.
 2. **Supported locales in the first release:** `en` (fallback/default) and `de`. Detect German from `navigator.languages` / `navigator.language` when the primary language subtag is `de` (including `de-DE`, `de-AT`, and `de-CH`); otherwise use English. Use browser APIs only at runtime, never during build or module evaluation where unavailable.
@@ -67,3 +67,11 @@ Terminology rules:
 Do **not** rename existing `hausstand-*` release filenames, PHP endpoints, JSON keys, event types, `localStorage` keys, schema versions, cryptographic envelope identifiers, or historical project values to match the English title. Those identifiers are part of compatibility and may be handled separately only with an explicit migration.
 
 The main `README.md` and the Svelte README are now authored in English. Older feature/design documents still contain German text and some historical status statements; translate and consolidate them as part of documentation task **Q08**, preserving old decisions as explicitly historical where needed. The prioritized to-do list remains the current source for implementation and verification status during the migration.
+
+## Implementation notes (23 November 2026)
+
+- Language preferences are saved as `hausstand-language` in browser local storage, not in the ownership project, the portable archive, or PHP backups.
+- Use `src/lib/i18n.js` for stable English/German translation keys, `$translate(key)` in Svelte, and the shared formatting helpers for amounts and dates.
+- Main application, dialogs and component translation is under way; the existing domain schema and settlement arithmetic are unchanged.
+- Chromium browser checks include English automatic selection, switching to German, preference surviving reload, and no language property in exported project data. These checks are in `tests/browser-qa.mjs`.
+- Pending closure: audit all dynamic messages, error paths and plurals; verify complete English mobile and screen-reader experience and a second browser engine before closing Q13.
