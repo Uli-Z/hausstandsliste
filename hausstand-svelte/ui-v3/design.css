@@ -420,3 +420,46 @@ tr.clickable-row:hover td{background:#eef7f8}
   .date-toolbar{padding:9px}
   .date-toolbar-controls{grid-template-columns:minmax(0,1fr) minmax(116px,2fr) minmax(0,1fr)}
 }
+
+/* Q04: Keep project context and actions visible while scrolling every view. */
+.main-column{min-width:0}
+.app-header{position:sticky;top:0;z-index:40;isolation:isolate;box-shadow:0 3px 14px rgba(20,40,50,.05)}
+.app-header .header-context{flex:1 1 auto;min-width:0}
+.app-header .header-context strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.header-actions{margin-left:auto;flex:none;gap:9px}
+.time-travel-toggle{width:111px;flex:none}
+.session-history-actions{width:74px;justify-content:center;flex:none}
+.session-history-button{width:36px;min-width:36px;display:inline-grid;place-items:center}
+.working-indicator{width:148px;min-width:148px;flex:none;white-space:nowrap;overflow:hidden}
+.status-dot{flex:none}
+.header-save{min-width:113px;min-height:37px;display:inline-flex;justify-content:center;align-items:center;gap:7px;white-space:nowrap;flex:none}
+.task-grid .task-icon{display:inline-grid}
+.debt-action{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.save-feedback{position:fixed;top:calc(85px + env(safe-area-inset-top,0px));right:18px;z-index:52;
+  display:flex;align-items:flex-start;gap:14px;max-width:min(410px,calc(100vw - 32px));
+  padding:12px 12px 12px 15px;background:var(--panel);border:1px solid #bedbcf;
+  border-radius:12px;box-shadow:0 12px 30px #142e3d27;color:var(--text);font-size:13px;line-height:1.5}
+.save-feedback-error{border-color:#eab0a5}
+.save-feedback>span{flex:1;min-width:0;overflow-wrap:anywhere}
+.save-feedback>button{width:32px;height:32px;min-width:32px;border:0;background:transparent;
+  padding:5px;display:grid;place-items:center;color:var(--muted)}
+.save-feedback>button:hover{background:var(--soft)}
+@media(max-width:780px){
+  .app-header{position:sticky;top:0;z-index:40;padding:10px 12px;min-height:60px}
+  .header-actions{gap:4px}
+  .time-travel-toggle{width:36px;min-width:36px}
+  .session-history-actions{width:64px;gap:0}
+  .session-history-button{width:32px;min-width:32px;height:34px}
+  .working-indicator{display:none}
+  .header-save{min-width:84px;padding:8px}
+  .header-save .action-icon{display:none}
+  .save-feedback{top:calc(67px + env(safe-area-inset-top,0px));right:10px;left:10px;max-width:none}
+  .mobile-more-menu>button>.action-icon{width:24px;height:24px}
+}
+@media(max-width:360px){
+  .app-header{padding-left:8px;padding-right:8px}
+  .header-actions{gap:2px}
+  .header-save{min-width:78px;padding:7px 5px;font-size:12px}
+  .task-grid button{grid-template-columns:40px minmax(0,1fr)}
+  .task-grid strong,.task-grid small{grid-column:2}
+}
