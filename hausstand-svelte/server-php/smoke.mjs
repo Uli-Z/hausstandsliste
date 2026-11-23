@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, writeFile, readFile, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
-import { encryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
+import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
+import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
 
 const root = await mkdtemp(join(tmpdir(), 'hausstand-test-'));
 const port = 18743;
@@ -42,8 +43,9 @@ try {
   assert.equal('data_dir' in config, false);
   const id = 'cafecafe-1234-4567-8888-aabbccddeeff';
   const token = randomSecret();
-  const project = { people: [], items: [], events: [] };
-  const envelope = await encryptProject(project, 'integration-password', token);
+  const project = { community: { name: 'Test' }, people: [], items: [], events: [], drafts: [] };
+  const firstSaved = await createPortableSave(project, null, '2026-11-23T08:00:00Z');
+  const envelope = await encryptProject(firstSaved, 'integration-password', token);
   let r = await call('create', { id, name: 'Integrationstest', envelope, tokenHash: await hashSecret(token) });
   assert.equal(r.status, 200, JSON.stringify(r));
   assert.equal(r.revision, 1);
@@ -59,24 +61,60 @@ try {
   const lease = r.leaseToken;
   assert.equal((await call('checkout', { id, expectedRevision: 1 }, {}, auth)).status, 423);
   const saving = { ...auth, 'X-Lease-Token': lease };
-  const nextEnvelope = await encryptProject(project, 'integration-password', token);
+  const nextSaved = await createPortableSave({
+    ...firstSaved, people: [{ id: 'anna', name: 'Anna' }]
+  }, firstSaved, '2026-11-23T09:00:00Z');
+  const nextEnvelope = await encryptProject(nextSaved, 'integration-password', token);
   r = await call('save', { id, expectedRevision: 1, envelope: nextEnvelope }, {}, saving);
   assert.equal(r.status, 200, JSON.stringify(r));
   assert.equal(r.revision, 2);
   assert.equal((await call('save', { id, expectedRevision: 1, envelope: nextEnvelope }, {}, saving)).status, 409);
   r = await call('versions', null, { id });
-  assert.deepEqual(r.versions.map(v => v.revision), [2, 1]);
-  r = await call('version', null, { id, rev: '1' });
-  assert.equal(r.envelope.ciphertext, envelope.ciphertext);
+  assert.deepEqual(r.versions, [], 'New files must not grow a separate PHP history');
+  assert.equal((await call('version', null, { id, rev: '1' })).status, 404);
+  r = await call('read', null, { id });
+  assert.equal(r.revision, 2);
+  const current = (await decryptProject(r.envelope, 'integration-password')).project;
+  assert.equal(current.people[0].name, 'Anna');
+  assert.equal((await readPortableVersion(current, current.versionHistory.entries[0].id)).community.name, 'Test');
+  await access(join(root, 'files', id, 'current.json'));
+  await assert.rejects(access(join(root, 'files', id, 'versions', '2.json')));
+
   const token2 = randomSecret();
-  const env2 = await encryptProject(project, 'replacement-password', token2);
+  const env2 = await encryptProject(nextSaved, 'replacement-password', token2);
   r = await call('save', { id, expectedRevision: 2, envelope: env2, newTokenHash: await hashSecret(token2) }, {}, saving);
   assert.equal(r.status, 200);
   assert.equal((await call('renew', { id }, {}, saving)).status, 403);
   const saving2 = { ...saving, 'X-File-Token': token2 };
   assert.equal((await call('checkin', { id }, {}, saving2)).status, 200);
   assert.equal((await call('checkout', { id, expectedRevision: 3 }, {}, { 'X-File-Token': token2 })).status, 200);
-  process.stdout.write('PHP API smoke test passed\n');
+
+  // Legacy revision directories remain readable, even after the new current-file
+  // layout is used for subsequent saves. This prevents migration data loss.
+  const oldId = 'bbbccccc-1234-4567-8888-aabbccddeeff';
+  const oldToken = randomSecret();
+  const oldEnvelope = await encryptProject(project, 'legacy-password', oldToken);
+  const oldDir = join(root, 'files', oldId);
+  await mkdir(join(oldDir, 'versions'), { recursive: true });
+  await writeFile(join(oldDir, 'versions', '1.json'), JSON.stringify(oldEnvelope));
+  await writeFile(join(oldDir, 'meta.json'), JSON.stringify({
+    id: oldId, name: 'Altbestand', revision: 1, tokenHash: await hashSecret(oldToken),
+    leaseHash: null, leaseExpires: 0, updatedAt: new Date().toISOString(),
+    versions: [{ revision: 1, createdAt: '2026-11-01T12:00:00Z', mailStatus: 'disabled' }]
+  }));
+  assert.equal((await call('read', null, { id: oldId })).revision, 1);
+  assert.deepEqual((await call('versions', null, { id: oldId })).versions.map(v => v.revision), [1]);
+  const oldCheckout = await call('checkout', { id: oldId, expectedRevision: 1 }, {}, { 'X-File-Token': oldToken });
+  assert.equal(oldCheckout.status, 200);
+  const oldNext = await encryptProject(nextSaved, 'legacy-password', oldToken);
+  assert.equal((await call('save', { id: oldId, expectedRevision: 1, envelope: oldNext }, {},
+    { 'X-File-Token': oldToken, 'X-Lease-Token': oldCheckout.leaseToken })).status, 200);
+  assert.deepEqual((await call('versions', null, { id: oldId })).versions.map(v => v.revision), [1]);
+  assert.equal((await call('version', null, { id: oldId, rev: '1' })).envelope.ciphertext, oldEnvelope.ciphertext);
+  assert.equal((await call('read', null, { id: oldId })).revision, 2);
+  assert.equal((await readFile(join(oldDir, 'versions', '1.json'), 'utf8')), JSON.stringify(oldEnvelope));
+  await assert.rejects(access(join(oldDir, 'versions', '2.json')));
+  process.stdout.write('PHP API portable-history and legacy migration smoke test passed\\n');
 } finally {
   server.kill();
   await rm(root, { recursive: true, force: true });
