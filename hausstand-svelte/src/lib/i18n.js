@@ -4,6 +4,17 @@ import { writable, derived, get } from 'svelte/store';
 export const LANGUAGE_KEY = 'hausstand-language';
 export const dictionaries = {
   "en": {
+    "errors.readOnly": "This project is read-only. Start editing before making changes.",
+    "errors.changeFailed": "The change could not be saved. Nothing was changed. Please try again.",
+    "errors.ownerless": "Change not saved: “{name}” would have no owner from {date}. Transfer its shares or archive the item.",
+    "errors.missingEventId": "Change not saved: an event has no identifier.",
+    "errors.duplicateEventId": "Change not saved: two events have the same identifier.",
+    "errors.invalidEventDate": "Change not saved: enter a real calendar date.",
+    "errors.invalidPayment": "Payment not saved: enter a positive amount with at most two decimal places, a valid date and two different people.",
+    "errors.unknownPaymentPerson": "Payment not saved: choose two people who belong to this project.",
+    "errors.invalidItemValue": "Change not saved: enter a non-negative item value with at most two decimal places.",
+    "errors.paymentAmount": "Enter an amount greater than zero, with at most two decimal places.",
+    "errors.samePerson": "Choose two different people.",
     "nav.overview": "Overview",
     "nav.items": "Items",
     "nav.people": "People",
@@ -554,6 +565,17 @@ export const dictionaries = {
     "items.give.other": "gives away {count} shares"
   },
   "de": {
+    "errors.readOnly": "Dieses Projekt ist schreibgeschützt. Bitte zuerst die Bearbeitung starten.",
+    "errors.changeFailed": "Die Änderung konnte nicht gespeichert werden. Die Daten blieben unverändert. Bitte erneut versuchen.",
+    "errors.ownerless": "Änderung nicht gespeichert: „{name}“ hätte ab {date} keine Eigentümer mehr. Bitte Anteile übertragen oder den Gegenstand archivieren.",
+    "errors.missingEventId": "Änderung nicht gespeichert: Ein Ereignis hat keine Kennung.",
+    "errors.duplicateEventId": "Änderung nicht gespeichert: Zwei Ereignisse haben dieselbe Kennung.",
+    "errors.invalidEventDate": "Änderung nicht gespeichert: Bitte ein gültiges Kalenderdatum eingeben.",
+    "errors.invalidPayment": "Zahlung nicht gespeichert: Bitte einen positiven Betrag mit höchstens zwei Nachkommastellen, ein gültiges Datum und zwei unterschiedliche Personen angeben.",
+    "errors.unknownPaymentPerson": "Zahlung nicht gespeichert: Bitte zwei Personen aus diesem Projekt auswählen.",
+    "errors.invalidItemValue": "Änderung nicht gespeichert: Bitte einen nichtnegativen Gegenstandswert mit höchstens zwei Nachkommastellen eingeben.",
+    "errors.paymentAmount": "Bitte einen Betrag über null mit höchstens zwei Nachkommastellen eingeben.",
+    "errors.samePerson": "Bitte zwei unterschiedliche Personen wählen.",
     "nav.overview": "Überblick",
     "nav.items": "Gegenstände",
     "nav.people": "Personen",
