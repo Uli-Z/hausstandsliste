@@ -97,7 +97,8 @@
     if (e.key === 'ArrowRight') { e.preventDefault(); appState.setAsOfDate(addDays($appState.asOfDate, 1)); }
   }
   async function importFile(event) {
-    const file = event.currentTarget.files?.[0];
+    const input = event.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
@@ -109,7 +110,7 @@
       appState.importProject(requireProjectFile(data), file.name, false);
       navigate('overview');
     } catch (err) { alert('Öffnen fehlgeschlagen: ' + err.message); }
-    finally { event.currentTarget.value = ''; }
+    finally { input.value = ''; }
   }
   async function exportNow() {
     if (savingLocal) return;
