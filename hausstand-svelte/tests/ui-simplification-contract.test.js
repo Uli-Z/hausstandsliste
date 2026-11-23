@@ -6,7 +6,7 @@ const source = (path) => readFileSync(new URL('../' + path, import.meta.url), 'u
 
 test('overview retains the four metrics and quick actions but has no duplicate add-item button', () => {
   const app = source('ui-v3/App.svelte');
-  const overview = app.slice(app.indexOf("activeSection === 'overview'"), app.indexOf("activeSection === 'items'"));
+  const overview = app.slice(app.indexOf("{:else if activeSection === 'overview'}"), app.indexOf("{:else if activeSection === 'items'}"));
   assert.equal((overview.match(/<div class="metric">/g) || []).length, 4);
   assert.equal((overview.match(/<span class="task-icon">/g) || []).length, 4);
   assert.ok(overview.includes('app.suggestions'));
