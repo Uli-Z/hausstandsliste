@@ -83,5 +83,14 @@ test('storage operations share one busy guard across header, import and project 
   assert.ok(localImport.indexOf('busy = true') < localImport.indexOf('await file.text()'));
   assert.match(localImport, /finally \{ input.value = ''; busy = false; \}/);
   assert.match(storage, /async function savePrimary\(\) \{\s*if \(busy\) return/);
-  assert.match(storage, /if \(authorized && \[409, 423\]\.includes\(response.status\)\) appState.setReadOnly\(true\)/);
+});
+
+test('rejected online authorization clears the lease but keeps unsaved work recoverable', () => {
+  const failure = storage.slice(storage.indexOf('if (!response.ok || data.ok === false)'), storage.indexOf('return data;'));
+  assert.match(failure, /if \(authorized && \[403, 409, 423\]\.includes\(response.status\)\) \{/);
+  assert.match(failure, /leaseToken = ''; leaseExpires = 0;/);
+  assert.match(failure, /appState\.setReadOnly\(true\)/);
+  assert.doesNotMatch(failure, /markSaved|importProject|clearOnlineLink|newProject/);
+  assert.match(storage, /\$: onlineEditing = !!\(openedId && leaseToken\)/);
+  assert.match(storage, /if \(openedId && !leaseToken\) return \{ handled: false \}/);
 });
