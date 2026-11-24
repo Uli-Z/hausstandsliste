@@ -25,7 +25,7 @@ test('A04: gift changes ownership value but never suggests payment or claim', ()
   const preview = redistributionPreview(project, plan);
   assert.deepEqual(preview.rows.map(row => [row.personId, row.delta]), [['anna', 100], ['ben', -100]]);
   assert.deepEqual(preview.payments, []);
-  const markdown = redistributionMarkdown(plan, preview);
+  const markdown = redistributionMarkdown(plan, preview, 'de');
   assert.match(markdown, /Wertverschiebung/);
   assert.match(markdown, /keine Forderung/i);
   assert.doesNotMatch(markdown, /zahlt 100|würde 100/i);
@@ -38,7 +38,7 @@ test('A04: paid share transfer retains an explicitly hypothetical suggestion', (
   assert.deepEqual(preview.payments, [{
     fromPersonId: 'anna', from: 'Anna', toPersonId: 'ben', to: 'Ben', amount: 100
   }]);
-  const markdown = redistributionMarkdown(plan, preview);
+  const markdown = redistributionMarkdown(plan, preview, 'de');
   assert.match(markdown, /Rechnerischer Ausgleichsvorschlag/);
   assert.match(markdown, /keine Dokumentation einer erfolgten Zahlung/);
 });
@@ -48,7 +48,7 @@ test('A04: old drafts without financial mode are financially neutral', () => {
   const preview = redistributionPreview(setup(), plan);
   assert.equal(preview.rows.length, 2);
   assert.deepEqual(preview.payments, []);
-  assert.match(redistributionMarkdown(plan, preview), /keine Forderung/i);
+  assert.match(redistributionMarkdown(plan, preview, 'de'), /keine Forderung/i);
 });
 
 test('A04: an executed gift remains claim-free and its editor preview respects its mode', () => {

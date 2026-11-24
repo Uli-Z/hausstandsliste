@@ -39,8 +39,8 @@ test('Q13: plural categories follow the active language', () => {
 import { readFileSync } from 'node:fs';
 test('Q13: every PHP failure has a bilingual stable error code', () => {
   const php = readFileSync(new URL('../server-php/backend.php', import.meta.url), 'utf8');
-  const calls = [...php.matchAll(/\\bfail\\(\\d+, '[^']+', '([^']+)'\\);/g)];
-  assert.equal(calls.length, [...php.matchAll(/\\bfail\\(\\d+,/g)].length);
+  const calls = [...php.matchAll(/\bfail\(\d+, '[^']+', '([^']+)'\);/g)];
+  assert.equal(calls.length, [...php.matchAll(/\bfail\(\d+,/g)].length);
   assert.ok(calls.length > 20);
   for (const [,code] of calls) {
     assert.ok(dictionaries.en['server.' + code], code);
@@ -61,7 +61,7 @@ test('Q13: dynamic payment text and counts follow language', () => {
 test('Q13: known crypto, archive, schema and person diagnostics are translated', () => {
   for (const path of ['crypto.js','versionHistory.js','domain.js','personDeletion.js']) {
     const source = readFileSync(new URL('../src/lib/' + path, import.meta.url), 'utf8');
-    for (const [,text] of source.matchAll(/(?:throw new Error\\(|reason: )'([^']+)'/g)) {
+    for (const [,text] of source.matchAll(/(?:throw new Error\(|reason: )'([^']+)'/g)) {
       assert.notEqual(localizeDiagnostic(text, 'en'), text, path + ': ' + text);
       assert.equal(localizeDiagnostic(text, 'de'), text);
     }
@@ -77,7 +77,7 @@ test('Q13: transfer report language and amounts without changing user names', ()
   const de = redistributionMarkdown(draft, preview, 'de');
   assert.match(en, /Ownership transfer: WG Küche/);
   assert.match(en, /Ben would pay/);
-  assert.match(en, /1,234\\.56/);
+  assert.match(en, /1,234\.56/);
   assert.match(de, /Umverteilung: WG Küche/);
-  assert.match(de, /1\\.234,56/);
+  assert.match(de, /1\.234,56/);
 });
