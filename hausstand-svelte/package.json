@@ -8,7 +8,7 @@
     "build": "vite build --config vite.ui-v3.config.js",
     "build:single": "npm run build && node scripts/inline-ui-v3.mjs --standalone",
     "build:php": "node scripts/build-php.mjs",
-    "check:js": "node --check scripts/inline-ui-v3.mjs && node --check scripts/build-php.mjs && node --check tests/browser-qa.mjs && node --check tests/invalid-input-qa.mjs && node --check tests/time-travel-forms-qa.mjs",
+    "check:js": "node --check scripts/inline-ui-v3.mjs && node --check scripts/build-php.mjs && node --check tests/browser-qa.mjs && node --check tests/invalid-input-qa.mjs && node --check tests/time-travel-forms-qa.mjs && node --check bin/hausstand.mjs",
     "test": "node --test tests/*.test.js",
     "test:browser": "node tests/browser-qa.mjs"
   },

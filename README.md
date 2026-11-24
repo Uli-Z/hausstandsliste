@@ -39,9 +39,9 @@ npm run build:single
 
 The generated `hausstand-svelte/dist/hausstand-standalone.html` works without a server. The `dist/` directory is intentionally not committed. See [Development](docs/DEVELOPMENT.md) and the [Svelte project README](hausstand-svelte/README.md).
 
-## Read-only command-line preview
+## Command-line preview
 
-A first local Node.js CLI stage provides project inspection, dated ownership and financial projections. See [CLI documentation](docs/CLI.md). It does not write or decrypt files yet.
+The local Node.js CLI provides project inspection, dated ownership and financial projections, explicit payment recording and archived-version restoration to a new file. See [CLI documentation](docs/CLI.md). It does not decrypt files or overwrite existing files.
 
 ## Distribution and storage
 

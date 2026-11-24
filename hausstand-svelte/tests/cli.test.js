@@ -4,6 +4,10 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { projectAt } from '../src/lib/projector.js';
+import { readPortableVersion } from '../src/lib/versionHistory.js';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 const bin = fileURLToPath(new URL('../bin/hausstand.mjs',import.meta.url));
 const p = {schemaVersion:1,currency:'EUR',community:{name:'Test'},lastSavedAt:'2026-01-01T00:00:00Z',
   people:[{id:'a',name:'A'},{id:'b',name:'B'}],items:[{id:'i',name:'Chair'}],drafts:[],
@@ -58,4 +62,70 @@ test('CLI errors have stable codes, nonzero exits and empty stdout',()=>{
     const r=run(args,input); assert.equal(r.status,status,r.stderr);
     assert.equal(r.stdout,''); assert.equal(JSON.parse(r.stderr).error.code,code);
   }
+});
+
+test('CLI payment dry run, explicit save, history, restore and output collision', async () => {
+  const dir = mkdtempSync(join(tmpdir(),'hausstand-cli-'));
+  try {
+    const input=join(dir,'input.json'), payload=join(dir,'payment.json'), output=join(dir,'new.json'), restored=join(dir,'restored.json');
+    const actual={date:'2026-05-01',amountCents:1234,debtorPersonId:'b',creditorPersonId:'a',settlementKind:'paid'};
+    writeFileSync(input,JSON.stringify(p)); writeFileSync(payload,JSON.stringify(actual));
+    const args=['payments','record','--input',input,'--payload',payload];
+    const preview=run([...args,'--dry-run']);
+    assert.equal(preview.status,0,preview.stderr);
+    const dry=JSON.parse(preview.stdout);
+    assert.equal(dry.source,'working'); assert.equal(dry.data.saved,false);
+    assert.equal(dry.data.event.amountCents,1234); assert.equal(existsSync(output),false);
+    assert.equal(run([...args,'--output',output]).status,2);
+    const result=run([...args,'--output',output,'--confirm']);
+    assert.equal(result.status,0,result.stderr);
+    assert.equal(JSON.parse(result.stdout).data.saved,true);
+    const next=JSON.parse(readFileSync(output,'utf8'));
+    assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
+    assert.equal(next.events.length,p.events.length+1);
+    assert.equal(next.events.at(-1).amountCents,1234);
+    assert.equal(next.versionHistory.entries.length,1);
+    const id=next.versionHistory.entries[0].id;
+    assert.deepEqual((await readPortableVersion(next,id)).events,p.events);
+    assert.deepEqual(ledgerAt(next,'2026-05-01').counterclaims.map(x=>x.amountCents),[1234]);
+    const collision=run([...args,'--output',output,'--confirm']);
+    assert.equal(collision.status,6); assert.equal(JSON.parse(collision.stderr).error.code,'OUTPUT_EXISTS');
+    assert.deepEqual(JSON.parse(readFileSync(output,'utf8')),next);
+    assert.equal(run([...args,'--output',input,'--confirm']).status,6);
+    const restoreArgs=['versions','restore','--input',output,'--id',id];
+    const previewRestore=run([...restoreArgs,'--dry-run']);
+    assert.equal(previewRestore.status,0,previewRestore.stderr);
+    assert.deepEqual(JSON.parse(previewRestore.stdout).data.project.events,p.events);
+    const restore=run([...restoreArgs,'--output',restored]);
+    assert.equal(restore.status,0,restore.stderr);
+    const back=JSON.parse(readFileSync(restored,'utf8'));
+    assert.deepEqual(back.events,p.events);
+    assert.equal(back.versionHistory.entries.length,2);
+    assert.deepEqual(back.versionHistory.entries[0],next.versionHistory.entries[0]);
+    assert.deepEqual((await readPortableVersion(back,back.versionHistory.entries[1].id)).events,next.events);
+    assert.deepEqual(JSON.parse(readFileSync(output,'utf8')),next);
+    const damaged=structuredClone(next); damaged.versionHistory.entries[0].sha256='0'.repeat(64);
+    writeFileSync(input,JSON.stringify(damaged));
+    const corrupt=run([...args,'--output',join(dir,'corrupt.json'),'--confirm']);
+    assert.equal(corrupt.status,4); assert.equal(JSON.parse(corrupt.stderr).error.code,'INVALID_ARCHIVE');
+    assert.equal(existsSync(join(dir,'corrupt.json')),false);
+  } finally { rmSync(dir,{recursive:true,force:true}); }
+});
+test('CLI payment uses shared guard and rejects malformed payloads without writing', () => {
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-cli-'));
+  try {
+    const payload=join(dir,'payment.json'), output=join(dir,'new.json');
+    const actual={date:'2026-05-01',amountCents:100,debtorPersonId:'missing',creditorPersonId:'a',settlementKind:'paid'};
+    writeFileSync(payload,JSON.stringify(actual));
+    const args=['payments','record','--input','-','--payload',payload,'--output',output,'--confirm'];
+    const rejected=run(args);
+    assert.equal(rejected.status,4,rejected.stderr);
+    assert.equal(JSON.parse(rejected.stderr).error.code,'MUTATION_REJECTED');
+    assert.equal(existsSync(output),false);
+    for (const bad of [{...actual,amountCents:0},{...actual,date:'2026-02-30'},{...actual,itemId:'i'}]) {
+      writeFileSync(payload,JSON.stringify(bad));
+      const result=run(args); assert.equal(result.status,4,result.stderr);
+      assert.equal(result.stdout,''); assert.equal(existsSync(output),false);
+    }
+  } finally { rmSync(dir,{recursive:true,force:true}); }
 });
