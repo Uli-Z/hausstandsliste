@@ -1,5 +1,5 @@
 <script>
-  import { translate } from '../src/lib/i18n.js';
+  import { pluralMessage, translate } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { money } from '../src/lib/domain.js';
   import { dateDE } from '../src/lib/util.js';
@@ -93,7 +93,7 @@
     </div>
 
     {#if data.warnings?.length}
-      <p class="notice warn">{$translate('ledger.invalid', {count:data.warnings.length})}</p>
+      <p class="notice warn">{pluralMessage('ledger.invalid', data.warnings.length)}</p>
     {/if}
 
     <div class="audit-area">
@@ -105,7 +105,7 @@
               <div class="audit-row">
                 <div class="audit-main">
                   <strong>{personName(entry.creditorPersonId)} an {personName(entry.debtorPersonId)}</strong>
-                  <span>{dateDE(entry.date)} · {entry.entryKind === 'paid' ? 'Zahlung' : entry.entryKind === 'external' ? $translate("ui.settled-externally-1p3ll9n") : 'Erlassen'}</span>
+                  <span>{dateDE(entry.date)} · {$translate(entry.entryKind === 'paid' ? 'timeline.payment' : entry.entryKind === 'external' ? 'timeline.external' : 'timeline.waiver')}</span>
                   {#if eventById.get(entry.sourceEventId)?.note}<span>{eventById.get(entry.sourceEventId).note}</span>{/if}
                 </div>
                 <strong class="audit-amount">{money(entry.amountCents / 100)}</strong>

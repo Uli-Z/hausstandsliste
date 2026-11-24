@@ -50,3 +50,10 @@ test('Q13: every PHP failure has a bilingual stable error code', () => {
   assert.match(serverErrorMessage('leaseExpired', 409, 'de'), /abgelaufen/);
   assert.match(serverErrorMessage('unexpected-code', 500, 'en'), /server could not complete/);
 });
+
+test('Q13: dynamic payment text and counts follow language', () => {
+  assert.equal(message('timeline.summaryPayment', 'en', {kind:message('timeline.payment','en'),from:'Anna',to:'Ben',amount:'€12.48'}), 'Payment: Anna → Ben (€12.48)');
+  assert.equal(pluralMessage('timeline.changeCount', 1, 'en'), '1 change');
+  assert.equal(pluralMessage('timeline.changeCount', 2, 'de'), '2 Änderungen');
+  assert.match(pluralMessage('ledger.invalid', 1, 'en'), /entry was ignored/);
+});

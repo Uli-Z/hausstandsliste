@@ -45,7 +45,7 @@
   }
 
   function eventLabel(eventType) {
-    return labels[eventType] ? localizeGermanText(labels[eventType]) : eventType?.replaceAll('-', ' ') || localizeGermanText('Ereignis');
+    return labels[eventType] ? $translate(labels[eventType]) : eventType?.replaceAll('-', ' ') || localizeGermanText('Ereignis');
   }
 
   function affectsPersonByShareDelta(baseProjection, change) {
@@ -84,14 +84,14 @@
   $: visiblePast = past.slice(0, pastLimit);
 
   const labels = {
-    'redistribution-executed': localizeGermanText('Umverteilung'),
-    'shares-set': 'Anteilssatz',
-    'person-added': 'Einzug',
-    'person-deactivated': localizeGermanText('Auszug'),
-    'person-reactivated': 'Wiedereinzug',
-    'item-added': 'Neuanschaffung',
-    'item-ended': 'Ausbuchung',
-    'claim-settlement-recorded': 'Ausgleich'
+    'redistribution-executed': 'timeline.redistribution',
+    'shares-set': 'timeline.shareSet',
+    'person-added': 'timeline.arrival',
+    'person-deactivated': 'timeline.departure',
+    'person-reactivated': 'timeline.return',
+    'item-added': 'timeline.purchased',
+    'item-ended': 'timeline.ended',
+    'claim-settlement-recorded': 'timeline.settlement'
   };
 
   function summary(event) {
@@ -103,18 +103,18 @@
     if (event.type === 'redistribution-executed') {
       const affectedItems = [...new Set((event.events || []).filter(e => e.type === 'shares-set').map(e => itemName(e.itemId)).filter(Boolean))];
       const itemInfo = affectedItems.length ? ` · ${affectedItems.join(', ')}` : '';
-      return `${event.title || localizeGermanText('Umverteilung')} · ${(event.events || []).length} Änderungen · ${localizeGermanText(FINANCIAL_EVENT_NOTE(event))}${itemInfo}`;
+      return `${event.title || localizeGermanText('Umverteilung')} · ${pluralMessage('timeline.changeCount', (event.events || []).length)} · ${localizeGermanText(FINANCIAL_EVENT_NOTE(event))}${itemInfo}`;
     }
     if (event.type === 'shares-set') {
       const before = projectBeforeEvent(project, event.id, event.date);
       const deltas = shareDeltasForChange(before, event);
       const item = itemName(event.itemId);
       if (deltas.length === 0) return `${item} · ${event.note || localizeGermanText('Manuelle Korrektur')}`;
-      return `${item} · ${event.note || 'Anteile'} · ${deltas.map(d => `${d.personName} ${d.delta >= 0 ? '+' : ''}${money(d.delta)}`).join(' · ')}`;
+      return `${item} · ${event.note || $translate('ui.shares-1y9v96b')} · ${deltas.map(d => `${d.personName} ${d.delta >= 0 ? '+' : ''}${money(d.delta)}`).join(' · ')}`;
     }
     if (event.type === 'person-added') return `${localizeGermanText('Willkommen,')} ${event.name || personName(event.personId)}!`;
     if (event.type === 'person-deactivated') return `${personName(event.personId)} · ${event.reason || localizeGermanText('Auszug')}`;
-    if (event.type === 'person-reactivated') return `${personName(event.personId)} · ${event.reason || 'Rückkehr'}`;
+    if (event.type === 'person-reactivated') return `${personName(event.personId)} · ${event.reason || $translate('timeline.returnReason')}`;
     if (event.type === 'item-added') return `${itemName(event.itemId, event.name)} · ${localizeGermanText('Startwert')} ${money(event.initialValue)}`;
     if (event.type === 'item-ended') return `${itemName(event.itemId)} · ${event.reason || localizeGermanText('Beendet')}`;
     return event.note || event.name || event.reason || event.type;
@@ -172,7 +172,7 @@
             <div class="event-summary">
               {#if event.type === 'redistribution-executed'}
                 {@const data = redistributionData(event)}
-                <span>{event.title || localizeGermanText('Umverteilung')} · {(event.events || []).length} {localizeGermanText('Änderungen')}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
+                <span>{event.title || localizeGermanText('Umverteilung')} · {pluralMessage('timeline.changeCount', (event.events || []).length)}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
                 {#if data.affectedItems.length}
                   <span> · </span>
                   {#each data.affectedItems as currentItemId, index}
@@ -236,7 +236,7 @@
           <div class="event-summary">
             {#if event.type === 'redistribution-executed'}
               {@const data = redistributionData(event)}
-              <span>{event.title || localizeGermanText('Umverteilung')} · {(event.events || []).length} {localizeGermanText('Änderungen')}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
+              <span>{event.title || localizeGermanText('Umverteilung')} · {pluralMessage('timeline.changeCount', (event.events || []).length)}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
               {#if data.affectedItems.length}
                 <span> · </span>
                 {#each data.affectedItems as currentItemId, index}

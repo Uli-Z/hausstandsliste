@@ -91,18 +91,18 @@
   $: balances = $ledger.simplified || [];
   $: outstandingCents = balances.reduce((sum, transfer) => sum + transfer.amountCents, 0);
 
-  function personName(id) { return $appState.project.people.find(p => p.id === id)?.name || 'Unbekannt'; }
-  function itemName(id) { return $appState.project.items.find(i => i.id === id)?.name || 'Gegenstand'; }
+  function personName(id) { return $appState.project.people.find(p => p.id === id)?.name || $translate('ui.unknown-1qdpc2x'); }
+  function itemName(id) { return $appState.project.items.find(i => i.id === id)?.name || $translate('timeline.unknownItem'); }
   function eventName(e) {
     if (e.type === 'item-added') return $translate("ui.item-recorded-sylo1j") + " " + (e.name || itemName(e.itemId));
     if (e.type === 'item-ended') return $translate("ui.item-archived-132z2tu") + " " + itemName(e.itemId);
     if (e.type === 'person-added') return $translate("ui.person-added-1bh7i23") + " " + (e.name || personName(e.personId));
     if (e.type === 'person-deactivated') return $translate("ui.person-left-1bmnpom") + " " + personName(e.personId);
     if (e.type === 'person-reactivated') return $translate("ui.person-rejoined-1rgz8oi") + " " + personName(e.personId);
-    if (e.type === 'redistribution-executed') return $translate("ui.shares-changed-fw5fph") + " " + (e.title || 'Übertragung');
+    if (e.type === 'redistribution-executed') return $translate("ui.shares-changed-fw5fph") + " " + (e.title || $translate('timeline.genericTransfer'));
     if (e.type === 'shares-set') return $translate("ui.shares-changed-fw5fph") + " " + itemName(e.itemId);
-    if (e.type === 'claim-settlement-recorded') return (e.settlementKind === 'paid' ? 'Zahlung' : e.settlementKind === 'external' ? 'Extern verbucht' : 'Erlass') + ': ' + personName(e.debtorPersonId) + ' an ' + personName(e.creditorPersonId) + ' (' + money(e.amountCents / 100) + ')';
-    return e.title || e.note || 'Änderung';
+    if (e.type === 'claim-settlement-recorded') return $translate('timeline.summaryPayment', { kind: $translate(e.settlementKind === 'paid' ? 'timeline.payment' : e.settlementKind === 'external' ? 'timeline.external' : 'timeline.waiver'), from: personName(e.debtorPersonId), to: personName(e.creditorPersonId), amount: money(e.amountCents / 100) });
+    return e.title || e.note || $translate('timeline.genericChange');
   }
   function navigate(id) {
     appState.dismissDatePicker();
@@ -173,13 +173,13 @@
 <svelte:window on:keydown={handleKeydown} on:pointerdown={handleOutsidePointer} on:beforeunload={warnUnsavedBeforeLeaving} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
 
 <div class="app-shell">
-  <aside class="sidebar" aria-label="Hauptnavigation">
+  <aside class="sidebar" aria-label={$translate('nav.primary')}>
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">H</span>
       <div class="brand-name"><strong>Hausstandsliste</strong><span>Shared Ownership Tracker</span></div>
     </div>
     
-    <nav class="sidebar-links" aria-label="Arbeitsbereiche">
+    <nav class="sidebar-links" aria-label={$translate('nav.sections')}>
       {#each navigation as nav (nav.id)}
         <button class:nav-active={route.page === 'dashboard' && activeSection === nav.id} aria-current={route.page === 'dashboard' && activeSection === nav.id ? 'page' : undefined} on:click={() => navigate(nav.id)}>
           <span class="nav-glyph"><ActionIcon name={nav.icon} size={20}/></span><span>{$translate('nav.' + nav.id)}</span>
@@ -247,7 +247,7 @@
           <button type="button" class="session-history-button" aria-label={$translate('app.undo')} title={$translate("app.undo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}><ActionIcon name="undo" size={20}/></button>
           <button type="button" class="session-history-button" aria-label={$translate('app.redo')} title={$translate("app.redo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}><ActionIcon name="redo" size={20}/></button>
         </div>
-        <span class="working-indicator" title={$appState.secure ? 'Passwortgeschütztes Projekt: keine Klartext-Arbeitskopie im Browser' : 'Nicht verschlüsselte Projekte haben eine lokale Arbeitskopie im Browser'}>
+        <span class="working-indicator" title={$translate($appState.secure ? 'app.protectedTooltip' : 'app.localTooltip')}>
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </span>
@@ -411,7 +411,7 @@
   </div>
 </div>
 <!-- Mobile quick navigation: a stable bottom bar with all other areas in Mehr. -->
-<nav class="mobile-bottom-nav" aria-label="Navigation auf dem Smartphone">
+<nav class="mobile-bottom-nav" aria-label={$translate('nav.mobile')}>
   {#each navigation.slice(0,4) as nav (nav.id)}
     <button type="button" class:nav-active={activeSection === nav.id}
       aria-current={activeSection === nav.id ? 'page' : undefined} on:click={() => navigate(nav.id)}>
