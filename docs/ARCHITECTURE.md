@@ -34,12 +34,13 @@ A file is accepted by `requireProjectFile()`. Unsupported schemas are rejected, 
 
 ## Explicit Save and remote storage
 
-The in-memory Undo/Redo feature is planned (Q12), separate from the already implemented *file version* archive. On explicit Save, the previously saved whole project becomes an archive entry, and the current state is saved.
+Session Undo/Redo (Q12) is implemented, with up to 50 in-memory steps. It is not serialized, does not create archive entries and resets on import, project switch or archived-version Restore. On explicit Save after changes, the previously saved whole project becomes an archive entry and the current state is saved.
 
-- Offline: download a complete file.
+- Offline: import loads a working copy, without retaining a link to the source filename. Save downloads a new complete file; it cannot overwrite the imported file. A protected local working copy is saved encrypted. Dirty status compares working data to the last imported or explicitly saved snapshot.
 - PHP: encrypt the same file in the browser; upload it to a single current encrypted server document.
 - The PHP server tracks a monotonic technical revision, current-file pointer and exclusive checkout lease. Stale writes receive 409; older project states are **not** separately stored by PHP. The client restores historical versions only from the encrypted file archive.
-- Optional encrypted email copies are independent backups, not another user-visible history implementation.
+- Optional encrypted email copies are independent backups, not another user-visible history implementation. Downloading a separate backup while editing online does not confirm a remote save.
+- Language is a browser-local preference, not a project field. The interface uses English fallback, German browser detection and a manual override. Time travel starts at today on reload/import and is separate from saved event dates.
 
 ## Build and validation
 

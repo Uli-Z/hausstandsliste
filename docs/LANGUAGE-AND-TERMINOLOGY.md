@@ -66,12 +66,12 @@ Terminology rules:
 
 Do **not** rename existing `hausstand-*` release filenames, PHP endpoints, JSON keys, event types, `localStorage` keys, schema versions, cryptographic envelope identifiers, or historical project values to match the English title. Those identifiers are part of compatibility and may be handled separately only with an explicit migration.
 
-The main `README.md` and the Svelte README are now authored in English. Older feature/design documents still contain German text and some historical status statements; translate and consolidate them as part of documentation task **Q08**, preserving old decisions as explicitly historical where needed. The prioritized to-do list remains the current source for implementation and verification status during the migration.
+The main `README.md` and the Svelte README are now authored in English. The central architecture, build, deployment, security and storage references are maintained in English (Q08). Historical UX/feature notes and the German working backlog may retain their original language. The prioritized to-do list is the current source for implementation and verification status.
 
 ## Implementation notes (23 November 2026)
 
 - Language preferences are saved as `hausstand-language` in browser local storage, not in the ownership project, the portable archive, or PHP backups.
 - Use `src/lib/i18n.js` for stable English/German translation keys, `$translate(key)` in Svelte, and the shared formatting helpers for amounts and dates.
-- Main application, dialogs and component translation is under way; the existing domain schema and settlement arithmetic are unchanged.
+- Main application, dialogs and component translation is implemented for the core interface; final message coverage remains open; the existing domain schema and settlement arithmetic are unchanged.
 - Chromium browser checks include English automatic selection, switching to German, preference surviving reload, and no language property in exported project data. These checks are in `tests/browser-qa.mjs`.
 - Pending closure: audit all dynamic messages, error paths and plurals; verify complete English mobile and screen-reader experience and a second browser engine before closing Q13.

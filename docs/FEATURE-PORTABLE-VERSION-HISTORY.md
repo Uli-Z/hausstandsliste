@@ -1,6 +1,6 @@
 # Portable in-file version history
 
-**Status:** Implemented in source for the sole Svelte UI and PHP API, with automated tests. Interactive cross-browser and real-hosting acceptance are still open (Q11). Session Undo/Redo has been implemented and tested independently (Q12).
+**Status:** Implemented in source for the sole Svelte UI and PHP API, with automated tests. Automated cross-browser portable-file scenarios have passed; latest UI regression, physical-device and real-hosting acceptance are still open (Q11). Session Undo/Redo has been implemented and tested independently (Q12).
 
 ## One current project format
 
@@ -29,7 +29,7 @@ There is **one supported import format**: current project JSON with this embedde
 
 Only explicit **Save** operations create file versions. Editing, navigation, date-travel and session-level Undo/Redo do not create versions. A 50-step in-memory Undo stack (Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z) survives Save but not a new session, import, project switch or archived-version Restore. Native text-input Undo is not intercepted.
 
-- **Local HTML:** Save downloads the full JSON file, including its portable history. The browser usually cannot overwrite the previously downloaded path; a browser working copy is not a substitute for keeping the file.
+- **Local HTML:** Save downloads the full JSON file, including its portable history. The browser does not link to or overwrite the source file: Save downloads a new file named from the community. A browser working copy is not a substitute for keeping the file.
 - **Encrypted local:** the browser encrypts the entire document, including its complete history; no plaintext history is cached.
 - **Online PHP:** Save encrypts the same document in the browser and uploads it as the server's only current project file. The server keeps a separate **technical revision counter and an exclusive checkout lease** to prevent competing writes. No server-side historical project files or history-reading endpoints exist.
 - **Restore:** selecting an archive entry loads its contents as an **unsaved editable working state**. The embedded archive is retained. The next explicit Save archives the previous current file and makes the restored state current.
@@ -39,6 +39,8 @@ The PHP backend swaps a server-generated current file and metadata pointer to av
 ## Automated browser QA
 
 [Chromium integration run 45148794074](https://github.com/Uli-Z/hausstandsliste/actions/runs/45148794074) verified local purchase/payment/Undo, JSON download into a fresh browser context, embedded version Restore, 375px layout, and two-browser encrypted PHP create/open/checkout/Save/stale-revision protection. Browser automation lives in `tests/browser-qa.mjs` and [the separate CI workflow](../.github/workflows/browser-qa.yml); encrypted local-file roundtrip and one-click encrypted header Save have additionally passed in [Chromium QA 45149720501](https://github.com/Uli-Z/hausstandsliste/actions/runs/45149720501).
+
+[Cross-browser QA 45164333333](https://github.com/Uli-Z/hausstandsliste/actions/runs/45164333333) subsequently verified portable plain/encrypted archives in Chromium, Firefox and WebKit, including 35 archived states, invalid imports and a simulated Chromium storage quota failure. Latest UI changes still require the separate manual browser workflow.
 
 ## Remaining acceptance
 

@@ -1,88 +1,56 @@
-# Sicherheitsentwurf: verschlüsselte Projektdateien
+# Security and encryption
 
-**Status:** Verschlüsselungsgrundfunktion seit 21.11.2026 implementiert und automatisiert getestet. **Kein externes Sicherheitsaudit** und noch keine Browser-/Produktivabnahme; einige Anforderungen dieses ursprünglichen Entwurfs sind bewusst noch offen.
+**Status:** Current implementation documented on 24 November 2026. Automated crypto tests, PHP smoke tests and documented local browser round trips have passed. No independent security audit or real-hosting acceptance has been completed.
 
-## Sicherheitsziel
+## Security goals and limits
 
-- Der Server speichert und verschickt **nur Ciphertext** der Hausstandsdaten.
-- Entschlüsselung und Verschlüsselung passieren im **Browser** nach Eingabe einer pro Datei gewählten Passphrase. Lokaler verschlüsselter Export nutzt **exakt das gleiche Format**.
-- Projekt-JSON im Klartext darf auf Wunsch weiterhin bewusst exportiert werden; die App muss das erkennbar anzeigen.
-- Dateinamen, Datei-IDs, Größen, Änderungstermine, Sperrstatus und technische Revisionsnummern können als **absichtlich öffentliche Metadaten** sichtbar sein.
+The optional server stores and emails encrypted project documents, not plaintext ownership data or file passwords. Encryption/decryption occur in the browser. Local encrypted exports use the same container format. Unprotected JSON downloads are an explicit alternative for unprotected working copies, not a safe default for protected data.
 
-## Bedrohungsmodell und Grenze
+Project names, IDs, file sizes, modification dates, checkout status and technical revision metadata may be visible to visitors. Encryption protects stored ciphertext against access without the password, but does not protect against malicious code delivered by a compromised server, XSS, browser malware, compromised devices or weak passwords. HTTPS is required for online use. A locally verified HTML file reduces reliance on a web server but not device risk.
 
-Clientseitige Verschlüsselung schützt gegen den Einblick in gespeicherte Serverdateien, Backups oder E-Mail-Anhänge **ohne Passwort**. Sie schützt **nicht** zuverlässig gegen einen kompromittierten PHP-Webserver, der manipuliertes JavaScript ausliefert, gegen Browser-Malware, XSS oder ein schwaches erratbares Passwort. Die aufgerufene Web-App stammt vom Server; der Server könnte bei einer künftigen Sitzung den Passphrase-Eingabecode austauschen. Eine selbstständig lokal geprüfte/verteilte HTML-Datei reduziert diese spezielle Vertrauensabhängigkeit, eliminiert aber nicht Geräteschwachstellen.
+## Implemented container
 
-**HTTPS** für Online-Betrieb erforderlich; `file://`-Betrieb für lokale WebCrypto-Unterstützung browserübergreifend testen. Nicht bloß von „AES“ auf Ende-zu-Ende-Sicherheit schließen.
+In `hausstand-svelte/src/lib/crypto.js`:
 
-## Kryptografie (provisorische Designentscheidung)
+- `format: hausstand-aesgcm-v1`, `version: 1`, `kdf: PBKDF2-SHA256`, `cipher: AES-256-GCM`.
+- Web Crypto PBKDF2-HMAC-SHA-256 with 600,000 iterations for new files; a fresh random 16-byte salt and 12-byte nonce for each encryption.
+- AES-256-GCM with a 128-bit authentication tag, authenticated JSON header and Base64-encoded ciphertext. Container validation checks header shape, allowed iteration range and salt/nonce lengths.
+- Encrypted payload contains the full project JSON (including its portable archive) and an edit capability (`editToken`). New capabilities use 32 random bytes. Wrong passwords and corrupt ciphertext are rejected.
 
-1. Versioniertes verschlüsseltes Containerformat, z. B. `.hausstand.enc`, mit `format`, `version`, `kdf`, KDF-Parametern, zufälligem Salt, pro Verschlüsselung eindeutigem Nonce, `ciphertext` und Authentifizierungstag.
-2. **Authentifizierte Verschlüsselung:** AES-256-GCM über die Browser-Web-Crypto-API (oder eine etablierte, gut geprüfte Bibliothek). Header/Datei-ID/Formatversion soweit sinnvoll kryptographisch als Additional Authenticated Data binden.
-3. **KDF:** Bevorzugt Argon2id mit expliziten, getesteten Speicher-/Zeitparametern, **wenn** als gepflegter, vollständig inline-bündelbarer WASM-/JS-Baustein für Offline-HTML praktikabel. Andernfalls als dokumentierter Kompromiss PBKDF2-HMAC-SHA-256 mit ausreichend hohen, auf Zielgeräten gemessenen Parametern über WebCrypto; Parameter **mit jeder Datei speichern**. Niemals Passwort direkt als AES-Schlüssel verwenden.
-4. Alle Salts, Nonces und Capability-Secrets aus `crypto.getRandomValues()`; jede AES-GCM-Verschlüsselung braucht einen **neuen Nonce** für denselben Schlüssel.
-5. Crypto-Code zentral in `src/lib/crypto.js`: `encryptProject`, `decryptProject`, `changePassword`, Formatvalidierung, Fehlermeldung bei falschem Passwort/Manipulation, Tests mit gespeicherten Testvektoren.
-6. Key-Derivation mit expliziter Domänentrennung: Verschlüsselungsschlüssel und Authentisierungsmaterial niemals ungeprüft identisch wiederverwenden.
+SHA-256 on compressed archive entries detects corruption; it is not an independent authenticity signature for plaintext project files. The current schema alone is supported; there is no legacy migration.
 
-**Passwortqualität:** Lange, zufällige Passphrase empfehlen; bei öffentlichem Ciphertext sind Passwortversuche offline möglich, Server-Ratelimit hilft dagegen nicht. Sicheres Passwort-Backup/Wiederherstellungsstrategie erklären: **Vergessenes Passwort bedeutet ohne eigene Klartext-/Schlüsselkopie Datenverlust.**
+Use long random passphrases, not merely the enforced minimum of eight characters. Public ciphertext permits offline password guessing; server rate limiting cannot prevent that. A lost password is unrecoverable without a separate accessible copy.
 
-## Server-Autorisierung ohne Kenntnis des Passworts
+## Server authorization and version history
 
-**Nicht** auf Basis einer öffentlichen Dateiliste Schreiboperationen erlauben. Als einfache Variante:
+The server stores the SHA-256 hash of the edit capability rather than the file password. After decrypting the document, the browser can use that capability over HTTPS for authorized operations. Capability sharing is not individual user authentication; anyone with the same project password may be able to edit.
 
-- Bei Dateianlage im Browser eine zufällige **256-Bit-Bearbeitungs-Capability** erzeugen. Der Server speichert nur ihren Hash zur Autorisierung; die Capability liegt **innerhalb** des verschlüsselten Datei-Containers und kann nur nach erfolgreicher Entschlüsselung gelesen werden.
-- Nach Entschlüsselung kann der Browser die Capability für Checkout/Checkin/Speichern über **HTTPS** verwenden; keine Passphrase an PHP. Sessions/kurzlebige Tokens statt ständiger Übertragung prüfen; Autorisierung vor jedem schreibenden API-Aufruf.
-- Datei-Anlage/Löschung eines **öffentlich** gelisteten Arbeitsordners zusätzlich gegen Spam/Denial-of-Service schützen (z. B. separates Workspace-Admin-Recht). Ein Lesezugriff auf Ciphertext ist nicht automatisch ein Schreibrecht.
-- Server-Dateikonfiguration und aktuelle verschlüsselte Projektdateien niemals über erratbare Pfade direkt aus dem Webroot anbieten.
-- Als sicherheitsrelevantes Design vor Implementierung ein kurzes Bedrohungsmodell und Integrations-/Penetrationstests durchführen. Capability ist **kein** vollständiges Identitäts- oder Rechtemanagement; alle mit derselben Passphrase können gleichberechtigt editieren.
+The PHP API checks an exclusive checkout lease and the expected technical revision. It maintains one current encrypted project file, not a separate business history. Current-file replacement uses a new file and metadata pointer; see [collaborative storage](FEATURE-COLLABORATIVE-STORAGE.md). Protect creation by upstream access controls when enabling it, and keep the private data directory outside the webroot.
 
-### Passwortwechsel
+### Password rotation
 
-Der Passwortwechsel muss im Browser mit **altem** Passwort/Schlüssel autorisiert und die aktuelle Version unter neuem Passwort neu verschlüsselt werden, **zusammen mit einer Rotation der Bearbeitungs-Capability**. Die Behandlung historischer Versionen ist ausdrücklich Teil der Operation:
+During checkout, password change re-encrypts the entire current document including all embedded earlier versions and rotates the editing capability. Older capabilities cannot continue writing. Previously downloaded or emailed encrypted copies cannot be retroactively re-encrypted or revoked; their old passwords still work. Test rotation and recovery on the intended host.
 
-- Implementiert: Die **ganze aktuelle Datei mit eingebettetem Versionsarchiv** wird clientseitig unter neuem Passwort verschlüsselt, bei unverändertem Checkout-/Revisionsschutz.
-- Alte **bereits heruntergeladene oder per E-Mail verschickte** verschlüsselte Kopien lassen sich **nicht rückwirkend unlesbar machen**. Altes Passwort + alte Kopie können frühere Inhalte weiter öffnen.
-- Bei Key-Rotation alle Nonces erneut erzeugen; konsistente Umstellung oder vollständiger Abbruch, kein gemischter halbfertiger Zustand.
-- Der Server darf die Bearbeitungs-Capability nicht im Klartext in Metadaten ausgeben. Hashvergleich zeitkonstant; Log-/Error-Ausgaben ohne Token.
-- Möglichkeit bedenken, dass ein fremder Nutzer mit altem Passwort bereits eine geöffnete Sitzung besitzt: bei Rotation alle Server-Leases/Session-Rechte widerrufen.
+## Local working copies and backups
 
-## Browser-Speicher und Benutzerführung
+- Unprotected data may be cached in `localStorage` under `hausstand_svelte_v07_working_copy`. The cache is not a durable saved file.
+- Opening protected data clears the plaintext working-copy cache and disables plaintext caching. The active session still contains decrypted data in memory; do not assume secure memory erasure.
+- Importing a file never links the browser to the source path. Local Save downloads a new file; protected local Save requires the session password and produces encrypted output.
+- A separate encrypted backup of an unprotected working copy does not encrypt that working copy. An online backup download does not mark pending server changes saved.
+- Restore loads an unsaved working state from the embedded archive. Session Undo/Redo is not serialized.
 
-Heute enthält der `localStorage` die **Klartext-Arbeitskopie** (`hausstand_svelte_v07_working_copy`). Dieser Zustand darf in einem Verschlüsselungsmodus **nicht** unbeachtet fortbestehen. Geplante Änderung:
+## Hosting and remaining security checks
 
-- Bei verschlüsseltem Projekt kein unverschlüsseltes `project` in `localStorage` schreiben; Schlüssel nur im Speicher der geöffneten Sitzung halten.
-- Optional lokalen, **ebenfalls verschlüsselten** Recovery-Entwurf anbieten. Hinweis bei ungespeicherten Änderungen und bei Lease-Verlust; niemals heimlich als Klartext sichern.
-- Beim Wechsel zwischen Projekten Schlüsselmaterial aus dem App-Zustand verwerfen; Browser-Cache/Downloads/Exportdateien bleiben separate Nutzerverantwortung.
-- Beim lokalen Export explizite Wahl: `JSON (unverschlüsselt)` oder `Verschlüsselte Datei`. Beim Import Format automatisch erkennen und ggf. Passphrase anfordern.
-- Keine externen Analytics-/Skriptdienste, CSP/Same-Origin/CSRF-Schutz und XSS-Prüfung. Nutzertexte in UI und in Dateinamen maskieren.
+Keep private files and configuration outside public access, use HTTPS and proper file permissions, protect creation, verify request limits and avoid logging secrets. Optional mail backups contain encrypted attachments; delivery failure must not undo a saved project. Real delivery and retry/recovery must be checked.
 
-## Server- und E-Mail-Betrieb
+Before production, review XSS, CSP/security headers, same-origin request protection, capability handling, password rotation, rate/size limits, concurrency, archive-size limits and host backup/recovery. Review the current code independently. A compromised server can capture passwords even with client-side encryption. See [Deployment](DEPLOYMENT.md) and [QA](WG-PRAXIS-TODO.md).
 
-- Datenverzeichnis außerhalb Webroot; PHP-Dateien und Konfiguration ohne Schreibzugriff durch fremde Benutzer.
-- Kurze `flock()`-Locks für Metadaten-/Speicheroperationen (keine stundenlangen OS-Locks), temporäre Datei + möglichst atomare Umbenennung innerhalb desselben Dateisystems, Revisionsvergleich zur Konfliktvermeidung.
-- API-Request-Limits, sinnvolle Maximalgrößen, Serverlimits, Fehlerprotokoll ohne vertrauliche Daten, konfigurierte SMTP-Zugangsdaten ausschließlich serverseitig.
-- E-Mail-Versand ausschließlich **verschlüsselter** Anhang; Betreff darf keine vertraulichen Details enthalten. SMTP über TLS. Versandfehler ohne Datenverlust protokollieren und erneut versuchen.
-
-## Quellen und technische Referenzen
+## Technical references
 
 - [MDN: Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API)
-- [MDN: sichere Kontexte](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts)
+- [MDN: Secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts)
 - [OWASP: Cryptographic Storage](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html)
 - [OWASP: Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
 - [OWASP: Web Frontend Security](https://cheatsheetseries.owasp.org/cheatsheets/Web_Frontend_Security_Cheat_Sheet.html)
-- [PHP Manual: flock](https://www.php.net/manual/en/function.flock.php)
-- [PHP Manual: rename](https://www.php.net/manual/en/function.rename.php)
-
-**Nicht als implementiert ausgeben.** Vor produktivem Betrieb unabhängige Sicherheitsdurchsicht erforderlich.
-
-
-## Tatsächlich implementiertes Format (21.11.2026)
-
-- Modul `hausstand-svelte/src/lib/crypto.js`, Container `format: hausstand-aesgcm-v1`, `version:1`.
-- WebCrypto-PBKDF2-HMAC-SHA-256, **600.000 Iterationen**, zufälliges 16-Byte-Salt; AES-256-GCM mit zufälligem 12-Byte-Nonce; Verschlüsselungsheader als Additional Authenticated Data.
-- Payload enthält Projekt-JSON plus zufälligen 256-Bit-`editToken`. Nur der SHA-256-Hash dieses Bearbeitungs-Tokens steht beim PHP-Server. Passwort wird nicht an PHP gesendet.
-- Für verschlüsselt geöffnete Projekte wird die bestehende Klartext-`localStorage`-Arbeitskopie gelöscht und nicht fortgesetzt. Speicher nicht per Browsercache absichern; ungespeicherte Daten vor Verlassen exportieren.
-- Falsche Passphrase, beschädigte Authentifizierungsdaten und beschädigte Container werden beim lokalen automatisierten Test erkannt.
-- Bei **Passwortwechsel** werden der aktuelle Stand **und die in der Projektdatei enthaltenen Vorversionen** zusammen neu verschlüsselt; die Bearbeitungs-Capability wird rotiert. **Nur bereits versandte E-Mail-Kopien** behalten frühere Passwörter, die nicht rückwirkend widerrufen werden können.
-- JavaScript und PHP werden zusammen veröffentlicht; eine kompromittierte Auslieferung kann trotz Verschlüsselung Passwörter beim Eingeben abgreifen. Es gibt keine Identitätsprüfung pro Nutzer, sondern ein gemeinsames Dateipasswort.
-- Bei starken Datenschutzanforderungen vor produktivem Betrieb Codeprüfung, Browser-/CORS-/XSS-/Headerprüfung, Threat Modeling und ein von unabhängiger Stelle bestätigtes Testprotokoll einplanen.
+- [PHP: flock](https://www.php.net/manual/en/function.flock.php)
+- [PHP: rename](https://www.php.net/manual/en/function.rename.php)

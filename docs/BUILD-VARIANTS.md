@@ -1,8 +1,8 @@
-# Offline-HTML und vorkonfigurierte PHP-Version
+# Build variants — offline HTML and configured PHP
 
-Hausstand wird in **zwei getrennten Betriebsvarianten** gebaut. Eine statische HTML-Datei enthält keine Möglichkeit, Projekte über die PHP-API zu speichern. Nur der manuell erstellte PHP-Build nutzt den Server und kennt automatisch seine eigene Adresse.
+Hausstandsliste has one Svelte UI and two current distributions. Static HTML cannot save to the PHP API. Only the PHP build provides same-origin online storage.
 
-## 1. Standalone HTML (nur lokal)
+## 1. Standalone HTML
 
 ```bash
 cd hausstand-svelte
@@ -10,12 +10,11 @@ npm ci
 npm run build:single
 ```
 
-- `dist/hausstand-standalone.html`: die einzige aktuelle, mobile Oberfläche (V3).
-- GitHub Pages veröffentlicht dieselbe Oberfläche unter `/`.
-- Offline-HTML und GitHub Pages arbeiten unabhängig von PHP. Projekt-JSON sowie verschlüsselte Backups lassen sich herunterladen und wieder öffnen; unverschlüsselte Arbeitskopien bleiben im jeweiligen Browser.
-- Die ebenfalls statischen GitHub-Pages-Seiten haben keine Server-Dateiliste, keinen Server-Checkout und keine Server-Speicherfunktion.
+- `dist/hausstand-standalone.html` contains the responsive V3 UI. GitHub Pages publishes that same offline UI at the repository root.
+- Open plain or encrypted project files locally. Import loads a working copy, not a linked file. Save downloads a new complete file including embedded version history; the original file remains unchanged.
+- Unprotected browser working copies are temporary; protected data is not cached as plaintext. No remote file list, checkout or online save is available in the standalone distribution.
 
-## 2. PHP-App manuell als einzelne Datei bauen
+## 2. Build the single-file PHP application
 
 ```bash
 cd hausstand-svelte
@@ -24,13 +23,13 @@ npm run build:php
 php -l dist/hausstand.php
 ```
 
-Die Datei **`dist/hausstand.php`** enthält PHP-API, HTML, JavaScript und CSS in einem Artefakt. Sie verwendet dieselbe einzige Svelte-Oberfläche. Hochladen genügt, sobald der private Datenordner konfiguriert und über PHP beschreibbar ist. Ein weiterer Build der HTML-Version ist nicht nötig.
+`dist/hausstand.php` contains PHP, HTML, JavaScript and CSS. Upload it to a PHP-capable HTTPS host after configuring a private writable data directory. The PHP build also builds the UI; no separate standalone build is needed.
 
-**Ohne lokale Entwicklungsumgebung:** In GitHub den Workflow [Build PHP single-file release (manual)](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml) über „Run workflow“ starten. Aus dem abgeschlossenen Workflow unter „Artifacts“ `hausstand-php-manual` herunterladen und die ZIP-Datei entpacken.
+Without a local development environment, start [Build PHP single-file release (manual)](https://github.com/Uli-Z/hausstandsliste/actions/workflows/php-release.yml) using Run workflow, then download and unpack the `hausstand-php-manual` artifact.
 
-## 3. Konfiguration in derselben PHP-Datei
+## 3. Server configuration
 
-Die folgenden Einstellungen stehen **ganz am Anfang** von `hausstand.php` (sie werden aus `server-php/backend.php` übernommen):
+The current build copies this configuration block from `server-php/backend.php` to the start of the PHP file:
 
 ```php
 $HAUSSTAND_CONFIG = [
@@ -41,21 +40,23 @@ $HAUSSTAND_CONFIG = [
 ];
 ```
 
-- `data_dir`: beschreibbarer Ordner **außerhalb des öffentlich abrufbaren Webverzeichnisses**. PHP legt ihn bei Bedarf selbst an. Wenn das Skript in einem Unterordner liegt, muss der Pfad ggf. angepasst werden. Daten innerhalb des Webroots werden sicherheitshalber abgelehnt.
-- `allow_create`: Standardmäßig `false`; Besucher können vorhandene Projekte öffnen, aber keine neuen anlegen. Setzt der Betreiber `true`, darf **jeder Besucher mit Zugriff auf die PHP-Seite** neue Projekte anlegen – deshalb nur mit einer vorgeschalteten Zugriffsbeschränkung (z. B. HTTP-Authentifizierung oder geschützter Netzwerkzugang) verwenden.
-- `backup_email` / `mail_from`: optionale Adressen für verschlüsselte Sicherungsanhänge, falls `mail()` auf dem Server funktioniert.
-- Serveradministratoren können Werte durch `HAUSSTAND_DATA_DIR`, `HAUSSTAND_ALLOW_CREATE`, `HAUSSTAND_BACKUP_EMAIL` und `HAUSSTAND_MAIL_FROM` aus ihrer Hosting-Umgebung übersteuern.
+- `data_dir`: writable directory **outside the public webroot**. PHP creates it when needed; adjust the path for subdirectory installations. In-webroot storage is rejected.
+- `allow_create`: defaults to false. Setting true allows any visitor with access to the application to create a project; use an upstream access restriction such as HTTP authentication or protected network access.
+- `backup_email` and `mail_from`: optional addresses for encrypted backup attachments if the host supports PHP mail.
+- Environment overrides: `HAUSSTAND_DATA_DIR`, `HAUSSTAND_ALLOW_CREATE`, `HAUSSTAND_BACKUP_EMAIL`, `HAUSSTAND_MAIL_FROM`.
 
-Beispiel: `/home/konto/public_html/hausstand.php` im Web, `/home/konto/hausstand-private-data/` für Dateien. Bei dieser Verzeichnisstruktur passt der Standardpfad. Benötigt werden PHP 8.1+, ein HTTPS-Host und Schreibrechte für PHP im privaten Ordner.
+Example: `/home/account/public_html/hausstand.php` and `/home/account/hausstand-private-data/`. PHP 8.1+, HTTPS and PHP write permission to the private folder are required. Keep configuration secrets out of the public repository. Manual admin-authenticated self-update and separate local configuration are planned under S05, **not implemented**.
 
-**Keine API-URL und kein Workspace-Schlüssel im Browser:** Die Weboberfläche benutzt ausschließlich dieselbe PHP-Adresse (`hausstand.php?api=...`). In den Einstellungen des Benutzers existiert keine Verbindungsmaske. Die Dateipasswörter verbleiben im Browser; der Server verwaltet nur die verschlüsselten Daten.
+The UI uses its own address (`hausstand.php?api=...`); there is no API URL or workspace-key setting in the browser. Project passwords remain in the browser.
 
-## 4. Nutzung der Server-App
+## 4. Using online storage
 
-1. Öffne die auf dem HTTPS-Host veröffentlichte `hausstand.php` im Browser.
-2. Unter **Sichern & Teilen → Online-Projekte** sind vorhandene Dateien auf diesem Server sichtbar. Ein Passwort ist nur für das gewählte Projekt nötig, nicht für die Serververbindung.
-3. Öffne ein Projekt, starte die Bearbeitung (Checkout), ändere die Daten und speichere die Revision. Beende die Bearbeitung (Checkin), damit andere übernehmen können.
-4. Wenn `allow_create=true` gesetzt ist, kannst du aus dem aktuellen Stand ein neues Online-Projekt anlegen. Ein langes Projektpasswort ist erforderlich.
-5. Zusätzlich bleiben lokale verschlüsselte oder unverschlüsselte Dateien verfügbar. Verschlüsselte Daten werden nicht als Klartext-Browserkopie gespeichert.
+1. Open the deployed PHP URL over HTTPS.
+2. In **Save & open → Work together online** (German: **Sichern & Öffnen**), choose a project and enter its password.
+3. Start editing (checkout), make changes, save online and stop editing (checkin). Read-only viewing does not acquire an editing lease.
+4. If creation is enabled, create a new online project from the current working copy with a long passphrase.
+5. A separate local encrypted download is a backup, not a confirmed online save. Only online projects have a remote identity.
 
-**Wichtige Einschränkungen:** Der PHP-Server muss die Datei als PHP ausführen, darf sie nicht als Klartext ausliefern und muss über HTTPS erreichbar sein. Dateinamen und technische Revisionsmetadaten sind bei einer öffentlich erreichbaren Instanz sichtbar; das Öffnen der Inhalte erfordert das Dateipasswort. Ein verlorenes Dateipasswort kann nicht auf dem Server wiederhergestellt werden. Die App verhindert paralleles Bearbeiten durch Checkout/Checkin; sie synchronisiert Bearbeitungen nicht in Echtzeit. Vor echtem Einsatz Sicherheits-/Berechtigungsprüfung und Backups einplanen.
+Each online project has one current encrypted document containing its portable archive. Technical revisions and an exclusive lease prevent conflicting writes; there is no separate server-side history or real-time merging.
+
+**Limits:** PHP must execute rather than serve the source as text. Project names and technical metadata can be visible on a publicly reachable installation. A lost file password cannot be recovered by the server. Real hosting, access control, recovery and security must be checked before sensitive use; see [Deployment](DEPLOYMENT.md), [Security](SECURITY-AND-ENCRYPTION.md) and [QA](WG-PRAXIS-TODO.md).

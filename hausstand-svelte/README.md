@@ -25,7 +25,7 @@ node server-php/smoke.mjs
 
 - `ui-v3/`: the only interface, dialogs, history picker and responsive styles.
 - `src/components/`: reusable components used by that interface, including settlement entry, HelpTip, shared balance and redistribution widgets.
-- `src/stores/projectStore.js`: source project, last saved file, edit state, as-of date and controlled changes.
+- `src/stores/projectStore.js`: working project, last imported or explicitly saved snapshot, dirty flag, as-of date and controlled changes. No local file identity is retained.
 - `src/lib/projector.js`: historical ownership projection from dated events.
 - `src/lib/ledger.js`, `claimSettlement.js`: personal net positions and independent counterclaim/payment events.
 - `src/lib/redistribution.js` and `valuation.js`: ownership changes and depreciation.
@@ -40,6 +40,6 @@ Only the **current portable project schema** is accepted for file import. The cu
 
 Changes to the current project are not equivalent to bank transfers. A payment event records an actual completed payment or an explicitly noncash adjustment; ownership and balances are derived separately. See [Community settlement](../docs/FEATURE-COMMUNAL-SETTLEMENT.md).
 
-Unencrypted local working copies are a convenience, **not durable backups**. Protected data is never intentionally cached in plaintext. The file must be saved explicitly. Automated Chromium browser QA has passed for local JSON/encrypted files, restore, Undo and concurrent PHP checkout; real hosting and independent browser/device/security reviews must still be tested before production; see [Build variants](../docs/BUILD-VARIANTS.md), [Security](../docs/SECURITY-AND-ENCRYPTION.md), and [To-do list](../docs/WG-PRAXIS-TODO.md).
+Unencrypted local working copies are a convenience, **not durable backups**. Protected data is never intentionally cached in plaintext. The file must be saved explicitly. Import loads a working copy and leaves the original file unchanged. Local Save downloads a new file; PHP Save updates the current remote project only after confirmation. An optional encrypted download is not a substitute for saving online changes. Automated browser QA has passed for documented Chromium, Firefox and WebKit scenarios, including portable files, and Chromium PHP checkout. The full browser workflow is manual. Latest UI acceptance, physical devices, real hosting and independent security review remain open; see [Build variants](../docs/BUILD-VARIANTS.md), [Security](../docs/SECURITY-AND-ENCRYPTION.md), and [To-do list](../docs/WG-PRAXIS-TODO.md).
 
-The default interface language is currently German. English-first localization is a separate open task; see [terminology](../docs/LANGUAGE-AND-TERMINOLOGY.md).
+The interface falls back to English, automatically selects German for a German browser locale, and offers a browser-local override in Settings. Final dynamic-message and accessibility acceptance remains Q13; see [terminology](../docs/LANGUAGE-AND-TERMINOLOGY.md).

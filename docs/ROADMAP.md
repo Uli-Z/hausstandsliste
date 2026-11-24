@@ -18,16 +18,18 @@ The canonical prioritized work items and their actual acceptance status are in [
 
 ## Before regular use
 
-- Q03: end-to-end browser verification of financial settlement scenarios.
-- Q04: mobile/desktop UI and accessibility acceptance.
-- Q05/Q11: file Save → download/upload → reopen → restore history, encryption and browser limits.
+- Q03–Q05: automated financial, responsive and portable-file browser scenarios passed; physical device and latest UI regression still remain.
+- Q11: real hosting, device and archive-size acceptance.
 - Q06: invalid edits and warnings.
 - S01–S04: real PHP hosting, concurrency, backup email, password/permissions and security checks.
 
 ## Planned product improvements
 
-- **Q10:** Compact opt-in time-travel UI. Open at the true current date; reveal a prominent historical/future-date banner only when viewing another date.
-- **Q13:** English as the default UI language, automatic German selection from browser preferences, and a manual override. Internal file format stays language-neutral.
-- **Q07/Q08/Q09:** final UX, documentation and deployment review.
+- **Q10/Q16:** Compact opt-in time travel implemented; latest header UI browser acceptance pending.
+- **Q13:** English fallback, automatic German selection and manual override implemented; final localization and accessibility audit pending.
+- **Q20/Q24:** Save & open and local working-copy separation implemented; latest browser acceptance pending.
+- **Q23:** Agent-friendly CLI (planned).
+- **S05:** Manual authenticated PHP self-update (planned).
+- **Q09:** Published-page verification.
 
 **Scope boundary:** No banking, recurring expense tracker, legacy format import, separate server history API, parallel UI variants, or real-time multi-editor merge.

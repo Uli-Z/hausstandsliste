@@ -19,7 +19,7 @@
 4. Group-wide payment routes are proposals and require mutual agreement. Distinguish `paid` from noncash `external`/`waived`.
 5. User edits must go through the central store and respect readonly/lease rules. Never silently modify historical payment amounts when an earlier purchase changes.
 6. Preserve historical **event** calculations (date/order), but **not unsupported old file formats**.
-7. Save must be explicit. Local means download; encrypted online means confirmed upload. A temporary browser working copy is not a durable saved file. Restore from the embedded archive loads an unsaved working state.
+7. Save must be explicit. Local means a new download, never writing back to an imported file; encrypted online means confirmed upload. Only an online project has a remote identity; a separate backup does not mark online changes saved. A temporary browser working copy is not a durable saved file. Restore from the embedded archive loads an unsaved working state.
 8. Keep protected projects and their complete archived history encrypted; never cache their plaintext in `localStorage`.
 9. Keep the UI minimal and responsive; explanations belong in contextual help. Warn clearly about saving, historical as-of dates, and factual payment confirmation.
 
@@ -48,4 +48,4 @@ After every change, inspect the GitHub Actions runs for the exact commit. CI suc
 - [Security](docs/SECURITY-AND-ENCRYPTION.md)
 - [Terminology and future localization](docs/LANGUAGE-AND-TERMINOLOGY.md)
 
-**Open major tasks:** Q03–Q06 end-to-end and multi-device acceptance, Q11 additional browser/hosting acceptance, and Q13 final language audit. Q10 compact time travel and Q12 session Undo/Redo are implemented (see the to-do list for acceptance).
+**Verification:** Q03–Q05 automated browser acceptance has passed for the documented scenarios. Q06, Q11, Q13 and later UI changes still have outstanding acceptance tasks; see the prioritized to-do list for exact status. Browser QA is intentionally manual; do not trigger it on every commit. Q10 time travel and Q12 session Undo/Redo are implemented.
