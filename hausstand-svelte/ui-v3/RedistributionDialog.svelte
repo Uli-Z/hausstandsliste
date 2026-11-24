@@ -78,9 +78,7 @@
     } else if (activeSubModal === 'special-remove') {
       const blocked = soleOwnedItems(preview.base, subModalData.sourceId);
       if (blocked.length) {
-        alert('Die letzte Eigentümerin bzw. der letzte Eigentümer kann bei diesen Gegenständen nicht entfernt werden: '
-          + blocked.map(item => item.name).join(', ')
-          + '. Bitte die Anteile übertragen oder die Gegenstände ausdrücklich beenden. Andere Gegenstände werden bearbeitet.');
+        alert($translate('dialog.lastOwners', { items: blocked.map(item => item.name).join(', ') }));
       }
       changes = buildRemovePersonChanges(preview.base, subModalData.sourceId);
     } else if (activeSubModal === 'special-add') {
@@ -226,10 +224,10 @@
     <div class="modal" role="dialog" aria-modal="true" aria-label={$translate("items.change")} style="max-width: 600px">
       <div class="modal-header">
         <h3>
-          {#if activeSubModal === 'item'}Eigentumsanteile ändern: {subModalData.item.name}{/if}
-          {#if activeSubModal === 'special-transfer'}Alle Anteile an eine Person übertragen{/if}
-          {#if activeSubModal === 'special-remove'}Alle Anteile einer Person entfernen{/if}
-          {#if activeSubModal === 'special-add'}Person an allen Gegenständen beteiligen{/if}
+          {#if activeSubModal === 'item'}{$translate('dialog.editItemShares', { name: subModalData.item.name })}{/if}
+          {#if activeSubModal === 'special-transfer'}{$translate('ui.transfer-all-shares-to-one-person-m0ednu')}{/if}
+          {#if activeSubModal === 'special-remove'}{$translate('ui.remove-a-person-s-shares-from-all-i-1eiw9j2')}{/if}
+          {#if activeSubModal === 'special-add'}{$translate('dialog.addToAll')}{/if}
         </h3>
       </div>
       <div class="modal-body stack">

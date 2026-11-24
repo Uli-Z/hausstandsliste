@@ -32,7 +32,7 @@
     }).filter(c => Object.keys(c.shares).length);
 
     appState.startRedistribution(
-      `Alle Anteile von ${person.name} an ${target.name} übertragen`,
+      $translate('dialog.transferTitle', { from: person.name, to: target.name }),
       asOfDate,
       changes,
       { sourcePersonId: person.id, targetPersonId: target.id }
@@ -45,7 +45,7 @@
       delete shares[person.id];
       return { itemId: h.item.id, shares: normShares(shares) };
     }).filter(c => Object.keys(c.shares).length);
-    appState.startRedistribution(`Alle Anteile von ${person.name} auflösen`, asOfDate, changes, { sourcePersonId: person.id });
+    appState.startRedistribution($translate('dialog.dissolveTitle', { name: person.name }), asOfDate, changes, { sourcePersonId: person.id });
   }
 
   function startTransfer() {

@@ -1,3 +1,4 @@
+import { message, getLocale, formatMoney } from './i18n.js';
 import { normShares, shareTotal, money } from './domain.js';
 import { projectAt, projectBeforeEvent, shareDeltasForChange } from './projector.js';
 
@@ -200,31 +201,32 @@ export function settlementRecommendations(deltas) {
 /**
  * Erzeugt einen Markdown-Bericht für eine Umverteilung.
  */
-export function redistributionMarkdown(redistribution, preview) {
+export function redistributionMarkdown(redistribution, preview, lang = getLocale()) {
+  const t = (key, params) => message(key, lang, params);
   const lines = [
-    `# Umverteilung: ${redistribution.title}`,
+    '# ' + t('report.title', { title: redistribution.title }),
     '',
-    `Stichtag: ${redistribution.effectiveDate}`,
+    t('report.date', { date: redistribution.effectiveDate }),
     '',
-    '## Wertverschiebung'
+    '## ' + t('report.value')
   ];
   
   for (const row of preview.rows) {
-    lines.push(`- ${row.personName}: ${row.delta > 0 ? '+' : ''}${money(row.delta)}`);
+    lines.push(`- ${row.personName}: ${row.delta > 0 ? '+' : ''}${formatMoney(row.delta, lang)}`);
   }
   
   if (redistribution.financialMode !== 'derived') {
-    lines.push('', '## Finanzielle Wirkung', 'Unentgeltliche Anteilsänderung (Schenkung/Korrektur): Es entsteht keine Forderung und es wird keine Zahlung erfasst.');
+    lines.push('', '## ' + t('report.effect'), t('report.noClaim'));
   } else {
-    lines.push('', '## Rechnerischer Ausgleichsvorschlag');
+    lines.push('', '## ' + t('report.suggestions'));
     if (preview.payments.length === 0) {
-      lines.push('Kein Ausgleich vorgeschlagen.');
+      lines.push(t('report.none'));
     } else {
       for (const p of preview.payments) {
-        lines.push(`- ${p.from} würde ${money(p.amount)} an ${p.to} zahlen`);
+        lines.push('- ' + t('report.payment', { from: p.from, to: p.to, amount: formatMoney(p.amount, lang) }));
       }
     }
-    lines.push('', 'Dies ist keine Dokumentation einer erfolgten Zahlung.');
+    lines.push('', t('report.disclaimer'));
   }
   
   return lines.join('\n');

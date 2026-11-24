@@ -139,12 +139,12 @@
           <section class="stack" style="flex: 1; overflow: hidden;">
             <div class="split">
               <strong>{$translate("ui.affected-items-1nc8pe3")}</strong>
-              <input type="text" placeholder="Filter …" bind:value={filterText} class="small-input">
+              <input type="text" placeholder={$translate('dialog.filter')} aria-label={$translate('items.searchLabel')} bind:value={filterText} class="small-input">
             </div>
             <RedistributionItemList
               rows={itemRows}
               {filterText}
-              emptyLabel="Diese Umverteilung enthält aktuell keine Gegenstände."
+              emptyLabel={$translate('dialog.emptyRedistribution')}
               selectedItemId={editingChildId ? edited.events.find(child => child.id === editingChildId)?.itemId : null}
               on:select={(event) => {
                 const child = edited.events.find(entry => entry.itemId === event.detail.row.itemId);

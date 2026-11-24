@@ -68,3 +68,16 @@ test('Q13: known crypto, archive, schema and person diagnostics are translated',
   }
   assert.equal(localizeDiagnostic('user-provided text', 'en'), 'user-provided text');
 });
+
+import { redistributionMarkdown } from '../src/lib/redistribution.js';
+test('Q13: transfer report language and amounts without changing user names', () => {
+  const draft = {title:'WG Küche', effectiveDate:'2026-11-24', financialMode:'derived'};
+  const preview = {rows:[{personName:'Anna', delta:1234.56}], payments:[{from:'Ben',to:'Anna',amount:1234.56}]};
+  const en = redistributionMarkdown(draft, preview, 'en');
+  const de = redistributionMarkdown(draft, preview, 'de');
+  assert.match(en, /Ownership transfer: WG Küche/);
+  assert.match(en, /Ben would pay/);
+  assert.match(en, /1,234\\.56/);
+  assert.match(de, /Umverteilung: WG Küche/);
+  assert.match(de, /1\\.234,56/);
+});

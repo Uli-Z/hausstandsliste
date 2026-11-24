@@ -6,7 +6,7 @@
   export let rows = [];
   export let filterText = '';
   export let selectedItemId = null;
-  export let emptyLabel = 'Keine Gegenstände gefunden.';
+  export let emptyLabel = null;
 
   const dispatch = createEventDispatcher();
 
@@ -57,7 +57,7 @@
     {/each}
   </div>
 {:else}
-  <div class="empty">{emptyLabel}</div>
+  <div class="empty">{emptyLabel ?? $translate('ui.no-items-found-1mb36dv')}</div>
 {/if}
 
 <style>
