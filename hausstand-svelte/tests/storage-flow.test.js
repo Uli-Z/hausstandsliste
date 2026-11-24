@@ -69,3 +69,19 @@ test('local import names are temporary and optional backup names do not control 
   assert.match(primary, /\$appState\.project\.community\?\.name/);
   assert.match(storage, /pendingFileName = file\.name/);
 });
+
+
+test('storage operations share one busy guard across header, import and project replacement', () => {
+  assert.match(storage, /export let busy = false/);
+  assert.match(app, /bind:busy=\{storageBusy\}/);
+  assert.match(app, /class="header-save" disabled=\{storageBusy\}/);
+  assert.match(app, /class="dangerous-button" disabled=\{storageBusy\}/);
+  assert.match(app, /async function saveNow\(\) \{\s*if \(storageBusy\) return/);
+  assert.match(storage, /export function prepareToReplace\(\) \{\s*if \(busy\).*return false/);
+  const localImport = storage.slice(storage.indexOf('async function openLocalFile('), storage.indexOf('async function finishEncryptedImport('));
+  assert.match(localImport, /if \(!file \|\| busy\)/);
+  assert.ok(localImport.indexOf('busy = true') < localImport.indexOf('await file.text()'));
+  assert.match(localImport, /finally \{ input.value = ''; busy = false; \}/);
+  assert.match(storage, /async function savePrimary\(\) \{\s*if \(busy\) return/);
+  assert.match(storage, /if \(authorized && \[409, 423\]\.includes\(response.status\)\) appState.setReadOnly\(true\)/);
+});

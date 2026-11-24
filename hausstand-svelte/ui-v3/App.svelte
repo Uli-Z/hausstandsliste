@@ -34,6 +34,7 @@
   let storageView;
   let onlineEditing = false;
   let onlineProjectOpen = false;
+  let storageBusy = false;
   let saveMessage = '';
   let saveMessageError = false;
   let feedbackTimer;
@@ -155,6 +156,7 @@
     if (e.key === 'Escape' && $appState.datePickerOpen) { e.preventDefault(); dismissPicker(true); }
   }
   async function saveNow() {
+    if (storageBusy) return;
     const result = await storageView?.saveFromHeader?.();
     if (result?.handled) {
       if (result.message) showFeedback(result.message, result.ok === false);
@@ -252,7 +254,7 @@
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </span>
         {#if !(route.page === 'dashboard' && activeSection === 'save')}
-          <button class="header-save" on:click={saveNow}
+          <button class="header-save" disabled={storageBusy} on:click={saveNow}
             aria-label={$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
             title={$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
             <ActionIcon name={onlineEditing ? 'check' : 'download'} size={17}/>
@@ -396,7 +398,7 @@
             <section class="setting-advanced-block dangerous-settings">
               <div class="section-header"><h2>{$translate("app.newProject")}</h2></div>
               <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? $translate("ui.cancel-cl4zc9") : $translate('app.reset')}</button>
-              {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
+              {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" disabled={storageBusy} on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
             </section>
           </div>
         </details>
@@ -405,7 +407,7 @@
       <!-- Keep the collaborative-storage component mounted: the server lease, edit token,
            selected remote file and password must survive tab/detail navigation. -->
       <div class:storage-not-visible={route.page !== 'dashboard' || activeSection !== 'save'}>
-        <StorageView bind:this={storageView} bind:onlineEditing bind:onlineProjectOpen onProjectLoaded={() => navigate('overview')}/>
+        <StorageView bind:this={storageView} bind:onlineEditing bind:onlineProjectOpen bind:busy={storageBusy} onProjectLoaded={() => navigate('overview')}/>
       </div>
     </main>
   </div>

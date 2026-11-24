@@ -749,8 +749,32 @@ async function phpOnline(browser) {
 
       await openFinance(editor);
       await payment(editor, '60');
-      await editor.getByRole('button', { name: 'Online speichern', exact: true }).click();
-      await editor.locator('.save-feedback[role="status"]').filter({ hasText: /Serverversion 2/ }).waitFor();
+      // Keep the actual save request pending so a second click cannot start a
+      // duplicate upload. Both header and storage actions must share the lock.
+      let releaseSave, signalSave;
+      const saveGate = new Promise(resolve => { releaseSave = resolve; });
+      const saveStarted = new Promise(resolve => { signalSave = resolve; });
+      let saveRequests = 0;
+      const saveUrl = '**/hausstand.php?api=save';
+      await editor.route(saveUrl, async route => {
+        saveRequests++;
+        signalSave();
+        await saveGate;
+        await route.continue();
+      });
+      const headerSave = editor.getByRole('button', { name: 'Online speichern', exact: true });
+      try {
+        await headerSave.click();
+        await Promise.race([saveStarted, pause(10000).then(() => { throw new Error('Q06: save request did not start'); })]);
+        assert.equal(await headerSave.isDisabled(), true, 'Q06: header save must be disabled during upload');
+        await headerSave.evaluate(button => button.click());
+        await openSave(editor);
+        assert.equal(await editor.locator('.storage-primary').isDisabled(), true, 'Q06: storage save must share the upload lock');
+        assert.equal(await editor.locator('.save-basic-actions input[type=file]').isDisabled(), true, 'Q06: file import must wait for upload');
+      } finally { releaseSave(); }
+      await editor.getByText(/Serverversion 2/).first().waitFor();
+      await editor.unroute(saveUrl);
+      assert.equal(saveRequests, 1, 'Q06: exactly one upload');
       const files = (await (await fetch(host + '/hausstand.php?api=files')).json()).files;
       assert.equal(files.length, 1);
       const packet = await (await fetch(host + '/hausstand.php?api=read&id=' + files[0].id)).json();

@@ -11,7 +11,8 @@
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
   export let onProjectLoaded = () => {};
-  let showProtected = false, busy = false, error = '', message = '';
+  let showProtected = false, error = '', message = '';
+  export let busy = false;
   let password = '', remotePassword = '', openPassword = '', newPassword = '';
   let backupName = '', remoteDraftName = '', openedName = '', pendingEncrypted = null, pendingFileName = '';
   let serverCanCreate = false, serverReady = false;
@@ -60,7 +61,8 @@
     activePassword = ''; remotePassword = ''; selectedPortableVersion = ''; backupName = '';
   }
   export function prepareToReplace() {
-    try { requireLeaseReleased(); clearOnlineLink(); return true; }
+    if (busy) { alert($translate('storage.busy')); return false; }
+    try { requireLeaseReleased(); clearOnlineLink(); pendingEncrypted = null; pendingFileName = ''; openPassword = ''; return true; }
     catch (e) { alert(localizeDiagnostic(e.message)); return false; }
   }
   async function exportPlain() {
@@ -97,7 +99,8 @@
     let data;
     try { data = await response.json(); } catch { throw new Error($translate("ui.the-server-returned-invalid-json-n82jl")); }
     if (!response.ok || data.ok === false) {
-      if ([409, 423].includes(response.status)) appState.setReadOnly(true);
+      // A failed create must not turn the unrelated local working copy read-only.
+      if (authorized && [409, 423].includes(response.status)) appState.setReadOnly(true);
       throw new Error(serverErrorMessage(data.errorCode, response.status));
     }
     return data;
@@ -118,7 +121,8 @@
   }
   async function openLocalFile(event) {
     const input = event.currentTarget, file = input.files?.[0];
-    if (!file) return;
+    if (!file || busy) { input.value = ''; return; }
+    busy = true; error = ''; message = '';
     try {
       requireLeaseReleased();
       let data;
@@ -137,7 +141,7 @@
     } catch (e) {
       report(new Error($translate('storage.importFailed') + ': ' + localizeDiagnostic(e?.message || String(e))));
     }
-    finally { input.value = ''; }
+    finally { input.value = ''; busy = false; }
   }
   async function finishEncryptedImport() {
     if (!pendingEncrypted) return;
@@ -246,6 +250,7 @@
     finally { busy = false; }
   }
   async function savePrimary() {
+    if (busy) return;
     if (openedId && !leaseToken) { await run(checkout); return; }
     if ($appState.secure && !activePassword && !openedId) {
       showProtected = true; message = $translate('storage.protectedSessionUnavailable'); return;
