@@ -26,10 +26,10 @@ header('Cache-Control: no-store');
 header('X-Frame-Options: DENY');
 $api = (string) ($_GET['api'] ?? '');
 if ($api !== '') {
-    function fail(int $code, string $message): never {
+    function fail(int $code, string $message, string $errorCode): never {
         http_response_code($code);
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['ok' => false, 'error' => $message], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => false, 'error' => $message, 'errorCode' => $errorCode], JSON_UNESCAPED_UNICODE);
         exit;
     }
     function reply(array $data): never {
@@ -39,15 +39,15 @@ if ($api !== '') {
     }
     function submitted(): array {
         $size = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
-        if ($size > 8388608) fail(413, 'Datei zu groß (maximal 8 MB).');
+        if ($size > 8388608) fail(413, 'Datei zu groß (maximal 8 MB).', 'tooLarge');
         $raw = file_get_contents('php://input');
-        if ($raw === false || strlen($raw) > 8388608) fail(400, 'Anfrage ungültig.');
+        if ($raw === false || strlen($raw) > 8388608) fail(400, 'Anfrage ungültig.', 'invalidRequest');
         $data = json_decode($raw, true);
-        if (!is_array($data)) fail(400, 'Ungültiges JSON.');
+        if (!is_array($data)) fail(400, 'Ungültiges JSON.', 'invalidJson');
         return $data;
     }
     function requireId($value): string {
-        if (!is_string($value) || !preg_match('/^[a-z0-9-]{8,64}$/D', $value)) fail(400, 'Ungültige Datei-ID.');
+        if (!is_string($value) || !preg_match('/^[a-z0-9-]{8,64}$/D', $value)) fail(400, 'Ungültige Datei-ID.', 'invalidId');
         return $value;
     }
     function requireEnvelope($value): array {
@@ -56,26 +56,26 @@ if ($api !== '') {
            || !is_string($value['ciphertext'] ?? null)
            || strlen($value['ciphertext']) > 8000000
            || base64_decode($value['ciphertext'], true) === false) {
-            fail(400, 'Ungültiges Verschlüsselungsformat.');
+            fail(400, 'Ungültiges Verschlüsselungsformat.', 'invalidEnvelope');
         }
         return $value;
     }
     function requireHash($value): string {
-        if (!is_string($value) || !preg_match('/^[0-9a-f]{64}$/D', $value)) fail(400, 'Ungültiger Bearbeitungsschlüssel.');
+        if (!is_string($value) || !preg_match('/^[0-9a-f]{64}$/D', $value)) fail(400, 'Ungültiger Bearbeitungsschlüssel.', 'invalidToken');
         return $value;
     }
     function atomicJson(string $path, array $data): void {
         $str = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $tmp = tempnam(dirname($path), '.staged_');
-        if ($tmp === false || file_put_contents($tmp, $str, LOCK_EX) === false) fail(500, 'Schreibfehler.');
+        if ($tmp === false || file_put_contents($tmp, $str, LOCK_EX) === false) fail(500, 'Schreibfehler.', 'writeFailed');
         chmod($tmp, 0600);
-        if (!rename($tmp, $path)) fail(500, 'Atomare Speicherung fehlgeschlagen.');
+        if (!rename($tmp, $path)) fail(500, 'Atomare Speicherung fehlgeschlagen.', 'atomicSave');
     }
     function readJson(string $path): array {
-        if (!is_file($path)) fail(404, 'Datei/Version nicht gefunden.');
+        if (!is_file($path)) fail(404, 'Datei/Version nicht gefunden.', 'notFound');
         $raw = file_get_contents($path);
         $data = $raw === false ? null : json_decode($raw, true);
-        if (!is_array($data)) fail(500, 'Ungültiger Server-Datensatz.');
+        if (!is_array($data)) fail(500, 'Ungültiger Server-Datensatz.', 'invalidRecord');
         return $data;
     }
     function checkedFile(string $root, string $id): array {
@@ -86,25 +86,25 @@ if ($api !== '') {
         // Technical revision pointer is controlled by PHP, not the client.
         $current = $meta['currentFile'] ?? null;
         if (!is_string($current) || !preg_match('/^current-[1-9][0-9]*\.json$/D', $current))
-            fail(500, 'Ungültiger Server-Dateizeiger.');
+            fail(500, 'Ungültiger Server-Dateizeiger.', 'invalidPointer');
         return $dir . '/' . $current;
     }
     function authorize(array $meta): void {
         $token = (string) ($_SERVER['HTTP_X_FILE_TOKEN'] ?? '');
         if (!preg_match('/^[0-9a-f]{64}$/D', $token)
             || !hash_equals((string) $meta['tokenHash'], hash('sha256', $token)))
-            fail(403, 'Bearbeitung nicht autorisiert. Datei mit Passwort öffnen.');
+            fail(403, 'Bearbeitung nicht autorisiert. Datei mit Passwort öffnen.', 'notAuthorized');
     }
     function authorizeLease(array $meta): void {
         $token = (string) ($_SERVER['HTTP_X_LEASE_TOKEN'] ?? '');
         if (!preg_match('/^[0-9a-f]{64}$/D', $token)
             || empty($meta['leaseHash']) || !hash_equals($meta['leaseHash'], hash('sha256', $token))
             || (int) ($meta['leaseExpires'] ?? 0) <= time())
-            fail(409, 'Checkout abgelaufen oder nicht mehr gültig. Ungespeicherte Änderungen lokal exportieren.');
+            fail(409, 'Checkout abgelaufen oder nicht mehr gültig. Ungespeicherte Änderungen lokal exportieren.', 'leaseExpired');
     }
     function assertRevision(array $meta, array $body): void {
         if (!isset($body['expectedRevision']) || (int) $body['expectedRevision'] !== (int) $meta['revision'])
-            fail(409, 'Eine neuere Revision existiert. Nicht überschrieben; bitte neu öffnen.');
+            fail(409, 'Eine neuere Revision existiert. Nicht überschrieben; bitte neu öffnen.', 'revisionConflict');
     }
     function mailConfig(): array {
         global $HAUSSTAND_CONFIG;
@@ -118,7 +118,7 @@ if ($api !== '') {
         [$email, $from] = mailConfig();
         if ($email === '') return 'disabled';
         $mailDir = $dir . '/mail-queue';
-        if (!is_dir($mailDir) && !mkdir($mailDir, 0700, true)) fail(500, 'Mail-Sicherung kann nicht vorbereitet werden.');
+        if (!is_dir($mailDir) && !mkdir($mailDir, 0700, true)) fail(500, 'Mail-Sicherung kann nicht vorbereitet werden.', 'mailPreparation');
         atomicJson($mailDir . '/' . $rev . '.json', $envelope);
         $meta['mailQueue'] = $meta['mailQueue'] ?? [];
         $meta['mailQueue'][] = [
@@ -168,31 +168,31 @@ if ($api !== '') {
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, X-File-Token, X-Lease-Token');
     }
-    if (!$originAccepted) fail(403, 'Origin nicht freigegeben.');
+    if (!$originAccepted) fail(403, 'Origin nicht freigegeben.', 'origin');
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204);
         exit;
     }
     $rootEnv = (string) (getenv('HAUSSTAND_DATA_DIR') ?: ($HAUSSTAND_CONFIG['data_dir'] ?? ''));
-    if ($rootEnv === '') fail(503, 'Privates Serverdatenverzeichnis nicht konfiguriert.');
+    if ($rootEnv === '') fail(503, 'Privates Serverdatenverzeichnis nicht konfiguriert.', 'missingDirectory');
     if (!is_dir($rootEnv) && !@mkdir($rootEnv, 0700, true) && !is_dir($rootEnv))
-        fail(503, 'Privates Serverdatenverzeichnis kann nicht angelegt werden.');
+        fail(503, 'Privates Serverdatenverzeichnis kann nicht angelegt werden.', 'createDirectory');
     $root = realpath($rootEnv);
-    if (!$root || !is_dir($root) || !is_writable($root)) fail(503, 'Serverdatenverzeichnis fehlt oder ist nicht beschreibbar.');
+    if (!$root || !is_dir($root) || !is_writable($root)) fail(503, 'Serverdatenverzeichnis fehlt oder ist nicht beschreibbar.', 'unwritableDirectory');
     $allowCreateEnv = getenv('HAUSSTAND_ALLOW_CREATE');
     $allowCreate = $allowCreateEnv === false
         ? (bool) ($HAUSSTAND_CONFIG['allow_create'] ?? false)
         : filter_var($allowCreateEnv, FILTER_VALIDATE_BOOLEAN);
     $webroot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__FILE__)));
     if ($webroot && ($root === $webroot || str_starts_with($root, $webroot . DIRECTORY_SEPARATOR)))
-        fail(503, 'Serverdaten dürfen nicht im öffentlichen Webverzeichnis liegen.');
-    if (!is_dir($root . '/files') && !mkdir($root . '/files', 0700, true)) fail(500, 'Ablage konnte nicht angelegt werden.');
+        fail(503, 'Serverdaten dürfen nicht im öffentlichen Webverzeichnis liegen.', 'publicDirectory');
+    if (!is_dir($root . '/files') && !mkdir($root . '/files', 0700, true)) fail(500, 'Ablage konnte nicht angelegt werden.', 'storageDirectory');
     $lockHandle = fopen($root . '/.mutex', 'c');
-    if (!$lockHandle || !flock($lockHandle, LOCK_EX)) fail(503, 'Server-Sperre nicht verfügbar.');
+    if (!$lockHandle || !flock($lockHandle, LOCK_EX)) fail(503, 'Server-Sperre nicht verfügbar.', 'lockUnavailable');
     $method = $_SERVER['REQUEST_METHOD'];
     $readActions = ['config', 'files', 'read'];
     if (in_array($api, $readActions, true)) {
-        if ($method !== 'GET') fail(405, 'GET erforderlich.');
+        if ($method !== 'GET') fail(405, 'GET erforderlich.', 'getRequired');
         if ($api === 'config') reply(['canCreate' => $allowCreate]);
         if ($api === 'files') {
             $files = [];
@@ -209,18 +209,18 @@ if ($api !== '') {
         reply(['revision' => $meta['revision'], 'envelope' => readJson(currentPath($dir, $meta))]);
     }
     if (!in_array($api, ['create', 'checkout', 'renew', 'checkin', 'save'], true))
-        fail(404, 'Unbekannte API-Aktion.');
-    if ($method !== 'POST') fail(405, 'POST erforderlich.');
+        fail(404, 'Unbekannte API-Aktion.', 'unknownAction');
+    if ($method !== 'POST') fail(405, 'POST erforderlich.', 'postRequired');
     $body = submitted();
     $id = requireId($body['id'] ?? '');
     if ($api === 'create') {
-        if (!$allowCreate) fail(403, 'Das Anlegen neuer Projekte wurde vom Serverbetreiber deaktiviert.');
+        if (!$allowCreate) fail(403, 'Das Anlegen neuer Projekte wurde vom Serverbetreiber deaktiviert.', 'creationDisabled');
         $name = trim((string) ($body['name'] ?? ''));
-        if ($name === '' || strlen($name) > 240) fail(400, 'Dateiname ungültig.');
+        if ($name === '' || strlen($name) > 240) fail(400, 'Dateiname ungültig.', 'invalidName');
         $envelope = requireEnvelope($body['envelope'] ?? null);
         $tokenHash = requireHash($body['tokenHash'] ?? null);
         $dir = $root . '/files/' . $id;
-        if (file_exists($dir) || !mkdir($dir, 0700, true)) fail(409, 'Datei-ID bereits vergeben.');
+        if (file_exists($dir) || !mkdir($dir, 0700, true)) fail(409, 'Datei-ID bereits vergeben.', 'duplicateId');
         // The encrypted project contains its own complete versionHistory.
         atomicJson($dir . '/current-1.json', $envelope);
         $meta = [
@@ -238,7 +238,7 @@ if ($api !== '') {
     authorize($meta);
     if ($api === 'checkout') {
         assertRevision($meta, $body);
-        if (($meta['leaseExpires'] ?? 0) > time()) fail(423, 'Diese Datei ist bereits ausgecheckt.');
+        if (($meta['leaseExpires'] ?? 0) > time()) fail(423, 'Diese Datei ist bereits ausgecheckt.', 'alreadyCheckedOut');
         $token = bin2hex(random_bytes(32));
         $meta['leaseHash'] = hash('sha256', $token);
         $meta['leaseExpires'] = time() + 7200;
@@ -285,6 +285,6 @@ if ($api !== '') {
         reply(['revision' => $next, 'expiresAt' => $meta['leaseExpires'],
             'mailStatus' => $status]);
     }
-    fail(404, 'Unbekannte API-Aktion.');
+    fail(404, 'Unbekannte API-Aktion.', 'unknownAction');
 }
 ?>

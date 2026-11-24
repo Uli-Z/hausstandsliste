@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveLocale, dictionaries, message, loadLanguage, formatMoney, formatDate, parseDecimal, pluralMessage, LANGUAGE_KEY } from '../src/lib/i18n.js';
+import { resolveLocale, dictionaries, message, loadLanguage, formatMoney, formatDate, parseDecimal, pluralMessage, serverErrorMessage, LANGUAGE_KEY } from '../src/lib/i18n.js';
 
 test('Q13: automatic language honors primary subtag and manual override', () => {
   for (const tag of ['de', 'de-DE', 'de-AT', 'de-CH']) assert.equal(resolveLocale('auto',[tag]),'de');
@@ -34,4 +34,19 @@ test('Q13: plural categories follow the active language', () => {
   assert.equal(pluralMessage('people.itemCount', 1, 'de'), '1 Gegenstand');
   assert.equal(pluralMessage('people.itemCount', 2, 'de'), '2 Gegenstände');
   assert.match(pluralMessage('timeline.future', 1, 'de'), /zukünftiges Ereignis/);
+});
+
+import { readFileSync } from 'node:fs';
+test('Q13: every PHP failure has a bilingual stable error code', () => {
+  const php = readFileSync(new URL('../server-php/backend.php', import.meta.url), 'utf8');
+  const calls = [...php.matchAll(/\\bfail\\(\\d+, '[^']+', '([^']+)'\\);/g)];
+  assert.equal(calls.length, [...php.matchAll(/\\bfail\\(\\d+,/g)].length);
+  assert.ok(calls.length > 20);
+  for (const [,code] of calls) {
+    assert.ok(dictionaries.en['server.' + code], code);
+    assert.ok(dictionaries.de['server.' + code], code);
+  }
+  assert.match(serverErrorMessage('leaseExpired', 409, 'en'), /expired/);
+  assert.match(serverErrorMessage('leaseExpired', 409, 'de'), /abgelaufen/);
+  assert.match(serverErrorMessage('unexpected-code', 500, 'en'), /server could not complete/);
 });

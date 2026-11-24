@@ -1,5 +1,5 @@
 <script>
-  import { translate, getLocale } from '../src/lib/i18n.js';
+  import { translate, getLocale, serverErrorMessage } from '../src/lib/i18n.js';
   import { onMount } from 'svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
@@ -88,15 +88,17 @@
       headers['X-File-Token'] = editToken;
     }
     if (leaseToken) headers['X-Lease-Token'] = leaseToken;
-    const response = await fetch(apiEndpoint(action, params), {
+    const endpoint = apiEndpoint(action, params);
+    let response;
+    try { response = await fetch(endpoint, {
       method: body ? 'POST' : 'GET', headers,
       body: body ? JSON.stringify(body) : undefined, cache: 'no-store'
-    });
+    }); } catch { throw new Error($translate('storage.networkError')); }
     let data;
     try { data = await response.json(); } catch { throw new Error($translate("ui.the-server-returned-invalid-json-n82jl")); }
     if (!response.ok || data.ok === false) {
       if ([409, 423].includes(response.status)) appState.setReadOnly(true);
-      throw new Error((data.error || 'Serverfehler') + ' (HTTP ' + response.status + ')');
+      throw new Error(serverErrorMessage(data.errorCode, response.status));
     }
     return data;
   }
@@ -119,7 +121,9 @@
     if (!file) return;
     try {
       requireLeaseReleased();
-      const data = JSON.parse(await file.text());
+      let data;
+      try { data = JSON.parse(await file.text()); }
+      catch { throw new Error($translate('storage.invalidJson')); }
       if (data?.format?.startsWith('hausstand-aesgcm')) {
         pendingEncrypted = data; pendingFileName = file.name; openPassword = '';
         error = ''; message = $translate('storage.encryptedPasswordNeeded'); return;

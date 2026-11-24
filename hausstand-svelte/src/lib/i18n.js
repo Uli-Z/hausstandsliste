@@ -4,6 +4,38 @@ import { writable, derived, get } from 'svelte/store';
 export const LANGUAGE_KEY = 'hausstand-language';
 export const dictionaries = {
   "en": {
+    "storage.invalidJson": "The selected file is not valid JSON.",
+    "storage.networkError": "Could not reach the server. Check the connection and try again.",
+    "storage.serverError": "The server could not complete the request.",
+    "server.tooLarge": "File is too large (maximum 8 MB).",
+    "server.invalidRequest": "Invalid request.",
+    "server.invalidJson": "Invalid JSON.",
+    "server.invalidId": "Invalid file ID.",
+    "server.invalidEnvelope": "Invalid encryption format.",
+    "server.invalidToken": "Invalid edit capability.",
+    "server.writeFailed": "Write failed.",
+    "server.atomicSave": "Atomic save failed.",
+    "server.notFound": "File or revision not found.",
+    "server.invalidRecord": "Invalid server record.",
+    "server.invalidPointer": "Invalid server file pointer.",
+    "server.notAuthorized": "Editing is not authorized. Open the file with its password.",
+    "server.leaseExpired": "The editing lease has expired or is no longer valid. Export unsaved changes locally.",
+    "server.revisionConflict": "A newer revision exists. Nothing was overwritten; reopen the project.",
+    "server.mailPreparation": "The email backup could not be prepared.",
+    "server.origin": "Request origin is not allowed.",
+    "server.missingDirectory": "The private server data directory is not configured.",
+    "server.createDirectory": "The private server data directory could not be created.",
+    "server.unwritableDirectory": "The server data directory is missing or not writable.",
+    "server.publicDirectory": "Server data must not be stored in the public web directory.",
+    "server.storageDirectory": "The storage folder could not be created.",
+    "server.lockUnavailable": "The server lock is unavailable.",
+    "server.getRequired": "GET required.",
+    "server.unknownAction": "Unknown API action.",
+    "server.postRequired": "POST required.",
+    "server.creationDisabled": "The server operator has disabled creating new projects.",
+    "server.invalidName": "Invalid file name.",
+    "server.duplicateId": "File ID already exists.",
+    "server.alreadyCheckedOut": "This file is already checked out.",
     "timeTravel.effectiveDate": "Effective date",
     "timeTravel.invalidDate": "Choose a valid calendar date before saving.",
     "timeTravel.itemsUnavailable": "Some selected items are not owned on this date. Choose another date or remove those changes.",
@@ -652,6 +684,38 @@ export const dictionaries = {
     "items.give.other": "gives away {count} shares"
   },
   "de": {
+    "storage.invalidJson": "Die ausgewählte Datei enthält kein gültiges JSON.",
+    "storage.networkError": "Der Server konnte nicht erreicht werden. Bitte Verbindung prüfen und erneut versuchen.",
+    "storage.serverError": "Der Server konnte die Anfrage nicht abschließen.",
+    "server.tooLarge": "Datei zu groß (maximal 8 MB).",
+    "server.invalidRequest": "Anfrage ungültig.",
+    "server.invalidJson": "Ungültiges JSON.",
+    "server.invalidId": "Ungültige Datei-ID.",
+    "server.invalidEnvelope": "Ungültiges Verschlüsselungsformat.",
+    "server.invalidToken": "Ungültiger Bearbeitungsschlüssel.",
+    "server.writeFailed": "Schreibfehler.",
+    "server.atomicSave": "Atomare Speicherung fehlgeschlagen.",
+    "server.notFound": "Datei/Version nicht gefunden.",
+    "server.invalidRecord": "Ungültiger Server-Datensatz.",
+    "server.invalidPointer": "Ungültiger Server-Dateizeiger.",
+    "server.notAuthorized": "Bearbeitung nicht autorisiert. Datei mit Passwort öffnen.",
+    "server.leaseExpired": "Checkout abgelaufen oder nicht mehr gültig. Ungespeicherte Änderungen lokal exportieren.",
+    "server.revisionConflict": "Eine neuere Revision existiert. Nicht überschrieben; bitte neu öffnen.",
+    "server.mailPreparation": "Mail-Sicherung kann nicht vorbereitet werden.",
+    "server.origin": "Origin nicht freigegeben.",
+    "server.missingDirectory": "Privates Serverdatenverzeichnis nicht konfiguriert.",
+    "server.createDirectory": "Privates Serverdatenverzeichnis kann nicht angelegt werden.",
+    "server.unwritableDirectory": "Serverdatenverzeichnis fehlt oder ist nicht beschreibbar.",
+    "server.publicDirectory": "Serverdaten dürfen nicht im öffentlichen Webverzeichnis liegen.",
+    "server.storageDirectory": "Ablage konnte nicht angelegt werden.",
+    "server.lockUnavailable": "Server-Sperre nicht verfügbar.",
+    "server.getRequired": "GET erforderlich.",
+    "server.unknownAction": "Unbekannte API-Aktion.",
+    "server.postRequired": "POST erforderlich.",
+    "server.creationDisabled": "Das Anlegen neuer Projekte wurde vom Serverbetreiber deaktiviert.",
+    "server.invalidName": "Dateiname ungültig.",
+    "server.duplicateId": "Datei-ID bereits vergeben.",
+    "server.alreadyCheckedOut": "Diese Datei ist bereits ausgecheckt.",
     "timeTravel.effectiveDate": "Datum des Vorgangs",
     "timeTravel.invalidDate": "Bitte vor dem Speichern ein gültiges Kalenderdatum wählen.",
     "timeTravel.itemsUnavailable": "Einige ausgewählte Gegenstände gehören an diesem Tag noch nicht oder nicht mehr zur Gemeinschaft. Bitte ein anderes Datum wählen oder diese Änderungen entfernen.",
@@ -1361,4 +1425,11 @@ export function localizeGermanText(text, lang = getLocale()) {
 export function pluralMessage(key, count, lang = getLocale(), params = {}) {
   const category = new Intl.PluralRules(lang === 'de' ? 'de-DE' : 'en-GB').select(Number(count));
   return message(key + '.' + category, lang, { ...params, count });
+}
+
+// Translate stable API codes; never render arbitrary backend error text.
+export function serverErrorMessage(code, status, lang = getLocale()) {
+  const key = typeof code === 'string' && Object.hasOwn(dictionaries.en, 'server.' + code)
+    ? 'server.' + code : 'storage.serverError';
+  return message(key, lang) + ' (HTTP ' + status + ')';
 }
