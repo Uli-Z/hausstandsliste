@@ -51,7 +51,7 @@ test('history ignores generated metadata and no-op edits', () => {
 });
 
 test('store Undo/Redo follows all edits and recalculates dirty relative to confirmed save', () => {
-  appState.importProject(project('A'), 'current.json');
+  appState.importProject(project('A'));
   assert.deepEqual(get(appState).history, { undoCount: 0, redoCount: 0 });
   assert.equal(rename('B'), true);
   assert.equal(get(appState).dirty, true);
@@ -145,4 +145,30 @@ test('quota failure leaves edits possible, warns visibly and discards stale work
   } finally {
     globalThis.localStorage.setItem = original;
   }
+});
+
+test('local working copies have no filename identity and protected imports never cache plaintext', () => {
+  const key = 'hausstand_svelte_v07_working_copy';
+  appState.importProject(project('Local'));
+  assert.equal(Object.hasOwn(get(appState), 'fileName'), false);
+  assert.equal(Object.hasOwn(JSON.parse(values.get(key)), 'fileName'), false);
+  assert.equal(rename('Changed'), true);
+  const copy = JSON.parse(values.get(key));
+  appState.restoreWorkingCopy(copy);
+  assert.equal(get(appState).project.community.name, 'Changed');
+  assert.equal(get(appState).dirty, true);
+  assert.equal(Object.hasOwn(get(appState), 'fileName'), false);
+  appState.importProject(project('Protected'), { secure: true });
+  assert.equal(get(appState).secure, true);
+  assert.equal(get(appState).readOnly, false);
+  assert.equal(values.has(key), false);
+  appState.importProject(project('Online'), { secure: true, readOnly: true });
+  assert.equal(get(appState).secure, true);
+  assert.equal(get(appState).readOnly, true);
+  assert.equal(rename('Blocked'), false);
+  assert.equal(values.has(key), false);
+  appState.newProject('New');
+  assert.equal(get(appState).secure, false);
+  assert.equal(get(appState).readOnly, false);
+  assert.equal(Object.hasOwn(JSON.parse(values.get(key)), 'fileName'), false);
 });

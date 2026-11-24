@@ -13,7 +13,7 @@
   export let onProjectLoaded = () => {};
   let showProtected = false, busy = false, error = '', message = '';
   let password = '', remotePassword = '', openPassword = '', newPassword = '';
-  let fileName = '', remoteDraftName = '', openedName = '', pendingEncrypted = null, pendingFileName = '';
+  let backupName = '', remoteDraftName = '', openedName = '', pendingEncrypted = null, pendingFileName = '';
   let serverCanCreate = false, serverReady = false;
   let files = [], selectedPortableVersion = '';
   $: portableVersions = Array.isArray($appState.project.versionHistory?.entries)
@@ -57,7 +57,7 @@
   function clearOnlineLink() {
     openedId = ''; openedName = ''; revision = 0;
     leaseToken = ''; leaseExpires = 0; editToken = '';
-    activePassword = ''; remotePassword = ''; selectedPortableVersion = '';
+    activePassword = ''; remotePassword = ''; selectedPortableVersion = ''; backupName = '';
   }
   export function prepareToReplace() {
     try { requireLeaseReleased(); clearOnlineLink(); return true; }
@@ -107,7 +107,7 @@
     const token = randomSecret();
     const saved = await createPortableSave($appState.project, $appState.savedProject);
     const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), password, token);
-    download(envelope, (fileName.trim() || $appState.project.community?.name || 'hausstand') + '.hausstand.enc.json');
+    download(envelope, (backupName.trim() || $appState.project.community?.name || 'hausstand') + '.hausstand.enc.json');
     // A local export counts as an explicit backup. It must not silently
     // switch a plaintext browser working copy to protected mode (or vice versa).
     if (!openedId) appState.markSaved(saved);
@@ -127,7 +127,7 @@
       const verified = requireProjectFile(data);
       if (!ensureNoOverwrite()) return;
       clearOnlineLink(); pendingEncrypted = null; pendingFileName = ''; openPassword = '';
-      appState.importProject(verified, null, false);
+      appState.importProject(verified);
       error = ''; message = $translate('storage.importedWorkingCopy');
       onProjectLoaded();
     } catch (e) {
@@ -143,9 +143,8 @@
     const verified = requireProjectFile(project);
     if (!ensureNoOverwrite()) return;
     clearOnlineLink();
-    appState.importProject(verified, null, true);
+    appState.importProject(verified, { secure: true });
     editToken = token; activePassword = openPassword;
-    fileName = pendingFileName.replace(/\\.hausstand\\.enc\\.json$|\\.json$/i, '');
     pendingEncrypted = null; pendingFileName = ''; openPassword = '';
     error = ''; message = $translate('storage.importedProtectedCopy');
     onProjectLoaded();
@@ -165,10 +164,10 @@
     const decrypted = await decryptProject(result.envelope, remotePassword);
     const verified = requireProjectFile(decrypted.project);
     editToken = decrypted.editToken; activePassword = remotePassword;
-    openedId = file.id; openedName = file.name; revision = result.revision;
+    openedId = file.id; openedName = file.name; revision = result.revision; backupName = '';
     leaseToken = ''; leaseExpires = 0; selectedPortableVersion = '';
     pendingEncrypted = null; remotePassword = '';
-    appState.importProject(verified, null, true, true);
+    appState.importProject(verified, { secure: true, readOnly: true });
     message = $translate("ui.opened-read-only-check-out-to-edit-3jcsh9");
   }
   async function createRemote() {
@@ -183,9 +182,9 @@
     const result = await api('create', {
       id, name: remoteDraftName.trim(), envelope, tokenHash: await hashSecret(token)
     });
-    openedId = id; openedName = remoteDraftName.trim(); editToken = token; revision = result.revision;
+    openedId = id; openedName = remoteDraftName.trim(); editToken = token; revision = result.revision; backupName = '';
     activePassword = remotePassword; remotePassword = ''; leaseToken = ''; leaseExpires = 0;
-    appState.importProject(saved, null, true, true);
+    appState.importProject(saved, { secure: true, readOnly: true });
     await refreshFiles();
     message = $translate("ui.new-encrypted-file-created-check-o-7hax1o");
   }
@@ -234,7 +233,7 @@
       else if ($appState.secure) {
         const saved = await createPortableSave($appState.project, $appState.savedProject);
         const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
-        download(envelope, (fileName.trim() || $appState.project.community?.name || 'hausstand') + '.hausstand.enc.json');
+        download(envelope, ($appState.project.community?.name || 'hausstand') + '.hausstand.enc.json');
         appState.markSaved(saved);
         message = $translate('storage.encryptedDownloaded');
       } else await exportPlain();
@@ -291,7 +290,7 @@
       <div class="storage-form">
         <div class="form-grid">
           <label>{$translate("ui.password-for-this-file-119cdf1")}<input type="password" autocomplete="new-password" bind:value={password} placeholder={$translate("ui.long-secure-password-iwutru")}/></label>
-          <label>{$translate("ui.backup-name-11t2ioh")}<input bind:value={fileName} placeholder={$appState.project.community?.name || $translate("app.household")}/></label>
+          <label>{$translate("ui.backup-name-11t2ioh")}<input bind:value={backupName} placeholder={$appState.project.community?.name || $translate("app.household")}/></label>
         </div>
         <button type="button" disabled={busy || !password} on:click={() => run(exportEncrypted)}>{$translate("ui.download-encrypted-file-1m533vw")}</button>
         {#if openedId}<p class="muted">{$translate('storage.backupNotOnlineSave')}</p>{/if}

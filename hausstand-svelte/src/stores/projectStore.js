@@ -17,7 +17,6 @@ const initial = {
   localCacheWarning: false,
   history: { undoCount: 0, redoCount: 0 },
   asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false,
-  fileName: null,
   dirty: false,
   secure: false,
   readOnly: false,
@@ -46,7 +45,7 @@ function createStore() {
         project: state.project,
         savedProject: state.savedProject ? withoutHistory(state.savedProject) : null,
         savedHistoryIds,
-        asOfDate: state.asOfDate, fileName: state.fileName, dirty: state.dirty
+        asOfDate: state.asOfDate, dirty: state.dirty
       });
       return { ...state, localCacheWarning: false };
     } catch {
@@ -77,20 +76,20 @@ function createStore() {
           : {}) })
         : copy.dirty ? null : normalize(copy.project);
       return resetUndo({ ...s, project: normalize(copy.project), savedProject: saved,
-        fileName: copy.fileName || null, dirty: hasProjectChanges(normalize(copy.project), saved),
+        dirty: hasProjectChanges(normalize(copy.project), saved),
         localCacheWarning: false, secure: false, readOnly: false,
         asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, route: { page: 'dashboard' }, activeDialog: null });
     }),
     setRoute: route => update(s => ({ ...s, route })),
     setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
     closeDialog: () => update(s => ({ ...s, activeDialog: null })),
-    importProject: (raw, fileName = null, secure = false, readOnly = false) => update(s => {
+    importProject: (raw, { secure = false, readOnly = false } = {}) => update(s => {
       const project = normalize(raw);
-      return persist(resetUndo({ ...s, project, savedProject: clone(project), fileName, secure, readOnly,
+      return persist(resetUndo({ ...s, project, savedProject: clone(project), secure, readOnly,
         asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
     }),
     setReadOnly: readOnly => update(s => ({ ...s, readOnly })),
-    newProject: name => update(s => persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, fileName: null, secure: false, readOnly: false, asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard' }, activeDialog: null }))),
+    newProject: name => update(s => persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, secure: false, readOnly: false, asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard' }, activeDialog: null }))),
     mutateProject: mutator => {
       let saved = false;
       update(s => {

@@ -27,7 +27,7 @@ function fixture(shares = { anna: 1 }) {
 
 test('A05 store: rejected ownerless mutation leaves data and unsaved flag untouched', () => {
   alerts.length = 0;
-  appState.importProject(fixture(), 'fixture.json');
+  appState.importProject(fixture());
   const original = JSON.stringify(get(appState).project.events);
   const saved = appState.mutateProject(p => {
     p.events.push({
@@ -43,7 +43,7 @@ test('A05 store: rejected ownerless mutation leaves data and unsaved flag untouc
 
 test('A05 store: valid transfer is saved and marked dirty', () => {
   alerts.length = 0;
-  appState.importProject(fixture(), 'fixture.json');
+  appState.importProject(fixture());
   const saved = appState.mutateProject(p => {
     p.events.push({
       id: 'transfer', type: 'shares-set', itemId: 'desk',
@@ -57,7 +57,7 @@ test('A05 store: valid transfer is saved and marked dirty', () => {
 });
 
 test('A05 store: invalid ownerless project can be repaired', () => {
-  appState.importProject(fixture({}), 'fixture.json');
+  appState.importProject(fixture({}));
   assert.deepEqual(get(appState).project.events[0].shares, {});
   const saved = appState.mutateProject(p => { p.events[0].shares = { anna: 1 }; });
   assert.equal(saved, true);

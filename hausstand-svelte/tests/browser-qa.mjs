@@ -36,7 +36,7 @@ const fixture = {
 };
 const oneSaved = project => ({
   project, savedProject: project, savedHistoryIds: project.versionHistory.entries.map(entry => entry.id),
-  fileName: 'browser-qa.json', dirty: false
+  dirty: false
 });
 const key = 'hausstand_svelte_v07_working_copy';
 const pause = millis => new Promise(resolve => setTimeout(resolve, millis));

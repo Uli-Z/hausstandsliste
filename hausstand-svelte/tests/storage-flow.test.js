@@ -26,8 +26,8 @@ test('one file picker recognizes encryption before requesting the password', () 
   assert.match(storage, /decryptProject\(pendingEncrypted, openPassword\)/);
   assert.match(storage, /requireProjectFile\(project\)/);
   assert.match(storage, /ensureNoOverwrite\(\)/);
-  assert.match(storage, /appState\.importProject\(verified, null, true\)/);
-  assert.match(storage, /appState\.importProject\(verified, null, false\)/);
+  assert.match(storage, /appState\.importProject\(verified, \{ secure: true \}\)/);
+  assert.match(storage, /appState\.importProject\(verified\)/);
 });
 
 test('encrypted backup stays separate and cannot implicitly switch the browser working mode', () => {
@@ -44,7 +44,7 @@ test('encrypted backup stays separate and cannot implicitly switch the browser w
 test('online editing is a real server identity, local opening is not', () => {
   assert.match(storage, /requireLeaseReleased\(\)/);
   assert.match(storage, /openedId = file\.id; openedName = file\.name/);
-  assert.match(storage, /appState\.importProject\(verified, null, true, true\)/);
+  assert.match(storage, /appState\.importProject\(verified, \{ secure: true, readOnly: true \}\)/);
   assert.match(storage, /clearOnlineLink\(\)/);
   assert.doesNotMatch(app, /app\.currentProject|app\.openFile|project-metadata/);
   assert.match(storage, /\{#if SERVER_MODE\}/);
@@ -58,4 +58,14 @@ test('all new flow text exists in English and German', () => {
   }
   assert.equal(dictionaries.en['nav.save'], 'Save & open');
   assert.equal(dictionaries.de['nav.save'], 'Sichern & Öffnen');
+});
+
+test('local import names are temporary and optional backup names do not control primary downloads', () => {
+  const store = read('src/stores/projectStore.js');
+  assert.doesNotMatch(store, /\bfileName\b/);
+  assert.doesNotMatch(storage, /backupName\s*=\s*pendingFileName/);
+  const primary = storage.slice(storage.indexOf('export async function saveFromHeader()'), storage.indexOf('async function savePrimary()'));
+  assert.doesNotMatch(primary, /backupName|pendingFileName/);
+  assert.match(primary, /\$appState\.project\.community\?\.name/);
+  assert.match(storage, /pendingFileName = file\.name/);
 });
