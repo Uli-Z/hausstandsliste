@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { get } from 'svelte/store';
-import { mutationProblem } from '../src/lib/mutationValidation.js';
+import { mutationProblem, projectMutationProblem } from '../src/lib/mutationValidation.js';
 import { createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
 import { appState } from '../src/stores/projectStore.js';
 import { ledgerAt } from '../src/lib/ledger.js';
@@ -132,4 +132,21 @@ test('Q06: independent event factory maintains safe cent integer and valid date'
     date: '2026-02-31', amountCents: 1248, debtorPersonId:'ben',
     creditorPersonId:'anna'
   }), TypeError);
+});
+
+test('shared frontend transaction guard rejects ownerless changes and preserves existing event validation', () => {
+  const p = fixture();
+  const ownerless = { ...p, events: [...p.events, {
+    id: 'ownerless', type: 'shares-set', itemId: 'table', date: '2026-03-01',
+    order: 2, shares: {}, financialMode: 'none'
+  }] };
+  assert.deepEqual(projectMutationProblem(p, ownerless), {
+    key: 'errors.ownerless', params: { name: 'Table', date: '2026-03-01' }
+  });
+  assert.deepEqual(projectMutationProblem(p, { ...p, events: [...p.events, payment({amountCents: 0})] }),
+    { key: 'errors.invalidPayment' });
+  assert.equal(projectMutationProblem(p, { ...p, events: [...p.events, payment()] }), null);
+  appState.importProject(p);
+  assert.equal(appState.mutateProject(draft => draft.events.push(ownerless.events.at(-1))), false);
+  assert.equal(get(appState).dirty, false);
 });

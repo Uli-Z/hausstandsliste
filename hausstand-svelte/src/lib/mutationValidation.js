@@ -1,4 +1,5 @@
 import { claimSettlementErrors, validISODate } from './claimSettlement.js';
+import { unownedActiveTransitions } from './ownershipValidation.js';
 
 // Validate new/edited events before a mutation reaches the session history,
 // browser working copy or portable file. Existing invalid imported rows can
@@ -47,6 +48,19 @@ export function mutationProblem(before, after) {
         return { key: 'errors.invalidItemValue' };
       }
     }
+  }
+  return null;
+}
+
+// Shared transaction guard for every frontend (browser, CLI, future adapters).
+// No UI, storage or global state; return stable diagnostic keys and parameters.
+export function projectMutationProblem(before, after) {
+  const eventProblem = mutationProblem(before, after);
+  if (eventProblem) return eventProblem;
+  const first = unownedActiveTransitions(after)[0];
+  if (first) {
+    const name = (after.items || []).find(item => item.id === first.itemId)?.name || first.itemId;
+    return { key: 'errors.ownerless', params: { name, date: first.date } };
   }
   return null;
 }

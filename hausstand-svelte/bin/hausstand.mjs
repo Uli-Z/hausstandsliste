@@ -6,6 +6,7 @@ import { ledgerAt } from '../src/lib/ledger.js';
 import { newestFirst } from '../src/lib/eventHistory.js';
 import { getVersionEntries } from '../src/lib/versionHistory.js';
 import { todayISO } from '../src/lib/util.js';
+import { validISODate } from '../src/lib/claimSettlement.js';
 
 const version = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
 const commands = {
@@ -43,8 +44,6 @@ const fail = (code, message, status) => { throw new CliError(code, message, stat
 const listCommands = new Set(['people list','items list','events list','versions list']);
 const projected = new Set(['people list','people show','items list','items show','balances show']);
 const compareId = (a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-  Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
 function options(args, key) {
   const result = {};
   const allowed = new Set(['--input','--json', ...(projected.has(key) ? ['--as-of'] : []),
@@ -59,7 +58,7 @@ function options(args, key) {
     result[flag] = value;
   }
   if (!result['--input']) fail('USAGE','Provide --input <file|->.');
-  if (result['--as-of'] && !validDate(result['--as-of'])) fail('INVALID_DATE','Use a real date in YYYY-MM-DD format.');
+  if (result['--as-of'] && !validISODate(result['--as-of'])) fail('INVALID_DATE','Use a real date in YYYY-MM-DD format.');
   if (['people show','items show'].includes(key) && !result['--id']) fail('USAGE','Provide --id <stable-id>.');
   for (const flag of ['--offset','--limit']) {
     if (!Object.hasOwn(result,flag)) continue;

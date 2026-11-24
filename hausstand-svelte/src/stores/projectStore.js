@@ -7,7 +7,7 @@ import { unownedActiveTransitions } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
 import { createSessionUndo } from '../lib/sessionUndo.js';
-import { mutationProblem } from '../lib/mutationValidation.js';
+import { projectMutationProblem } from '../lib/mutationValidation.js';
 import { message, getLocale } from '../lib/i18n.js';
 import { openDatePicker, dismissDatePicker, selectAsOfDate, returnToToday, syncCalendarDay } from '../lib/timeTravel.js';
 
@@ -97,16 +97,9 @@ function createStore() {
         const project = clone(s.project);
         try { mutator(project); }
         catch { alert(message('errors.changeFailed', getLocale())); return s; }
-        const problem = mutationProblem(s.project, project);
+        const problem = projectMutationProblem(s.project, project);
         if (problem) {
           alert(message(problem.key, getLocale(), problem.params || {}));
-          return s;
-        }
-        const invalid = unownedActiveTransitions(project);
-        if (invalid.length) {
-          const first = invalid[0];
-          const name = (project.items || []).find(item => item.id === first.itemId)?.name || first.itemId;
-          alert(message('errors.ownerless', getLocale(), { name, date: first.date }));
           return s;
         }
         saved = true;
