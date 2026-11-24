@@ -741,11 +741,18 @@ async function phpOnline(browser) {
       const viewer = await second.newPage();
       await viewer.goto(host + '/hausstand.php');
       await openSave(viewer);
-      await viewer.getByLabel('Passwort des Online-Projekts').fill('browser-test-passphrase');
+      await viewer.locator('.storage-online-list').getByLabel('Passwort des Online-Projekts').fill('browser-test-passphrase');
       await viewer.locator('.storage-online').getByRole('button', { name: 'Liste aktualisieren' }).click();
       await viewer.locator('.shared-file').getByRole('button', { name: 'Öffnen' }).click();
       await viewer.locator('.storage-primary').click();
       await viewer.getByText(/bereits ausgecheckt/).waitFor();
+      // A second browser can see balances but must not be able to mutate them.
+      await openFinance(viewer);
+      await balance(viewer, 'Ben', '100,00');
+      assert.equal(await viewer.getByRole('button', { name: 'Zahlung erfassen', exact: true }).isDisabled(), true);
+      assert.equal(await viewer.getByRole('button', { name: /Rückgängig \(Strg\+Z\)/ }).isDisabled(), true);
+      assert.equal(await viewer.getByRole('button', { name: 'Bearbeitung starten', exact: true }).isVisible(), true);
+      await openSave(viewer);
 
       await openFinance(editor);
       await payment(editor, '60');
@@ -785,7 +792,35 @@ async function phpOnline(browser) {
       await editor.getByRole('button', { name: 'Bearbeitung beenden' }).click();
       await viewer.locator('.storage-primary').click();
       await viewer.getByText(/neuere Revision|HTTP 409/).waitFor();
-      console.log('Browser PHP QA: encrypted create/open, exclusive lease, Save, embedded archive and stale revision passed');
+
+      // Reopen the current revision, then make a new local change. Strip
+      // the lease header from one save to provoke a real PHP rejection.
+      await viewer.locator('.storage-online-list').getByLabel('Passwort des Online-Projekts').fill('browser-test-passphrase');
+      await viewer.locator('.storage-online-list').getByRole('button', { name: 'Liste aktualisieren' }).click();
+      await viewer.locator('.shared-file').getByRole('button', { name: 'Öffnen' }).click();
+      await viewer.locator('.storage-primary').click();
+      await viewer.getByRole('button', { name: 'Bearbeitung beenden' }).waitFor();
+      await openFinance(viewer);
+      await payment(viewer, '10');
+      await balance(viewer, 'Ben', '30,00');
+      await viewer.route(saveUrl, async route => {
+        const headers = { ...route.request().headers() };
+        delete headers['x-lease-token'];
+        await route.continue({ headers });
+      });
+      try {
+        await viewer.getByRole('button', { name: 'Online speichern', exact: true }).click();
+        await viewer.getByRole('button', { name: 'Bearbeitung starten', exact: true }).waitFor();
+        await balance(viewer, 'Ben', '30,00');
+        assert.equal(await viewer.getByRole('button', { name: 'Zahlung erfassen', exact: true }).isDisabled(), true);
+        await openSave(viewer);
+        assert.match(await viewer.locator('.storage-context').innerText(), /Änderungen noch nicht online gespeichert/);
+        assert.equal(await viewer.getByRole('button', { name: 'Bearbeitung beenden' }).count(), 0);
+        const afterConflict = await (await fetch(host + '/hausstand.php?api=read&id=' + files[0].id)).json();
+        assert.equal(afterConflict.revision, packet.revision);
+        assert.deepEqual((await decryptProject(afterConflict.envelope, 'browser-test-passphrase')).project, decoded);
+      } finally { await viewer.unroute(saveUrl); }
+      console.log('Browser PHP QA: encrypted create/open, read-only UI, exclusive lease, Save, embedded archive, stale revision and rejected save recovery passed');
     } finally { await first.close(); await second.close(); }
   } finally {
     php.kill();
