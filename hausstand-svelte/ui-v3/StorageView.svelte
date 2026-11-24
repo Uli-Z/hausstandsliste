@@ -100,7 +100,12 @@
     try { data = await response.json(); } catch { throw new Error($translate("ui.the-server-returned-invalid-json-n82jl")); }
     if (!response.ok || data.ok === false) {
       // A failed create must not turn the unrelated local working copy read-only.
-      if (authorized && [409, 423].includes(response.status)) appState.setReadOnly(true);
+      if (authorized && [403, 409, 423].includes(response.status)) {
+        // A rejected lease/revision/capability is no longer permission to edit.
+        // Keep the dirty working copy intact for an encrypted recovery download.
+        leaseToken = ''; leaseExpires = 0;
+        appState.setReadOnly(true);
+      }
       throw new Error(serverErrorMessage(data.errorCode, response.status));
     }
     return data;
