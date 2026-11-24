@@ -1,5 +1,5 @@
 <script>
-  import { translate, parseDecimal } from '../src/lib/i18n.js';
+  import { translate, parseDecimal, localizeDiagnostic } from '../src/lib/i18n.js';
   import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
   import { uid, parseTags, nextEventOrder } from '../src/lib/util.js';
   import { projectAt } from '../src/lib/projector.js';
@@ -244,7 +244,7 @@
     }
     const eligibility = personDeletionEligibility(project, person.id);
     if (!eligibility.allowed) {
-      alert(`Löschen nicht möglich: ${eligibility.reason}`);
+      alert($translate('dialog.deleteFailure', { reason: localizeDiagnostic(eligibility.reason) }));
       return;
     }
     if (!confirm($translate("dialog.confirmRemovePerson", {name:person.name}))) return;
@@ -254,7 +254,7 @@
       deleted = deleteUnusedPerson(p, person.id).allowed;
     });
     if (!deleted) {
-      alert('Löschen nicht möglich: Es bestehen inzwischen Verknüpfungen mit der Person.');
+      alert($translate('dialog.deleteLinked'));
       return;
     }
     close();
@@ -434,7 +434,7 @@
             {#if deleteEligibility.allowed}
               <div class="notice">{$translate("ui.permanent-deletion-is-only-possible-1k5oppq")}</div>
             {:else}
-              <div class="notice warn">{$translate('dialog.deleteBlocked')} {deleteEligibility.reason} {$translate('dialog.moveOut')}</div>
+              <div class="notice warn">{$translate('dialog.deleteBlocked')} {localizeDiagnostic(deleteEligibility.reason)} {$translate('dialog.moveOut')}</div>
             {/if}
           {/if}
         {:else if dialog.type === 'personStatus'}

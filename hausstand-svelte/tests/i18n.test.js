@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveLocale, dictionaries, message, loadLanguage, formatMoney, formatDate, parseDecimal, pluralMessage, serverErrorMessage, LANGUAGE_KEY } from '../src/lib/i18n.js';
+import { resolveLocale, dictionaries, message, loadLanguage, formatMoney, formatDate, parseDecimal, pluralMessage, serverErrorMessage, localizeDiagnostic, LANGUAGE_KEY } from '../src/lib/i18n.js';
 
 test('Q13: automatic language honors primary subtag and manual override', () => {
   for (const tag of ['de', 'de-DE', 'de-AT', 'de-CH']) assert.equal(resolveLocale('auto',[tag]),'de');
@@ -56,4 +56,15 @@ test('Q13: dynamic payment text and counts follow language', () => {
   assert.equal(pluralMessage('timeline.changeCount', 1, 'en'), '1 change');
   assert.equal(pluralMessage('timeline.changeCount', 2, 'de'), '2 Änderungen');
   assert.match(pluralMessage('ledger.invalid', 1, 'en'), /entry was ignored/);
+});
+
+test('Q13: known crypto, archive, schema and person diagnostics are translated', () => {
+  for (const path of ['crypto.js','versionHistory.js','domain.js','personDeletion.js']) {
+    const source = readFileSync(new URL('../src/lib/' + path, import.meta.url), 'utf8');
+    for (const [,text] of source.matchAll(/(?:throw new Error\\(|reason: )'([^']+)'/g)) {
+      assert.notEqual(localizeDiagnostic(text, 'en'), text, path + ': ' + text);
+      assert.equal(localizeDiagnostic(text, 'de'), text);
+    }
+  }
+  assert.equal(localizeDiagnostic('user-provided text', 'en'), 'user-provided text');
 });

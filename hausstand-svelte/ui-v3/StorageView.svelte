@@ -1,5 +1,5 @@
 <script>
-  import { translate, getLocale, serverErrorMessage } from '../src/lib/i18n.js';
+  import { translate, getLocale, serverErrorMessage, localizeDiagnostic } from '../src/lib/i18n.js';
   import { onMount } from 'svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
@@ -35,7 +35,7 @@
       await refreshFiles();
     });
   });
-  const report = e => { error = e?.message || String(e); message = ''; };
+  const report = e => { error = localizeDiagnostic(e?.message || String(e)); message = ''; };
   async function run(job) {
     if (busy) return;
     busy = true; error = ''; message = '';
@@ -61,7 +61,7 @@
   }
   export function prepareToReplace() {
     try { requireLeaseReleased(); clearOnlineLink(); return true; }
-    catch (e) { alert(e.message); return false; }
+    catch (e) { alert(localizeDiagnostic(e.message)); return false; }
   }
   async function exportPlain() {
     if ($appState.secure || openedId) throw new Error($translate('storage.plainExportUnavailable'));
@@ -135,7 +135,7 @@
       error = ''; message = $translate('storage.importedWorkingCopy');
       onProjectLoaded();
     } catch (e) {
-      report(new Error($translate('storage.importFailed') + ': ' + (e?.message || String(e))));
+      report(new Error($translate('storage.importFailed') + ': ' + localizeDiagnostic(e?.message || String(e))));
     }
     finally { input.value = ''; }
   }

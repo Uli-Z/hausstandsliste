@@ -4,6 +4,34 @@ import { writable, derived, get } from 'svelte/store';
 export const LANGUAGE_KEY = 'hausstand-language';
 export const dictionaries = {
   "en": {
+    "dialog.deleteFailure": "Cannot delete: {reason}",
+    "dialog.deleteLinked": "Cannot delete: the person is now referenced by other project data.",
+    "diagnostic.crypto.password": "Use a passphrase of at least 8 characters.",
+    "diagnostic.crypto.format": "Unknown or invalid encrypted file format.",
+    "diagnostic.crypto.saltNonce": "Invalid salt or nonce length.",
+    "diagnostic.crypto.project": "Invalid project.",
+    "diagnostic.crypto.header": "Invalid encryption header.",
+    "diagnostic.crypto.payload": "Invalid decrypted contents.",
+    "diagnostic.crypto.decrypt": "Decryption failed: incorrect password or damaged file.",
+    "diagnostic.domain.schema": "Unsupported project format. Open a current Hausstandsliste project file.",
+    "diagnostic.versionHistory.format": "Unknown or damaged version archive. The file was not changed.",
+    "diagnostic.versionHistory.size": "Version data is invalid or too large.",
+    "diagnostic.versionHistory.compression": "This browser does not support the required gzip compression.",
+    "diagnostic.versionHistory.decompression": "This browser cannot decompress this version.",
+    "diagnostic.versionHistory.expandedSize": "The decompressed version is too large.",
+    "diagnostic.versionHistory.previousSize": "The previous project version is too large for the archive.",
+    "diagnostic.versionHistory.incomplete": "The version archive is incomplete. Saving was cancelled.",
+    "diagnostic.versionHistory.notFound": "This project version was not found.",
+    "diagnostic.versionHistory.checksum": "Invalid version checksum.",
+    "diagnostic.versionHistory.corrupt": "Version data is damaged (checksum mismatch).",
+    "diagnostic.versionHistory.recursive": "Invalid or recursive version record.",
+    "diagnostic.personDeletion.notSelected": "No person selected.",
+    "diagnostic.personDeletion.notFound": "The person is not in the project.",
+    "diagnostic.personDeletion.history": "The person is linked to historical events.",
+    "diagnostic.personDeletion.items": "Item data refers to this person.",
+    "diagnostic.personDeletion.otherPeople": "Other person records refer to this person.",
+    "diagnostic.personDeletion.drafts": "The person is still used in a draft.",
+    "diagnostic.personDeletion.otherData": "Other project data refers to this person.",
     "nav.primary": "Main navigation",
     "nav.sections": "Sections",
     "nav.mobile": "Mobile navigation",
@@ -698,6 +726,34 @@ export const dictionaries = {
     "items.give.other": "gives away {count} shares"
   },
   "de": {
+    "dialog.deleteFailure": "Löschen nicht möglich: {reason}",
+    "dialog.deleteLinked": "Löschen nicht möglich: Es bestehen inzwischen Verknüpfungen mit der Person.",
+    "diagnostic.crypto.password": "Bitte eine Passphrase mit mindestens 8 Zeichen verwenden.",
+    "diagnostic.crypto.format": "Unbekanntes oder ungültiges verschlüsseltes Dateiformat.",
+    "diagnostic.crypto.saltNonce": "Ungültige Salt-/Nonce-Länge.",
+    "diagnostic.crypto.project": "Ungültiges Projekt.",
+    "diagnostic.crypto.header": "Ungültiger Verschlüsselungsheader.",
+    "diagnostic.crypto.payload": "Ungültiger entschlüsselter Inhalt.",
+    "diagnostic.crypto.decrypt": "Entschlüsselung fehlgeschlagen: falsches Passwort oder beschädigte Datei.",
+    "diagnostic.domain.schema": "Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.",
+    "diagnostic.versionHistory.format": "Unbekanntes oder beschädigtes Versionsarchiv. Die Datei wurde nicht verändert.",
+    "diagnostic.versionHistory.size": "Versionsdaten sind ungültig oder zu groß.",
+    "diagnostic.versionHistory.compression": "Der Browser unterstützt die benötigte gzip-Komprimierung nicht.",
+    "diagnostic.versionHistory.decompression": "Diese Version kann in diesem Browser nicht entpackt werden.",
+    "diagnostic.versionHistory.expandedSize": "Entpackte Version ist zu groß.",
+    "diagnostic.versionHistory.previousSize": "Die bisherige Projektversion ist zu groß für das Versionsarchiv.",
+    "diagnostic.versionHistory.incomplete": "Das Versionsarchiv ist unvollständig. Speichern wurde abgebrochen.",
+    "diagnostic.versionHistory.notFound": "Diese Projektversion wurde nicht gefunden.",
+    "diagnostic.versionHistory.checksum": "Ungültige Versionsprüfsumme.",
+    "diagnostic.versionHistory.corrupt": "Versionsdaten sind beschädigt (Prüfsumme stimmt nicht).",
+    "diagnostic.versionHistory.recursive": "Ungültiger oder rekursiver Versionsdatensatz.",
+    "diagnostic.personDeletion.notSelected": "Keine Person ausgewählt.",
+    "diagnostic.personDeletion.notFound": "Person ist nicht im Projekt vorhanden.",
+    "diagnostic.personDeletion.history": "Die Person ist mit historischen Ereignissen verknüpft.",
+    "diagnostic.personDeletion.items": "Die Person ist in Gegenstandsdaten referenziert.",
+    "diagnostic.personDeletion.otherPeople": "Andere Personenstammdaten verweisen auf diese Person.",
+    "diagnostic.personDeletion.drafts": "Die Person wird noch in einem Entwurf verwendet.",
+    "diagnostic.personDeletion.otherData": "Weitere Projektdaten verweisen auf diese Person.",
     "nav.primary": "Hauptnavigation",
     "nav.sections": "Arbeitsbereiche",
     "nav.mobile": "Navigation auf dem Smartphone",
@@ -1460,4 +1516,117 @@ export function serverErrorMessage(code, status, lang = getLocale()) {
   const key = typeof code === 'string' && Object.hasOwn(dictionaries.en, 'server.' + code)
     ? 'server.' + code : 'storage.serverError';
   return message(key, lang) + ' (HTTP ' + status + ')';
+}
+
+// Domain diagnostics remain unchanged for callers; translate at the UI boundary.
+const diagnosticKeys = new Map([
+  [
+    "Bitte eine Passphrase mit mindestens 8 Zeichen verwenden.",
+    "diagnostic.crypto.password"
+  ],
+  [
+    "Unbekanntes oder ungültiges verschlüsseltes Dateiformat.",
+    "diagnostic.crypto.format"
+  ],
+  [
+    "Ungültige Salt-/Nonce-Länge.",
+    "diagnostic.crypto.saltNonce"
+  ],
+  [
+    "Ungültiges Projekt.",
+    "diagnostic.crypto.project"
+  ],
+  [
+    "Ungültiger Verschlüsselungsheader.",
+    "diagnostic.crypto.header"
+  ],
+  [
+    "Ungültiger entschlüsselter Inhalt.",
+    "diagnostic.crypto.payload"
+  ],
+  [
+    "Entschlüsselung fehlgeschlagen: falsches Passwort oder beschädigte Datei.",
+    "diagnostic.crypto.decrypt"
+  ],
+  [
+    "Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.",
+    "diagnostic.domain.schema"
+  ],
+  [
+    "Unbekanntes oder beschädigtes Versionsarchiv. Die Datei wurde nicht verändert.",
+    "diagnostic.versionHistory.format"
+  ],
+  [
+    "Versionsdaten sind ungültig oder zu groß.",
+    "diagnostic.versionHistory.size"
+  ],
+  [
+    "Der Browser unterstützt die benötigte gzip-Komprimierung nicht.",
+    "diagnostic.versionHistory.compression"
+  ],
+  [
+    "Diese Version kann in diesem Browser nicht entpackt werden.",
+    "diagnostic.versionHistory.decompression"
+  ],
+  [
+    "Entpackte Version ist zu groß.",
+    "diagnostic.versionHistory.expandedSize"
+  ],
+  [
+    "Die bisherige Projektversion ist zu groß für das Versionsarchiv.",
+    "diagnostic.versionHistory.previousSize"
+  ],
+  [
+    "Das Versionsarchiv ist unvollständig. Speichern wurde abgebrochen.",
+    "diagnostic.versionHistory.incomplete"
+  ],
+  [
+    "Diese Projektversion wurde nicht gefunden.",
+    "diagnostic.versionHistory.notFound"
+  ],
+  [
+    "Ungültige Versionsprüfsumme.",
+    "diagnostic.versionHistory.checksum"
+  ],
+  [
+    "Versionsdaten sind beschädigt (Prüfsumme stimmt nicht).",
+    "diagnostic.versionHistory.corrupt"
+  ],
+  [
+    "Ungültiger oder rekursiver Versionsdatensatz.",
+    "diagnostic.versionHistory.recursive"
+  ],
+  [
+    "Keine Person ausgewählt.",
+    "diagnostic.personDeletion.notSelected"
+  ],
+  [
+    "Person ist nicht im Projekt vorhanden.",
+    "diagnostic.personDeletion.notFound"
+  ],
+  [
+    "Die Person ist mit historischen Ereignissen verknüpft.",
+    "diagnostic.personDeletion.history"
+  ],
+  [
+    "Die Person ist in Gegenstandsdaten referenziert.",
+    "diagnostic.personDeletion.items"
+  ],
+  [
+    "Andere Personenstammdaten verweisen auf diese Person.",
+    "diagnostic.personDeletion.otherPeople"
+  ],
+  [
+    "Die Person wird noch in einem Entwurf verwendet.",
+    "diagnostic.personDeletion.drafts"
+  ],
+  [
+    "Weitere Projektdaten verweisen auf diese Person.",
+    "diagnostic.personDeletion.otherData"
+  ]
+]);
+export function localizeDiagnostic(text, lang = getLocale()) {
+  const value = String(text ?? '');
+  const key = diagnosticKeys.get(value);
+  return key ? message(key, lang) : value;
 }
