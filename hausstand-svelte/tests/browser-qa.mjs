@@ -444,6 +444,8 @@ async function settlementEndToEnd(browser, url) {
       event.type === 'claim-settlement-recorded');
     const purchaseEdit = await openEvent('Q03 Kühlschrank');
     await purchaseEdit.locator('input[type=number][step="0.01"]').first().fill('330');
+    assert.equal(await purchaseEdit.locator('.modal-footer button.primary').isDisabled(), true);
+    await purchaseEdit.getByLabel('Anna', {exact:true}).last().fill('330');
     await purchaseEdit.locator('.modal-footer button.primary').click();
     await closeDialog();
     await assertBalances({ Anna: 2000, Ben: -1000, Clara: -1000 });

@@ -68,6 +68,7 @@ test('overpayment becomes credit, including after editing purchase', () => {
   pay(p,'ben','anna',12000);
   assert.deepEqual(asObject(balance(p)), {ben:2000,anna:-2000});
   p.events[0].initialValue=80;
+  p.events[0].purchaseContributionsCents={anna:8000};
   const l=balance(p);
   assert.equal(l.balances.get('ben'),4000);
   assert.equal(l.balances.get('anna'),-4000);

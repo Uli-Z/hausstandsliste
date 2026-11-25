@@ -20,7 +20,7 @@ function fixture(shares = { anna: 1 }) {
       id: 'added', type: 'item-added', itemId: 'desk',
       date: '2026-01-01', order: 1,
       initialValue: 100, valuation: { type: 'fixed', minimumValue: 0 },
-      shares
+      shares, financialMode:'derived', purchaseContributionsCents:{anna:10000}
     }]
   };
 }

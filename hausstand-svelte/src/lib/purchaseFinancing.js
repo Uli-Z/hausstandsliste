@@ -20,7 +20,9 @@ export function recordedContributions(event) {
 }
 
 // Shared rule for persisted purchase events and direct mutations.
+export const purchaseEventFieldsValid = event => Object.keys(event).every(k=>['id','type','date','order','itemId','name','initialValue','valuation','shares','financialMode','purchaseContributionsCents'].includes(k));
 export function purchaseEventProblem(event, people, successor = false) {
+  if (!purchaseEventFieldsValid(event)) return 'INVALID_CONTRIBUTIONS';
   if (successor) return event.financialMode === 'none' && !Object.hasOwn(event,'purchaseContributionsCents')
     ? null : 'INVALID_CONTRIBUTIONS';
   if (event.financialMode !== 'derived') return 'INVALID_CONTRIBUTIONS';

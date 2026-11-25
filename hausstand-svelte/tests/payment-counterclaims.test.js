@@ -54,6 +54,7 @@ test('backdated change or deletion of a purchase never changes recorded payment'
   const p = makeProject();
   const paid = pay(p, 'ben', 'anna', 12000);
   p.events[0].initialValue = 80;
+  p.events[0].purchaseContributionsCents = {anna:8000};
   assert.deepEqual(pair(p), [{ fromPersonId: 'anna', toPersonId: 'ben', amountCents: 4000 }]);
   assert.equal(paid.amountCents, 12000);
   p.events.shift();
@@ -77,6 +78,7 @@ test('payments may precede a source purchase; no source or item is required', ()
 test('two independent partial payments and a second person remain distinct', () => {
   const p = makeProject();
   p.events[0].initialValue = 300;
+  p.events[0].purchaseContributionsCents = {anna:30000};
   p.events[0].shares = { anna: 1, ben: 1, clara: 1 };
   pay(p, 'ben', 'anna', 6000);
   pay(p, 'clara', 'anna', 10000);
@@ -146,6 +148,7 @@ test('unknown persons, invalid values and duplicate IDs cannot silently enter th
 test('cent rounding and historical cutoff remain deterministic', () => {
   const p = makeProject();
   p.events[0].initialValue = 10.01;
+  p.events[0].purchaseContributionsCents = {anna:1001};
   p.events[0].shares = { anna: 1, ben: 1, clara: 1 };
   pay(p, 'ben', 'anna', 334, '2026-02-01');
   assert.deepEqual(ledgerAt(p, '2026-01-31').claims.map(c => c.amountCents), [334, 333]);

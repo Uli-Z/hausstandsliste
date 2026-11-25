@@ -51,3 +51,11 @@ test('one current file schema: no old redistribution import field or purchase-li
   assert.doesNotMatch(versions, /mergeLegacyVersions|json-base64|legacyRevision/);
   assert.doesNotMatch(claimSettlement, /sourceEventId, childEventId, itemId/);
 });
+
+test('Q31 has no legacy single-payer field or compatibility branch', () => {
+  for (const file of ['src/lib/purchaseFinancing.js','src/lib/itemMutations.js','src/lib/eventMutations.js',
+    'src/lib/mutationValidation.js','src/lib/projectValidation.js','src/lib/draftMutations.js',
+    'src/lib/financialLabels.js','bin/hausstand.mjs','ui-v3/DialogRouter.svelte','ui-v3/Timeline.svelte']) {
+    assert.doesNotMatch(appFile(file), /financedByPersonId|allowHistoricalUnknownFunding/,file);
+  }
+});
