@@ -40,7 +40,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     const snapshot=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)).project,key);
     async function cutoff(date) {
       if (!await page.locator('#time-travel-panel').count()) {
-        await page.getByRole('button',{name:'Stichtag wählen'}).click();
+        await page.locator('.time-travel-toggle').click();
       }
       await page.locator('#state-date').fill(date);
     }
@@ -50,15 +50,40 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await cutoff('2026-01-01');
     await nav('Gegenstände').click();
     await page.locator('.item-tile').filter({hasText:'Sessel'}).locator('.tile-open').click();
-    await page.locator('.timeline-panel .timeline-more').first().click();
-    const cards=await page.locator('.timeline-panel .timeline-event-card .event-summary').allTextContents();
-    assert.match(cards[0],/Latest future entry/);
-    assert.match(cards[1],/Second future entry/);
-    assert.match(cards[2],/First future entry/);
-    await page.locator('.timeline-event-card').filter({hasText:'Latest future entry'}).locator('.edit-button').click();
+    const timeline = page.locator('.timeline-panel');
+    const eventCards = timeline.locator('.timeline-event-card');
+    async function checkHistory(expectedFuture) {
+      // Future events are collapsed by default; preserve the application's choice
+      // when already expanded while changing the date within the item detail.
+      if (expectedFuture > 0 && !await timeline.locator('.future-event').count()) {
+        await timeline.locator('.timeline-more').first().click();
+      }
+      assert.equal(await eventCards.count(), 4, 'Q14: all four item events visible');
+      const cards = await eventCards.locator('.event-summary').allTextContents();
+      assert.match(cards[0], /Latest future entry/);
+      assert.match(cards[1], /Second future entry/);
+      assert.match(cards[2], /First future entry/);
+      assert.match(cards[3], /Startwert/);
+      const actualFuture = await eventCards.evaluateAll(nodes =>
+        nodes.map(node => node.classList.contains('future-event')));
+      assert.deepEqual(actualFuture, Array.from({length: 4}, (_, i) => i < expectedFuture),
+        'Q14: future markers match the selected date without changing chronological order');
+    }
+    await checkHistory(3);
+    await timeline.locator('.timeline-event-card').filter({hasText:'Latest future entry'}).locator('.event-open-overlay').click();
     assert.equal(await dialog.locator('input[type="date"]').inputValue(),'2030-01-01');
     await dialog.locator('.modal-header button').click();
 
+    await cutoff('2029-06-01'); // same-day entries cross the cutoff together
+    await checkHistory(1);
+    await cutoff('2030-01-01'); // latest entry is now part of the historical state
+    await checkHistory(0);
+    await cutoff('2025-01-02'); // back to the purchase date
+    await checkHistory(3);
+    await cutoff('2026-01-01');
+    await page.locator('.time-travel-today').click();
+    await checkHistory(3); // normal current-date view (fixture events are in 2029/2030)
+    await cutoff('2026-01-01');
     await nav('Gegenstände').click();
     await page.locator('.page-heading button').first().click();
     assert.equal(await dateField.inputValue(),'2026-01-01');
