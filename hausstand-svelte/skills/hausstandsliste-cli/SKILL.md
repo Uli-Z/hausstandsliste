@@ -22,7 +22,7 @@ Use `--input project.json` (or `--input -` for stdin); writes use `--payload pay
 | Command | Options / payload |
 | --- | --- |
 | project create | payload {"name":"Household"}; no --input |
-| project validate | input; checks file and embedded archive |
+| project validate | input; checks file, stored business data and all embedded archive snapshots |
 | project show | input; full stored project |
 | people list / items list | input, optional --as-of, --offset, --limit |
 | people show / items show | input, --id stable ID, optional --as-of |
@@ -83,3 +83,5 @@ Data response: {responseVersion:1,command,source,data}; source stored, projectio
 Limitations: no arbitrary raw event injection, no PHP remote access, no in-place project replacement. Older saved versions may still contain deleted people; deletion is not privacy erasure.
 
 List commands accept `--search TEXT` (case-insensitive row substring before pagination). Read-only commands may additionally write a new JSON report with `--output PATH`; stdout still returns the same response. Encrypted input reports are stdout-only; never write plaintext reports from them through the CLI.
+
+`project validate` reports `businessValidated: true` on success. `INVALID_BUSINESS_DATA` identifies invalid current business data; `INVALID_ARCHIVE` identifies a damaged or substantively invalid archived snapshot. An explicit correction may preserve the old invalid snapshot in history, so validation can still fail afterward. Never delete archive entries to bypass validation.
