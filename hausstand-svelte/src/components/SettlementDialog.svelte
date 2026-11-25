@@ -1,10 +1,11 @@
 <script>
   import { translate } from '../lib/i18n.js';
   import { appState } from '../stores/projectStore.js';
-  import { createClaimSettlementEvent, claimSettlementErrors, validISODate } from '../lib/claimSettlement.js';
+  import { editEvent, removeEvent } from '../lib/eventMutations.js';
+  import { createClaimSettlementEvent, validISODate } from '../lib/claimSettlement.js';
   import { money } from '../lib/domain.js';
   import HelpTip from './HelpTip.svelte';
-  import { nextEventOrder, todayISO, dateDE } from '../lib/util.js';
+  import { todayISO, dateDE } from '../lib/util.js';
 
   export let dialog;
   export let project;
@@ -53,24 +54,11 @@
   function save() {
     if (!valid || busy) return;
     busy = true;
-    let updated;
     try {
-      updated = original
-        ? { ...original, date, order: original.date === date ? original.order : nextEventOrder(project, date),
-            amountCents: cents, debtorPersonId: payer, creditorPersonId: recipient,
-            settlementKind: kind, note }
-        : createClaimSettlementEvent(project, {
-            date, amountCents: cents, debtorPersonId: payer, creditorPersonId: recipient,
-            settlementKind: kind, note
-          });
-      const problems = claimSettlementErrors(updated);
-      if (problems.length) throw new Error(problems.join(' '));
+      const payload={date,amountCents:cents,debtorPersonId:payer,creditorPersonId:recipient,settlementKind:kind,note};
       const saved = appState.mutateProject(p => {
-        if (original) {
-          const i = p.events.findIndex(e => e.id === original.id && e.type === 'claim-settlement-recorded');
-          if (i === -1) throw new Error($translate("ui.the-original-settlement-entry-was--1huy9tm"));
-          p.events[i] = updated;
-        } else p.events.push(updated);
+        if (original) editEvent(p,original.id,payload);
+        else p.events.push(createClaimSettlementEvent(p,payload));
       });
       if (saved) {
         // If a newly documented payment happens after the viewed cutoff,
@@ -88,10 +76,7 @@
     if (!original || busy) return;
     if (!confirm($translate("ui.delete-this-recorded-settlement-the-sa4wke"))) return;
     busy = true;
-    const saved = appState.mutateProject(p => {
-      const i = p.events.findIndex(e => e.id === original.id && e.type === 'claim-settlement-recorded');
-      if (i !== -1) p.events.splice(i, 1);
-    });
+    const saved = appState.mutateProject(p => removeEvent(p,original.id));
     if (saved) close();
     else busy = false;
   }

@@ -12,7 +12,7 @@ cat project.json | node bin/hausstand.mjs project validate --input -
 
 This is a local CLI sharing the browser's domain, projector, ledger and event ordering. Install the shared application dependencies with `npm ci` first (the shared localization module imports `svelte/store`). It reads current plain or encrypted portable files, supports explicit non-overwriting saves, and does not connect to PHP. `project validate` checks the outer file structure and every embedded archive checksum. All successful data commands return one JSON object with `responseVersion: 1`, `command`, `source` (stored or projection), optional `asOfDate`, and `data`. List data has `total, offset, limit, rows`. Derived monetary amounts use integer cents; raw stored data retains the existing file schema. Proposals require group agreement and do not record payments. Errors are JSON on stderr, with empty stdout and nonzero exit status. See command help for options; no interactive prompt.
 
-Remaining Q23: event corrections, draft management, complete domain audit, general query output files, fresh-install/package and full acceptance.
+Remaining Q23: draft management, complete domain audit, general query output files, fresh-install/package and full acceptance.
 
 ## Shared library boundary
 
@@ -65,3 +65,7 @@ From `hausstand-svelte/`, run `npm pack` then `npm install -g ./hausstand-svelte
 ## New and encrypted projects
 
 `project create --payload name.json --output new.json` accepts `{ "name": "Household" }`; no `--input` required. For encrypted files, supply `HAUSSTAND_PASSWORD` via a secure environment mechanism; never pass it on the command line. Encrypted files always save encrypted using the shared browser AES-GCM/PBKDF2 module and preserve the existing edit token. Add `--encrypt` for new/plain project output. Read and dry-run responses may contain explicitly requested decrypted data, so protect stdout. Wrong passwords, damaged archives and write errors do not publish files. No PHP connection or password rotation in this CLI.
+
+## Historical corrections
+
+`events show --id EVENT_ID` reads a single event. `events edit --id EVENT_ID --payload changes.json --dry-run` previews a typed correction; saving and `events delete` require explicit `--confirm`. Immutable IDs, type and item/person reference are protected (payment payer/recipient are editable as in the UI). Editable fields depend on event type; see the bundled skill. Monetary item edits use integer `initialValueCents` and a complete valuation including `minimumValueCents`. The shared event mutation module is used by the three browser editing dialogs and the CLI; all writes still pass the project transaction guard. Correcting a purchase does not rewrite historical independent payments.

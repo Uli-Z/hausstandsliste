@@ -28,6 +28,9 @@ Use `--input project.json` (or `--input -` for stdin); writes use `--payload pay
 | people show / items show | input, --id stable ID, optional --as-of |
 | balances show | input, optional --as-of |
 | events list / versions list | input, optional --offset, --limit |
+| events show | input, --id event ID |
+| events edit | input, --id event ID, payload of changed fields, --confirm for save |
+| events delete | input, --id event ID, --confirm for save |
 | people add | {"name":"Anna","date":"2026-01-01"} |
 | people rename | {"personId":"ID","name":"Anna"} |
 | people deactivate / reactivate | {"personId":"ID","date":"2026-12-01","reason":"optional"} |
@@ -53,6 +56,10 @@ Payment:
 ```
 Kinds paid, external, waived. Optional note. Payer is debtorPersonId. No purchase/item link.
 
+## Historical corrections
+
+For events edit, payload contains only fields to change (not id, type, order or itemId/personId). Allowed fields: person-added date/name; person status date/reason; item-added date/name/initialValueCents/valuation/shares/financedByPersonId/financialMode; item-ended date/statusAfter/reason; shares-set date/shares/financialMode/note; redistribution-executed date/title/financialMode/events (only existing child IDs/types/item IDs, updated shares or removed children); payment date/amountCents/debtorPersonId/creditorPersonId/settlementKind/note. A valuation replacement requires type, minimumValueCents and durationYears/annualRate where applicable. Preview and confirm explicitly before saving. Never change past payments as a side effect of changing a purchase.
+
 ## Typical workflow
 
 ```sh
@@ -66,4 +73,4 @@ hausstand versions list --input next.json
 
 Data response: {responseVersion:1,command,source,data}; source stored, projection, working or saved. Projection includes asOfDate. Lists have total,offset,limit,rows (limit max 1000). A saved response reports output, versionCount and encrypted; previews report saved:false. Error: {responseVersion:1,error:{code,message}}. Exit 2 usage/confirmation, 3 unreadable/invalid JSON input, 4 invalid project/mutation/archive/password, 5 missing ID, 6 output/save, 1 unexpected. On error do not retry by bypassing validation. Inspect help and correct input. Never expose private project contents outside the authorized task.
 
-Limitations: no arbitrary event correction or draft management, no PHP remote access, no in-place project replacement. Older saved versions may still contain deleted people; deletion is not privacy erasure.
+Limitations: no arbitrary raw event injection or draft management, no PHP remote access, no in-place project replacement. Older saved versions may still contain deleted people; deletion is not privacy erasure.

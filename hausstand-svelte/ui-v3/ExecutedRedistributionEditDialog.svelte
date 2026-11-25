@@ -1,6 +1,7 @@
 <script>
   import { translate, localizeGermanText } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
+  import { replaceEditableEvent, removeEvent } from '../src/lib/eventMutations.js';
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
@@ -84,18 +85,13 @@
   }
 
   function save() {
-    const saved = appState.mutateProject(p => {
-      const idx = p.events.findIndex(e => e.id === edited.id);
-      if (idx >= 0) p.events[idx] = { ...edited };
-    });
+    const saved = appState.mutateProject(p => replaceEditableEvent(p, edited));
     if (saved) appState.closeDialog();
   }
 
   function remove() {
     if (!confirm($translate("ui.delete-the-entire-redistribution-k464tv"))) return;
-    const saved = appState.mutateProject(p => {
-      p.events = p.events.filter(e => e.id !== event.id);
-    });
+    const saved = appState.mutateProject(p => removeEvent(p, event.id));
     if (saved) appState.closeDialog();
   }
 

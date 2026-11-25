@@ -14,6 +14,7 @@ import { exportProject } from '../src/lib/persistence.js';
 import { addPerson, renamePerson, changePersonStatus } from '../src/lib/personMutations.js';
 import { deleteUnusedPerson } from '../src/lib/personDeletion.js';
 import { addItem, updateItemMetadata, continueItem, endItem, setItemShares, executeRedistribution } from '../src/lib/itemMutations.js';
+import { editEvent, removeEvent } from '../src/lib/eventMutations.js';
 import { message } from '../src/lib/i18n.js';
 
 const version = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -37,6 +38,9 @@ const commands = {
   'redistribution execute': 'Apply several share changes in one dated transaction.',
   'items show': 'Show an item, its value and share distribution by stable ID.',
   'balances show': 'Show derived balances, claims and proposed settlement routes in integer cents.',
+  'events show': 'Show a stored event by its stable ID.',
+  'events edit': 'Correct supported fields of a historical event; saving requires --confirm.',
+  'events delete': 'Remove a stored event; saving requires --confirm.',
   'events list': 'List stored events newest first, including future events.',
   'versions list': 'List stored archive metadata, without compressed snapshot data.',
   'payments record': 'Preview or explicitly save an actual payment or noncash adjustment.',
@@ -68,7 +72,9 @@ const help = key => [
   '                     update: itemId,name, optional tags,note; end: itemId,date, optional reason,statusAfter.',
   '                     shares set: itemId,date,shares,financialMode (derived/none), optional note.',
   '                     redistribution execute: effectiveDate,changes [{itemId,shares}],financialMode, optional title.',
-  '  --id <id>           Archive ID for versions restore.',
+  '  --id <id>           Archive ID for versions restore, or event ID for events show/edit/delete.',
+  '  events edit payload: only supported mutable fields; use integer initialValueCents and valuation.minimumValueCents.',
+  '  events edit/delete require --confirm when saving. Run skill show for fields.'
   '  --dry-run           Preview without changing files (write commands).',
   '  --output <file>     Save a NEW project file; never overwrite an existing path.',
   '  --confirm           Confirm a real payment/noncash adjustment or unused-person deletion when saving.',
@@ -94,16 +100,16 @@ const itemWrites = new Map([
   ['items add',addItem],['items update',updateItemMetadata],['items continue',continueItem],
   ['items end',endItem],['shares set',setItemShares],['redistribution execute',executeRedistribution]
 ]);
-const writeCommands = new Set(['project create','payments record','versions restore',...personWrites,...itemWrites.keys()]);
+const writeCommands = new Set(['project create','payments record','versions restore','events edit','events delete',...personWrites,...itemWrites.keys()]);
 const projected = new Set(['people list','people show','items list','items show','balances show']);
 const compareId = (a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 function options(args, key) {
   const result = {};
   const allowed = new Set(['--input','--json', ...(projected.has(key) ? ['--as-of'] : []),
     ...(listCommands.has(key) ? ['--offset','--limit'] : []),
-    ...(['people show','items show','versions restore'].includes(key) ? ['--id'] : []),
+    ...(['people show','items show','versions restore','events show','events edit','events delete'].includes(key) ? ['--id'] : []),
     ...(writeCommands.has(key) ? ['--dry-run','--output','--encrypt'] : []),
-    ...(key === 'payments record' ? ['--payload','--confirm'] : (personWrites.has(key) || itemWrites.has(key) || key === 'project create') ? ['--payload',...(key === 'people delete' ? ['--confirm'] : [])] : [])]);
+    ...(['payments record','events edit'].includes(key) ? ['--payload','--confirm'] : key === 'events delete' ? ['--confirm'] : (personWrites.has(key) || itemWrites.has(key) || key === 'project create') ? ['--payload',...(key === 'people delete' ? ['--confirm'] : [])] : [])]);
   while (args.length) {
     const flag = args.shift();
     if (!allowed.has(flag) || Object.hasOwn(result, flag)) fail('USAGE', 'Unknown, duplicate or inapplicable option: ' + flag);
@@ -115,13 +121,13 @@ function options(args, key) {
   if (key === 'project create' && result['--input']) fail('USAGE','project create does not take --input.');
   if (key !== 'project create' && !result['--input']) fail('USAGE','Provide --input <file|->.');
   if (result['--as-of'] && !validISODate(result['--as-of'])) fail('INVALID_DATE','Use a real date in YYYY-MM-DD format.');
-  if (['people show','items show','versions restore'].includes(key) && !result['--id']) fail('USAGE','Provide --id <stable-id>.');
+  if (['people show','items show','versions restore','events show','events edit','events delete'].includes(key) && !result['--id']) fail('USAGE','Provide --id <stable-id>.');
   if (writeCommands.has(key)) {
     if (Boolean(result['--dry-run']) === Boolean(result['--output'])) fail('USAGE','Choose exactly one: --dry-run or --output <new-file>.');
     if (result['--output'] === '-') fail('USAGE','Use --dry-run for a stdout preview, or specify a new output file.');
   }
   if (result['--encrypt'] && !result['--output']) fail('USAGE','--encrypt requires an explicit output file.');
-  if (key === 'payments record' || personWrites.has(key) || itemWrites.has(key) || key === 'project create') {
+  if (key === 'payments record' || key === 'events edit' || personWrites.has(key) || itemWrites.has(key) || key === 'project create') {
     if (!result['--payload']) fail('USAGE','Provide --payload <file|->.');
     if (result['--input'] === '-' && result['--payload'] === '-') fail('USAGE','Project and payload cannot both use stdin.');
   }
@@ -131,6 +137,10 @@ function options(args, key) {
   }
   if (key === 'people delete') {
     if (result['--output'] && !result['--confirm']) fail('CONFIRM_REQUIRED','Confirm deletion of the unused person with --confirm.');
+    if (result['--dry-run'] && result['--confirm']) fail('USAGE','Do not confirm a dry run.');
+  }
+  if (['events edit','events delete'].includes(key)) {
+    if (result['--output'] && !result['--confirm']) fail('CONFIRM_REQUIRED','Confirm the historical correction with --confirm.');
     if (result['--dry-run'] && result['--confirm']) fail('USAGE','Do not confirm a dry run.');
   }
   for (const flag of ['--offset','--limit']) {
@@ -294,6 +304,33 @@ async function writeCommand(key, p, opts, protection) {
     working=structuredClone(p);
     try { ({event,item,ended}=itemWrites.get(key)(working,payload)); }
     catch (error) { fail('ITEM_MUTATION_REJECTED','Check item, date, valuation, financing and ownership: '+error.message,4); }
+  } else if (key==='events edit' || key==='events delete') {
+    working=structuredClone(p);
+    try {
+      if (key==='events delete') { event=removeEvent(working,opts['--id']); deleted=true; }
+      else {
+        const changes=await readJSON(opts['--payload']);
+        if (!changes || typeof changes!=='object' || Array.isArray(changes) || !Object.keys(changes).length ||
+            Object.hasOwn(changes,'initialValue')) fail('INVALID_PAYLOAD','Provide editable fields; use initialValueCents.',4);
+        if (Object.hasOwn(changes,'initialValueCents')) {
+          if (!Number.isSafeInteger(changes.initialValueCents)||changes.initialValueCents<0) fail('INVALID_PAYLOAD','Invalid initialValueCents.',4);
+          changes.initialValue=changes.initialValueCents/100; delete changes.initialValueCents;
+        }
+        if (Object.hasOwn(changes,'valuation')) {
+          const v=changes.valuation;
+          if (!v || !Number.isSafeInteger(v.minimumValueCents)||v.minimumValueCents<0 ||
+              Object.keys(v).some(k=>!['type','minimumValueCents','durationYears','annualRate'].includes(k)))
+            fail('INVALID_PAYLOAD','Provide the complete valuation including minimumValueCents.',4);
+          const {minimumValueCents,...rule}=v;
+          changes.valuation={...rule,minimumValue:minimumValueCents/100};
+        }
+        event=editEvent(working,opts['--id'],changes);
+      }
+    } catch (error) {
+      if (error instanceof CliError) throw error;
+      if (error.message==='EVENT_NOT_FOUND') fail('NOT_FOUND','No matching event ID.',5);
+      fail('EVENT_MUTATION_REJECTED','Historical correction rejected: '+error.message,4);
+    }
   } else {
     if (!getVersionEntries(p).some(v=>v.id===opts['--id'])) fail('NOT_FOUND','Archive version ID was not found.',5);
     try { working = requireProjectFile(await readPortableVersion(p,opts['--id'])); }
@@ -302,7 +339,7 @@ async function writeCommand(key, p, opts, protection) {
   validateChange(p,working);
   // Use the existing archive reader to verify all retained snapshots before
   // writing. No parallel compression/checksum implementation in this adapter.
-  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {project:working})}};
+  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event,...(deleted?{deleted:true}:{})} : {project:working})}};
   await verifyArchive(p);
   let saved;
   try { saved = exportProject(await createPortableSave(working,p), todayISO()); }
@@ -310,7 +347,7 @@ async function writeCommand(key, p, opts, protection) {
   const output=await protectedOutput(saved,opts,protection);
   await publishNewFile(opts['--output'],output);
   return {source:'saved',data:{saved:true,output:opts['--output'],lastSavedAt:saved.lastSavedAt,
-    versionCount:getVersionEntries(saved).length,encrypted:!!(protection || opts['--encrypt']),...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {restoredVersionId:opts['--id']})}};
+    versionCount:getVersionEntries(saved).length,encrypted:!!(protection || opts['--encrypt']),...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event,...(deleted?{deleted:true}:{})} : {restoredVersionId:opts['--id']})}};
 }
 async function skillCommand(args) {
   const usage='hausstand skill show | hausstand skill export --output <path|-> [--force]';
@@ -389,6 +426,7 @@ async function main(args) {
         claims:ledger.claims,counterclaims:ledger.counterclaims,warnings:ledger.warnings,
         proposals:ledger.simplified, proposalsRequireAgreement:true}; break;
     }
+    case 'events show': data=find(p.events,opts['--id']); break;
     case 'events list': data = page(newestFirst(p.events),opts); break;
     case 'versions list': data = page(getVersionEntries(p).map(({id,savedAt,encoding,sha256})=>({id,savedAt,encoding,sha256})),opts); break;
   }

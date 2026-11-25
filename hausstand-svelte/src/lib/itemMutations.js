@@ -1,4 +1,5 @@
-import { uid } from './util.js';
+import { uid, validMoney } from './util.js';
+export { validMoney } from './util.js';
 import { normShares } from './domain.js';
 import { projectAt } from './projector.js';
 import { validISODate } from './claimSettlement.js';
@@ -6,8 +7,6 @@ import { createEvent } from './personMutations.js';
 
 const reject = code => { throw new Error(code); };
 const text = value => typeof value === 'string';
-export const validMoney = value => typeof value === 'number' && Number.isFinite(value) &&
-  value >= 0 && Number.isSafeInteger(Math.round(value*100)) && Math.abs(value*100-Math.round(value*100)) <= 1e-7;
 const validMode = mode => ['derived','none'].includes(mode);
 const at = (project,date) => {
   if (!validISODate(date)) reject('INVALID_DATE');
@@ -29,7 +28,7 @@ export function checkedShares(view,shares,previous={}) {
   if (!Object.keys(clean).length || !Number.isFinite(Object.values(clean).reduce((sum,n)=>sum+n,0))) reject('INVALID_SHARES');
   return clean;
 }
-function checkedValuation(v) {
+export function checkedValuation(v) {
   if (!v || !['fixed','linear','degressive'].includes(v.type) || !validMoney(v.minimumValue ?? 0))
     reject('INVALID_VALUATION');
   if (v.type==='linear' && (!Number.isFinite(v.durationYears) || v.durationYears<=0)) reject('INVALID_VALUATION');

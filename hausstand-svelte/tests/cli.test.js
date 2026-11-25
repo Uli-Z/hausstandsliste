@@ -348,3 +348,43 @@ test('project create and full archive validation',()=>{
     assert.equal(JSON.parse(corrupt.stderr).error.code,'INVALID_ARCHIVE');
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
+
+test('CLI historical correction preserves event identity and independent payment facts',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-edit-'));
+  try {
+    const input=join(dir,'p.json'), payload=join(dir,'payload.json'), out=join(dir,'out.json'), paymentOut=join(dir,'pay.json'), removed=join(dir,'removed.json');
+    writeFileSync(input,JSON.stringify(p));
+    const edit=(source,id,mode)=>run(['events','edit','--input',source,'--id',id,'--payload',payload,...mode]);
+    writeFileSync(payload,JSON.stringify({type:'person-added'}));
+    assert.equal(JSON.parse(edit(input,'buy',['--dry-run']).stderr).error.code,'EVENT_MUTATION_REJECTED');
+    writeFileSync(payload,JSON.stringify({initialValueCents:20000,valuation:{type:'fixed',minimumValueCents:0}}));
+    const preview=edit(input,'buy',['--dry-run']);
+    assert.equal(preview.status,0,preview.stderr);
+    assert.equal(JSON.parse(preview.stdout).data.event.id,'buy');
+    assert.equal(edit(input,'buy',['--output',out]).status,2);
+    const result=edit(input,'buy',['--output',out,'--confirm']);
+    assert.equal(result.status,0,result.stderr);
+    const next=JSON.parse(readFileSync(out,'utf8'));
+    assert.equal(next.events.find(e=>e.id==='buy').initialValue,200);
+    assert.deepEqual(next.events.find(e=>e.id==='pay'),p.events.find(e=>e.id==='pay'));
+    assert.equal(ledgerAt(next,'2027-01-01').claims[0].amountCents,10000);
+    assert.equal(query(['events','show','--id','pay'],next).data.amountCents,1248);
+    writeFileSync(payload,JSON.stringify({amountCents:1234,date:'2027-01-02'}));
+    const pay=edit(out,'pay',['--output',paymentOut,'--confirm']);
+    assert.equal(pay.status,0,pay.stderr);
+    const paid=JSON.parse(readFileSync(paymentOut,'utf8'));
+    assert.equal(paid.events.find(e=>e.id==='pay').amountCents,1234);
+    assert.equal(ledgerAt(paid,'2027-01-01').counterclaims.length,0);
+    const del=['events','delete','--input',paymentOut,'--id','buy'];
+    assert.equal(run([...del,'--dry-run']).status,0);
+    assert.equal(run([...del,'--output',removed]).status,2);
+    const deletion=run([...del,'--output',removed,'--confirm']);
+    assert.equal(deletion.status,0,deletion.stderr);
+    assert.equal(JSON.parse(deletion.stdout).data.deleted,true);
+    const final=JSON.parse(readFileSync(removed,'utf8'));
+    assert.equal(final.events.some(e=>e.id==='buy'),false);
+    assert.deepEqual(final.events.find(e=>e.id==='pay'),paid.events.find(e=>e.id==='pay'));
+    assert.equal(final.versionHistory.entries.length,3);
+    assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});

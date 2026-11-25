@@ -1,6 +1,7 @@
 <script>
   import { translate, parseDecimal } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
+  import { replaceEditableEvent, removeEvent } from '../src/lib/eventMutations.js';
   import { dateDE, uid, clone } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';
   import { projectAt } from '../src/lib/projector.js';
@@ -38,18 +39,13 @@
   function save() {
     if (!edited || !minimumValid) return;
     if (edited.type === 'item-added') edited.valuation.minimumValue = minimumAmount;
-    const saved = appState.mutateProject(p => {
-      const idx = p.events.findIndex(e => e.id === edited.id);
-      if (idx >= 0) p.events[idx] = { ...edited };
-    });
+    const saved = appState.mutateProject(p => replaceEditableEvent(p, edited));
     if (saved) appState.closeDialog();
   }
 
   function remove() {
     if (!confirm($translate("ui.delete-this-event-1nrohzk"))) return;
-    const saved = appState.mutateProject(p => {
-      p.events = p.events.filter(e => e.id !== event.id);
-    });
+    const saved = appState.mutateProject(p => removeEvent(p, event.id));
     if (saved) appState.closeDialog();
   }
 

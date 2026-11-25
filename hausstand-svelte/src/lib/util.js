@@ -36,3 +36,6 @@ export const nextEventOrder = (project, date) => {
   return Math.max(Date.now(), maxOnDate + 1);
 };
 export const eventDates = project => (project.events || []).map(e => e.date).filter(Boolean).sort();
+
+export const validMoney = value => typeof value === 'number' && Number.isFinite(value) &&
+  value >= 0 && Number.isSafeInteger(Math.round(value*100)) && Math.abs(value*100-Math.round(value*100)) <= 1e-7;

@@ -1,4 +1,5 @@
 import { claimSettlementErrors, validISODate } from './claimSettlement.js';
+import { validMoney } from './util.js';
 import { unownedActiveTransitions } from './ownershipValidation.js';
 
 // Validate new/edited events before a mutation reaches the session history,
@@ -40,11 +41,7 @@ export function mutationProblem(before, after) {
     }
 
     if (event.type === 'item-added') {
-      const value = event.initialValue;
-      const cents = value * 100;
-      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 ||
-          !Number.isSafeInteger(Math.round(cents)) ||
-          Math.abs(cents - Math.round(cents)) > 1e-7) {
+      if (!validMoney(event.initialValue)) {
         return { key: 'errors.invalidItemValue' };
       }
     }
