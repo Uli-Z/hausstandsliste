@@ -53,7 +53,7 @@ export const requireProjectFile = value => {
   const successors = new Set(value.items.filter(i=>i.predecessorItemId).map(i=>i.id));
   if (value.events.some(e=>e.type==='item-added' && (!purchaseEventFieldsValid(e) ||
       (!successors.has(e.itemId) && !Object.hasOwn(e,'purchaseContributionsCents'))))) {
-    throw new Error('Projektdatei enthält Anschaffungen ohne gültige Kaufbeiträge. Dieses Dateiformat wird nicht unterstützt.');
+    throw new Error('Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.');
   }
   return value;
 };

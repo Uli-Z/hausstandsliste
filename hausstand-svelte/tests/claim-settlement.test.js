@@ -14,7 +14,7 @@ const makeProject = () => ({
     id: 'purchase', type: 'item-added', date: '2026-01-01', order: 1,
     itemId: 'fridge', initialValue: 100,
     valuation: { type: 'fixed' }, shares: { ben: 1 },
-    financedByPersonId: 'anna', financialMode: 'derived'
+    purchaseContributionsCents:{anna:10000}, financialMode: 'derived'
   }]
 });
 const args = (overrides = {}) => ({
