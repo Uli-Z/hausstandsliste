@@ -172,3 +172,16 @@ test('local working copies have no filename identity and protected imports never
   assert.equal(get(appState).readOnly, false);
   assert.equal(Object.hasOwn(JSON.parse(values.get(key)), 'fileName'), false);
 });
+
+test('rejected drafts do not change the project or undo history', () => {
+  appState.importProject(project('draft guard'));
+  const before = JSON.stringify(get(appState).project);
+  assert.equal(appState.upsertDraft({ id:'bad', type:'item', data:{name:'Table',tags:'not an array'} }), false);
+  assert.equal(JSON.stringify(get(appState).project),before);
+  assert.equal(get(appState).history.undoCount,0);
+  assert.equal(appState.upsertDraft({id:'good',type:'item',data:{name:'Table'}}),true);
+  assert.equal(get(appState).history.undoCount,1);
+  appState.setReadOnly(true);
+  assert.equal(appState.upsertDraft({id:'readonly',type:'item',data:{name:'Chair'}}),false);
+  assert.equal(get(appState).project.drafts.length,1);
+});

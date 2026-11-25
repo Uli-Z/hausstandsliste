@@ -98,8 +98,7 @@
 
   function saveAsDraft() {
     if (!dateValid) return;
-    appState.upsertDraft(redistribution);
-    appState.closeDialog();
+    if (appState.upsertDraft(redistribution)) appState.closeDialog();
   }
 
   function execute() {

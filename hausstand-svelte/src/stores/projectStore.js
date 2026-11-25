@@ -112,13 +112,18 @@ function createStore() {
       const r = createRedistribution(title || 'Neue Umverteilung', date || s.asOfDate, changes);
       return { ...s, activeDialog: { type: 'redistributionEdit', redistribution: r, ...extraDialog } };
     }),
-    upsertDraft: draft => update(s => {
-      if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
-      const project = clone(s.project);
-      try { upsertDraft(project,draft); }
-      catch { alert(message('errors.changeFailed', getLocale())); return s; }
-      return changedProject(s, project);
-    }),
+    upsertDraft: draft => {
+      let accepted = false;
+      update(s => {
+        if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
+        const project = clone(s.project);
+        try { upsertDraft(project,draft); }
+        catch { alert(message('errors.changeFailed', getLocale())); return s; }
+        accepted = true;
+        return changedProject(s, project);
+      });
+      return accepted;
+    },
     deleteDraft: id => update(s => {
       if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
       const project = clone(s.project);

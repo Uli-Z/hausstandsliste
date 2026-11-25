@@ -264,7 +264,8 @@
     const draftId = dialog.id;
     const activePeople = entryProjection.people.filter(p => p.active);
     const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
-    appState.upsertDraft(createItemDraft({
+    try {
+      const draft = createItemDraft({
       id: draftId,
       title: itemName || 'Neuer Gegenstand (Entwurf)',
       data: {
@@ -282,8 +283,11 @@
         shares: initialShares,
         financedByPersonId: financedByPersonId || undefined
       }
-    }));
-    close();
+      });
+      if (appState.upsertDraft(draft)) close();
+    } catch {
+      alert($translate('errors.changeFailed'));
+    }
   }
 
   function itemPayload() {
