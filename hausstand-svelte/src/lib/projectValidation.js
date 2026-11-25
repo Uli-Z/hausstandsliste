@@ -51,7 +51,7 @@ export function storedProjectProblem(project) {
       }
     }
   }
-  const problem = projectMutationProblem({ events: [] }, project);
+  const problem = projectMutationProblem({ events: [] }, project, {allowHistoricalUnknownFunding:true});
   if (problem) return problem.key;
   // Drafts may be unfinished. Validate structure using the shared draft
   // operation on a scratch container, never execute or mutate the input.

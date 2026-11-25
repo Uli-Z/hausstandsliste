@@ -56,7 +56,7 @@ function purchase(project,payload,predecessor=null) {
   // A legacy single-payer input explicitly identifies the actual payer;
   // translate that input to the new representation, never persist it again.
   if (providedContributions !== undefined && (financedByPersonId || predecessor)) reject('INVALID_CONTRIBUTIONS');
-  const purchaseContributionsCents = providedContributions ?? (financedByPersonId
+  const purchaseContributionsCents = providedContributions !== undefined ? providedContributions : (financedByPersonId
     ? {[financedByPersonId]:Math.round(initialValue*100)} : undefined);
   const explicit = purchaseContributionsCents !== undefined;
   if (!predecessor && !explicit) reject('INVALID_CONTRIBUTIONS');

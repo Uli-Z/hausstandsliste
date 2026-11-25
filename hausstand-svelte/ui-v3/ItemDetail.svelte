@@ -4,6 +4,7 @@
   import { money, pct } from '../src/lib/domain.js';
   import { label as valuationLabel } from '../src/lib/valuation.js';
   import { dateDE } from '../src/lib/util.js';
+  import { recordedContributions } from '../src/lib/purchaseFinancing.js';
   import Timeline from './Timeline.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
@@ -11,7 +12,7 @@
   $: itemClaims = ($ledger.claims || []).filter(claim => claim.itemId === item.id);
   $: fundingEvents = ($appState.project.events || []).filter(event =>
     event.type === 'item-added' && event.itemId === item.id && event.date <= $appState.asOfDate &&
-    event.financialMode === 'derived' && event.financedByPersonId);
+    event.financialMode === 'derived' && recordedContributions(event));
   const personName = id => $appState.project.people.find(p => p.id === id)?.name || id;
 </script>
 
@@ -86,7 +87,9 @@
     {#each fundingEvents as event (event.id)}
       <div class="funding-fact">
         <strong>{$translate("ui.contributed-at-purchase-rw2le5")}</strong>
-        <span>{personName(event.financedByPersonId)} · {money(event.initialValue)} · {dateDE(event.date)}</span>
+        {#each Object.entries(recordedContributions(event)) as [id,cents]}
+          <span>{personName(id)} · {money(cents/100)} · {dateDE(event.date)}</span>
+        {/each}
       </div>
     {/each}
     {#if itemClaims.length}

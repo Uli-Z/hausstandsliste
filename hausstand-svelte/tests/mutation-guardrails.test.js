@@ -84,7 +84,10 @@ test('Q06: edited purchases cannot persist negative or sub-cent values', () => {
     const next = { ...p, events: [{ ...p.events[0], initialValue: value }] };
     assert.equal(mutationProblem(p, next)?.key, 'errors.invalidItemValue', String(value));
   }
-  assert.equal(mutationProblem(p, { ...p, events: [{ ...p.events[0], initialValue: 12.48 }] }), null);
+  assert.equal(mutationProblem(p, { ...p, events: [{ ...p.events[0], initialValue: 12.48 }] })?.key,'errors.invalidPurchaseContributions');
+  const corrected={...p.events[0], initialValue:12.48,purchaseContributionsCents:{anna:1248}};
+  delete corrected.financedByPersonId;
+  assert.equal(mutationProblem(p, {...p, events:[corrected]}),null);
 });
 
 test('Q06: unchanged bad imported entry can be repaired without blocking other edits', () => {
