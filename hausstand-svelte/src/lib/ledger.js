@@ -1,6 +1,7 @@
 import { normShares } from './domain.js';
 import { walkEvents } from './projector.js';
 import { valueAt } from './valuation.js';
+import { recordedContributions, contributionProblem } from './purchaseFinancing.js';
 import { deriveSettlementCounterclaims } from './claimSettlement.js';
 
 // Monetary calculations use integer cents. Largest-remainder allocation preserves
@@ -23,7 +24,7 @@ export function allocateCents(amountCents, shares) {
   return Object.fromEntries(rows.map(row => [row.personId, row.cents]));
 }
 
-function claimsFromDeltas(deltas, meta) {
+export function claimsFromDeltas(deltas, meta) {
   const debtors = [...deltas.entries()].filter(([, cents]) => cents > 0)
     .map(([personId, cents]) => ({ personId, cents })).sort((a, b) => a.personId.localeCompare(b.personId));
   const creditors = [...deltas.entries()].filter(([, cents]) => cents < 0)
@@ -47,6 +48,16 @@ function claimsFromDeltas(deltas, meta) {
     if (creditors[j].cents === 0) j++;
   }
   return result;
+}
+
+// Preview and historical replay share exactly the same cent allocation.
+export function purchaseClaims(amountCents, shares, contributions, meta = {}) {
+  if (contributionProblem(amountCents, contributions, new Set(Object.keys(contributions || {})))) return [];
+  const ownership = allocateCents(amountCents, shares);
+  if (!Object.keys(ownership).length) return [];
+  const deltas = new Map([...new Set([...Object.keys(ownership), ...Object.keys(contributions)])]
+    .map(id => [id, (ownership[id] || 0) - (contributions[id] || 0)]));
+  return claimsFromDeltas(deltas, meta);
 }
 
 // Returns ephemeral claims. No claims, settlement flags or cached balances are
@@ -75,16 +86,10 @@ export function deriveClaims(project, asOfDate) {
         if (delta) deltas.set(id, delta);
       }
       claims.push(...claimsFromDeltas(deltas, meta));
-    } else if (event.type === 'item-added' && event.financedByPersonId) {
-      // Ownership distribution alone does not identify the payer.
-      const valueCents = Math.round((Number(event.initialValue) || 0) * 100);
-      if (!Number.isSafeInteger(valueCents) || valueCents <= 0) return;
-      const ownership = allocateCents(valueCents, event.shares);
-      const payerId = event.financedByPersonId;
-      for (const [debtorPersonId, amountCents] of Object.entries(ownership).sort(([a], [b]) => a.localeCompare(b))) {
-        if (debtorPersonId !== payerId && amountCents > 0) {
-          claims.push({ ...meta, debtorPersonId, creditorPersonId: payerId, amountCents });
-        }
+    } else if (event.type === 'item-added') {
+      const contributions = recordedContributions(event);
+      if (contributions && !contributionProblem(Math.round(event.initialValue * 100), contributions, new Set(state.peopleById.keys()))) {
+        claims.push(...purchaseClaims(Math.round(event.initialValue * 100), event.shares, contributions, meta));
       }
     }
   });
@@ -148,25 +153,19 @@ export function personBalanceDetails(project, asOfDate, claims, counterclaims) {
   const sourceTypes = new Map((project.events || []).map(event => [event.id, event.type]));
   for (const claim of claims) {
     const purchase = sourceTypes.get(claim.sourceEventId) === 'item-added';
-    if (purchase) {
-      rowFor(claim.creditorPersonId).fundedCents += claim.amountCents;
-      rowFor(claim.debtorPersonId).initialSharesCents += claim.amountCents;
-    } else {
+    if (!purchase) {
       rowFor(claim.creditorPersonId).sharesGivenCents += claim.amountCents;
       rowFor(claim.debtorPersonId).sharesTakenCents += claim.amountCents;
     }
   }
-  // An initial purchase where the contributor owns a portion of the item
-  // must show the full amount financed AND the full portion received.
+  // Record full gross financing and ownership, including self-owned portions.
   for (const event of project.events || []) {
-    if (event.type !== 'item-added' || !event.date || event.date > asOfDate ||
-        event.financialMode !== 'derived' || !event.financedByPersonId) continue;
-    const valueCents = Math.round((Number(event.initialValue) || 0) * 100);
-    if (!Number.isSafeInteger(valueCents) || valueCents <= 0) continue;
-    const share = allocateCents(valueCents, event.shares)[event.financedByPersonId] || 0;
-    if (!share) continue;
-    rowFor(event.financedByPersonId).fundedCents += share;
-    rowFor(event.financedByPersonId).initialSharesCents += share;
+    if (event.type !== 'item-added' || !event.date || event.date > asOfDate || event.financialMode !== 'derived') continue;
+    const contributions = recordedContributions(event);
+    const valueCents = Math.round(event.initialValue * 100);
+    if (!contributions || contributionProblem(valueCents, contributions, new Set((project.people || []).map(p => p.id)))) continue;
+    for (const [id, cents] of Object.entries(contributions)) rowFor(id).fundedCents += cents;
+    for (const [id, cents] of Object.entries(allocateCents(valueCents, event.shares))) rowFor(id).initialSharesCents += cents;
   }
   for (const entry of counterclaims) {
     const payer = rowFor(entry.creditorPersonId);

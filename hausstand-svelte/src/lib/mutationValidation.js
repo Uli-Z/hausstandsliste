@@ -1,4 +1,5 @@
 import { claimSettlementErrors, validISODate } from './claimSettlement.js';
+import { contributionProblem } from './purchaseFinancing.js';
 import { validMoney } from './util.js';
 import { unownedActiveTransitions } from './ownershipValidation.js';
 
@@ -43,6 +44,13 @@ export function mutationProblem(before, after) {
     if (event.type === 'item-added') {
       if (!validMoney(event.initialValue)) {
         return { key: 'errors.invalidItemValue' };
+      }
+      if (Object.hasOwn(event,'purchaseContributionsCents')) {
+        if (event.financedByPersonId || event.financialMode !== 'derived' ||
+            contributionProblem(Math.round(event.initialValue*100), event.purchaseContributionsCents, people))
+          return { key:'errors.invalidPurchaseContributions' };
+      } else if (original && Object.hasOwn(original,'purchaseContributionsCents')) {
+        return { key:'errors.invalidPurchaseContributions' };
       }
     }
   }

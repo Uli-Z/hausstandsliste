@@ -1,6 +1,7 @@
 import { validISODate, claimSettlementErrors, CLAIM_SETTLEMENT_TYPE } from './claimSettlement.js';
 import { projectBeforeEvent } from './projector.js';
 import { clone, nextEventOrder, validMoney } from './util.js';
+import { contributionProblem, recordedContributions } from './purchaseFinancing.js';
 import { checkedShares, checkedValuation } from './itemMutations.js';
 
 const fail = code => { throw new Error(code); };
@@ -12,7 +13,7 @@ export const editableEventFields = Object.freeze({
   'person-added':['date','name'],
   'person-deactivated':['date','reason'],
   'person-reactivated':['date','reason'],
-  'item-added':['date','name','initialValue','valuation','shares','financedByPersonId','financialMode'],
+  'item-added':['date','name','initialValue','valuation','shares','financedByPersonId','purchaseContributionsCents','financialMode'],
   'item-ended':['date','statusAfter','reason'],
   'shares-set':['date','shares','financialMode','note'],
   'redistribution-executed':['date','title','financialMode','events'],
@@ -44,6 +45,18 @@ export function editEvent(project,eventId,changes) {
       event.valuation=checkedValuation(event.valuation);
       event.shares=checkedShares(before,event.shares,original.shares);
       if (event.financedByPersonId!=null && (typeof event.financedByPersonId!=='string' || (event.financedByPersonId && !project.people.some(p=>p.id===event.financedByPersonId)))) fail('INVALID_FINANCIER');
+      if (Object.hasOwn(changes,'purchaseContributionsCents')) {
+        delete event.financedByPersonId;
+        event.financialMode = 'derived';
+      }
+      if (Object.hasOwn(event,'purchaseContributionsCents')) {
+        const problem = contributionProblem(Math.round(event.initialValue*100), event.purchaseContributionsCents,
+          new Set(project.people.map(p=>p.id)));
+        if (problem) fail(problem);
+        if (event.financialMode !== 'derived' || event.financedByPersonId) fail('INVALID_CONTRIBUTIONS');
+      }
+      if (event.initialValue !== original.initialValue && !Object.hasOwn(changes,'purchaseContributionsCents') &&
+          (recordedContributions(original) || !project.items.find(i=>i.id===event.itemId)?.predecessorItemId)) fail('CONTRIBUTION_SUM_MISMATCH');
       if (event.financialMode!=null && !modes.includes(event.financialMode)) fail('INVALID_FINANCIAL_MODE');
     } else {
       if (!modes.includes(event.financialMode??'none')) fail('INVALID_FINANCIAL_MODE');

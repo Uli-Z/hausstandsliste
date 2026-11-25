@@ -76,7 +76,7 @@ const help = key => [
   '                     For deactivate/reactivate: personId, date, optional reason; delete: personId.',
   '  --payload <file|->  Item add/continue: name,date,initialValueCents,valuation,shares; optional tags,note.',
   '                     valuation: type (fixed/linear/degressive), minimumValueCents, durationYears or annualRate.',
-  '                     add: optional financedByPersonId; continue: itemId, optional reason.',
+  '                     add: purchaseContributionsCents (person ID → integer cents), optional settledPaymentDate; continue: itemId, optional reason.',
   '                     update: itemId,name, optional tags,note; end: itemId,date, optional reason,statusAfter.',
   '                     shares set: itemId,date,shares,financialMode (derived/none), optional note.',
   '                     redistribution execute: effectiveDate,changes [{itemId,shares}],financialMode, optional title.',
@@ -300,7 +300,7 @@ async function writeCommand(key, p, opts, protection) {
       'redistribution execute':['effectiveDate','changes','financialMode']
     }[key];
     const optional={
-      'items add':['tags','note','financedByPersonId'], 'items update':['tags','note'],
+      'items add':['tags','note','financedByPersonId','purchaseContributionsCents','settledPaymentDate'], 'items update':['tags','note'],
       'items continue':['tags','note','reason'], 'items end':['reason','statusAfter'],
       'shares set':['note'], 'redistribution execute':['title']
     }[key];
@@ -336,7 +336,7 @@ async function writeCommand(key, p, opts, protection) {
         if (payload.type==='item') {
           const data=payload.data;
           if (!data || typeof data!=='object' || Array.isArray(data) || !validISODate(data.effectiveDate) ||
-              Object.keys(data).some(k=>!['effectiveDate','name','tags','note','initialValueCents','valuation','shares','financedByPersonId'].includes(k)))
+              Object.keys(data).some(k=>!['effectiveDate','name','tags','note','initialValueCents','valuation','shares','financedByPersonId','purchaseContributionsCents'].includes(k)))
             fail('INVALID_PAYLOAD','Provide item draft data with effectiveDate.',4);
           const amount=data.initialValueCents??0, v=data.valuation??{type:'fixed',minimumValueCents:0};
           if (!Number.isSafeInteger(amount)||amount<0 || !Number.isSafeInteger(v.minimumValueCents)||v.minimumValueCents<0 ||

@@ -2,7 +2,9 @@ import { uid, validMoney } from './util.js';
 export { validMoney } from './util.js';
 import { normShares } from './domain.js';
 import { projectAt } from './projector.js';
-import { validISODate } from './claimSettlement.js';
+import { validISODate, createClaimSettlementEvent } from './claimSettlement.js';
+import { contributionProblem } from './purchaseFinancing.js';
+import { purchaseClaims } from './ledger.js';
 import { createEvent } from './personMutations.js';
 
 const reject = code => { throw new Error(code); };
@@ -43,7 +45,7 @@ function metadata({name,tags=[],note=''}) {
   return {name,tags,note};
 }
 function purchase(project,payload,predecessor=null) {
-  const {date,initialValue,valuation,shares,financedByPersonId,draftId}=payload;
+  const {date,initialValue,valuation,shares,financedByPersonId,purchaseContributionsCents,settledPaymentDate,draftId}=payload;
   const view=at(project,date);
   const meta=metadata(payload);
   if (!validMoney(initialValue)) reject('INVALID_ITEM_VALUE');
@@ -51,13 +53,32 @@ function purchase(project,payload,predecessor=null) {
   const clean=checkedShares(view,shares,predecessor?.shares);
   if (financedByPersonId && (!text(financedByPersonId) || !view.peopleById.get(financedByPersonId)?.active))
     reject('INVALID_FINANCIER');
+  const explicit = purchaseContributionsCents !== undefined;
+  if (explicit && (financedByPersonId || predecessor)) reject('INVALID_CONTRIBUTIONS');
+  if (explicit) {
+    const problem = contributionProblem(Math.round(initialValue * 100), purchaseContributionsCents,
+      new Set(view.people.filter(p => p.active).map(p => p.id)));
+    if (problem) reject(problem);
+  }
+  if (settledPaymentDate !== undefined && (!explicit || !validISODate(settledPaymentDate))) reject('INVALID_PAYMENT');
   const item={id:uid('item'),...meta,...(predecessor?{predecessorItemId:predecessor.id}:{})};
   const event=createEvent('item-added',date,{itemId:item.id,name:meta.name,initialValue,valuation:rule,shares:clean,
-    ...(financedByPersonId?{financedByPersonId,financialMode:'derived'}:{financialMode:'none'})},project);
+    ...(explicit ? {purchaseContributionsCents:{...purchaseContributionsCents},financialMode:'derived'} :
+      financedByPersonId ? {financedByPersonId,financialMode:'derived'} : {financialMode:'none'})},project);
+  // Prepare every event before touching the original project.
+  const staged = {...project, events:[...project.events,event]};
+  const payments = [];
+  if (settledPaymentDate !== undefined) {
+    for (const claim of purchaseClaims(Math.round(initialValue*100), clean, purchaseContributionsCents)) {
+      const payment = createClaimSettlementEvent(staged, {...claim, date:settledPaymentDate, settlementKind:'paid'});
+      staged.events.push(payment);
+      payments.push(payment);
+    }
+  }
   project.items.push(item);
-  project.events.push(event);
+  project.events.push(event,...payments);
   if (draftId) project.drafts=(project.drafts||[]).filter(d=>d.id!==draftId);
-  return {item,event};
+  return {item,event,payments};
 }
 export function addItem(project,payload) { return purchase(project,payload); }
 export function updateItemMetadata(project,{itemId,...payload}) {

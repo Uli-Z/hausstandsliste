@@ -1,3 +1,4 @@
+import { contributionTotal } from './purchaseFinancing.js';
 import { clone, uid } from './util.js';
 import { validISODate } from './claimSettlement.js';
 import { addItem, executeRedistribution, checkedValuation, validShareMap, validMoney } from './itemMutations.js';
@@ -10,6 +11,10 @@ function checkItemData(data) {
       (data.tags!==undefined && (!Array.isArray(data.tags) || !data.tags.every(tag=>typeof tag==='string'))) ||
       (data.initialValue!==undefined && !validMoney(data.initialValue)) ||
       (data.shares!==undefined && !validShareMap(data.shares))) reject('INVALID_ITEM_DRAFT');
+  if (data.purchaseContributionsCents !== undefined && (!data.purchaseContributionsCents ||
+      typeof data.purchaseContributionsCents !== 'object' || Array.isArray(data.purchaseContributionsCents) ||
+      !Object.values(data.purchaseContributionsCents).every(c=>Number.isSafeInteger(c)&&c>=0) ||
+      !Number.isSafeInteger(contributionTotal(data.purchaseContributionsCents)))) reject('INVALID_ITEM_DRAFT');
   if (data.valuation!==undefined) checkedValuation(data.valuation);
 }
 function checkRedistribution(draft) {
