@@ -45,7 +45,7 @@ function metadata({name,tags=[],note=''}) {
   return {name,tags,note};
 }
 function purchase(project,payload,predecessor=null) {
-  const {date,initialValue,valuation,shares,financedByPersonId,purchaseContributionsCents,settledPaymentDate,draftId}=payload;
+  const {date,initialValue,valuation,shares,financedByPersonId,purchaseContributionsCents:providedContributions,settledPaymentDate,draftId}=payload;
   const view=at(project,date);
   const meta=metadata(payload);
   if (!validMoney(initialValue)) reject('INVALID_ITEM_VALUE');
@@ -53,8 +53,13 @@ function purchase(project,payload,predecessor=null) {
   const clean=checkedShares(view,shares,predecessor?.shares);
   if (financedByPersonId && (!text(financedByPersonId) || !view.peopleById.get(financedByPersonId)?.active))
     reject('INVALID_FINANCIER');
+  // A legacy single-payer input explicitly identifies the actual payer;
+  // translate that input to the new representation, never persist it again.
+  if (providedContributions !== undefined && (financedByPersonId || predecessor)) reject('INVALID_CONTRIBUTIONS');
+  const purchaseContributionsCents = providedContributions ?? (financedByPersonId
+    ? {[financedByPersonId]:Math.round(initialValue*100)} : undefined);
   const explicit = purchaseContributionsCents !== undefined;
-  if (explicit && (financedByPersonId || predecessor)) reject('INVALID_CONTRIBUTIONS');
+  if (!predecessor && !explicit) reject('INVALID_CONTRIBUTIONS');
   if (explicit) {
     const problem = contributionProblem(Math.round(initialValue * 100), purchaseContributionsCents,
       new Set(view.people.filter(p => p.active).map(p => p.id)));
@@ -64,7 +69,7 @@ function purchase(project,payload,predecessor=null) {
   const item={id:uid('item'),...meta,...(predecessor?{predecessorItemId:predecessor.id}:{})};
   const event=createEvent('item-added',date,{itemId:item.id,name:meta.name,initialValue,valuation:rule,shares:clean,
     ...(explicit ? {purchaseContributionsCents:{...purchaseContributionsCents},financialMode:'derived'} :
-      financedByPersonId ? {financedByPersonId,financialMode:'derived'} : {financialMode:'none'})},project);
+      {financialMode:'none'})},project);
   // Prepare every event before touching the original project.
   const staged = {...project, events:[...project.events,event]};
   const payments = [];

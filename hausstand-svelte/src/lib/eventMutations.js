@@ -55,8 +55,18 @@ export function editEvent(project,eventId,changes) {
         if (problem) fail(problem);
         if (event.financialMode !== 'derived' || event.financedByPersonId) fail('INVALID_CONTRIBUTIONS');
       }
-      if (event.initialValue !== original.initialValue && !Object.hasOwn(changes,'purchaseContributionsCents') &&
-          (recordedContributions(original) || !project.items.find(i=>i.id===event.itemId)?.predecessorItemId)) fail('CONTRIBUTION_SUM_MISMATCH');
+      const successor = project.items.find(i=>i.id===event.itemId)?.predecessorItemId;
+      if (!successor && !Object.hasOwn(event,'purchaseContributionsCents')) {
+        if (event.initialValue !== original.initialValue) fail('CONTRIBUTION_SUM_MISMATCH');
+        const prior = recordedContributions(original);
+        if (!prior) fail('INVALID_CONTRIBUTIONS');
+        if (event.financedByPersonId !== original.financedByPersonId || event.financialMode !== original.financialMode)
+          fail('INVALID_CONTRIBUTIONS');
+        // Preserve the explicitly documented legacy payer; no inferred split.
+        event.purchaseContributionsCents = prior;
+        delete event.financedByPersonId;
+        event.financialMode = 'derived';
+      }
       if (event.financialMode!=null && !modes.includes(event.financialMode)) fail('INVALID_FINANCIAL_MODE');
     } else {
       if (!modes.includes(event.financialMode??'none')) fail('INVALID_FINANCIAL_MODE');

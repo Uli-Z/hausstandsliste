@@ -13,11 +13,11 @@ test('item creation keeps ownership/financing explicit and secondary fields behi
     dialog.indexOf("{:else if dialog.type === 'itemMeta'}")
   );
   assert.ok(block.length > 0);
-  for (const name of ['itemName', 'initialValue', 'ShareEditor', 'financedByPersonId', 'item-purchase-preview']) {
+  for (const name of ['itemName', 'initialValue', 'ShareEditor', 'PurchaseFinancing', 'item-purchase-preview']) {
     assert.ok(block.includes(name), name);
   }
   assert.ok(block.indexOf('bind:value={itemName}') < block.indexOf('ShareEditor'));
-  assert.ok(block.indexOf('ShareEditor') < block.indexOf('financedByPersonId'));
+  assert.ok(block.indexOf('ShareEditor') < block.indexOf('PurchaseFinancing'));
   assert.ok(block.includes('<details class="item-extra-fields"'));
   assert.ok(block.includes('bind:value={valuationType}'));
   assert.ok(block.includes('bind:value={durationYears}'));
@@ -33,23 +33,23 @@ test('new items show default equal shares; changed dates remove unavailable owne
   assert.ok(dialog.includes("if (dialog.type === 'itemAdd' && !dialog.id)"));
   assert.ok(dialog.includes('Object.fromEntries(projectAt(project, effectiveDate).people'));
   assert.ok(dialog.includes('atDate.peopleById.get(id)?.active'));
-  assert.ok(dialog.includes("if (!atDate.peopleById.get(financedByPersonId)?.active) financedByPersonId = ''"));
+  assert.ok(source('ui-v3/PurchaseFinancing.svelte').includes('people.some(p => p.id === payer)'));
   assert.ok(dialog.includes('dateSharesRebased = true'));
   assert.ok(dialog.includes('ownersValid'));
   assert.ok(dialog.includes('itemCostValid'));
   assert.ok(dialog.includes('itemNameValid'));
   assert.ok(dialog.includes('disabled={!canSubmitDated || $appState.readOnly}'));
   assert.ok(dialog.includes('effectiveDate = draft?.data?.effectiveDate || asOfDate'));
-  assert.ok(dialog.includes('financedByPersonId = draft.data.financedByPersonId'));
+  assert.ok(dialog.includes('purchaseContributionsCents = draft.data.purchaseContributionsCents'));
 });
 
 test('purchase preview uses the exact same cent allocator as the financial ledger', () => {
   const dialog = source('ui-v3/DialogRouter.svelte');
-  assert.ok(dialog.includes("import { allocateCents } from '../src/lib/ledger.js'"));
-  assert.ok(dialog.includes('allocateCents(itemCostCents, purchaseShares)'));
-  assert.ok(dialog.includes('personId !== financedByPersonId && amountCents > 0'));
+  assert.ok(dialog.includes("purchaseClaims as derivePurchaseClaims"));
+  assert.ok(dialog.includes('derivePurchaseClaims(itemCostCents,purchaseShares,purchaseContributionsCents)'));
+  assert.ok(dialog.includes('bind:checked={alreadySettled}'));
   assert.ok(dialog.includes("items.purchaseClaimRow"));
-  assert.ok(dialog.includes("items.purchaseNoPayment"));
+  assert.ok(dialog.includes("purchase.confirmActual"));
   assert.ok(dialog.includes("items.noPurchaseClaims"));
   const allocation = allocateCents(10001, {anna: 1, ben: 1, clara: 1});
   assert.deepEqual(allocation, {anna:3334, ben:3334, clara:3333});
@@ -142,7 +142,7 @@ test('Q22: existing purchase editing preserves a localized minimum and the focus
   assert.ok(editor.includes('ui.how-does-the-value-change-16f9eit'));
   assert.ok(editor.includes('bind:value={edited.valuation.minimumValue} aria-invalid={!minimumValid}'));
   assert.ok(editor.includes('edited.valuation.minimumValue = minimumAmount'));
-  assert.ok(editor.includes('disabled={!minimumValid || $appState.readOnly}'));
+  assert.ok(editor.includes('disabled={!minimumValid || (isPurchase && !financingValid) || $appState.readOnly}'));
   const css = source('ui-v3/design.css');
   assert.ok(css.includes('.modal-body input:focus-visible'));
   assert.ok(css.includes('outline:2px solid #276f84'));

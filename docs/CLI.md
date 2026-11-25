@@ -53,10 +53,10 @@ Both accept `--input` and `--payload` (one may be stdin), and exactly one of `--
 All use `--input project.json --payload payload.json` and either `--dry-run` or `--output next.json`. CLI amounts are integer cents (the shared file schema uses euros). Example purchase:
 
 ```json
-{"name":"Desk","date":"2026-11-25","initialValueCents":30000,"valuation":{"type":"linear","durationYears":6,"minimumValueCents":5000},"shares":{"anna":1,"ben":1},"financedByPersonId":"anna","tags":["office"]}
+{"name":"Desk","date":"2026-11-25","initialValueCents":30000,"valuation":{"type":"linear","durationYears":6,"minimumValueCents":5000},"shares":{"anna":1,"ben":1},"purchaseContributionsCents":{"anna":20000,"ben":10000},"tags":["office"]}
 ```
 
-`items add`: purchase above; financing is optional. Fixed valuation needs only type and minimumValueCents; degressive uses annualRate (0–1). `items update`: itemId,name, optional tags,note (replace metadata). `items continue`: purchase fields plus itemId, optional reason, no financing (neutral successor); `items end`: itemId,date, optional reason/statusAfter. `shares set`: itemId,date,shares,financialMode (derived or none), optional note. `redistribution execute`: effectiveDate,changes (array of {itemId,shares}),financialMode, optional title. Share changes never record actual payments. All use itemMutations.js, projectMutationProblem and the common portable save path.
+`items add`: purchase above; purchaseContributionsCents is required (nonnegative integer cents per person, sum equals purchase price). The old explicit single-payer argument is accepted as shorthand and stored as a contribution map. Optional settledPaymentDate records the exact proposed payments only if they actually happened. Purchase-price corrections require an explicit matching contribution map. Fixed valuation needs only type and minimumValueCents; degressive uses annualRate (0–1). `items update`: itemId,name, optional tags,note (replace metadata). `items continue`: purchase fields plus itemId, optional reason, no financing (neutral successor); `items end`: itemId,date, optional reason/statusAfter. `shares set`: itemId,date,shares,financialMode (derived or none), optional note. `redistribution execute`: effectiveDate,changes (array of {itemId,shares}),financialMode, optional title. Share changes never record actual payments. All use itemMutations.js, projectMutationProblem and the common portable save path.
 
 ## Install and discover the bundled skill
 

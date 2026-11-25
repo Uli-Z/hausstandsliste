@@ -358,6 +358,8 @@ test('CLI historical correction preserves event identity and independent payment
     writeFileSync(payload,JSON.stringify({type:'person-added'}));
     assert.equal(JSON.parse(edit(input,'buy',['--dry-run']).stderr).error.code,'EVENT_MUTATION_REJECTED');
     writeFileSync(payload,JSON.stringify({initialValueCents:20000,valuation:{type:'fixed',minimumValueCents:0}}));
+    assert.equal(edit(input,'buy',['--dry-run']).status,4);
+    writeFileSync(payload,JSON.stringify({initialValueCents:20000,purchaseContributionsCents:{a:20000},valuation:{type:'fixed',minimumValueCents:0}}));
     const preview=edit(input,'buy',['--dry-run']);
     assert.equal(preview.status,0,preview.stderr);
     assert.equal(JSON.parse(preview.stdout).data.event.id,'buy');

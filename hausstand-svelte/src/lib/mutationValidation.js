@@ -49,7 +49,8 @@ export function mutationProblem(before, after) {
         if (event.financedByPersonId || event.financialMode !== 'derived' ||
             contributionProblem(Math.round(event.initialValue*100), event.purchaseContributionsCents, people))
           return { key:'errors.invalidPurchaseContributions' };
-      } else if (original && Object.hasOwn(original,'purchaseContributionsCents')) {
+      } else if (original && (Object.hasOwn(original,'purchaseContributionsCents') ||
+          (original.initialValue !== event.initialValue && !(after.items || []).find(i=>i.id===event.itemId)?.predecessorItemId))) {
         return { key:'errors.invalidPurchaseContributions' };
       }
     }

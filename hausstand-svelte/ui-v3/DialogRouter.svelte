@@ -6,7 +6,6 @@
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { normShares, money } from '../src/lib/domain.js';
   import { purchaseClaims as derivePurchaseClaims, personBalances } from '../src/lib/ledger.js';
-  import { recordedContributions } from '../src/lib/purchaseFinancing.js';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
   import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus } from '../src/lib/personMutations.js';
   import { addItem as applyItemAdd, continueItem as applyItemContinue, updateItemMetadata, setItemShares, endItem as applyItemEnd, validMoney } from '../src/lib/itemMutations.js';

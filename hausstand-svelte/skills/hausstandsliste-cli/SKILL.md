@@ -49,9 +49,9 @@ Use `--input project.json` (or `--input -` for stdin); writes use `--payload pay
 
 Purchase (use real IDs from people list):
 ```json
-{"name":"Desk","date":"2026-11-25","initialValueCents":30000,"valuation":{"type":"linear","durationYears":6,"minimumValueCents":5000},"shares":{"ANNA_ID":1,"BEN_ID":1},"financedByPersonId":"ANNA_ID"}
+{"name":"Desk","date":"2026-11-25","initialValueCents":30000,"valuation":{"type":"linear","durationYears":6,"minimumValueCents":5000},"shares":{"ANNA_ID":1,"BEN_ID":1},"purchaseContributionsCents":{"ANNA_ID":20000,"BEN_ID":10000}}
 ```
-Valuation types: fixed, linear (positive durationYears), degressive (annualRate 0–1). All require minimumValueCents. Optional tags and note. Financial mode derived creates claims, none does not. Omitting financing creates no purchase claims.
+Valuation types: fixed, linear (positive durationYears), degressive (annualRate 0–1). All require minimumValueCents. Optional tags and note. Purchase contributions are required and must add up to initialValueCents. The old explicit single-payer argument is accepted only as shorthand. Optional settledPaymentDate records the calculated independent cash payments; provide it ONLY when those exact payments actually occurred. Neutral successor items do not represent purchases.
 
 Payment:
 ```json
@@ -61,7 +61,7 @@ Kinds paid, external, waived. Optional note. Payer is debtorPersonId. No purchas
 
 ## Historical corrections
 
-For events edit, payload contains only fields to change (not id, type, order or itemId/personId). Allowed fields: person-added date/name; person status date/reason; item-added date/name/initialValueCents/valuation/shares/financedByPersonId/financialMode; item-ended date/statusAfter/reason; shares-set date/shares/financialMode/note; redistribution-executed date/title/financialMode/events (only existing child IDs/types/item IDs, updated shares or removed children); payment date/amountCents/debtorPersonId/creditorPersonId/settlementKind/note. A valuation replacement requires type, minimumValueCents and durationYears/annualRate where applicable. Preview and confirm explicitly before saving. Never change past payments as a side effect of changing a purchase.
+For events edit, payload contains only fields to change (not id, type, order or itemId/personId). Allowed fields: person-added date/name; person status date/reason; item-added date/name/initialValueCents/valuation/shares/purchaseContributionsCents (mandatory matching explicit map when changing purchase price); item-ended date/statusAfter/reason; shares-set date/shares/financialMode/note; redistribution-executed date/title/financialMode/events (only existing child IDs/types/item IDs, updated shares or removed children); payment date/amountCents/debtorPersonId/creditorPersonId/settlementKind/note. A valuation replacement requires type, minimumValueCents and durationYears/annualRate where applicable. Preview and confirm explicitly before saving. Never change past payments as a side effect of changing a purchase.
 
 ## Drafts
 
