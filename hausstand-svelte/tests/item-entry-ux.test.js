@@ -83,7 +83,8 @@ test('redistribution starts with dated item changes and a meaningful preview', (
   assert.ok(body.includes('redistribution.noPaymentRecorded'));
   assert.ok(body.includes('<details class="redistribution-export">'));
   assert.ok(dialog.includes('redistributionPreview(project, redistribution)'));
-  assert.ok(dialog.includes('date: redistribution.effectiveDate'));
+  assert.ok(dialog.includes('executeRedistribution(p, redistribution)'));
+  assert.ok(source('src/lib/itemMutations.js').includes("createEvent('redistribution-executed',effectiveDate"));
   assert.ok(dialog.includes('disabled={!canExecute || $appState.readOnly}'));
   const list = source('src/components/RedistributionItemList.svelte');
   assert.ok(list.includes('class:is-changed={row.changed}'));
@@ -122,7 +123,12 @@ test('Q22: depreciation is always visible; optional details retain explicit open
   assert.ok(extra.includes('bind:value={minimumValue}'));
   assert.ok(extra.includes('input type="text" inputmode="decimal"'));
   assert.ok(dialog.includes('minimumValue: minimumValueAmount'));
-  assert.equal((dialog.match(/minimumValue: minimumValueAmount/g) || []).length, 3);
+  // The draft and shared payload builder must both retain the localized minimum.
+  assert.equal((dialog.match(/minimumValue: minimumValueAmount/g) || []).length, 2);
+  assert.ok(dialog.includes('applyItemAdd(p, { ...itemPayload()'));
+  assert.ok(dialog.includes('applyItemContinue(p, { ...itemPayload()'));
+  assert.ok(source('src/lib/itemMutations.js').includes('valuation:rule'));
+  assert.ok(source('src/lib/itemMutations.js').includes('minimumValue:v.minimumValue??0'));
   assert.ok(dialog.includes('minimumValueValid') && dialog.includes('aria-invalid={!minimumValueValid}'));
   assert.equal(parseDecimal('12,48'), 12.48);
   assert.equal(parseDecimal('0,07'), 0.07);

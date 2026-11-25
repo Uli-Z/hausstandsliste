@@ -23,6 +23,21 @@ jobs:
         run: |
           npm run check:js
           npm test
+      - name: Package and install CLI, verify bundled skill
+        working-directory: hausstand-svelte
+        run: |
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          npm pack --pack-destination "$work"
+          npm install --global --prefix "$work/install" --prefer-offline --no-audit --no-fund "$work/"*.tgz
+          cli="$work/install/bin/hausstand"
+          "$cli" --help | grep 'skill export'
+          "$cli" skill show > "$work/shown.md"
+          "$cli" skill export --output "$work/exported.md"
+          cmp skills/hausstandsliste-cli/SKILL.md "$work/shown.md"
+          cmp "$work/shown.md" "$work/exported.md"
+          printf '%s' '{"name":"Package smoke"}' | "$cli" project create --payload - --output "$work/project.json"
+          "$cli" project validate --input "$work/project.json"
       - name: Build offline HTML
         working-directory: hausstand-svelte
         run: npm run build:single
