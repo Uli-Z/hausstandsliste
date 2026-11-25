@@ -287,7 +287,7 @@ async function settlementEndToEnd(browser, url) {
     await visitActivity();
     const card = page.locator('.timeline-event-card').filter({ hasText: needle });
     assert.equal(await card.count(), 1, 'Expected exactly one event containing ' + needle);
-    await card.locator('.edit-button').click();
+    await card.locator('.event-open-overlay').press('Enter');
     return page.locator('[role="dialog"]');
   };
   const assertBalances = async (expected, targetPage = page) => {
