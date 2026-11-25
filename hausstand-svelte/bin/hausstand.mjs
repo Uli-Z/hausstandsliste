@@ -32,7 +32,7 @@ const commands = {
   'people delete': 'Remove an unused person only; saving requires --confirm.',
   'people show': 'Show a person and holdings by stable ID.',
   'items list': 'List items visible at the selected date, including archived items.',
-  'items add': 'Add a dated item with explicit valuation, ownership and optional financing.',
+  'items add': 'Add a dated item with explicit valuation, ownership and actual purchase contributions.',
   'items update': 'Update item name, tags and note.',
   'items continue': 'End an item and create its successor in one transaction.',
   'items end': 'Archive an active item at an explicit date.',
@@ -252,7 +252,7 @@ function validateChange(before, after) {
   if (problem) fail('MUTATION_REJECTED', message(problem.key,'en',problem.params || {}) + ' [' + problem.key + ']',4);
 }
 async function writeCommand(key, p, opts, protection) {
-  let working, event, person, item, ended, draft, deleted = false;
+  let working, event, person, item, ended, draft, payments, deleted = false;
   if (key === 'payments record') {
     const payload = await readJSON(opts['--payload']);
     const allowed = ['date','amountCents','debtorPersonId','creditorPersonId','settlementKind','note'];
@@ -317,7 +317,7 @@ async function writeCommand(key, p, opts, protection) {
       payload.valuation={...rule,minimumValue:minimumValueCents/100};
     }
     working=structuredClone(p);
-    try { ({event,item,ended}=itemWrites.get(key)(working,payload)); }
+    try { ({event,item,ended,payments}=itemWrites.get(key)(working,payload)); }
     catch (error) { fail('ITEM_MUTATION_REJECTED','Check item, date, valuation, financing and ownership: '+error.message,4); }
   } else if (draftWrites.has(key)) {
     working=structuredClone(p);
@@ -392,10 +392,13 @@ async function writeCommand(key, p, opts, protection) {
     try { working = requireProjectFile(await readPortableVersion(p,opts['--id'])); }
     catch { fail('INVALID_ARCHIVE','Cannot restore this archive entry. Verify its format and checksum.',4); }
   }
-  validateChange(p,working);
+  if (key==='versions restore') {
+    const problem=storedProjectProblem(working);
+    if (problem) fail('MUTATION_REJECTED',problem,4);
+  } else validateChange(p,working);
   // Use the existing archive reader to verify all retained snapshots before
   // writing. No parallel compression/checksum implementation in this adapter.
-  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(draft ? {draft,...(deleted?{deleted:true}:{})} : item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event,...(deleted?{deleted:true}:{})} : {project:working})}};
+  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(draft ? {draft,...(deleted?{deleted:true}:{})} : item ? {item,...(event?{event}:{}),...(ended?{ended}:{}),...(payments?{payments}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event,...(deleted?{deleted:true}:{})} : {project:working})}};
   await verifyArchive(p);
   let saved;
   try { saved = exportProject(await createPortableSave(working,p), todayISO()); }
@@ -403,7 +406,7 @@ async function writeCommand(key, p, opts, protection) {
   const output=await protectedOutput(saved,opts,protection);
   await publishNewFile(opts['--output'],output);
   return {source:'saved',data:{saved:true,output:opts['--output'],lastSavedAt:saved.lastSavedAt,
-    versionCount:getVersionEntries(saved).length,encrypted:!!(protection || opts['--encrypt']),...(draft ? {draft,...(deleted?{deleted:true}:{})} : item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event,...(deleted?{deleted:true}:{})} : {restoredVersionId:opts['--id']})}};
+    versionCount:getVersionEntries(saved).length,encrypted:!!(protection || opts['--encrypt']),...(draft ? {draft,...(deleted?{deleted:true}:{})} : item ? {item,...(event?{event}:{}),...(ended?{ended}:{}),...(payments?{payments}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event,...(deleted?{deleted:true}:{})} : {restoredVersionId:opts['--id']})}};
 }
 async function skillCommand(args) {
   const usage='hausstand skill show | hausstand skill export --output <path|-> [--force]';

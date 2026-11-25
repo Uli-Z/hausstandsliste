@@ -451,3 +451,26 @@ test('CLI list search is applied before pagination; reports use safe new-file ou
     assert.equal(JSON.parse(existing.stderr).error.code,'OUTPUT_EXISTS');
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
+
+test('Q31 CLI requires actual cent contributions and previews confirmed independent payments',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-q31-'));
+  try {
+    const input=join(dir,'p.json'), payload=join(dir,'payload.json'), out=join(dir,'out.json');
+    writeFileSync(input,JSON.stringify(p));
+    const purchase={name:'Q31',date:'2026-06-01',initialValueCents:500,
+      valuation:{type:'fixed',minimumValueCents:0},shares:{a:1,b:1}};
+    const call=(data,mode)=>{writeFileSync(payload,JSON.stringify(data));return run(['items','add','--input',input,'--payload',payload,...mode]);};
+    assert.equal(call(purchase,['--dry-run']).status,4);
+    assert.equal(call({...purchase,purchaseContributionsCents:{a:499}},['--dry-run']).status,4);
+    const data={...purchase,purchaseContributionsCents:{a:400,b:100},settledPaymentDate:'2026-06-02'};
+    const preview=call(data,['--dry-run']);
+    assert.equal(preview.status,0,preview.stderr);
+    assert.equal(JSON.parse(preview.stdout).data.payments[0].amountCents,150);
+    const saved=call(data,['--output',out]);
+    assert.equal(saved.status,0,saved.stderr);
+    const next=JSON.parse(readFileSync(out,'utf8'));
+    assert.deepEqual(next.events.find(e=>e.id===JSON.parse(saved.stdout).data.event.id).purchaseContributionsCents,{a:400,b:100});
+    assert.equal(next.events.filter(e=>e.type==='claim-settlement-recorded').length,2);
+    assert.deepEqual(Object.fromEntries(ledgerAt(next,'2026-06-02').balances),Object.fromEntries(ledgerAt(p,'2026-06-02').balances));
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});

@@ -384,7 +384,8 @@ async function settlementEndToEnd(browser, url) {
     const itemEvent = afterPurchase.events.find(event => event.type === 'item-added');
     assert.equal(itemEvent?.date, '2025-01-02');
     assert.equal(itemEvent?.initialValue, 300);
-    assert.equal(itemEvent?.financedByPersonId, 'anna');
+    assert.deepEqual(itemEvent?.purchaseContributionsCents, {anna:30000});
+    assert.equal(itemEvent?.financedByPersonId, undefined);
     assert.deepEqual(itemEvent?.shares, { anna: 1, ben: 1, clara: 1 });
     await returnToday();
     await assertBalances({ Anna: 20000, Ben: -10000, Clara: -10000 });

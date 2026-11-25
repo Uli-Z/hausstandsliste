@@ -42,3 +42,24 @@ test('Q31 opt-in payments are independent, dated and atomic',()=>{
   invalid.events.find(e=>e.id===event.id).purchaseContributionsCents.a=1;
   assert.equal(projectMutationProblem(p,invalid).key,'errors.invalidPurchaseContributions');
 });
+
+test('Q31 legacy unknown funding stays unknown; new direct purchase without funding is rejected',()=>{
+  const p=fixture();
+  assert.throws(()=>addItem(p,{...payload,purchaseContributionsCents:undefined}));
+  const unknown={id:'old',type:'item-added',itemId:'old-item',date,order:2,
+    initialValue:10,valuation:{type:'fixed',minimumValue:0},shares:{a:1,b:1},financialMode:'none'};
+  const imported={...p,items:[{id:'old-item',name:'Old'}],events:[...p.events,unknown]};
+  assert.equal(ledgerAt(imported,date).claims.length,0);
+  assert.equal(projectMutationProblem(p,imported).key,'errors.invalidPurchaseContributions');
+  assert.equal(projectMutationProblem(p,imported,{allowHistoricalUnknownFunding:true}),null);
+});
+test('Q31 partial and overpayments remain independent of the new purchase',()=>{
+  const p=fixture();
+  addItem(p,{...payload,name:'First purchase',initialValue:10,purchaseContributionsCents:{a:1000}});
+  const before=Object.fromEntries(ledgerAt(p,date).balances);
+  addItem(p,{...payload,settledPaymentDate:date});
+  const after=Object.fromEntries(ledgerAt(p,date).balances);
+  for(const id of Object.keys(before)) assert.equal(after[id],before[id]);
+  const copy=JSON.parse(JSON.stringify(p));
+  assert.deepEqual(Object.fromEntries(ledgerAt(copy,date).balances),after);
+});
