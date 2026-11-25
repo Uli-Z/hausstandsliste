@@ -81,3 +81,5 @@ hausstand versions list --input next.json
 Data response: {responseVersion:1,command,source,data}; source stored, projection, working or saved. Projection includes asOfDate. Lists have total,offset,limit,rows (limit max 1000). A saved response reports output, versionCount and encrypted; previews report saved:false. Error: {responseVersion:1,error:{code,message}}. Exit 2 usage/confirmation, 3 unreadable/invalid JSON input, 4 invalid project/mutation/archive/password, 5 missing ID, 6 output/save, 1 unexpected. On error do not retry by bypassing validation. Inspect help and correct input. Never expose private project contents outside the authorized task.
 
 Limitations: no arbitrary raw event injection, no PHP remote access, no in-place project replacement. Older saved versions may still contain deleted people; deletion is not privacy erasure.
+
+List commands accept `--search TEXT` (case-insensitive row substring before pagination). Read-only commands may additionally write a new JSON report with `--output PATH`; stdout still returns the same response. Encrypted input reports are stdout-only; never write plaintext reports from them through the CLI.

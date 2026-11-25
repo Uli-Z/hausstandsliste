@@ -19,13 +19,15 @@ function activeItem(view,id) {
 }
 // Existing inactive owners may retain or adjust their shares. New owners must
 // be active at the event date, exactly as in the shared browser share editor.
+export const validShareMap = shares => !!shares && typeof shares==='object' && !Array.isArray(shares) &&
+  Object.values(shares).every(units=>typeof units==='number' && Number.isFinite(units) && units>=0) &&
+  Number.isFinite(Object.values(shares).reduce((sum,n)=>sum+n,0));
 export function checkedShares(view,shares,previous={}) {
-  if (!shares || typeof shares !== 'object' || Array.isArray(shares) ||
-      Object.entries(shares).some(([id,units])=>typeof units !== 'number' || !Number.isFinite(units) || units < 0 ||
-        (units>0 && (!view.peopleById.has(id) || (!view.peopleById.get(id).active && !(previous[id]>0))))))
+  if (!validShareMap(shares) ||
+      Object.entries(shares).some(([id,units])=>units>0 && (!view.peopleById.has(id) || (!view.peopleById.get(id).active && !(previous[id]>0)))))
     reject('INVALID_SHARES');
   const clean=normShares(shares);
-  if (!Object.keys(clean).length || !Number.isFinite(Object.values(clean).reduce((sum,n)=>sum+n,0))) reject('INVALID_SHARES');
+  if (!Object.keys(clean).length) reject('INVALID_SHARES');
   return clean;
 }
 export function checkedValuation(v) {

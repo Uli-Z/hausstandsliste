@@ -43,7 +43,7 @@ export function editEvent(project,eventId,changes) {
       if (!validMoney(event.initialValue)) fail('INVALID_ITEM_VALUE');
       event.valuation=checkedValuation(event.valuation);
       event.shares=checkedShares(before,event.shares,original.shares);
-      if (event.financedByPersonId && !project.people.some(p=>p.id===event.financedByPersonId)) fail('INVALID_FINANCIER');
+      if (event.financedByPersonId!=null && (typeof event.financedByPersonId!=='string' || (event.financedByPersonId && !project.people.some(p=>p.id===event.financedByPersonId)))) fail('INVALID_FINANCIER');
       if (event.financialMode!=null && !modes.includes(event.financialMode)) fail('INVALID_FINANCIAL_MODE');
     } else {
       if (!modes.includes(event.financialMode??'none')) fail('INVALID_FINANCIAL_MODE');

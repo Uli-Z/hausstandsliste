@@ -434,3 +434,18 @@ test('CLI draft creation, replacement, execution and deletion share browser draf
     assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
+
+test('CLI list search is applied before pagination; reports use safe new-file output',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-report-'));
+  try {
+    const output=join(dir,'report.json');
+    const result=run(['people','list','--input','-','--search','A','--limit','1','--output',output],p);
+    assert.equal(result.status,0,result.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(output,'utf8')),JSON.parse(result.stdout));
+    const search=query(['items','list','--search','missing-no-result'],p).data;
+    assert.equal(search.total,0);
+    const existing=run(['people','list','--input','-','--output',output],p);
+    assert.equal(existing.status,6);
+    assert.equal(JSON.parse(existing.stderr).error.code,'OUTPUT_EXISTS');
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});

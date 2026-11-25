@@ -67,6 +67,7 @@ const help = key => [
   '  --id <id>           Required for people show / items show.',
   '  --offset <n>        List offset (default 0).',
   '  --limit <n>         List page size (default 100, maximum 1000).',
+  '  --search <text>     Case-insensitive list filter, applied before pagination.',
   '  --json              Versioned JSON on stdout (also the default).',
   '  --payload <file|->  Payment JSON: date, amountCents, debtorPersonId (payer),',
   '                     creditorPersonId (recipient), settlementKind (paid/external/waived), optional note.',
@@ -82,9 +83,10 @@ const help = key => [
   '  events edit payload: only supported mutable fields; use integer initialValueCents and valuation.minimumValueCents.',
   '  events edit/delete require --confirm when saving. Run skill show for fields.',
   '  drafts put payload: type (item/redistribution), title, optional existing id; see skill show for fields.',
-  '  drafts show/execute/delete: --id DRAFT_ID. Execute/delete require --confirm when saving.'
+  '  drafts show/execute/delete: --id DRAFT_ID. Execute/delete require --confirm when saving.',
   '  --dry-run           Preview without changing files (write commands).',
-  '  --output <file>     Save a NEW project file; never overwrite an existing path.',
+  '  --output <file>     Save a NEW project file or a read-only JSON report; never overwrite.',
+  '                     Read-only --output - uses stdout; encrypted input reports use stdout only.',
   '  --confirm           Confirm a real payment/noncash adjustment or unused-person deletion when saving.',
   '  --help              Show command help.  --version prints the CLI version.',
   '', 'Example: node bin/hausstand.mjs balances show --input project.json --as-of 2026-11-24 --json',
@@ -115,9 +117,9 @@ const compareId = (a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 function options(args, key) {
   const result = {};
   const allowed = new Set(['--input','--json', ...(projected.has(key) ? ['--as-of'] : []),
-    ...(listCommands.has(key) ? ['--offset','--limit'] : []),
+    ...(listCommands.has(key) ? ['--offset','--limit','--search'] : []),
     ...(['people show','items show','versions restore','events show','events edit','events delete','drafts show','drafts execute','drafts delete'].includes(key) ? ['--id'] : []),
-    ...(writeCommands.has(key) ? ['--dry-run','--output','--encrypt'] : []),
+    ...(writeCommands.has(key) ? ['--dry-run','--output','--encrypt'] : ['--output']),
     ...(['payments record','events edit'].includes(key) ? ['--payload','--confirm'] : ['events delete','drafts execute','drafts delete'].includes(key) ? ['--confirm'] : (personWrites.has(key) || itemWrites.has(key) || key === 'project create' || key === 'drafts put') ? ['--payload',...(key === 'people delete' ? ['--confirm'] : [])] : [])]);
   while (args.length) {
     const flag = args.shift();
@@ -209,9 +211,11 @@ async function protectedOutput(project,opts,protection) {
   try { return await encryptProject(project,secret,protection?.editToken); }
   catch { fail('ENCRYPT_FAILED','Could not encrypt output. No file was saved.',6); }
 }
-const page = (rows, opts) => {
-  const offset = opts['--offset'] ?? 0, limit = opts['--limit'] ?? 100;
-  return { total: rows.length, offset, limit, rows: rows.slice(offset, offset + limit) };
+const page = (rows,opts) => {
+  const query=opts['--search']?.trim().toLocaleLowerCase('en');
+  const filtered=query?rows.filter(row=>JSON.stringify(row).toLocaleLowerCase('en').includes(query)):rows;
+  const offset=opts['--offset']??0,limit=opts['--limit']??100;
+  return {total:filtered.length,offset,limit,rows:filtered.slice(offset,offset+limit)};
 };
 const cents = value => Math.round(value * 100);
 const itemRow = ({id,name,status,value,shares}) => ({id,name,status,valueCents:cents(value),shares});
@@ -482,8 +486,13 @@ async function main(args) {
     case 'drafts list': data=page([...p.drafts].sort(compareId),opts); break;
     case 'versions list': data = page(getVersionEntries(p).map(({id,savedAt,encoding,sha256})=>({id,savedAt,encoding,sha256})),opts); break;
   }
-  process.stdout.write(JSON.stringify({responseVersion:1,command:key,source:projected.has(key)?'projection':'stored',
-    ...(projected.has(key)?{asOfDate:date}:{}),data})+'\n');
+  const response={responseVersion:1,command:key,source:projected.has(key)?'projection':'stored',
+    ...(projected.has(key)?{asOfDate:date}:{}),data};
+  if (opts['--output'] && opts['--output']!=='-') {
+    if (protection) fail('PLAINTEXT_OUTPUT_REFUSED','Encrypted input reports may only be emitted to stdout; no plaintext file was saved.',4);
+    await publishNewFile(opts['--output'],response);
+  }
+  process.stdout.write(JSON.stringify(response)+'\n');
 }
 try { await main(process.argv.slice(2)); }
 catch (error) {
