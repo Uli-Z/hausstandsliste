@@ -47,7 +47,6 @@ export function archiveHistoryProblems(project) {
       return;
     }
     const involved = new Set();
-    if (event.type === 'person-added' && archived(id)) involved.add(id);
     if (event.type === 'item-added' || event.type === 'shares-set') {
       for (const [personId, units] of Object.entries(event.shares || {}))
         if (Number(units) > 0) involved.add(personId);

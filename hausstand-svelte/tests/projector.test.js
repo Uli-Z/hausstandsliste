@@ -126,7 +126,7 @@ test('A02: departed people without holdings or any claims remain in directory', 
   assert.deepEqual(p.people[0].holdings, []);
 });
 
-test('A02: future members stay hidden before move-in and reactivate at historical dates', () => {
+test('A02: people are active before creation and reactivate at historical dates', () => {
   const project = {
     people: [{ id: 'future', name: 'Zukunft' }, { id: 'never', name: 'Noch nie beigetreten' }],
     items: [],
@@ -136,9 +136,9 @@ test('A02: future members stay hidden before move-in and reactivate at historica
       { id: 'reenter', type: 'person-reactivated', personId: 'future', date: '2027-09-01', order: 1 }
     ]
   };
-  assert.deepEqual(projectAt(project, '2027-05-31').people, []);
+  assert.deepEqual(projectAt(project, '2027-05-31').people.map(p => [p.id,p.active]), [['future',true],['never',true]]);
   assert.equal(projectAt(project, '2027-06-01').people.find(p => p.id === 'future').active, true);
   assert.equal(projectAt(project, '2027-08-01').people.find(p => p.id === 'future').active, false);
   assert.equal(projectAt(project, '2027-09-01').people.find(p => p.id === 'future').active, true);
-  assert.equal(projectAt(project, '2027-09-01').people.some(p => p.id === 'never'), false);
+  assert.equal(projectAt(project, '2027-09-01').people.find(p => p.id === 'never').active, true);
 });

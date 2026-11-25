@@ -17,7 +17,7 @@ const runtime = (state, id) => {
 };
 
 const init = project => ({
-  peopleById: new Map((project.people || []).map(p => [p.id, { ...p, active: false }])),
+  peopleById: new Map((project.people || []).map(p => [p.id, { ...p, active: true }])),
   itemsById: new Map((project.items || []).map(i => [i.id, { ...i }])),
   runtime: new Map(),
   warnings: []
@@ -30,9 +30,8 @@ export const applyEvent = (state, event, beforeApply = null, parent = null) => {
     const person = ensurePerson(state, event.personId, event.name);
     // Stammdaten haben Vorrang. Event-Name nur als Fallback verwenden.
     if (!person.name && event.name) person.name = event.name;
-    person.active = true;
-    person.activeFrom = event.date;
-    person.inactiveFrom = null;
+    // Master records exist at every business date. Creation is audit-only;
+    // in particular, it must not undo an earlier dated archive.
   } else if (event.type === 'person-deactivated') {
     const person = ensurePerson(state, event.personId);
     person.active = false;
@@ -106,10 +105,9 @@ export const projectAt = (project, asOfDate) => {
     const holdings = activeItems.flatMap(item => item.shareRows.filter(row => row.personId === person.id).map(row => ({ item, ...row })));
     const totalValue = holdings.reduce((sum, holding) => sum + holding.value, 0);
     return { ...person, holdings, totalValue };
-  // Former members stay visible after leaving, even with no holdings or value.
-  // Lifecycle events must already have occurred by the selected date; people
-  // whose first arrival lies in the future remain hidden in historical views.
-  }).filter(person => person.active || person.activeFrom || person.inactiveFrom || person.reactivatedAt);
+  // Every real person is visible in the directory; the active flag alone
+  // controls participation. Archived people retain their historical identity.
+  }).filter(person => !person.synthetic || person.active || person.inactiveFrom || person.reactivatedAt);
 
   return {
     asOfDate,

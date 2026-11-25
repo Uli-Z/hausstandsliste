@@ -31,7 +31,7 @@ Use `--input project.json` (or `--input -` for stdin); writes use `--payload pay
 | events show | input, --id event ID |
 | events edit | input, --id event ID, payload of changed fields, --confirm for save |
 | events delete | input, --id event ID, --confirm for save |
-| people add | {"name":"Anna","date":"2026-01-01"} |
+| people add | {"name":"Anna"} |
 | people rename | {"personId":"ID","name":"Anna"} |
 | people deactivate / reactivate | {"personId":"ID","date":"2026-12-01","reason":"optional"} |
 | people delete | {"personId":"ID"}; --confirm for save; only unused people |

@@ -61,7 +61,7 @@ test('agent discovers skill, creates household, settles a purchase and restores 
       assert.equal(data(['project', 'validate', '--input', current]).valid, true);
     };
     const date = '2026-01-01';
-    for (const name of ['Anna', 'Ben', 'Clara']) mutate(['people', 'add'], { name, date });
+    for (const name of ['Anna', 'Ben', 'Clara']) mutate(['people', 'add'], { name });
     const people = data(['people', 'list', '--input', current, '--as-of', date]).rows;
     const ids = Object.fromEntries(people.map(person => [person.name, person.id]));
     assert.equal(Object.keys(ids).length, 3);

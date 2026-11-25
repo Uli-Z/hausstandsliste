@@ -7,7 +7,7 @@ const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf
 
 test('new dated forms use the selected effective date; saved item drafts retain it',()=>{
   const router = source('ui-v3/DialogRouter.svelte');
-  for (const type of ['personAdd','personStatus','itemAdd','itemContinue','shareSet','itemEnd']) {
+  for (const type of ['personStatus','itemAdd','itemContinue','shareSet','itemEnd']) {
     assert.ok(router.includes("'"+type+"'"),type);
   }
   for (const type of ['item-added','item-ended','shares-set']) {
@@ -19,7 +19,8 @@ test('new dated forms use the selected effective date; saved item drafts retain 
   }
   assert.ok(router.includes('personStatusProblem(project,'));
   assert.ok(router.includes('changePersonStatus(p, { personId: person.id, date: effectiveDate'));
-  assert.ok(router.includes('applyPersonAdd(p, { name, date: effectiveDate'));
+  assert.ok(router.includes('applyPersonAdd(p, { name }'));
+  assert.ok(!router.match(/hasEventDate\s*=\s*\[[^\]]*'personAdd'/));
   assert.ok(router.includes('effectiveDate = draft?.data?.effectiveDate || asOfDate'));
   assert.ok(router.includes('bind:value={effectiveDate}'));
   assert.ok(router.includes('id="event-effective-date"'));
@@ -60,7 +61,7 @@ test('calendar dates and the active-person view behave at historical and future 
     {id:'a-out',type:'person-deactivated',personId:'a',date:'2032-01-01',order:1}
   ]};
   const active=at=>projectAt(project,at).people.filter(p=>p.active).map(p=>p.id);
-  assert.deepEqual(active('2025-01-01'),['a']);
+  assert.deepEqual(active('2025-01-01'),['a','b']);
   assert.deepEqual(active('2030-01-01'),['a','b']);
   assert.deepEqual(active('2033-01-01'),['b']);
 });

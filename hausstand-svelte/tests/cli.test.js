@@ -136,7 +136,7 @@ test('CLI shared person add and rename retain historical event and archive', asy
   try {
     const input = join(dir,'project.json'), payload = join(dir,'payload.json'), added = join(dir,'added.json'), renamed = join(dir,'renamed.json');
     writeFileSync(input,JSON.stringify(p));
-    writeFileSync(payload,JSON.stringify({name:'Clara',date:'2028-01-01'}));
+    writeFileSync(payload,JSON.stringify({name:'Clara'}));
     const args = ['people','add','--input',input,'--payload',payload];
     const preview=run([...args,'--dry-run']);
     assert.equal(preview.status,0,preview.stderr);
@@ -147,7 +147,7 @@ test('CLI shared person add and rename retain historical event and archive', asy
     const next=JSON.parse(readFileSync(added,'utf8'));
     const person=next.people.at(-1);
     assert.equal(person.name,'Clara');
-    assert.equal(projectAt(next,'2027-12-31').peopleById.get(person.id)?.active || false,false);
+    assert.equal(projectAt(next,'1900-01-01').peopleById.get(person.id)?.active,true);
     assert.equal(projectAt(next,'2028-01-01').peopleById.get(person.id).active,true);
     assert.deepEqual((await readPortableVersion(next,next.versionHistory.entries[0].id)).events,p.events);
     writeFileSync(payload,JSON.stringify({personId:person.id,name:'Clara New'}));
@@ -158,12 +158,14 @@ test('CLI shared person add and rename retain historical event and archive', asy
     assert.deepEqual(final.events,next.events);
     assert.equal(final.versionHistory.entries.length,2);
     assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
-    for (const bad of [{name:' a ',date:'2028-01-01'},{name:'D',date:'2028-02-30'},{name:' ',date:'2028-01-01'}]) {
+    for (const bad of [{name:' a '},{name:' '}]) {
       writeFileSync(payload,JSON.stringify(bad));
       const rejected=run([...args,'--dry-run']);
       assert.equal(rejected.status,4,rejected.stderr);
       assert.equal(JSON.parse(rejected.stderr).error.code,'INVALID_PERSON');
     }
+    writeFileSync(payload,JSON.stringify({name:'D',date:'2028-01-01'}));
+    assert.equal(JSON.parse(run([...args,'--dry-run']).stderr).error.code,'INVALID_PAYLOAD');
     writeFileSync(payload,JSON.stringify({personId:'missing',name:'Other'}));
     assert.equal(run(['people','rename','--input',added,'--payload',payload,'--dry-run']).status,5);
   } finally { rmSync(dir,{recursive:true,force:true}); }
@@ -182,7 +184,7 @@ test('CLI membership changes preserve ownership, financial history and effective
     writeFileSync(input,JSON.stringify(p));
     const cmd=(kind,source,mode)=>run(['people',kind,'--input',source,'--payload',payload,...mode]);
     writeFileSync(payload,JSON.stringify({personId:'a',date:'2025-12-31'}));
-    assert.equal(JSON.parse(cmd('deactivate',input,['--dry-run']).stderr).error.code,'INVALID_PERSON_STATUS');
+    assert.equal(cmd('deactivate',input,['--dry-run']).status,4,'backdated archive conflicts with later ownership and payments');
     writeFileSync(payload,JSON.stringify({personId:'a',date:'2028-02-01',reason:'Moved'}));
     assert.equal(cmd('reactivate',input,['--dry-run']).status,4);
     assert.equal(cmd('deactivate',input,['--dry-run']).status,4,'cannot archive an owner with an open balance');
@@ -316,7 +318,7 @@ test('CLI encrypted roundtrip uses browser crypto and never saves plaintext',asy
     const secret='synthetic-test-passphrase';
     const original=await encryptProject(p,secret);
     writeFileSync(input,JSON.stringify(original));
-    writeFileSync(payload,JSON.stringify({name:'Clara',date:'2028-01-01'}));
+    writeFileSync(payload,JSON.stringify({name:'Clara'}));
     const invoke=(args,password)=>spawnSync(process.execPath,[bin,...args],{encoding:'utf8',env:{...process.env,HAUSSTAND_PASSWORD:password||''}});
     const validate=['project','validate','--input',input];
     assert.equal(JSON.parse(invoke(validate,'').stderr).error.code,'PASSWORD_REQUIRED');

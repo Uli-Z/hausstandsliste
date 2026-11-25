@@ -1,7 +1,7 @@
 <script>
   import { translate, parseDecimal, localizeDiagnostic } from '../src/lib/i18n.js';
   import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
-  import { uid, parseTags, nextEventOrder } from '../src/lib/util.js';
+  import { uid, parseTags } from '../src/lib/util.js';
   import { projectAt } from '../src/lib/projector.js';
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { normShares, money } from '../src/lib/domain.js';
@@ -61,7 +61,7 @@
   }
   $: dateValid = validCalendarDate(effectiveDate);
   $: entryProjection = dateValid ? projectAt(project, effectiveDate) : projection;
-  $: hasEventDate = ['personAdd', 'personStatus', 'itemAdd', 'itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
+  $: hasEventDate = ['personStatus', 'itemAdd', 'itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
   $: needsActiveItem = ['itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
   $: itemAvailable = !needsActiveItem || !!entryProjection.activeItems.find(item => item.id === dialog.itemId);
   $: itemNeedsOwners = ['itemAdd', 'itemContinue'].includes(dialog?.type);
@@ -127,15 +127,6 @@
       : null);
   $: duplicateProjection = duplicatePerson ? entryProjection.peopleById.get(duplicatePerson.id) : null;
   $: duplicateIsActive = !!duplicateProjection?.active;
-  $: duplicateAddedEvent = duplicatePerson
-    ? (project.events || []).find(e => e.type === 'person-added' && String(e.personId) === String(duplicatePerson.id))
-    : null;
-  $: duplicateIsFutureMoveIn = !!(duplicateAddedEvent?.date && duplicateAddedEvent.date > effectiveDate);
-  $: duplicateLatestDeactivation = duplicatePerson
-    ? [...(project.events || [])]
-      .reverse()
-      .find(e => e.type === 'person-deactivated' && String(e.personId) === String(duplicatePerson.id))
-    : null;
   $: canSavePersonName = !!normalizedName && !duplicatePerson;
 
   $: person = dialog?.personId ? project.people.find(p => p.id === dialog.personId) : null;
@@ -196,38 +187,12 @@
   function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; shareFinancialMode = 'derived'; purchaseContributionsCents = null; financingValid = false; alreadySettled = false; paymentDate = ''; reason = ''; initialValue = 0; valuationType = 'linear'; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
   function addPerson() {
     if (!canSavePersonName) return;
-    if (!dateValid) return;
-    const saved = appState.mutateProject(p => { applyPersonAdd(p, { name, date: effectiveDate }); });
-    finishDatedChange(saved);
+    const saved = appState.mutateProject(p => { applyPersonAdd(p, { name }); });
+    if (saved) close();
   }
   function savePersonMeta() {
     if (!canSavePersonName) return;
     const saved = appState.mutateProject(p => { renamePerson(p, { personId: person.id, name }); });
-    if (saved) close();
-  }
-
-  function pullMoveInForward(existingPerson) {
-    if (!existingPerson) return;
-    if (!dateValid) return;
-    const saved = appState.mutateProject(p => {
-      const event = p.events.find(e => e.type === 'person-added' && String(e.personId) === String(existingPerson.id));
-      if (event) {
-        if (event.date !== effectiveDate) event.order = nextEventOrder(p, effectiveDate);
-        event.date = effectiveDate;
-      }
-    });
-    finishDatedChange(saved);
-  }
-
-  function deleteMoveOut(existingPerson) {
-    if (!existingPerson) return;
-    const saved = appState.mutateProject(p => {
-      const index = [...p.events].map((e, i) => ({ e, i }))
-        .reverse()
-        .find(x => x.e.type === 'person-deactivated' && String(x.e.personId) === String(existingPerson.id))?.i;
-      if (index === undefined) return;
-      p.events.splice(index, 1);
-    });
     if (saved) close();
   }
 
@@ -379,18 +344,8 @@
           {#if duplicatePerson}
             <div class="notice warn">
               {$translate("ui.a-person-with-this-name-already-exi-15fux56")} <strong>{duplicatePerson.name}</strong>
-              ({duplicateIsActive ? 'aktiv' : 'inaktiv'}).
+              ({$translate(duplicateIsActive ? 'people.active' : 'people.moved')}).
             </div>
-            {#if !duplicateIsActive}
-              <div class="row">
-                {#if duplicateIsFutureMoveIn}
-                  <button class="small" on:click={() => pullMoveInForward(duplicatePerson)}>{$translate("ui.move-start-date-to-selected-date-1ukvpci")}</button>
-                {/if}
-                {#if duplicateLatestDeactivation}
-                  <button class="small danger" on:click={() => deleteMoveOut(duplicatePerson)}>{$translate("ui.remove-last-departure-gtnl55")}</button>
-                {/if}
-              </div>
-            {/if}
           {/if}
           {#if dialog.type === 'personMeta'}
             {#if deleteEligibility.allowed}
@@ -507,7 +462,7 @@
       </div>
       <div class="modal-footer"><button on:click={close}>{$translate("ui.cancel-cl4zc9")}</button>
         <div style="flex:1"></div>
-        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName || !canSubmitDated}>{$translate("ui.create-zqi05d")}</button>{/if}
+        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName || $appState.readOnly}>{$translate("ui.create-zqi05d")}</button>{/if}
         {#if dialog.type === 'personStatus'}<button class="primary" on:click={savePersonStatus} disabled={!canSubmitDated || $appState.readOnly}>{$translate(dialog.kind === 'deactivate' ? 'ui.mark-as-moved-out-11arjl' : 'ui.reactivate-iggdm2')}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>{$translate("ui.save-sq2189")}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely} disabled={!deleteEligibility.allowed || $appState.readOnly}>{$translate("ui.delete-person-permanently-e06bgl")}</button>{/if}

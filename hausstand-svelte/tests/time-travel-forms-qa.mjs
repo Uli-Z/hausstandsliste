@@ -125,13 +125,13 @@ export async function timeTravelFormsAcceptance(browser,url) {
 
     await nav('Personen').click();
     await page.locator('.page-heading button').first().click();
-    assert.equal(await dateField.inputValue(),'2031-03-01', 'new person inherits the latest cutoff after archiving');
-    await dateField.fill('2032-03-11');
+    assert.equal(await dateField.count(),0,'person creation is not a dated membership event');
     await dialog.locator('.person-name-field input').fill('Carla');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
     const carla = (await snapshot()).events.find(e=>e.name==='Carla');
-    assert.equal(carla?.date,'2032-03-11');
+    assert.ok(carla?.personId);
+    assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /01\.03\.2031/);
 
     await page.locator('.person-tile').filter({hasText:'Carla'}).locator('.person-bottom button').click();
     // Person actions are intentionally collapsed in the detail view.
@@ -142,14 +142,14 @@ export async function timeTravelFormsAcceptance(browser,url) {
       }
     }
     await openPersonActions();
-    await personActions.getByRole('button',{name:'Als ausgezogen markieren'}).click();
-    assert.equal(await dateField.inputValue(),'2032-03-11');
+    await personActions.getByRole('button',{name:'Person archivieren'}).click();
+    assert.equal(await dateField.inputValue(),'2031-03-01');
     await dateField.fill('2032-04-05');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
     assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId===carla.personId)?.date,'2032-04-05');
     await openPersonActions();
-    await personActions.getByRole('button',{name:'Wieder aufnehmen'}).click();
+    await personActions.getByRole('button',{name:'Person reaktivieren'}).click();
     assert.equal(await dateField.inputValue(),'2032-04-05');
     await dateField.fill('2032-05-05');
     await dialog.locator('.modal-footer .primary').click();

@@ -25,10 +25,10 @@ const commands = {
   'project create': 'Create an empty project with a community name.',
   'project show': 'Return the stored project, including its embedded version history.',
   'people list': 'List people visible at the selected date.',
-  'people add': 'Add a person with an explicit move-in date.',
+  'people add': 'Add a person without a membership start date.',
   'people rename': 'Change a person’s name without rewriting historical events.',
   'people deactivate': 'Archive a person at a date, only after all shares and the communal balance are cleared.',
-  'people reactivate': 'Record a dated return of a former member.',
+  'people reactivate': 'Reactivate an archived person at a date.',
   'people delete': 'Remove an unused person only; saving requires --confirm.',
   'people show': 'Show a person and holdings by stable ID.',
   'items list': 'List items visible at the selected date, including archived items.',
@@ -72,7 +72,7 @@ const help = key => [
   '  --json              Versioned JSON on stdout (also the default).',
   '  --payload <file|->  Payment JSON: date, amountCents, debtorPersonId (payer),',
   '                     creditorPersonId (recipient), settlementKind (paid/external/waived), optional note.',
-  '  --payload <file|->  Person JSON: name and date (people add), or personId and name (people rename).',
+  '  --payload <file|->  Person JSON: name (people add), or personId and name (people rename).',
   '                     For deactivate/reactivate: personId, date, optional reason; delete: personId.',
   '  --payload <file|->  Item add/continue: name,date,initialValueCents,valuation,shares; optional tags,note.',
   '                     valuation: type (fixed/linear/degressive), minimumValueCents, durationYears or annualRate.',
@@ -264,7 +264,7 @@ async function writeCommand(key, p, opts, protection) {
     working = { ...p, events: [...p.events,event] };
   } else if (personWrites.has(key)) {
     const payload = await readJSON(opts['--payload']);
-    const fields = key === 'people add' ? ['name','date'] : key === 'people rename' ? ['personId','name']
+    const fields = key === 'people add' ? ['name'] : key === 'people rename' ? ['personId','name']
       : statusWrites.has(key) ? ['personId','date'] : ['personId'];
     const optional = statusWrites.has(key) ? ['reason'] : [];
     if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
@@ -276,7 +276,7 @@ async function writeCommand(key, p, opts, protection) {
       person = working.people.find(p => p.id === payload.personId);
       if (!person) fail('NOT_FOUND','No matching person ID.',5);
       const result = deleteUnusedPerson(working,payload.personId);
-      if (!result.allowed) fail('PERSON_IN_USE','This person has historical or other project references. Record a move-out instead.',4);
+      if (!result.allowed) fail('PERSON_IN_USE','This person has historical or other project references. Archive the person instead.',4);
       deleted = true;
     } else {
       try {
@@ -285,8 +285,8 @@ async function writeCommand(key, p, opts, protection) {
           : changePersonStatus(working,{...payload,kind:key === 'people deactivate' ? 'deactivate' : 'reactivate'}));
       } catch (error) {
         if (error.message === 'PERSON_NOT_FOUND') fail('NOT_FOUND','No matching person ID.',5);
-        if (statusWrites.has(key)) fail('INVALID_PERSON_STATUS','Choose a real date on or after move-in and a valid membership transition.',4);
-        fail('INVALID_PERSON','Use a unique nonempty name and, for add, a real YYYY-MM-DD date.',4);
+        if (statusWrites.has(key)) fail('INVALID_PERSON_STATUS','Choose a real date and a valid archive or reactivation transition.',4);
+        fail('INVALID_PERSON','Use a unique nonempty name.',4);
       }
     }
   } else if (itemWrites.has(key)) {

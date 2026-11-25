@@ -1,4 +1,4 @@
-import { uid, nextEventOrder } from './util.js';
+import { uid, nextEventOrder, todayISO } from './util.js';
 import { validISODate } from './claimSettlement.js';
 import { projectAt } from './projector.js';
 
@@ -17,9 +17,10 @@ function checkedName(project, name, exceptId = null) {
     throw new Error('INVALID_PERSON_NAME');
   return name;
 }
-export function addPerson(project, { name, date }) {
+export function addPerson(project, { name }) {
   const checked = checkedName(project, name);
-  if (!validISODate(date)) throw new Error('INVALID_PERSON_DATE');
+  // The creation event is an audit record, never a membership start date.
+  const date = todayISO();
   const person = { id: uid('person'), name: checked };
   const event = createEvent('person-added', date, { personId: person.id, name: checked }, project);
   project.people.push(person);
@@ -38,8 +39,6 @@ export function personStatusProblem(project, { personId, date, kind }) {
   if (!(project.people || []).some(person => person.id === personId)) return 'PERSON_NOT_FOUND';
   if (!validISODate(date)) return 'INVALID_PERSON_DATE';
   if (kind !== 'deactivate' && kind !== 'reactivate') return 'INVALID_PERSON_STATUS';
-  if (!(project.events || []).some(event => event.type === 'person-added' &&
-      event.personId === personId && event.date <= date)) return 'PERSON_NOT_YET_ADDED';
   const active = !!projectAt(project,date).peopleById.get(personId)?.active;
   if (active !== (kind === 'deactivate')) return 'INVALID_PERSON_STATUS';
   return null;

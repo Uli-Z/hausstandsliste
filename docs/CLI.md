@@ -39,14 +39,14 @@ Dry runs return `source: "working", data.saved: false`; a preview event's genera
 
 ## Add and rename people (Q23)
 
-`people add` accepts `{"name":"Clara","date":"2028-01-01"}`; `people rename` accepts `{"personId":"PERSON_ID","name":"Clara New"}`.
-Both accept `--input` and `--payload` (one may be stdin), and exactly one of `--dry-run` or `--output <new-file>`. They return the person, and for add the new dated event. A rename changes master data only, preserving existing events and history. Names must be nonempty and unique under the same trimmed case-insensitive comparison as the UI. Both use `src/lib/personMutations.js` and the common transaction guard and portable save path. No payment confirmation flag is needed for these operations.
+`people add` accepts `{"name":"Clara"}`; `people rename` accepts `{"personId":"PERSON_ID","name":"Clara New"}`.
+Both accept `--input` and `--payload` (one may be stdin), and exactly one of `--dry-run` or `--output <new-file>`. They return the person, and for add the automatically dated creation audit record. It does not determine the person's business eligibility; the person is active at every historical date unless archived. A rename changes master data only, preserving existing events and history. Names must be nonempty and unique under the same trimmed case-insensitive comparison as the UI. Both use `src/lib/personMutations.js` and the common transaction guard and portable save path. No payment confirmation flag is needed for these operations.
 
-## Move out, return and remove unused people
+## Archive, reactivate and remove unused people
 
-`people deactivate` and `people reactivate` accept `{"personId":"PERSON_ID","date":"2028-02-01","reason":"optional note"}`. They use the same membership transition check and event factory as the browser. The date must be on or after move-in and the person must be active for move-out or inactive for return at the end of that date's existing events. No ownership or payment changes are implied. If omitted, the CLI reason is empty; the browser supplies a localized default.
+`people deactivate` and `people reactivate` accept `{"personId":"PERSON_ID","date":"2028-02-01","reason":"optional note"}`. They use the same membership transition check and event factory as the browser. The person must be active to archive or archived to reactivate at the end of that date's existing events. Archiving requires no active shares and a zero communal balance; subsequent involvement while archived is rejected. No ownership or payment changes are implied. If omitted, the CLI reason is empty; the browser supplies a localized default.
 
-`people delete` accepts `{"personId":"PERSON_ID"}`. Preview with `--dry-run`; saving requires `--output next.json --confirm`. The shared all-history reference guard rejects used people, including references in future events and drafts, with PERSON_IN_USE. Only the unused master record and its move-in event are removed from the working state; the previous version is retained in the archive. This is not a privacy erasure tool. Responses include the removed person and `deleted: true` (preview additionally has `saved: false`).
+`people delete` accepts `{"personId":"PERSON_ID"}`. Preview with `--dry-run`; saving requires `--output next.json --confirm`. The shared all-history reference guard rejects used people, including references in future events and drafts, with PERSON_IN_USE. Only the unused master record and its creation audit record are removed from the working state; the previous version is retained in the archive. This is not a privacy erasure tool. Responses include the removed person and `deleted: true` (preview additionally has `saved: false`).
 
 ## Item and ownership commands
 
