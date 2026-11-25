@@ -10,6 +10,7 @@ import { getVersionEntries, createPortableSave, readPortableVersion } from '../s
 import { todayISO } from '../src/lib/util.js';
 import { validISODate, createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
+import { storedProjectProblem } from '../src/lib/projectValidation.js';
 import { exportProject } from '../src/lib/persistence.js';
 import { addPerson, renamePerson, changePersonStatus } from '../src/lib/personMutations.js';
 import { deleteUnusedPerson } from '../src/lib/personDeletion.js';
@@ -20,7 +21,7 @@ import { message } from '../src/lib/i18n.js';
 
 const version = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
 const commands = {
-  'project validate': 'Validate project file structure and every embedded archive checksum.',
+  'project validate': 'Validate project file structure, business data and every embedded archive snapshot.',
   'project create': 'Create an empty project with a community name.',
   'project show': 'Return the stored project, including its embedded version history.',
   'people list': 'List people visible at the selected date.',
@@ -195,13 +196,14 @@ async function load(path) {
   try { return {project:requireProjectFile(value),protection}; }
   catch { fail('UNSUPPORTED_PROJECT','Use a current schemaVersion 1 EUR project with portable-v1 history.',4); }
 }
-async function verifyArchive(project) {
+async function verifyArchive(project, auditBusiness = false) {
   try {
     const ids=new Set();
     for (const entry of getVersionEntries(project)) {
       if (typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id)) throw Error('Invalid archive ID');
       ids.add(entry.id);
-      requireProjectFile(await readPortableVersion(project,entry.id));
+      const snapshot = requireProjectFile(await readPortableVersion(project,entry.id));
+      if (auditBusiness && storedProjectProblem(snapshot)) throw Error('Invalid archived business data');
     }
   } catch { fail('INVALID_ARCHIVE','Embedded archive cannot be verified. No file was changed.',4); }
 }
@@ -458,7 +460,12 @@ async function main(args) {
   let data;
   const view = projected.has(key) && key !== 'balances show' ? projectAt(p,date) : null;
   switch (key) {
-    case 'project validate': await verifyArchive(p); data = { valid:true, scope:'file-and-archive', schemaVersion:p.schemaVersion, encrypted:!!protection }; break;
+    case 'project validate': {
+      const problem = storedProjectProblem(p);
+      if (problem) fail('INVALID_BUSINESS_DATA','Stored project failed business validation: '+problem+'. No file was changed.',4);
+      await verifyArchive(p,true);
+      data = { valid:true, scope:'file-and-archive', businessValidated:true, schemaVersion:p.schemaVersion, encrypted:!!protection }; break;
+    }
     case 'project show': data = p; break;
     case 'people list': data = page(view.people.map(personRow).sort(compareId),opts); break;
     case 'people show': {
