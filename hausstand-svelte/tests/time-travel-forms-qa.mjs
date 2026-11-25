@@ -69,8 +69,9 @@ export async function timeTravelFormsAcceptance(browser,url) {
       assert.deepEqual(actualFuture, Array.from({length: 4}, (_, i) => i < expectedFuture),
         'Q14: future markers match the selected date without changing chronological order');
     }
+    const beforeHistory = await snapshot();
     await checkHistory(3);
-    await timeline.locator('.timeline-event-card').filter({hasText:'Latest future entry'}).locator('.event-open-overlay').click();
+    await timeline.locator('.timeline-event-card').filter({hasText:'Latest future entry'}).locator('.event-open-overlay').press('Enter');
     assert.equal(await dialog.locator('input[type="date"]').inputValue(),'2030-01-01');
     await dialog.locator('.modal-header button').click();
 
@@ -82,7 +83,12 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await checkHistory(3);
     await cutoff('2026-01-01');
     await page.locator('.time-travel-today').click();
-    await checkHistory(3); // normal current-date view (fixture events are in 2029/2030)
+    const today = await page.evaluate(() => {
+      const d = new Date();
+      return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+    });
+    await checkHistory(['2030-01-01', '2029-06-01', '2029-06-01'].filter(date => date > today).length);
+    assert.deepEqual((await snapshot()).events, beforeHistory.events, 'Q14: browsing history never rewrites events');
     await cutoff('2026-01-01');
     await nav('Gegenstände').click();
     await page.locator('.page-heading button').first().click();
