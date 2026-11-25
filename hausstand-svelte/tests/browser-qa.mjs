@@ -411,7 +411,7 @@ async function settlementEndToEnd(browser, url) {
         const payment = page.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
         assert.equal(await payment.getByLabel('Zahlungsdatum').inputValue(), selectedDate,
           'Q15: ' + entry + ' payment defaults to ' + selectedDate);
-        await payment.locator('.modal-header button').click();
+        await payment.getByRole('button', { name: 'Abbrechen', exact: true }).click();
         await closeDialog();
       }
       assert.deepEqual((await readProject()).events, beforeDateChecks.events,
