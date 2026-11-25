@@ -33,7 +33,7 @@ async function makeArchive() {
       { id: 'purchase', type: 'item-added', itemId: 'lamp', name: 'Lampe',
         date: '2025-01-02', order: 1, initialValue: 123.45,
         valuation: { type: 'fixed', minimumValue: 0 },
-        financialMode: 'derived', financedByPersonId: 'anna', shares: { anna: 1, ben: 1 } },
+        financialMode: 'derived', purchaseContributionsCents:{anna:12345}, shares: { anna: 1, ben: 1 } },
       { id: 'payment', type: 'claim-settlement-recorded', debtorPersonId: 'ben',
         creditorPersonId: 'anna', settlementKind: 'paid', amountCents: 1248,
         date: '2025-01-03', order: 1, note: 'Teilzahlung 12,48 EUR' },

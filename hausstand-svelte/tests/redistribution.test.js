@@ -9,7 +9,7 @@ const setup = () => ({
   events: [{
     id: 'original', type: 'item-added', itemId: 'fridge', date: '2026-01-01',
     order: 1, initialValue: 100, valuation: { type: 'fixed', minimumValue: 0 },
-    shares: { ben: 1 }
+    shares: { ben: 1 },financialMode:'derived',purchaseContributionsCents:{ben:10000}
   }]
 });
 

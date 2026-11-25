@@ -27,7 +27,7 @@ test('Q14: future and past histories are both newest first, including equal days
 test('Q14: future settlement and ownership events remain outside historical calculations',()=>{
  const p={people:[{id:'a',name:'A'},{id:'b',name:'B'}],items:[{id:'item',name:'Item'}],events:[
  {id:'buy',type:'item-added',itemId:'item',date:'2026-01-01',order:1,initialValue:100,
- valuation:{type:'fixed',minimumValue:0},shares:{a:1,b:1},financialMode:'derived',financedByPersonId:'a'},
+ valuation:{type:'fixed',minimumValue:0},shares:{a:1,b:1},financialMode:'derived',purchaseContributionsCents:{a:10000}},
  {id:'payment',type:'claim-settlement-recorded',date:'2029-01-01',order:1,amountCents:5000,
  debtorPersonId:'b',creditorPersonId:'a',settlementKind:'paid'},
  {id:'transfer',type:'shares-set',itemId:'item',date:'2030-01-01',order:1,shares:{b:1},financialMode:'none'}

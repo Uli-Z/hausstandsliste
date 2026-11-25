@@ -6,7 +6,7 @@
 
 - Application directory: `hausstand-svelte/`.
 - **Only UI:** `ui-v3/App.svelte` and `ui-v3/`. Shared components are under `src/components/`; the shared domain/store modules are under `src/lib/` and `src/stores/`.
-- **Only current project file schema:** `schemaVersion: 1` with readable top-level project data and embedded `versionHistory` (`portable-v1`, gzip/Base64, SHA-256). File imports explicitly reject unsupported schemas. **Do not add prototype/UI V1/UI V2 or historical file-format migration paths.**
+- **Only current project file schema:** `schemaVersion: 1` with readable top-level project data and embedded `versionHistory` (`portable-v1`, gzip/Base64, SHA-256). File imports explicitly reject unsupported schemas. **Do not add prototype/UI V1/UI V2 or historical file-format migration paths.** There is no production deployment or existing user data requiring backwards compatibility (user decision 25 Nov 2026). Use only the current purchase contribution map; update test fixtures when the model changes rather than preserving old input formats.
 - Two delivery artifacts from the same UI: `dist/hausstand-standalone.html` (offline, no server) and `dist/hausstand.php` (PHP API embedded). GitHub Pages serves the offline UI at the repository root.
 - The PHP server stores only the **current encrypted project file** with atomic technical revision pointer, checkout lease and conflict protection. Historical business snapshots are **inside the encrypted project file**, never a second PHP archive or separate history API.
 - GitHub and public Pages must never contain real household project data, passwords, private storage contents, or configuration secrets.

@@ -12,7 +12,7 @@ const project = {
     {id:'p2',type:'person-added',date:'2025-01-01',order:2,personId:'ben',name:'Ben'},
     {id:'buy',type:'item-added',date:'2025-01-02',order:3,itemId:'chair',name:'Sessel',
      initialValue:100,valuation:{type:'fixed',minimumValue:0},shares:{anna:1,ben:1},
-     financialMode:'derived',financedByPersonId:'anna'},
+     financialMode:'derived',purchaseContributionsCents:{anna:10000}},
     {id:'future1',type:'shares-set',date:'2029-06-01',order:1,itemId:'chair',
      shares:{anna:1,ben:1},financialMode:'none',note:'First future entry'},
     {id:'future2',type:'shares-set',date:'2029-06-01',order:2,itemId:'chair',

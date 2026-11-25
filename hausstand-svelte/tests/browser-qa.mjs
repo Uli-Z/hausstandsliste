@@ -27,7 +27,7 @@ const fixture = {
       id: 'purchase', type: 'item-added', itemId: 'fridge', name: 'Kühlschrank',
       date: '2025-01-02', order: 1, initialValue: 300,
       valuation: { type: 'fixed', minimumValue: 0 },
-      financialMode: 'derived', financedByPersonId: 'anna',
+      financialMode: 'derived', purchaseContributionsCents:{anna:30000},
       shares: { anna: 1, ben: 1, clara: 1 }
     }
   ],
@@ -385,7 +385,6 @@ async function settlementEndToEnd(browser, url) {
     assert.equal(itemEvent?.date, '2025-01-02');
     assert.equal(itemEvent?.initialValue, 300);
     assert.deepEqual(itemEvent?.purchaseContributionsCents, {anna:30000});
-    assert.equal(itemEvent?.financedByPersonId, undefined);
     assert.deepEqual(itemEvent?.shares, { anna: 1, ben: 1, clara: 1 });
     await returnToday();
     await assertBalances({ Anna: 20000, Ben: -10000, Clara: -10000 });
@@ -553,7 +552,7 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
         project.items.push({ id, name, tags: [] });
         project.events.push({ ...purchase, id: 'q04-purchase-' + i,
           itemId: id, name, date: '2025-01-02', order: i + 1,
-          initialValue: 30 + i });
+          initialValue: 30 + i, purchaseContributionsCents:{anna:(30+i)*100} });
       }
       await page.goto(url);
       await page.evaluate(({ storageKey, copy }) =>

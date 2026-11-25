@@ -14,7 +14,7 @@ const fixture = {
     { id: 'purchase', type: 'item-added', itemId: 'table', name: 'Table',
       date: '2026-01-02', order: 3, initialValue: 100,
       valuation: { type: 'fixed', minimumValue: 0 }, financialMode: 'derived',
-      financedByPersonId: 'anna', shares: { anna: 1, ben: 1 } }
+      purchaseContributionsCents:{anna:10000}, shares: { anna: 1, ben: 1 } }
   ],
   drafts: [], lastSavedAt: '2026-01-02T09:00:00.000Z',
   versionHistory: { format: 'portable-v1', entries: [] }

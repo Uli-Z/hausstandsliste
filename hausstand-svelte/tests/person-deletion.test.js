@@ -27,7 +27,7 @@ test('A03: unused new person can be removed with only their join event', () => {
   project.events.push({
     id: 'desk-created', type: 'item-added', date: '2026-01-02', order: 1,
     itemId: 'desk', initialValue: 45, valuation: fixed, shares: { ben: 1 },
-    financedByPersonId: 'ben', financialMode: 'derived'
+    purchaseContributionsCents:{ben:4500}, financialMode: 'derived'
   });
   assert.equal(personDeletionEligibility(project, 'anna').allowed, true);
   const beforeBen = projectAt(project, '2026-03-01').people.find(p => p.id === 'ben').holdings;
@@ -41,7 +41,7 @@ test('A03: former owner cannot be deleted even when all shares were transferred 
   const project = makeProject();
   project.events.push({
     id: 'desk-created', type: 'item-added', date: '2026-01-02', order: 1,
-    itemId: 'desk', initialValue: 80, valuation: fixed, shares: { anna: 1 }
+    itemId: 'desk', initialValue: 80, valuation: fixed, shares: { anna: 1 },financialMode:'derived',purchaseContributionsCents:{anna:8000}
   });
   project.events.push({
     id: 'transfer', type: 'shares-set', date: '2026-02-01', order: 1,
@@ -58,7 +58,7 @@ test('A03: departed original financier with an 80 EUR claim cannot disappear', (
   project.events.push({
     id: 'desk-created', type: 'item-added', date: '2026-01-02', order: 1,
     itemId: 'desk', initialValue: 80, valuation: fixed, shares: { ben: 1 },
-    financedByPersonId: 'anna', financialMode: 'derived'
+    purchaseContributionsCents:{anna:8000}, financialMode: 'derived'
   });
   project.events.push({
     id: 'anna-left', type: 'person-deactivated', personId: 'anna', date: '2026-02-01', order: 1
@@ -96,8 +96,8 @@ test('A03: nested historical and future shares-set references prohibit deletion'
 
 test('A03: draft shares, financing and redistribution selections prohibit deletion', () => {
   const drafts = [
-    { id: 'draft-1', type: 'item', data: { shares: { anna: 1 }, financedByPersonId: 'ben' } },
-    { id: 'draft-2', type: 'item', data: { shares: { ben: 1 }, financedByPersonId: 'anna' } },
+    { id: 'draft-1', type: 'item', data: { shares: { anna: 1 }, purchaseContributionsCents:{ben:1000} } },
+    { id: 'draft-2', type: 'item', data: { shares: { ben: 1 }, purchaseContributionsCents:{anna:1000} } },
     { id: 'draft-3', type: 'redistribution', changes: [{ itemId: 'desk', shares: { anna: 1 } }] },
     { id: 'draft-4', type: 'redistribution', sourcePersonId: 'anna', targetPersonId: 'ben' }
   ];

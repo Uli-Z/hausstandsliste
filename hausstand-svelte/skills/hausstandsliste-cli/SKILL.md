@@ -51,7 +51,7 @@ Purchase (use real IDs from people list):
 ```json
 {"name":"Desk","date":"2026-11-25","initialValueCents":30000,"valuation":{"type":"linear","durationYears":6,"minimumValueCents":5000},"shares":{"ANNA_ID":1,"BEN_ID":1},"purchaseContributionsCents":{"ANNA_ID":20000,"BEN_ID":10000}}
 ```
-Valuation types: fixed, linear (positive durationYears), degressive (annualRate 0–1). All require minimumValueCents. Optional tags and note. Purchase contributions are required and must add up to initialValueCents. The old explicit single-payer argument is accepted only as shorthand. Optional settledPaymentDate records the calculated independent cash payments; provide it ONLY when those exact payments actually occurred. Neutral successor items do not represent purchases.
+Valuation types: fixed, linear (positive durationYears), degressive (annualRate 0–1). All require minimumValueCents. Optional tags and note. Purchase contributions are required and must add up to initialValueCents. Optional settledPaymentDate records the calculated independent cash payments; provide it ONLY when those exact payments actually occurred. Neutral successor items do not represent purchases.
 
 Payment:
 ```json
