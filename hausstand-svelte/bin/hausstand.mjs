@@ -12,6 +12,7 @@ import { projectMutationProblem } from '../src/lib/mutationValidation.js';
 import { exportProject } from '../src/lib/persistence.js';
 import { addPerson, renamePerson, changePersonStatus } from '../src/lib/personMutations.js';
 import { deleteUnusedPerson } from '../src/lib/personDeletion.js';
+import { addItem, updateItemMetadata, continueItem, endItem, setItemShares, executeRedistribution } from '../src/lib/itemMutations.js';
 import { message } from '../src/lib/i18n.js';
 
 const version = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -26,6 +27,12 @@ const commands = {
   'people delete': 'Remove an unused person only; saving requires --confirm.',
   'people show': 'Show a person and holdings by stable ID.',
   'items list': 'List items visible at the selected date, including archived items.',
+  'items add': 'Add a dated item with explicit valuation, ownership and optional financing.',
+  'items update': 'Update item name, tags and note.',
+  'items continue': 'End an item and create its successor in one transaction.',
+  'items end': 'Archive an active item at an explicit date.',
+  'shares set': 'Replace an item’s share allocation at an explicit date.',
+  'redistribution execute': 'Apply several share changes in one dated transaction.',
   'items show': 'Show an item, its value and share distribution by stable ID.',
   'balances show': 'Show derived balances, claims and proposed settlement routes in integer cents.',
   'events list': 'List stored events newest first, including future events.',
@@ -49,6 +56,12 @@ const help = key => [
   '                     creditorPersonId (recipient), settlementKind (paid/external/waived), optional note.',
   '  --payload <file|->  Person JSON: name and date (people add), or personId and name (people rename).',
   '                     For deactivate/reactivate: personId, date, optional reason; delete: personId.',
+  '  --payload <file|->  Item add/continue: name,date,initialValueCents,valuation,shares; optional tags,note.',
+  '                     valuation: type (fixed/linear/degressive), minimumValueCents, durationYears or annualRate.',
+  '                     add: optional financedByPersonId; continue: itemId, optional reason.',
+  '                     update: itemId,name, optional tags,note; end: itemId,date, optional reason,statusAfter.',
+  '                     shares set: itemId,date,shares,financialMode (derived/none), optional note.',
+  '                     redistribution execute: effectiveDate,changes [{itemId,shares}],financialMode, optional title.',
   '  --id <id>           Archive ID for versions restore.',
   '  --dry-run           Preview without changing files (write commands).',
   '  --output <file>     Save a NEW project file; never overwrite an existing path.',
@@ -68,7 +81,11 @@ const fail = (code, message, status) => { throw new CliError(code, message, stat
 const listCommands = new Set(['people list','items list','events list','versions list']);
 const statusWrites = new Set(['people deactivate','people reactivate']);
 const personWrites = new Set(['people add','people rename','people delete',...statusWrites]);
-const writeCommands = new Set(['payments record','versions restore',...personWrites]);
+const itemWrites = new Map([
+  ['items add',addItem],['items update',updateItemMetadata],['items continue',continueItem],
+  ['items end',endItem],['shares set',setItemShares],['redistribution execute',executeRedistribution]
+]);
+const writeCommands = new Set(['payments record','versions restore',...personWrites,...itemWrites.keys()]);
 const projected = new Set(['people list','people show','items list','items show','balances show']);
 const compareId = (a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 function options(args, key) {
@@ -77,7 +94,7 @@ function options(args, key) {
     ...(listCommands.has(key) ? ['--offset','--limit'] : []),
     ...(['people show','items show','versions restore'].includes(key) ? ['--id'] : []),
     ...(writeCommands.has(key) ? ['--dry-run','--output'] : []),
-    ...(key === 'payments record' ? ['--payload','--confirm'] : personWrites.has(key) ? ['--payload',...(key === 'people delete' ? ['--confirm'] : [])] : [])]);
+    ...(key === 'payments record' ? ['--payload','--confirm'] : (personWrites.has(key) || itemWrites.has(key)) ? ['--payload',...(key === 'people delete' ? ['--confirm'] : [])] : [])]);
   while (args.length) {
     const flag = args.shift();
     if (!allowed.has(flag) || Object.hasOwn(result, flag)) fail('USAGE', 'Unknown, duplicate or inapplicable option: ' + flag);
@@ -93,7 +110,7 @@ function options(args, key) {
     if (Boolean(result['--dry-run']) === Boolean(result['--output'])) fail('USAGE','Choose exactly one: --dry-run or --output <new-file>.');
     if (result['--output'] === '-') fail('USAGE','Use --dry-run for a stdout preview, or specify a new output file.');
   }
-  if (key === 'payments record' || personWrites.has(key)) {
+  if (key === 'payments record' || personWrites.has(key) || itemWrites.has(key)) {
     if (!result['--payload']) fail('USAGE','Provide --payload <file|->.');
     if (result['--input'] === '-' && result['--payload'] === '-') fail('USAGE','Project and payload cannot both use stdin.');
   }
@@ -170,7 +187,7 @@ function validateChange(before, after) {
   if (problem) fail('MUTATION_REJECTED', message(problem.key,'en',problem.params || {}) + ' [' + problem.key + ']',4);
 }
 async function writeCommand(key, p, opts) {
-  let working, event, person, deleted = false;
+  let working, event, person, item, ended, deleted = false;
   if (key === 'payments record') {
     const payload = await readJSON(opts['--payload']);
     const allowed = ['date','amountCents','debtorPersonId','creditorPersonId','settlementKind','note'];
@@ -207,6 +224,36 @@ async function writeCommand(key, p, opts) {
         fail('INVALID_PERSON','Use a unique nonempty name and, for add, a real YYYY-MM-DD date.',4);
       }
     }
+  } else if (itemWrites.has(key)) {
+    const payload=await readJSON(opts['--payload']);
+    const required={
+      'items add':['name','date','initialValueCents','valuation','shares'],
+      'items update':['itemId','name'],
+      'items continue':['itemId','name','date','initialValueCents','valuation','shares'],
+      'items end':['itemId','date'],
+      'shares set':['itemId','date','shares','financialMode'],
+      'redistribution execute':['effectiveDate','changes','financialMode']
+    }[key];
+    const optional={
+      'items add':['tags','note','financedByPersonId'], 'items update':['tags','note'],
+      'items continue':['tags','note','reason'], 'items end':['reason','statusAfter'],
+      'shares set':['note'], 'redistribution execute':['title']
+    }[key];
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+        !required.every(k=>Object.hasOwn(payload,k)) || Object.keys(payload).some(k=>![...required,...optional].includes(k)))
+      fail('INVALID_PAYLOAD','See command help and skill show for required fields.',4);
+    if (Object.hasOwn(payload,'initialValueCents')) {
+      if (!Number.isSafeInteger(payload.initialValueCents) || payload.initialValueCents<0 ||
+          !payload.valuation || !Number.isSafeInteger(payload.valuation.minimumValueCents) || payload.valuation.minimumValueCents<0 ||
+          Object.keys(payload.valuation).some(k=>!['type','durationYears','annualRate','minimumValueCents'].includes(k)))
+        fail('INVALID_PAYLOAD','Provide nonnegative integer initialValueCents and valuation.minimumValueCents.',4);
+      payload.initialValue=payload.initialValueCents/100;
+      const {minimumValueCents,...rule}=payload.valuation;
+      payload.valuation={...rule,minimumValue:minimumValueCents/100};
+    }
+    working=structuredClone(p);
+    try { ({event,item,ended}=itemWrites.get(key)(working,payload)); }
+    catch (error) { fail('ITEM_MUTATION_REJECTED','Check item, date, valuation, financing and ownership: '+error.message,4); }
   } else {
     if (!getVersionEntries(p).some(v=>v.id===opts['--id'])) fail('NOT_FOUND','Archive version ID was not found.',5);
     try { working = requireProjectFile(await readPortableVersion(p,opts['--id'])); }
@@ -215,7 +262,7 @@ async function writeCommand(key, p, opts) {
   validateChange(p,working);
   // Use the existing archive reader to verify all retained snapshots before
   // writing. No parallel compression/checksum implementation in this adapter.
-  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {project:working})}};
+  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {project:working})}};
   try {
     const ids = new Set();
     for (const entry of getVersionEntries(p)) {
@@ -229,7 +276,7 @@ async function writeCommand(key, p, opts) {
   catch { fail('SAVE_FAILED','Could not prepare portable project history. No file was saved.',6); }
   await publishNewFile(opts['--output'],saved);
   return {source:'saved',data:{saved:true,output:opts['--output'],lastSavedAt:saved.lastSavedAt,
-    versionCount:getVersionEntries(saved).length,...(person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {restoredVersionId:opts['--id']})}};
+    versionCount:getVersionEntries(saved).length,...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {restoredVersionId:opts['--id']})}};
 }
 async function main(args) {
   if (!args.length || (args.length === 1 && args[0] === '--help')) { process.stdout.write(help()); return; }

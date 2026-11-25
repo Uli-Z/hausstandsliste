@@ -18,6 +18,7 @@
   import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
   import { uid, clone, nextEventOrder } from '../src/lib/util.js';
+  import { executeRedistribution } from '../src/lib/itemMutations.js';
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   
   export let dialog;
@@ -104,13 +105,7 @@
   function execute() {
     if (!canExecute) return;
     if (!confirm($translate("ui.apply-this-redistribution-now-kiu6zk"))) return;
-    const saved = appState.mutateProject(p => {
-      p.events.push({ 
-        id: uid('event'), type: 'redistribution-executed', date: redistribution.effectiveDate, order: nextEventOrder(p, redistribution.effectiveDate), title: redistribution.title, financialMode: redistribution.financialMode,
-        events: redistribution.changes.map(c => ({ id: uid('event_child'), type: 'shares-set', itemId: c.itemId, shares: normShares(c.shares), note: redistribution.title })) 
-      });
-      p.drafts = (p.drafts || []).filter(d => d.id !== redistribution.id);
-    });
+    const saved = appState.mutateProject(p => executeRedistribution(p, redistribution));
     if (saved) appState.closeDialog();
   }
 </script>

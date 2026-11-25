@@ -11,7 +11,7 @@ test('new dated forms use the selected effective date; saved item drafts retain 
     assert.ok(router.includes("'"+type+"'"),type);
   }
   for (const type of ['item-added','item-ended','shares-set']) {
-    assert.ok(router.includes("'"+type+"'"),type);
+    assert.ok(source('src/lib/itemMutations.js').includes("'"+type+"'"),type);
   }
   const personMutations = source('src/lib/personMutations.js');
   for (const type of ['person-added','person-deactivated','person-reactivated']) {
@@ -42,7 +42,8 @@ test('redistribution preview and execution use a single editable date; edits pre
   const payment=source('src/components/SettlementDialog.svelte');
   assert.ok(create.includes('bind:value={redistribution.effectiveDate}'));
   assert.ok(create.includes('redistributionPreview(project, redistribution)'));
-  assert.ok(create.includes('date: redistribution.effectiveDate'));
+  assert.ok(create.includes('executeRedistribution(p, redistribution)'));
+  assert.ok(source('src/lib/itemMutations.js').includes("createEvent('redistribution-executed',effectiveDate"));
   assert.ok(create.includes('invalidItems.length'));
   assert.ok(editing.includes('bind:value={edited.date}'));
   assert.ok(standard.includes('bind:value={edited.date}'));

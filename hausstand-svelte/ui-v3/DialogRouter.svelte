@@ -7,6 +7,7 @@
   import { normShares, money } from '../src/lib/domain.js';
   import { allocateCents } from '../src/lib/ledger.js';
   import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus } from '../src/lib/personMutations.js';
+  import { addItem as applyItemAdd, continueItem as applyItemContinue, updateItemMetadata, setItemShares, endItem as applyItemEnd, validMoney } from '../src/lib/itemMutations.js';
   import { personDeletionEligibility, deleteUnusedPerson } from '../src/lib/personDeletion.js';
   import RedistributionDialog from './RedistributionDialog.svelte';
   import EventEditDialog from './EventEditDialog.svelte';
@@ -62,17 +63,14 @@
     !personStatusProblem(project, { personId: dialog.personId, date: effectiveDate, kind: dialog.kind });
   $: itemCost = Number(initialValue);
   $: itemCostCents = Math.round(itemCost * 100);
-  $: itemCostValid = !itemNeedsOwners || (Number.isFinite(itemCost) && itemCost >= 0 &&
-    Number.isSafeInteger(itemCostCents) && Math.abs(itemCost * 100 - itemCostCents) <= 1e-7);
+  $: itemCostValid = !itemNeedsOwners || validMoney(itemCost);
   $: ownersValid = !itemNeedsOwners || Object.keys(normShares(shares)).length > 0;
   $: itemNameValid = !itemNeedsOwners || !!String(itemName || '').trim();
   // Keep the raw minimum-value text while typing: a German decimal comma must
   // neither collapse the details panel nor silently be stored as zero.
   $: minimumValueAmount = String(minimumValue ?? '').trim() === '' ? 0 : parseDecimal(minimumValue);
   $: minimumValueCents = Math.round(minimumValueAmount * 100);
-  $: minimumValueValid = !itemNeedsOwners || (Number.isFinite(minimumValueAmount) &&
-    minimumValueAmount >= 0 && Number.isSafeInteger(minimumValueCents) &&
-    Math.abs(minimumValueAmount * 100 - minimumValueCents) <= 1e-7);
+  $: minimumValueValid = !itemNeedsOwners || validMoney(minimumValueAmount);
   $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid &&
     itemCostValid && ownersValid && itemNameValid && minimumValueValid;
   $: purchaseShares = normShares(shares);
@@ -289,80 +287,46 @@
     close();
   }
 
+  function itemPayload() {
+    return { date: effectiveDate, name: itemName, tags: parseTags(tags), note,
+      initialValue: Number(initialValue), valuation: { type: valuationType,
+        durationYears: Number(durationYears), annualRate: Number(annualRate), minimumValue: minimumValueAmount },
+      shares: normShares(shares) };
+  }
   function addItem() {
     if (!canSubmitDated) return;
-    const itemId = uid('item');
-    const activePeople = entryProjection.people.filter(p => p.active);
-    const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
-    const saved = appState.mutateProject(p => {
-      p.items.push({ id: itemId, name: itemName || 'Neuer Gegenstand', tags: parseTags(tags), note });
-      p.events.push(createEvent('item-added', effectiveDate, { 
-        itemId, 
-        name: itemName || 'Neuer Gegenstand', 
-        initialValue: Number(initialValue) || 0, 
-        valuation: { 
-          type: valuationType, 
-          durationYears: valuationType === 'linear' ? Number(durationYears) : undefined, 
-          annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
-          minimumValue: minimumValueAmount 
-        }, 
-        shares: initialShares,
-        financedByPersonId: financedByPersonId || undefined,
-        financialMode: financedByPersonId ? 'derived' : 'none'
-      }, p));
-      if (dialog.id) {
-        p.drafts = (p.drafts || []).filter(d => d.id !== dialog.id);
-      }
-    });
+    const saved = appState.mutateProject(p => applyItemAdd(p, { ...itemPayload(),
+      financedByPersonId: financedByPersonId || undefined, draftId: dialog.id }));
     finishDatedChange(saved);
   }
-
   function continueItem() {
     if (!canSubmitDated) return;
-    const newItemId = uid('item');
+    let newItemId;
     const saved = appState.mutateProject(p => {
-      // 1. Altes Item beenden
-      p.events.push(createEvent('item-ended', effectiveDate, { 
-        itemId: projectedItem.id, 
-        statusAfter: 'succeeded', 
-        reason: 'Als neue Version fortgeführt' 
-      }, p));
-      // 2. Neues Item Stammdaten
-      p.items.push({ 
-        id: newItemId, 
-        name: itemName || projectedItem.name, 
-        tags: parseTags(tags), 
-        note,
-        predecessorItemId: projectedItem.id
-      });
-      // 3. Neues Item Event
-      p.events.push(createEvent('item-added', effectiveDate, { 
-        itemId: newItemId, 
-        name: itemName || projectedItem.name, 
-        initialValue: Number(initialValue) || 0, 
-        valuation: { 
-          type: valuationType, 
-          durationYears: valuationType === 'linear' ? Number(durationYears) : undefined, 
-          annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
-          minimumValue: minimumValueAmount 
-        }, 
-        shares: normShares(shares) 
-      }, p));
+      newItemId = applyItemContinue(p, { ...itemPayload(), itemId: dialog.itemId,
+        reason: 'Als neue Version fortgeführt' }).item.id;
     });
     if (!saved) return;
     finishDatedChange(saved);
     appState.setRoute({ page: 'item', id: newItemId });
   }
-
-  function saveItemMeta() { const saved = appState.mutateProject(p => { const x = p.items.find(y => y.id === item.id); if (x) { x.name = itemName || x.name; x.tags = parseTags(tags); x.note = note; } }); if (saved) close(); }
+  function saveItemMeta() {
+    const saved = appState.mutateProject(p => updateItemMetadata(p, {
+      itemId: item.id, name: itemName || item.name, tags: parseTags(tags), note }));
+    if (saved) close();
+  }
   function saveShareSet() {
     if (!canSubmitDated) return;
-    const saved = appState.mutateProject(p => p.events.push(createEvent('shares-set', effectiveDate, {
-      itemId: projectedItem.id, shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert'
-    }, p)));
+    const saved = appState.mutateProject(p => setItemShares(p, { itemId: dialog.itemId, date: effectiveDate,
+      shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert' }));
     finishDatedChange(saved);
   }
-  function endItem() { if (!canSubmitDated) return; const saved = appState.mutateProject(p => p.events.push(createEvent('item-ended', effectiveDate, { itemId: projectedItem.id, statusAfter: 'ended', reason: reason || 'beendet' }, p))); finishDatedChange(saved); }
+  function endItem() {
+    if (!canSubmitDated) return;
+    const saved = appState.mutateProject(p => applyItemEnd(p, { itemId: dialog.itemId, date: effectiveDate, reason: reason || 'beendet' }));
+    finishDatedChange(saved);
+  }
+
 </script>
 
 {#if dialog?.type === 'settlementAdd' || dialog?.type === 'settlementEdit'}

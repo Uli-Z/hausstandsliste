@@ -47,3 +47,13 @@ Both accept `--input` and `--payload` (one may be stdin), and exactly one of `--
 `people deactivate` and `people reactivate` accept `{"personId":"PERSON_ID","date":"2028-02-01","reason":"optional note"}`. They use the same membership transition check and event factory as the browser. The date must be on or after move-in and the person must be active for move-out or inactive for return at the end of that date's existing events. No ownership or payment changes are implied. If omitted, the CLI reason is empty; the browser supplies a localized default.
 
 `people delete` accepts `{"personId":"PERSON_ID"}`. Preview with `--dry-run`; saving requires `--output next.json --confirm`. The shared all-history reference guard rejects used people, including references in future events and drafts, with PERSON_IN_USE. Only the unused master record and its move-in event are removed from the working state; the previous version is retained in the archive. This is not a privacy erasure tool. Responses include the removed person and `deleted: true` (preview additionally has `saved: false`).
+
+## Item and ownership commands
+
+All use `--input project.json --payload payload.json` and either `--dry-run` or `--output next.json`. CLI amounts are integer cents (the shared file schema uses euros). Example purchase:
+
+```json
+{"name":"Desk","date":"2026-11-25","initialValueCents":30000,"valuation":{"type":"linear","durationYears":6,"minimumValueCents":5000},"shares":{"anna":1,"ben":1},"financedByPersonId":"anna","tags":["office"]}
+```
+
+`items add`: purchase above; financing is optional. Fixed valuation needs only type and minimumValueCents; degressive uses annualRate (0–1). `items update`: itemId,name, optional tags,note (replace metadata). `items continue`: purchase fields plus itemId, optional reason, no financing (neutral successor); `items end`: itemId,date, optional reason/statusAfter. `shares set`: itemId,date,shares,financialMode (derived or none), optional note. `redistribution execute`: effectiveDate,changes (array of {itemId,shares}),financialMode, optional title. Share changes never record actual payments. All use itemMutations.js, projectMutationProblem and the common portable save path.

@@ -232,3 +232,50 @@ test('CLI deletion uses existing all-history guard and requires explicit confirm
     assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),withUnused);
   } finally { rmSync(dir,{recursive:true,force:true}); }
 });
+
+test('CLI item lifecycle and redistribution use shared valuation, ownership and ledger',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-items-'));
+  try {
+    const input=join(dir,'p.json'), payload=join(dir,'payload.json');
+    writeFileSync(input,JSON.stringify(p));
+    const call=(command,data,source,target)=>{
+      writeFileSync(payload,JSON.stringify(data));
+      return run([...command.split(' '),'--input',source,'--payload',payload,...(target?['--output',target]:['--dry-run'])]);
+    };
+    const purchase={name:'Desk',date:'2026-06-01',initialValueCents:30000,valuation:{type:'linear',durationYears:6,minimumValueCents:5000},shares:{a:1,b:1},financedByPersonId:'a'};
+    const out=join(dir,'added.json');
+    assert.equal(call('items add',{...purchase,shares:{missing:1}},input).status,4);
+    assert.equal(call('items add',{...purchase,shares:{a:-1}},input).status,4);
+    assert.equal(call('items add',{...purchase,valuation:{type:'linear',durationYears:0,minimumValueCents:0}},input).status,4);
+    const preview=call('items add',purchase,input);
+    assert.equal(preview.status,0,preview.stderr); assert.equal(existsSync(out),false);
+    const result=call('items add',purchase,input,out);
+    assert.equal(result.status,0,result.stderr);
+    const id=JSON.parse(result.stdout).data.item.id;
+    const added=JSON.parse(readFileSync(out,'utf8'));
+    assert.equal(projectAt(added,'2026-06-01').items.find(i=>i.id===id).value,300);
+    assert.equal(ledgerAt(added,'2026-06-01').claims.filter(c=>c.itemId===id)[0].amountCents,15000);
+    const update=join(dir,'update.json');
+    assert.equal(call('items update',{itemId:id,name:'New desk',tags:['office'],note:'Note'},out,update).status,0);
+    const shares=join(dir,'shares.json');
+    assert.equal(call('shares set',{itemId:id,date:'2026-07-01',shares:{a:1},financialMode:'none'},update,shares).status,0);
+    assert.equal(call('shares set',{itemId:id,date:'2026-05-01',shares:{a:1},financialMode:'none'},update).status,4);
+    const red=join(dir,'red.json');
+    const re=call('redistribution execute',{effectiveDate:'2026-08-01',financialMode:'none',changes:[{itemId:id,shares:{b:1}},{itemId:'i',shares:{a:1}}]},shares,red);
+    assert.equal(re.status,0,re.stderr);
+    const redistributed=JSON.parse(readFileSync(red,'utf8'));
+    assert.deepEqual(projectAt(redistributed,'2026-08-01').items.find(i=>i.id===id).shares,{b:1});
+    assert.equal(redistributed.events.at(-1).events.length,2);
+    const end=join(dir,'end.json');
+    const cont=call('items continue',{itemId:id,name:'Successor',date:'2026-09-01',initialValueCents:10000,valuation:{type:'fixed',minimumValueCents:0},shares:{b:1}},red,end);
+    assert.equal(cont.status,0,cont.stderr);
+    const successor=JSON.parse(cont.stdout).data.item.id;
+    const final=JSON.parse(readFileSync(end,'utf8'));
+    assert.equal(projectAt(final,'2026-09-01').items.find(i=>i.id===id).status,'succeeded');
+    assert.equal(final.items.find(i=>i.id===successor).predecessorItemId,id);
+    const archived=join(dir,'archived.json');
+    assert.equal(call('items end',{itemId:successor,date:'2026-10-01'},end,archived).status,0);
+    assert.equal(projectAt(JSON.parse(readFileSync(archived,'utf8')),'2026-10-01').items.find(i=>i.id===successor).status,'ended');
+    assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
