@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { projectAt } from '../src/lib/projector.js';
+import { encryptProject, decryptProject } from '../src/lib/crypto.js';
 import { readPortableVersion } from '../src/lib/versionHistory.js';
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -56,7 +57,7 @@ test('CLI errors have stable codes, nonzero exits and empty stdout',()=>{
     [['items','list','--as-of','2026-02-30','--input','-'],p,'INVALID_DATE',2],
     [['items','show','--id','missing','--input','-'],p,'NOT_FOUND',5],
     [['project','validate','--input','-'],{},'UNSUPPORTED_PROJECT',4],
-    [['project','show','--input','-'],{format:'hausstand-aesgcm-v1'},'ENCRYPTED_UNSUPPORTED',4],
+    [['project','show','--input','-'],{format:'hausstand-aesgcm-v1'},'INVALID_ENVELOPE',4],
     [['events','list','--limit','0','--input','-'],p,'USAGE',2]
   ]) {
     const r=run(args,input); assert.equal(r.status,status,r.stderr);
@@ -277,5 +278,73 @@ test('CLI item lifecycle and redistribution use shared valuation, ownership and 
     assert.equal(call('items end',{itemId:successor,date:'2026-10-01'},end,archived).status,0);
     assert.equal(projectAt(JSON.parse(readFileSync(archived,'utf8')),'2026-10-01').items.find(i=>i.id===successor).status,'ended');
     assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
+
+test('packaged skill discovery, exact export and explicit replacement',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-skill-'));
+  try {
+    const output=join(dir,'SKILL.md');
+    const expected=readFileSync(new URL('../skills/hausstandsliste-cli/SKILL.md',import.meta.url),'utf8');
+    assert.match(run(['--help']).stdout,/skill export/);
+    assert.match(run(['skill','--help']).stdout,/--force/);
+    assert.equal(run(['skill','show']).stdout,expected);
+    assert.equal(run(['skill','export','--output','-']).stdout,expected);
+    const saved=run(['skill','export','--output',output]);
+    assert.equal(saved.status,0,saved.stderr);
+    assert.equal(readFileSync(output,'utf8'),expected);
+    writeFileSync(output,'old');
+    assert.equal(run(['skill','export','--output',output]).status,6);
+    assert.equal(readFileSync(output,'utf8'),'old');
+    assert.equal(run(['skill','export','--output',output,'--force']).status,0);
+    assert.equal(readFileSync(output,'utf8'),expected);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
+
+test('CLI encrypted roundtrip uses browser crypto and never saves plaintext',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-crypto-'));
+  try {
+    const input=join(dir,'p.json'), payload=join(dir,'payload.json'), out=join(dir,'out.json'), fresh=join(dir,'fresh.json');
+    const secret='synthetic-test-passphrase';
+    const original=await encryptProject(p,secret);
+    writeFileSync(input,JSON.stringify(original));
+    writeFileSync(payload,JSON.stringify({name:'Clara',date:'2028-01-01'}));
+    const invoke=(args,password)=>spawnSync(process.execPath,[bin,...args],{encoding:'utf8',env:{...process.env,HAUSSTAND_PASSWORD:password||''}});
+    const validate=['project','validate','--input',input];
+    assert.equal(JSON.parse(invoke(validate,'').stderr).error.code,'PASSWORD_REQUIRED');
+    assert.equal(JSON.parse(invoke(validate,'incorrect-password').stderr).error.code,'DECRYPT_FAILED');
+    assert.equal(invoke(validate,secret).status,0);
+    const result=invoke(['people','add','--input',input,'--payload',payload,'--output',out],secret);
+    assert.equal(result.status,0,result.stderr);
+    assert.equal(JSON.parse(result.stdout).data.encrypted,true);
+    const envelope=JSON.parse(readFileSync(out,'utf8'));
+    assert.equal(envelope.format,'hausstand-aesgcm-v1');
+    assert.equal(envelope.people,undefined);
+    const after=await decryptProject(envelope,secret);
+    assert.equal(after.project.people.at(-1).name,'Clara');
+    assert.equal(after.editToken,(await decryptProject(original,secret)).editToken);
+    assert.deepEqual((await readPortableVersion(after.project,after.project.versionHistory.entries[0].id)).people,p.people);
+    assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),original);
+    writeFileSync(payload,JSON.stringify({name:'Fresh'}));
+    const creation=invoke(['project','create','--payload',payload,'--output',fresh,'--encrypt'],secret);
+    assert.equal(creation.status,0,creation.stderr);
+    const newProject=(await decryptProject(JSON.parse(readFileSync(fresh,'utf8')),secret)).project;
+    assert.equal(newProject.community.name,'Fresh');
+    assert.equal(newProject.versionHistory.entries.length,0);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
+
+test('project create and full archive validation',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-create-'));
+  try {
+    const out=join(dir,'new.json');
+    const result=run(['project','create','--payload','-','--output',out],{name:'Fresh'});
+    assert.equal(result.status,0,result.stderr);
+    const project=JSON.parse(readFileSync(out,'utf8'));
+    assert.equal(project.community.name,'Fresh');
+    assert.equal(query(['project','validate'],project).data.scope,'file-and-archive');
+    project.versionHistory.entries.push({id:'bad',sha256:'0'.repeat(64),encoding:'gzip-base64',data:'broken'});
+    const corrupt=run(['project','validate','--input','-'],project);
+    assert.equal(JSON.parse(corrupt.stderr).error.code,'INVALID_ARCHIVE');
   } finally {rmSync(dir,{recursive:true,force:true});}
 });

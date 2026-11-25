@@ -1,0 +1,69 @@
+---
+name: hausstandsliste-cli
+description: Inspect and safely update Hausstandsliste shared ownership projects using the local hausstand CLI.
+---
+
+# Hausstandsliste CLI
+
+Use the installed CLI (`hausstand --help`, `hausstand --version`) or run `node bin/hausstand.mjs` from the application source after npm ci. Requires Node.js 22+. This skill is bundled with the CLI: `hausstand skill show` prints it verbatim; `hausstand skill export --output /path/SKILL.md` exports it without overwriting by default. Add --force only to intentionally replace a skill file.
+
+## Rules
+
+- A project is a current schemaVersion 1 EUR portable file, with embedded archive. Never modify JSON directly, silently overwrite files, or invent IDs.
+- An ownership transfer and a real payment are different facts. Balances and suggestions are derived. Never book a suggested payment unless the user confirms it actually occurred (or explicitly agrees to a noncash offset).
+- Read-only commands never write. Use --dry-run before a mutation, inspect output, then save to an explicit NEW --output path. A dry-run ID is not reserved.
+- For encrypted files, securely provide HAUSSTAND_PASSWORD in the environment. Never include the password in command arguments, payloads, chat or logs. Encrypted input remains encrypted on save. --encrypt protects a new/plain output. Explicit read/preview commands can emit decrypted project information to stdout; handle it privately. No PHP server access.
+- Money in CLI mutation payloads is integer cents; share units are positive relative numbers. Stored events use the current project schema (euros for item initial/minimum values, integer cents for payments). Dates use YYYY-MM-DD. Do not edit generated snapshots.
+
+## Commands
+
+Use `--input project.json` (or `--input -` for stdin); writes use `--payload payload.json` (or --payload -; not both inputs on stdin). All successful data commands emit versioned JSON; errors are JSON on stderr and nonzero exit.
+
+| Command | Options / payload |
+| --- | --- |
+| project create | payload {"name":"Household"}; no --input |
+| project validate | input; checks file and embedded archive |
+| project show | input; full stored project |
+| people list / items list | input, optional --as-of, --offset, --limit |
+| people show / items show | input, --id stable ID, optional --as-of |
+| balances show | input, optional --as-of |
+| events list / versions list | input, optional --offset, --limit |
+| people add | {"name":"Anna","date":"2026-01-01"} |
+| people rename | {"personId":"ID","name":"Anna"} |
+| people deactivate / reactivate | {"personId":"ID","date":"2026-12-01","reason":"optional"} |
+| people delete | {"personId":"ID"}; --confirm for save; only unused people |
+| items add | purchase payload below |
+| items update | {"itemId":"ID","name":"Desk","tags":["office"],"note":""} |
+| items continue | purchase payload + itemId, optional reason; omit financier |
+| items end | {"itemId":"ID","date":"2026-12-01","reason":"optional","statusAfter":"ended"} |
+| shares set | {"itemId":"ID","date":"2026-12-01","shares":{"PERSON_ID":1},"financialMode":"none"} |
+| redistribution execute | {"effectiveDate":"2026-12-01","financialMode":"derived","changes":[{"itemId":"ID","shares":{"PERSON_ID":1}}],"title":"Optional"} |
+| payments record | payment payload below; --confirm for save |
+| versions restore | --id archive ID; no payload |
+
+Purchase (use real IDs from people list):
+```json
+{"name":"Desk","date":"2026-11-25","initialValueCents":30000,"valuation":{"type":"linear","durationYears":6,"minimumValueCents":5000},"shares":{"ANNA_ID":1,"BEN_ID":1},"financedByPersonId":"ANNA_ID"}
+```
+Valuation types: fixed, linear (positive durationYears), degressive (annualRate 0–1). All require minimumValueCents. Optional tags and note. Financial mode derived creates claims, none does not. Omitting financing creates no purchase claims.
+
+Payment:
+```json
+{"date":"2026-11-25","amountCents":1234,"debtorPersonId":"BEN_ID","creditorPersonId":"ANNA_ID","settlementKind":"paid"}
+```
+Kinds paid, external, waived. Optional note. Payer is debtorPersonId. No purchase/item link.
+
+## Typical workflow
+
+```sh
+hausstand project validate --input project.json
+hausstand people list --input project.json --as-of 2026-11-25
+hausstand items add --input project.json --payload purchase.json --dry-run
+hausstand items add --input project.json --payload purchase.json --output next.json
+hausstand balances show --input next.json --as-of 2026-11-25
+hausstand versions list --input next.json
+```
+
+Data response: {responseVersion:1,command,source,data}; source stored, projection, working or saved. Projection includes asOfDate. Lists have total,offset,limit,rows (limit max 1000). A saved response reports output, versionCount and encrypted; previews report saved:false. Error: {responseVersion:1,error:{code,message}}. Exit 2 usage/confirmation, 3 unreadable/invalid JSON input, 4 invalid project/mutation/archive/password, 5 missing ID, 6 output/save, 1 unexpected. On error do not retry by bypassing validation. Inspect help and correct input. Never expose private project contents outside the authorized task.
+
+Limitations: no arbitrary event correction or draft management, no PHP remote access, no in-place project replacement. Older saved versions may still contain deleted people; deletion is not privacy erasure.

@@ -41,6 +41,7 @@ After every change, inspect the GitHub Actions runs for the exact commit. CI suc
 
 ## References
 
+- [CLI commands](docs/CLI.md) and [bundled agent skill](hausstand-svelte/skills/hausstandsliste-cli/SKILL.md) (`hausstand skill show` / `skill export`)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Communal settlement](docs/FEATURE-COMMUNAL-SETTLEMENT.md)
 - [Portable in-file history](docs/FEATURE-PORTABLE-VERSION-HISTORY.md)

@@ -1,6 +1,6 @@
 # Hausstandsliste CLI (Q23, stage 2)
 
-Requires Node.js (20+ recommended). From `hausstand-svelte/`:
+Requires Node.js 22+. From `hausstand-svelte/`:
 
 ```sh
 npm ci
@@ -10,9 +10,9 @@ node bin/hausstand.mjs balances show --input project.json --json
 cat project.json | node bin/hausstand.mjs project validate --input -
 ```
 
-This is a local CLI sharing the browser's domain, projector, ledger and event ordering. Install the shared application dependencies with `npm ci` first (the shared localization module imports `svelte/store`). It reads current unencrypted portable project files only. It supports explicit non-overwriting payment saves and archived-version restoration. It does not yet decrypt or connect to PHP. `project validate` checks the same outer file structure as the browser import. All successful data commands return one JSON object with `responseVersion: 1`, `command`, `source` (stored or projection), optional `asOfDate`, and `data`. List data has `total, offset, limit, rows`. Derived monetary amounts use integer cents; raw stored data retains the existing file schema. Proposals require group agreement and do not record payments. Errors are JSON on stderr, with empty stdout and nonzero exit status. See command help for options; no interactive prompt.
+This is a local CLI sharing the browser's domain, projector, ledger and event ordering. Install the shared application dependencies with `npm ci` first (the shared localization module imports `svelte/store`). It reads current plain or encrypted portable files, supports explicit non-overwriting saves, and does not connect to PHP. `project validate` checks the outer file structure and every embedded archive checksum. All successful data commands return one JSON object with `responseVersion: 1`, `command`, `source` (stored or projection), optional `asOfDate`, and `data`. List data has `total, offset, limit, rows`. Derived monetary amounts use integer cents; raw stored data retains the existing file schema. Proposals require group agreement and do not record payments. Errors are JSON on stderr, with empty stdout and nonzero exit status. See command help for options; no interactive prompt.
 
-Remaining Q23: person event corrections, item/ownership mutations, complete validation and encryption support, general output files, installable package, agent skill discovery/show/export and full acceptance.
+Remaining Q23: event corrections, draft management, complete domain audit, general query output files, fresh-install/package and full acceptance.
 
 ## Shared library boundary
 
@@ -35,7 +35,7 @@ node bin/hausstand.mjs versions restore --input next.json --id VERSION_ID --dry-
 node bin/hausstand.mjs versions restore --input next.json --id VERSION_ID --output restored.json
 ```
 
-Dry runs return `source: "working", data.saved: false`; a preview event's generated ID is not reserved. Actual saves return `source: "saved", data.saved: true`, the output path and version count. Restore preview includes the unsaved working project. Save archives the previous current state via the common portable archive module and refreshes the informational snapshot via the same export function as the browser. The original file is never overwritten; even an existing output with another name is rejected. Output uses a private temporary file in the target directory and atomic no-clobber publication via a hard link; filesystems without hard-link support are rejected. Parent directory must exist. The archive reader verifies every retained entry before saving. Errors include CONFIRM_REQUIRED, INVALID_PAYMENT, INVALID_PAYLOAD, MUTATION_REJECTED, INVALID_ARCHIVE, OUTPUT_EXISTS and OUTPUT_FAILED. Exit 6 indicates save/output errors. No encrypted input or in-place replacement yet.
+Dry runs return `source: "working", data.saved: false`; a preview event's generated ID is not reserved. Actual saves return `source: "saved", data.saved: true`, the output path and version count. Restore preview includes the unsaved working project. Save archives the previous current state via the common portable archive module and refreshes the informational snapshot via the same export function as the browser. The original file is never overwritten; even an existing output with another name is rejected. Output uses a private temporary file in the target directory and atomic no-clobber publication via a hard link; filesystems without hard-link support are rejected. Parent directory must exist. The archive reader verifies every retained entry before saving. Errors include CONFIRM_REQUIRED, INVALID_PAYMENT, INVALID_PAYLOAD, MUTATION_REJECTED, INVALID_ARCHIVE, OUTPUT_EXISTS and OUTPUT_FAILED. Exit 6 indicates save/output errors. No in-place project replacement.
 
 ## Add and rename people (Q23)
 
@@ -57,3 +57,11 @@ All use `--input project.json --payload payload.json` and either `--dry-run` or 
 ```
 
 `items add`: purchase above; financing is optional. Fixed valuation needs only type and minimumValueCents; degressive uses annualRate (0–1). `items update`: itemId,name, optional tags,note (replace metadata). `items continue`: purchase fields plus itemId, optional reason, no financing (neutral successor); `items end`: itemId,date, optional reason/statusAfter. `shares set`: itemId,date,shares,financialMode (derived or none), optional note. `redistribution execute`: effectiveDate,changes (array of {itemId,shares}),financialMode, optional title. Share changes never record actual payments. All use itemMutations.js, projectMutationProblem and the common portable save path.
+
+## Install and discover the bundled skill
+
+From `hausstand-svelte/`, run `npm pack` then `npm install -g ./hausstand-svelte-singlefile-0.7.0.tgz` (or use the actual generated tarball name). The package is intended for local installation, not published to npm. `hausstand --help` points to `hausstand skill show` and `hausstand skill export --output /path/SKILL.md`; export is byte-identical and does not overwrite unless `--force` is provided. `--output -` writes raw Markdown. Once installed, these commands need no network. The parent directory must exist.
+
+## New and encrypted projects
+
+`project create --payload name.json --output new.json` accepts `{ "name": "Household" }`; no `--input` required. For encrypted files, supply `HAUSSTAND_PASSWORD` via a secure environment mechanism; never pass it on the command line. Encrypted files always save encrypted using the shared browser AES-GCM/PBKDF2 module and preserve the existing edit token. Add `--encrypt` for new/plain project output. Read and dry-run responses may contain explicitly requested decrypted data, so protect stdout. Wrong passwords, damaged archives and write errors do not publish files. No PHP connection or password rotation in this CLI.

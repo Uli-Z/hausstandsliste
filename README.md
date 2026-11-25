@@ -41,7 +41,7 @@ The generated `hausstand-svelte/dist/hausstand-standalone.html` works without a 
 
 ## Command-line preview
 
-The local Node.js CLI provides project inspection, dated ownership and financial projections, explicit payment recording and archived-version restoration to a new file. See [CLI documentation](docs/CLI.md). It does not decrypt files or overwrite existing files.
+The local Node.js CLI provides project creation, inspection, person/item lifecycle operations, ownership redistribution, dated balances, payment recording and archive restoration. It reads encrypted files and preserves encryption on save. See [CLI documentation](docs/CLI.md) and the [bundled agent skill](hausstand-svelte/skills/hausstandsliste-cli/SKILL.md). Run `hausstand --help` after installing the local package; `hausstand skill show` and `hausstand skill export --output /path/SKILL.md` work offline. Existing project files are never overwritten.
 
 ## Distribution and storage
 

@@ -17,5 +17,16 @@
     "vite": "latest",
     "svelte": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "bin": {
+    "hausstand": "bin/hausstand.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/lib/",
+    "skills/hausstandsliste-cli/SKILL.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  }
 }

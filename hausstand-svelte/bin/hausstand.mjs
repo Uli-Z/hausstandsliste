@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { readFile, mkdtemp, open, link, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, open, link, rm, rename } from 'node:fs/promises';
 import { dirname, resolve, join } from 'node:path';
-import { requireProjectFile } from '../src/lib/domain.js';
+import { isEncryptedEnvelope, decryptProject, encryptProject } from '../src/lib/crypto.js';
+import { requireProjectFile, emptyProject } from '../src/lib/domain.js';
 import { projectAt } from '../src/lib/projector.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { newestFirst } from '../src/lib/eventHistory.js';
@@ -17,7 +18,8 @@ import { message } from '../src/lib/i18n.js';
 
 const version = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
 const commands = {
-  'project validate': 'Check the supported project file structure (not a full archive or financial audit).',
+  'project validate': 'Validate project file structure and every embedded archive checksum.',
+  'project create': 'Create an empty project with a community name.',
   'project show': 'Return the stored project, including its embedded version history.',
   'people list': 'List people visible at the selected date.',
   'people add': 'Add a person with an explicit move-in date.',
@@ -38,12 +40,16 @@ const commands = {
   'events list': 'List stored events newest first, including future events.',
   'versions list': 'List stored archive metadata, without compressed snapshot data.',
   'payments record': 'Preview or explicitly save an actual payment or noncash adjustment.',
-  'versions restore': 'Preview an archived project or explicitly save it as a new file.'
+  'versions restore': 'Preview an archived project or explicitly save it as a new file.',
+  'skill show': 'Print the bundled agent SKILL.md verbatim.',
+  'skill export': 'Export the bundled agent SKILL.md to any path.'
 };
 const help = key => [
   'Hausstandsliste CLI ' + version,
   key ? key + ': ' + commands[key] : 'Local project inspection and explicit, non-overwriting saves.',
-  'Usage: node bin/hausstand.mjs ' + (key || '<command>') + ' --input <file|-> [--json]',
+  'Usage: hausstand ' + (key || '<command>') + ' [options]',
+  'Agent skill: hausstand skill show | hausstand skill export --output /path/SKILL.md',
+  'Skill export supports --output - (stdout) and explicit --force for replacement.',
   '', ...(key ? [] : Object.entries(commands).map(([k,v]) => '  ' + k.padEnd(18) + v)),
   '', 'Options:',
   '  --input <file|->    Read project JSON from a file or stdin.',
@@ -72,7 +78,10 @@ const help = key => [
   'Example: node bin/hausstand.mjs payments record --input project.json --payload payment.json --dry-run',
   'Example: node bin/hausstand.mjs payments record --input project.json --payload payment.json --output next.json --confirm',
   'Example: node bin/hausstand.mjs versions restore --input project.json --id VERSION --dry-run',
-  'Write failures exit 6. Encrypted input is not supported yet. Existing files are never overwritten.'
+  'Project create: --payload with {"name":"Community"}, then --dry-run or --output NEW_FILE.',
+  'Encrypted files: set HAUSSTAND_PASSWORD securely in the process environment; never pass a password as an argument.',
+  'Encrypted inputs stay encrypted on every save; --encrypt also protects a new/plain project output.',
+  'Write failures exit 6. Existing project files are never overwritten.'
 ].join('\n') + '\n';
 class CliError extends Error {
   constructor(code, message, status = 2) { super(message); this.code = code; this.status = status; }
@@ -85,7 +94,7 @@ const itemWrites = new Map([
   ['items add',addItem],['items update',updateItemMetadata],['items continue',continueItem],
   ['items end',endItem],['shares set',setItemShares],['redistribution execute',executeRedistribution]
 ]);
-const writeCommands = new Set(['payments record','versions restore',...personWrites,...itemWrites.keys()]);
+const writeCommands = new Set(['project create','payments record','versions restore',...personWrites,...itemWrites.keys()]);
 const projected = new Set(['people list','people show','items list','items show','balances show']);
 const compareId = (a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 function options(args, key) {
@@ -93,24 +102,26 @@ function options(args, key) {
   const allowed = new Set(['--input','--json', ...(projected.has(key) ? ['--as-of'] : []),
     ...(listCommands.has(key) ? ['--offset','--limit'] : []),
     ...(['people show','items show','versions restore'].includes(key) ? ['--id'] : []),
-    ...(writeCommands.has(key) ? ['--dry-run','--output'] : []),
-    ...(key === 'payments record' ? ['--payload','--confirm'] : (personWrites.has(key) || itemWrites.has(key)) ? ['--payload',...(key === 'people delete' ? ['--confirm'] : [])] : [])]);
+    ...(writeCommands.has(key) ? ['--dry-run','--output','--encrypt'] : []),
+    ...(key === 'payments record' ? ['--payload','--confirm'] : (personWrites.has(key) || itemWrites.has(key) || key === 'project create') ? ['--payload',...(key === 'people delete' ? ['--confirm'] : [])] : [])]);
   while (args.length) {
     const flag = args.shift();
     if (!allowed.has(flag) || Object.hasOwn(result, flag)) fail('USAGE', 'Unknown, duplicate or inapplicable option: ' + flag);
-    if (['--json','--dry-run','--confirm'].includes(flag)) { result[flag] = true; continue; }
+    if (['--json','--dry-run','--confirm','--encrypt'].includes(flag)) { result[flag] = true; continue; }
     const value = args.shift();
     if (!value || value.startsWith('--')) fail('USAGE', 'Missing value for ' + flag);
     result[flag] = value;
   }
-  if (!result['--input']) fail('USAGE','Provide --input <file|->.');
+  if (key === 'project create' && result['--input']) fail('USAGE','project create does not take --input.');
+  if (key !== 'project create' && !result['--input']) fail('USAGE','Provide --input <file|->.');
   if (result['--as-of'] && !validISODate(result['--as-of'])) fail('INVALID_DATE','Use a real date in YYYY-MM-DD format.');
   if (['people show','items show','versions restore'].includes(key) && !result['--id']) fail('USAGE','Provide --id <stable-id>.');
   if (writeCommands.has(key)) {
     if (Boolean(result['--dry-run']) === Boolean(result['--output'])) fail('USAGE','Choose exactly one: --dry-run or --output <new-file>.');
     if (result['--output'] === '-') fail('USAGE','Use --dry-run for a stdout preview, or specify a new output file.');
   }
-  if (key === 'payments record' || personWrites.has(key) || itemWrites.has(key)) {
+  if (result['--encrypt'] && !result['--output']) fail('USAGE','--encrypt requires an explicit output file.');
+  if (key === 'payments record' || personWrites.has(key) || itemWrites.has(key) || key === 'project create') {
     if (!result['--payload']) fail('USAGE','Provide --payload <file|->.');
     if (result['--input'] === '-' && result['--payload'] === '-') fail('USAGE','Project and payload cannot both use stdin.');
   }
@@ -144,12 +155,40 @@ async function readJSON(path) {
   try { value = JSON.parse(raw); } catch { fail('INVALID_JSON','Input must contain valid JSON.',3); }
   return value;
 }
+function password() {
+  const secret = process.env.HAUSSTAND_PASSWORD;
+  if (!secret || secret.length<8) fail('PASSWORD_REQUIRED','Set HAUSSTAND_PASSWORD securely (at least 8 characters).',4);
+  return secret;
+}
 async function load(path) {
-  const value = await readJSON(path);
-  if (typeof value?.format === 'string' && value.format.startsWith('hausstand-aesgcm'))
-    fail('ENCRYPTED_UNSUPPORTED','Encrypted projects are not supported by this CLI stage. No file was changed.',4);
-  try { return requireProjectFile(value); }
+  let value = await readJSON(path), protection = null;
+  if (typeof value?.format === 'string' && value.format.startsWith('hausstand-aesgcm')) {
+    if (!isEncryptedEnvelope(value)) fail('INVALID_ENVELOPE','Unsupported or invalid encrypted project format.',4);
+    const secret=password();
+    try {
+      const result=await decryptProject(value,secret);
+      protection={secret,editToken:result.editToken};
+      value=result.project;
+    } catch { fail('DECRYPT_FAILED','Incorrect password or damaged encrypted project.',4); }
+  }
+  try { return {project:requireProjectFile(value),protection}; }
   catch { fail('UNSUPPORTED_PROJECT','Use a current schemaVersion 1 EUR project with portable-v1 history.',4); }
+}
+async function verifyArchive(project) {
+  try {
+    const ids=new Set();
+    for (const entry of getVersionEntries(project)) {
+      if (typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id)) throw Error('Invalid archive ID');
+      ids.add(entry.id);
+      requireProjectFile(await readPortableVersion(project,entry.id));
+    }
+  } catch { fail('INVALID_ARCHIVE','Embedded archive cannot be verified. No file was changed.',4); }
+}
+async function protectedOutput(project,opts,protection) {
+  if (!protection && !opts['--encrypt']) return project;
+  const secret=protection?.secret || password();
+  try { return await encryptProject(project,secret,protection?.editToken); }
+  catch { fail('ENCRYPT_FAILED','Could not encrypt output. No file was saved.',6); }
 }
 const page = (rows, opts) => {
   const offset = opts['--offset'] ?? 0, limit = opts['--limit'] ?? 100;
@@ -165,16 +204,17 @@ function find(rows,id) {
 }
 // The Node adapter owns file I/O only; hard-link publication is atomic and
 // refuses existing targets, including symlinks and the input project itself.
-async function publishNewFile(path, data) {
+async function publishNewFile(path, data, {raw=false,force=false}={}) {
   const target = resolve(path);
   let temporary;
   try {
     temporary = await mkdtemp(join(dirname(target), '.hausstand-'));
     const staged = join(temporary, 'project.json');
     const handle = await open(staged, 'wx', 0o600);
-    try { await handle.writeFile(JSON.stringify(data, null, 2) + '\n', 'utf8'); await handle.sync(); }
+    try { await handle.writeFile(raw ? data : JSON.stringify(data, null, 2) + '\n', 'utf8'); await handle.sync(); }
     finally { await handle.close(); }
-    await link(staged, target);
+    if (force) await rename(staged,target);
+    else await link(staged, target);
   } catch (error) {
     if (error.code === 'EEXIST') fail('OUTPUT_EXISTS','Output already exists. Choose a new file; no overwrite is allowed.',6);
     fail('OUTPUT_FAILED','Cannot publish the new file. Check the directory, permissions and hard-link support.',6);
@@ -186,7 +226,7 @@ function validateChange(before, after) {
   const problem = projectMutationProblem(before,after);
   if (problem) fail('MUTATION_REJECTED', message(problem.key,'en',problem.params || {}) + ' [' + problem.key + ']',4);
 }
-async function writeCommand(key, p, opts) {
+async function writeCommand(key, p, opts, protection) {
   let working, event, person, item, ended, deleted = false;
   if (key === 'payments record') {
     const payload = await readJSON(opts['--payload']);
@@ -263,31 +303,63 @@ async function writeCommand(key, p, opts) {
   // Use the existing archive reader to verify all retained snapshots before
   // writing. No parallel compression/checksum implementation in this adapter.
   if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {project:working})}};
-  try {
-    const ids = new Set();
-    for (const entry of getVersionEntries(p)) {
-      if (typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id)) throw Error('Invalid archive ID');
-      ids.add(entry.id);
-      requireProjectFile(await readPortableVersion(p,entry.id));
-    }
-  } catch { fail('INVALID_ARCHIVE','Existing archive cannot be verified. No file was saved.',4); }
+  await verifyArchive(p);
   let saved;
   try { saved = exportProject(await createPortableSave(working,p), todayISO()); }
   catch { fail('SAVE_FAILED','Could not prepare portable project history. No file was saved.',6); }
-  await publishNewFile(opts['--output'],saved);
+  const output=await protectedOutput(saved,opts,protection);
+  await publishNewFile(opts['--output'],output);
   return {source:'saved',data:{saved:true,output:opts['--output'],lastSavedAt:saved.lastSavedAt,
-    versionCount:getVersionEntries(saved).length,...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {restoredVersionId:opts['--id']})}};
+    versionCount:getVersionEntries(saved).length,encrypted:!!(protection || opts['--encrypt']),...(item ? {item,...(event?{event}:{}),...(ended?{ended}:{})} : person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {restoredVersionId:opts['--id']})}};
+}
+async function skillCommand(args) {
+  const usage='hausstand skill show | hausstand skill export --output <path|-> [--force]';
+  if (!args.length || args[0]==='--help' || (args.length===2 && args[1]==='--help' && ['show','export'].includes(args[0]))) {
+    process.stdout.write(usage+'\nPrint or export the bundled SKILL.md verbatim; existing targets are protected unless --force is explicit.\n');return;
+  }
+  const command=args.shift();
+  let output,force=false;
+  if (command==='show' && args.length===0) output='-';
+  else if (command==='export') {
+    while (args.length) {
+      const flag=args.shift();
+      if (flag==='--output' && output===undefined) {
+        output=args.shift();
+        if (!output || output.startsWith('--')) fail('USAGE',usage);
+      } else if (flag==='--force' && !force) force=true;
+      else fail('USAGE',usage);
+    }
+    if (!output || (output==='-' && force)) fail('USAGE',usage);
+  } else fail('USAGE',usage);
+  const content=await readFile(new URL('../skills/hausstandsliste-cli/SKILL.md',import.meta.url));
+  if (output==='-') process.stdout.write(content);
+  else await publishNewFile(output,content,{raw:true,force});
+}
+async function createProject(opts) {
+  const payload=await readJSON(opts['--payload']);
+  if (!payload || typeof payload.name!=='string' || !payload.name.trim() || Object.keys(payload).length!==1)
+    fail('INVALID_PAYLOAD','Provide a nonempty community name.',4);
+  const project={...emptyProject(),community:{name:payload.name}};
+  if (opts['--dry-run']) return {source:'working',data:{saved:false,project}};
+  const saved=exportProject(await createPortableSave(project,null),todayISO());
+  await publishNewFile(opts['--output'],await protectedOutput(saved,opts,null));
+  return {source:'saved',data:{saved:true,output:opts['--output'],lastSavedAt:saved.lastSavedAt,versionCount:0,encrypted:!!opts['--encrypt']}};
 }
 async function main(args) {
+  if (args[0]==='skill') { await skillCommand(args.slice(1)); return; }
   if (!args.length || (args.length === 1 && args[0] === '--help')) { process.stdout.write(help()); return; }
   if (args.length === 1 && args[0] === '--version') { process.stdout.write(version+'\n'); return; }
   const key = args.splice(0,2).join(' ');
   if (!Object.hasOwn(commands,key)) fail('USAGE','Unknown command. Run --help for available commands.');
   if (args.length === 1 && args[0] === '--help') { process.stdout.write(help(key)); return; }
   const opts = options(args,key);
-  const p = await load(opts['--input']);
+  if (key==='project create') {
+    const result=await createProject(opts);
+    process.stdout.write(JSON.stringify({responseVersion:1,command:key,...result})+'\n');return;
+  }
+  const {project:p,protection}=await load(opts['--input']);
   if (writeCommands.has(key)) {
-    const result = await writeCommand(key,p,opts);
+    const result = await writeCommand(key,p,opts,protection);
     process.stdout.write(JSON.stringify({responseVersion:1,command:key,...result})+'\n');
     return;
   }
@@ -295,7 +367,7 @@ async function main(args) {
   let data;
   const view = projected.has(key) && key !== 'balances show' ? projectAt(p,date) : null;
   switch (key) {
-    case 'project validate': data = { valid:true, scope:'file-structure', schemaVersion:p.schemaVersion }; break;
+    case 'project validate': await verifyArchive(p); data = { valid:true, scope:'file-and-archive', schemaVersion:p.schemaVersion, encrypted:!!protection }; break;
     case 'project show': data = p; break;
     case 'people list': data = page(view.people.map(personRow).sort(compareId),opts); break;
     case 'people show': {
