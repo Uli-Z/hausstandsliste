@@ -3,6 +3,7 @@ import { purchaseEventProblem } from './purchaseFinancing.js';
 import { validMoney } from './util.js';
 import { unownedActiveTransitions } from './ownershipValidation.js';
 import { personDeletionEligibility } from './personDeletion.js';
+import { archiveHistoryProblems } from './personArchiveValidation.js';
 
 // Validate new/edited events before a mutation reaches the session history,
 // browser working copy or portable file. Existing invalid imported rows can
@@ -74,6 +75,11 @@ export function projectMutationProblem(before, after) {
   }
   const eventProblem = mutationProblem(before, after);
   if (eventProblem) return eventProblem;
+  // Check the complete future history too. Existing invalid records may be
+  // explicitly repaired, but no new archival conflicts may be introduced.
+  const priorArchiveProblems = new Set(archiveHistoryProblems(before || {}).map(p => p.identity));
+  const archiveProblem = archiveHistoryProblems(after).find(p => !priorArchiveProblems.has(p.identity));
+  if (archiveProblem) return { key: archiveProblem.key, params: archiveProblem.params };
   const first = unownedActiveTransitions(after)[0];
   if (first) {
     const name = (after.items || []).find(item => item.id === first.itemId)?.name || first.itemId;

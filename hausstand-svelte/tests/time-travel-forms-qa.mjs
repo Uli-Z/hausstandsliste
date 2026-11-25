@@ -130,9 +130,10 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await dialog.locator('.person-name-field input').fill('Carla');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
-    assert.equal((await snapshot()).events.find(e=>e.name==='Carla')?.date,'2032-03-11');
+    const carla = (await snapshot()).events.find(e=>e.name==='Carla');
+    assert.equal(carla?.date,'2032-03-11');
 
-    await page.locator('.person-tile').filter({hasText:'Anna'}).locator('.person-bottom button').click();
+    await page.locator('.person-tile').filter({hasText:'Carla'}).locator('.person-bottom button').click();
     // Person actions are intentionally collapsed in the detail view.
     const personActions = page.locator('.detail-hero .secondary-actions');
     async function openPersonActions() {
@@ -146,14 +147,14 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await dateField.fill('2032-04-05');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
-    assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId==='anna')?.date,'2032-04-05');
+    assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId===carla.personId)?.date,'2032-04-05');
     await openPersonActions();
     await personActions.getByRole('button',{name:'Wieder aufnehmen'}).click();
     assert.equal(await dateField.inputValue(),'2032-04-05');
     await dateField.fill('2032-05-05');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
-    assert.equal((await snapshot()).events.find(e=>e.type==='person-reactivated'&&e.personId==='anna')?.date,'2032-05-05');
+    assert.equal((await snapshot()).events.find(e=>e.type==='person-reactivated'&&e.personId===carla.personId)?.date,'2032-05-05');
 
     await nav('Überblick').click();
     await page.locator('.quick-actions .task-grid > button').nth(1).click();

@@ -27,7 +27,7 @@ const commands = {
   'people list': 'List people visible at the selected date.',
   'people add': 'Add a person with an explicit move-in date.',
   'people rename': 'Change a person’s name without rewriting historical events.',
-  'people deactivate': 'Record a dated move-out; ownership and balances are unchanged.',
+  'people deactivate': 'Archive a person at a date, only after all shares and the communal balance are cleared.',
   'people reactivate': 'Record a dated return of a former member.',
   'people delete': 'Remove an unused person only; saving requires --confirm.',
   'people show': 'Show a person and holdings by stable ID.',

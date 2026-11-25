@@ -173,12 +173,20 @@ test('CLI membership changes preserve ownership, financial history and effective
   const dir=mkdtempSync(join(tmpdir(),'hausstand-status-'));
   try {
     const input=join(dir,'p.json'), payload=join(dir,'payload.json'), out=join(dir,'out.json'), back=join(dir,'back.json');
+    const clean=structuredClone(p);
+    clean.events.push(
+      {id:'give',type:'shares-set',itemId:'i',date:'2028-01-01',order:1,shares:{b:1},financialMode:'none'},
+      {id:'settle',type:'claim-settlement-recorded',date:'2028-01-01',order:2,
+       debtorPersonId:'b',creditorPersonId:'a',amountCents:ledgerAt(p,'2028-01-01').balances.get('a'),settlementKind:'paid'}
+    );
     writeFileSync(input,JSON.stringify(p));
     const cmd=(kind,source,mode)=>run(['people',kind,'--input',source,'--payload',payload,...mode]);
     writeFileSync(payload,JSON.stringify({personId:'a',date:'2025-12-31'}));
     assert.equal(JSON.parse(cmd('deactivate',input,['--dry-run']).stderr).error.code,'INVALID_PERSON_STATUS');
     writeFileSync(payload,JSON.stringify({personId:'a',date:'2028-02-01',reason:'Moved'}));
     assert.equal(cmd('reactivate',input,['--dry-run']).status,4);
+    assert.equal(cmd('deactivate',input,['--dry-run']).status,4,'cannot archive an owner with an open balance');
+    writeFileSync(input,JSON.stringify(clean));
     const dry=cmd('deactivate',input,['--dry-run']);
     assert.equal(dry.status,0,dry.stderr);
     assert.equal(JSON.parse(dry.stdout).data.event.type,'person-deactivated');
@@ -188,9 +196,9 @@ test('CLI membership changes preserve ownership, financial history and effective
     const next=JSON.parse(readFileSync(out,'utf8'));
     assert.equal(projectAt(next,'2028-01-31').peopleById.get('a').active,true);
     assert.equal(projectAt(next,'2028-02-01').peopleById.get('a').active,false);
-    assert.deepEqual(projectAt(next,'2028-02-01').items[0].shares,projectAt(p,'2028-02-01').items[0].shares);
-    assert.deepEqual(ledgerAt(next,'2028-02-01').balances,ledgerAt(p,'2028-02-01').balances);
-    assert.deepEqual(next.events.slice(0,-1),p.events);
+    assert.deepEqual(projectAt(next,'2028-02-01').items[0].shares,projectAt(clean,'2028-02-01').items[0].shares);
+    assert.deepEqual(ledgerAt(next,'2028-02-01').balances,ledgerAt(clean,'2028-02-01').balances);
+    assert.deepEqual(next.events.slice(0,-1),clean.events);
     assert.equal(cmd('deactivate',out,['--dry-run']).status,4);
     writeFileSync(payload,JSON.stringify({personId:'a',date:'2028-02-01'}));
     const returned=cmd('reactivate',out,['--output',back]);

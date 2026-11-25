@@ -37,8 +37,13 @@ async function makeArchive() {
       { id: 'payment', type: 'claim-settlement-recorded', debtorPersonId: 'ben',
         creditorPersonId: 'anna', settlementKind: 'paid', amountCents: 1248,
         date: '2025-01-03', order: 1, note: 'Teilzahlung 12,48 EUR' },
+      { id: 'give-shares', type: 'shares-set', itemId: 'lamp', shares: { anna: 1 },
+        date: '2027-01-12', order: 1, financialMode: 'none' },
+      { id: 'remaining-payment', type: 'claim-settlement-recorded', debtorPersonId: 'ben',
+        creditorPersonId: 'anna', settlementKind: 'paid', amountCents: 4924,
+        date: '2027-01-12', order: 2 },
       { id: 'departure', type: 'person-deactivated', personId: 'ben',
-        date: '2027-01-12', order: 1 }
+        date: '2027-01-12', order: 3 }
     ],
     drafts: []
   }, null, '2025-01-02T12:00:00.000Z');
