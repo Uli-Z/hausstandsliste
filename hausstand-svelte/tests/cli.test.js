@@ -167,3 +167,68 @@ test('CLI shared person add and rename retain historical event and archive', asy
     assert.equal(run(['people','rename','--input',added,'--payload',payload,'--dry-run']).status,5);
   } finally { rmSync(dir,{recursive:true,force:true}); }
 });
+
+test('CLI membership changes preserve ownership, financial history and effective dates',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-status-'));
+  try {
+    const input=join(dir,'p.json'), payload=join(dir,'payload.json'), out=join(dir,'out.json'), back=join(dir,'back.json');
+    writeFileSync(input,JSON.stringify(p));
+    const cmd=(kind,source,mode)=>run(['people',kind,'--input',source,'--payload',payload,...mode]);
+    writeFileSync(payload,JSON.stringify({personId:'a',date:'2025-12-31'}));
+    assert.equal(JSON.parse(cmd('deactivate',input,['--dry-run']).stderr).error.code,'INVALID_PERSON_STATUS');
+    writeFileSync(payload,JSON.stringify({personId:'a',date:'2028-02-01',reason:'Moved'}));
+    assert.equal(cmd('reactivate',input,['--dry-run']).status,4);
+    const dry=cmd('deactivate',input,['--dry-run']);
+    assert.equal(dry.status,0,dry.stderr);
+    assert.equal(JSON.parse(dry.stdout).data.event.type,'person-deactivated');
+    assert.equal(existsSync(out),false);
+    const saved=cmd('deactivate',input,['--output',out]);
+    assert.equal(saved.status,0,saved.stderr);
+    const next=JSON.parse(readFileSync(out,'utf8'));
+    assert.equal(projectAt(next,'2028-01-31').peopleById.get('a').active,true);
+    assert.equal(projectAt(next,'2028-02-01').peopleById.get('a').active,false);
+    assert.deepEqual(projectAt(next,'2028-02-01').items[0].shares,projectAt(p,'2028-02-01').items[0].shares);
+    assert.deepEqual(ledgerAt(next,'2028-02-01').balances,ledgerAt(p,'2028-02-01').balances);
+    assert.deepEqual(next.events.slice(0,-1),p.events);
+    assert.equal(cmd('deactivate',out,['--dry-run']).status,4);
+    writeFileSync(payload,JSON.stringify({personId:'a',date:'2028-02-01'}));
+    const returned=cmd('reactivate',out,['--output',back]);
+    assert.equal(returned.status,0,returned.stderr);
+    const final=JSON.parse(readFileSync(back,'utf8'));
+    assert.equal(projectAt(final,'2028-02-01').peopleById.get('a').active,true);
+    assert.ok(final.events.at(-1).order>next.events.at(-1).order);
+    assert.equal(final.versionHistory.entries.length,2);
+  } finally { rmSync(dir,{recursive:true,force:true}); }
+});
+
+test('CLI deletion uses existing all-history guard and requires explicit confirmation',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-delete-'));
+  try {
+    const input=join(dir,'p.json'), payload=join(dir,'payload.json'), out=join(dir,'out.json');
+    const withUnused=structuredClone(p);
+    withUnused.people.push({id:'c',name:'C'});
+    withUnused.events.push({id:'c-in',type:'person-added',personId:'c',date:'2028-01-01',order:1});
+    writeFileSync(input,JSON.stringify(withUnused));
+    const cmd=(mode)=>run(['people','delete','--input',input,'--payload',payload,...mode]);
+    writeFileSync(payload,JSON.stringify({personId:'a'}));
+    assert.equal(JSON.parse(cmd(['--dry-run']).stderr).error.code,'PERSON_IN_USE');
+    writeFileSync(payload,JSON.stringify({personId:'c'}));
+    const draft=structuredClone(withUnused);
+    draft.drafts.push({id:'future',data:{shares:{c:1}}});
+    writeFileSync(input,JSON.stringify(draft));
+    assert.equal(JSON.parse(cmd(['--dry-run']).stderr).error.code,'PERSON_IN_USE');
+    writeFileSync(input,JSON.stringify(withUnused));
+    const preview=cmd(['--dry-run']);
+    assert.equal(preview.status,0,preview.stderr);
+    assert.equal(JSON.parse(preview.stdout).data.deleted,true);
+    assert.equal(JSON.parse(cmd(['--output',out]).stderr).error.code,'CONFIRM_REQUIRED');
+    assert.equal(existsSync(out),false);
+    const result=cmd(['--output',out,'--confirm']);
+    assert.equal(result.status,0,result.stderr);
+    const saved=JSON.parse(readFileSync(out,'utf8'));
+    assert.deepEqual(saved.people,p.people);
+    assert.deepEqual(saved.events,p.events);
+    assert.deepEqual((await readPortableVersion(saved,saved.versionHistory.entries[0].id)).people,withUnused.people);
+    assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),withUnused);
+  } finally { rmSync(dir,{recursive:true,force:true}); }
+});

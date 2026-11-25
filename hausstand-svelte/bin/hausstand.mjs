@@ -10,7 +10,8 @@ import { todayISO } from '../src/lib/util.js';
 import { validISODate, createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
 import { exportProject } from '../src/lib/persistence.js';
-import { addPerson, renamePerson } from '../src/lib/personMutations.js';
+import { addPerson, renamePerson, changePersonStatus } from '../src/lib/personMutations.js';
+import { deleteUnusedPerson } from '../src/lib/personDeletion.js';
 import { message } from '../src/lib/i18n.js';
 
 const version = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -20,6 +21,9 @@ const commands = {
   'people list': 'List people visible at the selected date.',
   'people add': 'Add a person with an explicit move-in date.',
   'people rename': 'Change a person’s name without rewriting historical events.',
+  'people deactivate': 'Record a dated move-out; ownership and balances are unchanged.',
+  'people reactivate': 'Record a dated return of a former member.',
+  'people delete': 'Remove an unused person only; saving requires --confirm.',
   'people show': 'Show a person and holdings by stable ID.',
   'items list': 'List items visible at the selected date, including archived items.',
   'items show': 'Show an item, its value and share distribution by stable ID.',
@@ -44,10 +48,11 @@ const help = key => [
   '  --payload <file|->  Payment JSON: date, amountCents, debtorPersonId (payer),',
   '                     creditorPersonId (recipient), settlementKind (paid/external/waived), optional note.',
   '  --payload <file|->  Person JSON: name and date (people add), or personId and name (people rename).',
+  '                     For deactivate/reactivate: personId, date, optional reason; delete: personId.',
   '  --id <id>           Archive ID for versions restore.',
   '  --dry-run           Preview without changing files (write commands).',
   '  --output <file>     Save a NEW project file; never overwrite an existing path.',
-  '  --confirm           Confirm the real payment/noncash adjustment when saving.',
+  '  --confirm           Confirm a real payment/noncash adjustment or unused-person deletion when saving.',
   '  --help              Show command help.  --version prints the CLI version.',
   '', 'Example: node bin/hausstand.mjs balances show --input project.json --as-of 2026-11-24 --json',
   'Errors are JSON on stderr; exit 2 usage, 3 input, 4 project, 5 missing ID, 1 unexpected.',
@@ -61,7 +66,8 @@ class CliError extends Error {
 }
 const fail = (code, message, status) => { throw new CliError(code, message, status); };
 const listCommands = new Set(['people list','items list','events list','versions list']);
-const personWrites = new Set(['people add','people rename']);
+const statusWrites = new Set(['people deactivate','people reactivate']);
+const personWrites = new Set(['people add','people rename','people delete',...statusWrites]);
 const writeCommands = new Set(['payments record','versions restore',...personWrites]);
 const projected = new Set(['people list','people show','items list','items show','balances show']);
 const compareId = (a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
@@ -71,7 +77,7 @@ function options(args, key) {
     ...(listCommands.has(key) ? ['--offset','--limit'] : []),
     ...(['people show','items show','versions restore'].includes(key) ? ['--id'] : []),
     ...(writeCommands.has(key) ? ['--dry-run','--output'] : []),
-    ...(key === 'payments record' ? ['--payload','--confirm'] : personWrites.has(key) ? ['--payload'] : [])]);
+    ...(key === 'payments record' ? ['--payload','--confirm'] : personWrites.has(key) ? ['--payload',...(key === 'people delete' ? ['--confirm'] : [])] : [])]);
   while (args.length) {
     const flag = args.shift();
     if (!allowed.has(flag) || Object.hasOwn(result, flag)) fail('USAGE', 'Unknown, duplicate or inapplicable option: ' + flag);
@@ -93,6 +99,10 @@ function options(args, key) {
   }
   if (key === 'payments record') {
     if (result['--output'] && !result['--confirm']) fail('CONFIRM_REQUIRED','Confirm that the payment or noncash adjustment actually occurred with --confirm.');
+    if (result['--dry-run'] && result['--confirm']) fail('USAGE','Do not confirm a dry run.');
+  }
+  if (key === 'people delete') {
+    if (result['--output'] && !result['--confirm']) fail('CONFIRM_REQUIRED','Confirm deletion of the unused person with --confirm.');
     if (result['--dry-run'] && result['--confirm']) fail('USAGE','Do not confirm a dry run.');
   }
   for (const flag of ['--offset','--limit']) {
@@ -160,7 +170,7 @@ function validateChange(before, after) {
   if (problem) fail('MUTATION_REJECTED', message(problem.key,'en',problem.params || {}) + ' [' + problem.key + ']',4);
 }
 async function writeCommand(key, p, opts) {
-  let working, event, person;
+  let working, event, person, deleted = false;
   if (key === 'payments record') {
     const payload = await readJSON(opts['--payload']);
     const allowed = ['date','amountCents','debtorPersonId','creditorPersonId','settlementKind','note'];
@@ -172,16 +182,30 @@ async function writeCommand(key, p, opts) {
     working = { ...p, events: [...p.events,event] };
   } else if (personWrites.has(key)) {
     const payload = await readJSON(opts['--payload']);
-    const fields = key === 'people add' ? ['name','date'] : ['personId','name'];
+    const fields = key === 'people add' ? ['name','date'] : key === 'people rename' ? ['personId','name']
+      : statusWrites.has(key) ? ['personId','date'] : ['personId'];
+    const optional = statusWrites.has(key) ? ['reason'] : [];
     if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
-        Object.keys(payload).length !== fields.length || !fields.every(k => typeof payload[k] === 'string'))
+        Object.keys(payload).some(k => ![...fields,...optional].includes(k) || typeof payload[k] !== 'string') ||
+        !fields.every(k => Object.hasOwn(payload,k) && typeof payload[k] === 'string'))
       fail('INVALID_PAYLOAD','Provide the documented person fields as strings.',4);
     working = structuredClone(p);
-    try {
-      ({person,event} = key === 'people add' ? addPerson(working,payload) : renamePerson(working,payload));
-    } catch (error) {
-      if (error.message === 'PERSON_NOT_FOUND') fail('NOT_FOUND','No matching person ID.',5);
-      fail('INVALID_PERSON','Use a unique nonempty name and, for add, a real YYYY-MM-DD date.',4);
+    if (key === 'people delete') {
+      person = working.people.find(p => p.id === payload.personId);
+      if (!person) fail('NOT_FOUND','No matching person ID.',5);
+      const result = deleteUnusedPerson(working,payload.personId);
+      if (!result.allowed) fail('PERSON_IN_USE','This person has historical or other project references. Record a move-out instead.',4);
+      deleted = true;
+    } else {
+      try {
+        ({person,event} = key === 'people add' ? addPerson(working,payload)
+          : key === 'people rename' ? renamePerson(working,payload)
+          : changePersonStatus(working,{...payload,kind:key === 'people deactivate' ? 'deactivate' : 'reactivate'}));
+      } catch (error) {
+        if (error.message === 'PERSON_NOT_FOUND') fail('NOT_FOUND','No matching person ID.',5);
+        if (statusWrites.has(key)) fail('INVALID_PERSON_STATUS','Choose a real date on or after move-in and a valid membership transition.',4);
+        fail('INVALID_PERSON','Use a unique nonempty name and, for add, a real YYYY-MM-DD date.',4);
+      }
     }
   } else {
     if (!getVersionEntries(p).some(v=>v.id===opts['--id'])) fail('NOT_FOUND','Archive version ID was not found.',5);
@@ -191,7 +215,7 @@ async function writeCommand(key, p, opts) {
   validateChange(p,working);
   // Use the existing archive reader to verify all retained snapshots before
   // writing. No parallel compression/checksum implementation in this adapter.
-  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(person ? {person,...(event ? {event} : {})} : event ? {event} : {project:working})}};
+  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {project:working})}};
   try {
     const ids = new Set();
     for (const entry of getVersionEntries(p)) {
@@ -205,7 +229,7 @@ async function writeCommand(key, p, opts) {
   catch { fail('SAVE_FAILED','Could not prepare portable project history. No file was saved.',6); }
   await publishNewFile(opts['--output'],saved);
   return {source:'saved',data:{saved:true,output:opts['--output'],lastSavedAt:saved.lastSavedAt,
-    versionCount:getVersionEntries(saved).length,...(person ? {person,...(event ? {event} : {})} : event ? {event} : {restoredVersionId:opts['--id']})}};
+    versionCount:getVersionEntries(saved).length,...(person ? {person,...(event ? {event} : {}),...(deleted ? {deleted:true} : {})} : event ? {event} : {restoredVersionId:opts['--id']})}};
 }
 async function main(args) {
   if (!args.length || (args.length === 1 && args[0] === '--help')) { process.stdout.write(help()); return; }

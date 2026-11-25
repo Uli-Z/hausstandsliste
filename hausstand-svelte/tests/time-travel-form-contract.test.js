@@ -10,9 +10,16 @@ test('new dated forms use the selected effective date; saved item drafts retain 
   for (const type of ['personAdd','personStatus','itemAdd','itemContinue','shareSet','itemEnd']) {
     assert.ok(router.includes("'"+type+"'"),type);
   }
-  for (const type of ['person-added','person-deactivated','person-reactivated','item-added','item-ended','shares-set']) {
+  for (const type of ['item-added','item-ended','shares-set']) {
     assert.ok(router.includes("'"+type+"'"),type);
   }
+  const personMutations = source('src/lib/personMutations.js');
+  for (const type of ['person-added','person-deactivated','person-reactivated']) {
+    assert.ok(personMutations.includes("'"+type+"'"),type);
+  }
+  assert.ok(router.includes('personStatusProblem(project,'));
+  assert.ok(router.includes('changePersonStatus(p, { personId: person.id, date: effectiveDate'));
+  assert.ok(router.includes('applyPersonAdd(p, { name, date: effectiveDate'));
   assert.ok(router.includes('effectiveDate = draft?.data?.effectiveDate || asOfDate'));
   assert.ok(router.includes('bind:value={effectiveDate}'));
   assert.ok(router.includes('id="event-effective-date"'));

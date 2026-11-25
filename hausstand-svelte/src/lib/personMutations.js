@@ -1,5 +1,6 @@
 import { uid, nextEventOrder } from './util.js';
 import { validISODate } from './claimSettlement.js';
+import { projectAt } from './projector.js';
 
 // Shared domain operations. Call inside the frontend's guarded transaction.
 export const normalizePersonName = value => String(value || '').trim().toLocaleLowerCase('de');
@@ -30,4 +31,27 @@ export function renamePerson(project, { personId, name }) {
   if (!person) throw new Error('PERSON_NOT_FOUND');
   person.name = checkedName(project, name, personId);
   return { person };
+}
+
+/** Membership changes are dated facts, independent of ownership and payment. */
+export function personStatusProblem(project, { personId, date, kind }) {
+  if (!(project.people || []).some(person => person.id === personId)) return 'PERSON_NOT_FOUND';
+  if (!validISODate(date)) return 'INVALID_PERSON_DATE';
+  if (kind !== 'deactivate' && kind !== 'reactivate') return 'INVALID_PERSON_STATUS';
+  if (!(project.events || []).some(event => event.type === 'person-added' &&
+      event.personId === personId && event.date <= date)) return 'PERSON_NOT_YET_ADDED';
+  const active = !!projectAt(project,date).peopleById.get(personId)?.active;
+  if (active !== (kind === 'deactivate')) return 'INVALID_PERSON_STATUS';
+  return null;
+}
+
+export function changePersonStatus(project, { personId, date, kind, reason = '' }) {
+  const problem = personStatusProblem(project,{personId,date,kind});
+  if (problem) throw new Error(problem);
+  if (typeof reason !== 'string') throw new Error('INVALID_PERSON_REASON');
+  const person = project.people.find(p => p.id === personId);
+  const type = kind === 'deactivate' ? 'person-deactivated' : 'person-reactivated';
+  const event = createEvent(type,date,{personId,reason:reason.trim()},project);
+  project.events.push(event);
+  return {person,event};
 }

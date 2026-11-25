@@ -12,7 +12,7 @@ cat project.json | node bin/hausstand.mjs project validate --input -
 
 This is a local CLI sharing the browser's domain, projector, ledger and event ordering. Install the shared application dependencies with `npm ci` first (the shared localization module imports `svelte/store`). It reads current unencrypted portable project files only. It supports explicit non-overwriting payment saves and archived-version restoration. It does not yet decrypt or connect to PHP. `project validate` checks the same outer file structure as the browser import. All successful data commands return one JSON object with `responseVersion: 1`, `command`, `source` (stored or projection), optional `asOfDate`, and `data`. List data has `total, offset, limit, rows`. Derived monetary amounts use integer cents; raw stored data retains the existing file schema. Proposals require group agreement and do not record payments. Errors are JSON on stderr, with empty stdout and nonzero exit status. See command help for options; no interactive prompt.
 
-Remaining Q23: other person status/deletion, item/ownership mutations, complete validation and encryption support, general output files, installable package, agent skill discovery/show/export and full acceptance.
+Remaining Q23: person event corrections, item/ownership mutations, complete validation and encryption support, general output files, installable package, agent skill discovery/show/export and full acceptance.
 
 ## Shared library boundary
 
@@ -41,3 +41,9 @@ Dry runs return `source: "working", data.saved: false`; a preview event's genera
 
 `people add` accepts `{"name":"Clara","date":"2028-01-01"}`; `people rename` accepts `{"personId":"PERSON_ID","name":"Clara New"}`.
 Both accept `--input` and `--payload` (one may be stdin), and exactly one of `--dry-run` or `--output <new-file>`. They return the person, and for add the new dated event. A rename changes master data only, preserving existing events and history. Names must be nonempty and unique under the same trimmed case-insensitive comparison as the UI. Both use `src/lib/personMutations.js` and the common transaction guard and portable save path. No payment confirmation flag is needed for these operations.
+
+## Move out, return and remove unused people
+
+`people deactivate` and `people reactivate` accept `{"personId":"PERSON_ID","date":"2028-02-01","reason":"optional note"}`. They use the same membership transition check and event factory as the browser. The date must be on or after move-in and the person must be active for move-out or inactive for return at the end of that date's existing events. No ownership or payment changes are implied. If omitted, the CLI reason is empty; the browser supplies a localized default.
+
+`people delete` accepts `{"personId":"PERSON_ID"}`. Preview with `--dry-run`; saving requires `--output next.json --confirm`. The shared all-history reference guard rejects used people, including references in future events and drafts, with PERSON_IN_USE. Only the unused master record and its move-in event are removed from the working state; the previous version is retained in the archive. This is not a privacy erasure tool. Responses include the removed person and `deleted: true` (preview additionally has `saved: false`).

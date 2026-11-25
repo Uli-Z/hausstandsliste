@@ -6,7 +6,7 @@
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { normShares, money } from '../src/lib/domain.js';
   import { allocateCents } from '../src/lib/ledger.js';
-  import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson } from '../src/lib/personMutations.js';
+  import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus } from '../src/lib/personMutations.js';
   import { personDeletionEligibility, deleteUnusedPerson } from '../src/lib/personDeletion.js';
   import RedistributionDialog from './RedistributionDialog.svelte';
   import EventEditDialog from './EventEditDialog.svelte';
@@ -58,13 +58,8 @@
   $: itemAvailable = !needsActiveItem || !!entryProjection.activeItems.find(item => item.id === dialog.itemId);
   $: itemNeedsOwners = ['itemAdd', 'itemContinue'].includes(dialog?.type);
   $: peopleAvailable = !itemNeedsOwners || entryProjection.people.some(person => person.active);
-  $: statusTargetValid = dialog?.type !== 'personStatus' || (
-    (project.events || []).some(event => event.type === 'person-added' &&
-      event.personId === dialog.personId && event.date <= effectiveDate) &&
-    (dialog.kind === 'deactivate'
-      ? !!entryProjection.peopleById.get(dialog.personId)?.active
-      : !entryProjection.peopleById.get(dialog.personId)?.active)
-  );
+  $: statusTargetValid = dialog?.type !== 'personStatus' ||
+    !personStatusProblem(project, { personId: dialog.personId, date: effectiveDate, kind: dialog.kind });
   $: itemCost = Number(initialValue);
   $: itemCostCents = Math.round(itemCost * 100);
   $: itemCostValid = !itemNeedsOwners || (Number.isFinite(itemCost) && itemCost >= 0 &&
@@ -258,10 +253,9 @@
 
   function savePersonStatus() {
     if (!canSubmitDated || !person) return;
-    const type = dialog.kind === 'deactivate' ? 'person-deactivated' : 'person-reactivated';
     const reasonText = reason.trim() || $translate(dialog.kind === 'deactivate' ? 'timeTravel.moveOut' : 'timeTravel.rejoin');
     const saved = appState.mutateProject(p => {
-      p.events.push(createEvent(type, effectiveDate, { personId: person.id, reason: reasonText }, p));
+      changePersonStatus(p, { personId: person.id, date: effectiveDate, kind: dialog.kind, reason: reasonText });
     });
     finishDatedChange(saved);
   }
