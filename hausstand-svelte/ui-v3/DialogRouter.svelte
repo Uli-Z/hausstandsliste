@@ -6,6 +6,7 @@
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { normShares, money } from '../src/lib/domain.js';
   import { allocateCents } from '../src/lib/ledger.js';
+  import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson } from '../src/lib/personMutations.js';
   import { personDeletionEligibility, deleteUnusedPerson } from '../src/lib/personDeletion.js';
   import RedistributionDialog from './RedistributionDialog.svelte';
   import EventEditDialog from './EventEditDialog.svelte';
@@ -118,13 +119,11 @@
     close();
     if (confirmedDate > asOfDate) appState.setAsOfDate(confirmedDate);
   }
-  const normalizePersonName = value => String(value || '').trim().toLocaleLowerCase('de');
-
   $: normalizedName = normalizePersonName(name);
   $: duplicatePerson = dialog?.type === 'personAdd'
-    ? (project.people || []).find(p => normalizePersonName(p.name) === normalizedName)
+    ? duplicatePersonName(project, name)
     : (dialog?.type === 'personMeta'
-      ? (project.people || []).find(p => String(p.id) !== String(person?.id) && normalizePersonName(p.name) === normalizedName)
+      ? duplicatePersonName(project, name, person?.id)
       : null);
   $: duplicateProjection = duplicatePerson ? entryProjection.peopleById.get(duplicatePerson.id) : null;
   $: duplicateIsActive = !!duplicateProjection?.active;
@@ -197,17 +196,13 @@
   function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; shareFinancialMode = 'derived'; financedByPersonId = ''; reason = ''; initialValue = 0; valuationType = 'linear'; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
   function addPerson() {
     if (!canSavePersonName) return;
-    const personId = uid('person');
     if (!dateValid) return;
-    const saved = appState.mutateProject(p => {
-      p.people.push({ id: personId, name: name || 'Neue Person' });
-      p.events.push(createEvent('person-added', effectiveDate, { personId, name: name || 'Neue Person' }, p));
-    });
+    const saved = appState.mutateProject(p => { applyPersonAdd(p, { name, date: effectiveDate }); });
     finishDatedChange(saved);
   }
   function savePersonMeta() {
     if (!canSavePersonName) return;
-    const saved = appState.mutateProject(p => { const x = p.people.find(y => y.id === person.id); if (x) x.name = name || x.name; });
+    const saved = appState.mutateProject(p => { renamePerson(p, { personId: person.id, name }); });
     if (saved) close();
   }
 

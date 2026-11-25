@@ -10,6 +10,7 @@ import { todayISO } from '../src/lib/util.js';
 import { validISODate, createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
 import { exportProject } from '../src/lib/persistence.js';
+import { addPerson, renamePerson } from '../src/lib/personMutations.js';
 import { message } from '../src/lib/i18n.js';
 
 const version = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -17,6 +18,8 @@ const commands = {
   'project validate': 'Check the supported project file structure (not a full archive or financial audit).',
   'project show': 'Return the stored project, including its embedded version history.',
   'people list': 'List people visible at the selected date.',
+  'people add': 'Add a person with an explicit move-in date.',
+  'people rename': 'Change a person’s name without rewriting historical events.',
   'people show': 'Show a person and holdings by stable ID.',
   'items list': 'List items visible at the selected date, including archived items.',
   'items show': 'Show an item, its value and share distribution by stable ID.',
@@ -40,6 +43,7 @@ const help = key => [
   '  --json              Versioned JSON on stdout (also the default).',
   '  --payload <file|->  Payment JSON: date, amountCents, debtorPersonId (payer),',
   '                     creditorPersonId (recipient), settlementKind (paid/external/waived), optional note.',
+  '  --payload <file|->  Person JSON: name and date (people add), or personId and name (people rename).',
   '  --id <id>           Archive ID for versions restore.',
   '  --dry-run           Preview without changing files (write commands).',
   '  --output <file>     Save a NEW project file; never overwrite an existing path.',
@@ -57,7 +61,8 @@ class CliError extends Error {
 }
 const fail = (code, message, status) => { throw new CliError(code, message, status); };
 const listCommands = new Set(['people list','items list','events list','versions list']);
-const writeCommands = new Set(['payments record','versions restore']);
+const personWrites = new Set(['people add','people rename']);
+const writeCommands = new Set(['payments record','versions restore',...personWrites]);
 const projected = new Set(['people list','people show','items list','items show','balances show']);
 const compareId = (a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 function options(args, key) {
@@ -66,7 +71,7 @@ function options(args, key) {
     ...(listCommands.has(key) ? ['--offset','--limit'] : []),
     ...(['people show','items show','versions restore'].includes(key) ? ['--id'] : []),
     ...(writeCommands.has(key) ? ['--dry-run','--output'] : []),
-    ...(key === 'payments record' ? ['--payload','--confirm'] : [])]);
+    ...(key === 'payments record' ? ['--payload','--confirm'] : personWrites.has(key) ? ['--payload'] : [])]);
   while (args.length) {
     const flag = args.shift();
     if (!allowed.has(flag) || Object.hasOwn(result, flag)) fail('USAGE', 'Unknown, duplicate or inapplicable option: ' + flag);
@@ -82,9 +87,11 @@ function options(args, key) {
     if (Boolean(result['--dry-run']) === Boolean(result['--output'])) fail('USAGE','Choose exactly one: --dry-run or --output <new-file>.');
     if (result['--output'] === '-') fail('USAGE','Use --dry-run for a stdout preview, or specify a new output file.');
   }
-  if (key === 'payments record') {
+  if (key === 'payments record' || personWrites.has(key)) {
     if (!result['--payload']) fail('USAGE','Provide --payload <file|->.');
     if (result['--input'] === '-' && result['--payload'] === '-') fail('USAGE','Project and payload cannot both use stdin.');
+  }
+  if (key === 'payments record') {
     if (result['--output'] && !result['--confirm']) fail('CONFIRM_REQUIRED','Confirm that the payment or noncash adjustment actually occurred with --confirm.');
     if (result['--dry-run'] && result['--confirm']) fail('USAGE','Do not confirm a dry run.');
   }
@@ -153,7 +160,7 @@ function validateChange(before, after) {
   if (problem) fail('MUTATION_REJECTED', message(problem.key,'en',problem.params || {}) + ' [' + problem.key + ']',4);
 }
 async function writeCommand(key, p, opts) {
-  let working, event;
+  let working, event, person;
   if (key === 'payments record') {
     const payload = await readJSON(opts['--payload']);
     const allowed = ['date','amountCents','debtorPersonId','creditorPersonId','settlementKind','note'];
@@ -163,6 +170,19 @@ async function writeCommand(key, p, opts) {
     try { event = createClaimSettlementEvent(p,payload); }
     catch { fail('INVALID_PAYMENT','Check payment date, positive integer cents, distinct person IDs, note and settlement kind.',4); }
     working = { ...p, events: [...p.events,event] };
+  } else if (personWrites.has(key)) {
+    const payload = await readJSON(opts['--payload']);
+    const fields = key === 'people add' ? ['name','date'] : ['personId','name'];
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+        Object.keys(payload).length !== fields.length || !fields.every(k => typeof payload[k] === 'string'))
+      fail('INVALID_PAYLOAD','Provide the documented person fields as strings.',4);
+    working = structuredClone(p);
+    try {
+      ({person,event} = key === 'people add' ? addPerson(working,payload) : renamePerson(working,payload));
+    } catch (error) {
+      if (error.message === 'PERSON_NOT_FOUND') fail('NOT_FOUND','No matching person ID.',5);
+      fail('INVALID_PERSON','Use a unique nonempty name and, for add, a real YYYY-MM-DD date.',4);
+    }
   } else {
     if (!getVersionEntries(p).some(v=>v.id===opts['--id'])) fail('NOT_FOUND','Archive version ID was not found.',5);
     try { working = requireProjectFile(await readPortableVersion(p,opts['--id'])); }
@@ -171,7 +191,7 @@ async function writeCommand(key, p, opts) {
   validateChange(p,working);
   // Use the existing archive reader to verify all retained snapshots before
   // writing. No parallel compression/checksum implementation in this adapter.
-  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(event ? {event} : {project:working})}};
+  if (opts['--dry-run']) return {source:'working',data:{saved:false, ...(person ? {person,...(event ? {event} : {})} : event ? {event} : {project:working})}};
   try {
     const ids = new Set();
     for (const entry of getVersionEntries(p)) {
@@ -185,7 +205,7 @@ async function writeCommand(key, p, opts) {
   catch { fail('SAVE_FAILED','Could not prepare portable project history. No file was saved.',6); }
   await publishNewFile(opts['--output'],saved);
   return {source:'saved',data:{saved:true,output:opts['--output'],lastSavedAt:saved.lastSavedAt,
-    versionCount:getVersionEntries(saved).length,...(event ? {event} : {restoredVersionId:opts['--id']})}};
+    versionCount:getVersionEntries(saved).length,...(person ? {person,...(event ? {event} : {})} : event ? {event} : {restoredVersionId:opts['--id']})}};
 }
 async function main(args) {
   if (!args.length || (args.length === 1 && args[0] === '--help')) { process.stdout.write(help()); return; }

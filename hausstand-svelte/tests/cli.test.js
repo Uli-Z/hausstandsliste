@@ -129,3 +129,41 @@ test('CLI payment uses shared guard and rejects malformed payloads without writi
     }
   } finally { rmSync(dir,{recursive:true,force:true}); }
 });
+
+test('CLI shared person add and rename retain historical event and archive', async () => {
+  const dir = mkdtempSync(join(tmpdir(),'hausstand-person-'));
+  try {
+    const input = join(dir,'project.json'), payload = join(dir,'payload.json'), added = join(dir,'added.json'), renamed = join(dir,'renamed.json');
+    writeFileSync(input,JSON.stringify(p));
+    writeFileSync(payload,JSON.stringify({name:'Clara',date:'2028-01-01'}));
+    const args = ['people','add','--input',input,'--payload',payload];
+    const preview=run([...args,'--dry-run']);
+    assert.equal(preview.status,0,preview.stderr);
+    assert.equal(JSON.parse(preview.stdout).data.event.type,'person-added');
+    assert.equal(existsSync(added),false);
+    const result=run([...args,'--output',added]);
+    assert.equal(result.status,0,result.stderr);
+    const next=JSON.parse(readFileSync(added,'utf8'));
+    const person=next.people.at(-1);
+    assert.equal(person.name,'Clara');
+    assert.equal(projectAt(next,'2027-12-31').peopleById.get(person.id)?.active || false,false);
+    assert.equal(projectAt(next,'2028-01-01').peopleById.get(person.id).active,true);
+    assert.deepEqual((await readPortableVersion(next,next.versionHistory.entries[0].id)).events,p.events);
+    writeFileSync(payload,JSON.stringify({personId:person.id,name:'Clara New'}));
+    const rename=run(['people','rename','--input',added,'--payload',payload,'--output',renamed]);
+    assert.equal(rename.status,0,rename.stderr);
+    const final=JSON.parse(readFileSync(renamed,'utf8'));
+    assert.equal(final.people.at(-1).name,'Clara New');
+    assert.deepEqual(final.events,next.events);
+    assert.equal(final.versionHistory.entries.length,2);
+    assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
+    for (const bad of [{name:' a ',date:'2028-01-01'},{name:'D',date:'2028-02-30'},{name:' ',date:'2028-01-01'}]) {
+      writeFileSync(payload,JSON.stringify(bad));
+      const rejected=run([...args,'--dry-run']);
+      assert.equal(rejected.status,4,rejected.stderr);
+      assert.equal(JSON.parse(rejected.stderr).error.code,'INVALID_PERSON');
+    }
+    writeFileSync(payload,JSON.stringify({personId:'missing',name:'Other'}));
+    assert.equal(run(['people','rename','--input',added,'--payload',payload,'--dry-run']).status,5);
+  } finally { rmSync(dir,{recursive:true,force:true}); }
+});
