@@ -8,7 +8,7 @@ import { hasOwner, unownedActiveTransitions } from '../src/lib/ownershipValidati
 const fixed = { type: 'fixed', minimumValue: 0 };
 const added = (id, shares, value = 100, order = 1) => ({
   id: 'add-' + id, type: 'item-added', date: '2026-01-01', order, itemId: id,
-  initialValue: value, valuation: fixed, shares
+  initialValue: value, valuation: fixed, shares, financialMode:'derived', purchaseContributionsCents:{[Object.keys(shares)[0] || 'anna']:Math.round(value*100)}
 });
 const setShares = (id, itemId, shares, date = '2026-02-01', order = 1) => ({
   id, type: 'shares-set', date, order, itemId, shares, financialMode: 'derived'

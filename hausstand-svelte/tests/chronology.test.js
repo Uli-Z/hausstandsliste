@@ -9,7 +9,7 @@ const date = '2026-02-01';
 const itemAdded = () => ({
   id: 'acquisition', type: 'item-added', itemId: 'sofa', date: '2026-01-01', order: 1,
   initialValue: 100, valuation: { type: 'fixed', minimumValue: 0 },
-  shares: { anna: 1 }, financialMode: 'none'
+  shares: { anna: 1 }, financialMode: 'derived', purchaseContributionsCents:{anna:10000}
 });
 const transfer = (id, shares, onDate = date, order = 1, financialMode = 'derived') => ({
   id, type: 'shares-set', itemId: 'sofa', date: onDate, order, shares, financialMode

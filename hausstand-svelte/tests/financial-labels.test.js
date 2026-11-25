@@ -32,8 +32,8 @@ test('A06: historical ownership event never displays a payment as having taken p
   assert.match(gift, /ohne neuen Geldanspruch/i);
   assert.match(gift, /ohne Zahlung/i);
   assert.match(FINANCIAL_EVENT_NOTE({ financialMode: 'none' }), /ohne neuen Geldanspruch/i);
-  assert.match(ITEM_FUNDING_NOTE({ financialMode: 'derived', financedByPersonId: 'anna' }), /noch nicht gebucht/i);
-  assert.match(ITEM_FUNDING_NOTE({ financedByPersonId: 'anna' }), /kein automatischer Geldanspruch/i);
+  assert.match(ITEM_FUNDING_NOTE({ financialMode: 'derived', purchaseContributionsCents:{anna:10000} }), /noch nicht gebucht/i);
+  assert.match(ITEM_FUNDING_NOTE({ financialMode:'none' }), /kein automatischer Geldanspruch/i);
 });
 
 test('A06: zero net balance does not certify a paid debt', () => {
@@ -46,10 +46,10 @@ test('A06: zero net balance does not certify a paid debt', () => {
     items: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }],
     events: [
       { id: 'purchase-a', type: 'item-added', itemId: 'a', date: '2026-01-01', order: 1,
-        initialValue: 100, shares: { ben: 1 }, financedByPersonId: 'anna',
+        initialValue: 100, shares: { ben: 1 }, purchaseContributionsCents:{anna:10000},
         valuation: { type: 'fixed' }, financialMode: 'derived' },
       { id: 'purchase-b', type: 'item-added', itemId: 'b', date: '2026-01-01', order: 2,
-        initialValue: 100, shares: { anna: 1 }, financedByPersonId: 'ben',
+        initialValue: 100, shares: { anna: 1 }, purchaseContributionsCents:{ben:10000},
         valuation: { type: 'fixed' }, financialMode: 'derived' }
     ]
   };

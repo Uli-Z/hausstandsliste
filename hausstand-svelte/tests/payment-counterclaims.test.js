@@ -9,7 +9,7 @@ const fixed = { type: 'fixed', minimumValue: 0 };
 const purchase = (id, amount, shares, payer, date = '2026-01-10') => ({
   id: 'purchase-' + id, type: 'item-added', date, order: 1, itemId: id,
   initialValue: amount, shares, valuation: fixed,
-  financialMode: 'derived', financedByPersonId: payer
+  financialMode: 'derived', purchaseContributionsCents:{[payer]:Math.round(amount*100)}
 });
 const makeProject = () => ({
   people: ['anna', 'ben', 'clara'].map(id => ({ id, name: id })),

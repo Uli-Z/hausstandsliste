@@ -70,7 +70,7 @@ test('agent discovers skill, creates household, settles a purchase and restores 
       name: 'Shared table', date: purchaseDate, initialValueCents: 30000,
       valuation: { type: 'fixed', minimumValueCents: 0 },
       shares: { [ids.Anna]: 1, [ids.Ben]: 1, [ids.Clara]: 1 },
-      financedByPersonId: ids.Anna
+      purchaseContributionsCents: {[ids.Anna]:30000}
     });
     const purchaseFile = current;
     const balances = asOf => Object.fromEntries(

@@ -20,11 +20,11 @@ function sampleProject() {
       {
         id: 'fridge-added', type: 'item-added', itemId: 'fridge', date: '2020-01-01', order: 3,
         initialValue: 300, valuation: { type: 'linear', durationYears: 1, minimumValue: 0 },
-        shares: { anna: 1 }, financedByPersonId: 'anna', financialMode: 'derived'
+        shares: { anna: 1 }, purchaseContributionsCents:{anna:30000}, financialMode: 'derived'
       },
       {
         id: 'lamp-added', type: 'item-added', itemId: 'lamp', date: '2020-01-01', order: 4,
-        initialValue: 0, valuation: { type: 'fixed', minimumValue: 0 }, shares: { ben: 1 }
+        initialValue: 0, valuation: { type: 'fixed', minimumValue: 0 }, shares: { ben: 1 }, financialMode:'derived', purchaseContributionsCents:{ben:0}
       }
     ]
   };
@@ -91,7 +91,7 @@ test('A02: departed creditor with zero holdings and an 80 EUR claim stays select
       {
         id: 'desk-buy', type: 'item-added', itemId: 'desk', date: '2026-01-02', order: 1,
         initialValue: 80, valuation: { type: 'fixed', minimumValue: 0 }, shares: { ben: 1 },
-        financialMode: 'derived', financedByPersonId: 'anna'
+        financialMode: 'derived', purchaseContributionsCents:{anna:8000}
       },
       { id: 'anna-exit', type: 'person-deactivated', personId: 'anna', date: '2026-02-01', order: 1, reason: 'Auszug' }
     ]

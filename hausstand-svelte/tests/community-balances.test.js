@@ -11,7 +11,7 @@ const project = (people = ['anna', 'ben', 'clara']) => ({
 const buy = (p, id, value, shares, payer, date = '2026-01-01') => p.events.push({
   id: 'purchase-' + id, type: 'item-added', date, order: 1, itemId: id,
   initialValue: value, valuation: { type: 'fixed', minimumValue: 0 },
-  shares, financedByPersonId: payer, financialMode: 'derived'
+  shares, purchaseContributionsCents:{[payer]:Math.round(value*100)}, financialMode: 'derived'
 });
 const pay = (p, from, to, cents, date = '2026-01-02') => p.events.push(
   createClaimSettlementEvent(p, {

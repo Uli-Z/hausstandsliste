@@ -33,7 +33,7 @@ const fixture = (count = 1) => ({
     ...Array.from({length:count}, (_,i) => ({
       id:'purchase'+i,type:'item-added',itemId:'i'+String(i).padStart(5,'0'),
       date:'2026-01-02',order:i+1,initialValue:10,valuation:{type:'fixed',minimumValue:0},
-      shares:{a:1,b:1},financialMode:'derived',financedByPersonId:'a'
+      shares:{a:1,b:1},financialMode:'derived',purchaseContributionsCents:{a:1000}
     })),
     {id:'payment',type:'claim-settlement-recorded',date:'2026-01-03',order:1,
       amountCents:100,debtorPersonId:'b',creditorPersonId:'a',settlementKind:'paid'}
@@ -52,7 +52,7 @@ test('explicit stored-data audit rejects corrupted historical rows without rewri
     p => p.events[2].shares={a:-1,b:1},
     p => p.events[2].shares={},
     p => p.events[2].itemId='missing',
-    p => p.events[2].financedByPersonId='missing',
+    p => p.events[2].purchaseContributionsCents={missing:1000},
     p => p.events[2].financialMode='invented',
     p => p.events[2].type='unknown',
     p => p.events.at(-1).amountCents=-100,

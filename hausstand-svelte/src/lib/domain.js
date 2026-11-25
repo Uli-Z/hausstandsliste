@@ -1,4 +1,3 @@
-import { purchaseEventProblem } from './purchaseFinancing.js';
 import { nowISO, todayISO } from './util.js';
 import { formatMoney, formatPercent } from './i18n.js';
 
@@ -50,9 +49,9 @@ export const requireProjectFile = value => {
       || !Array.isArray(value.versionHistory.entries)) {
     throw new Error('Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.');
   }
-  const people = new Set(value.people.map(p=>p.id));
   const successors = new Set(value.items.filter(i=>i.predecessorItemId).map(i=>i.id));
-  if (value.events.some(e=>e.type==='item-added' && purchaseEventProblem(e,people,successors.has(e.itemId)))) {
+  if (value.events.some(e=>e.type==='item-added' && !successors.has(e.itemId) &&
+      !Object.hasOwn(e,'purchaseContributionsCents'))) {
     throw new Error('Projektdatei enthält Anschaffungen ohne gültige Kaufbeiträge. Dieses Dateiformat wird nicht unterstützt.');
   }
   return value;

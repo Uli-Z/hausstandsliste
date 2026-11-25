@@ -16,7 +16,7 @@ const p = {schemaVersion:1,currency:'EUR',community:{name:'Test'},lastSavedAt:'2
     {id:'a1',type:'person-added',personId:'a',date:'2026-01-01',order:1},
     {id:'b1',type:'person-added',personId:'b',date:'2026-01-01',order:2},
     {id:'buy',type:'item-added',itemId:'i',date:'2026-01-02',order:1,initialValue:123.45,
-      valuation:{type:'fixed',minimumValue:0},shares:{a:1,b:1},financialMode:'derived',financedByPersonId:'a'},
+      valuation:{type:'fixed',minimumValue:0},shares:{a:1,b:1},financialMode:'derived',purchaseContributionsCents:{a:12345}},
     {id:'pay',type:'claim-settlement-recorded',date:'2027-01-01',order:1,amountCents:1248,
       debtorPersonId:'b',creditorPersonId:'a',settlementKind:'paid'}
   ]};
@@ -243,7 +243,7 @@ test('CLI item lifecycle and redistribution use shared valuation, ownership and 
       writeFileSync(payload,JSON.stringify(data));
       return run([...command.split(' '),'--input',source,'--payload',payload,...(target?['--output',target]:['--dry-run'])]);
     };
-    const purchase={name:'Desk',date:'2026-06-01',initialValueCents:30000,valuation:{type:'linear',durationYears:6,minimumValueCents:5000},shares:{a:1,b:1},financedByPersonId:'a'};
+    const purchase={name:'Desk',date:'2026-06-01',initialValueCents:30000,valuation:{type:'linear',durationYears:6,minimumValueCents:5000},shares:{a:1,b:1},purchaseContributionsCents:{a:30000}};
     const out=join(dir,'added.json');
     assert.equal(call('items add',{...purchase,shares:{missing:1}},input).status,4);
     assert.equal(call('items add',{...purchase,shares:{a:-1}},input).status,4);
@@ -409,7 +409,7 @@ test('CLI draft creation, replacement, execution and deletion share browser draf
     const exec=(source,id,mode)=>run(['drafts','execute','--input',source,'--id',id,...mode]);
     assert.equal(exec(a,draft.id,['--dry-run']).status,4,'incomplete draft cannot execute');
     const second=put(a,{...initial,id:draft.id,data:{...initial.data,name:'Table',initialValueCents:30000,
-      valuation:{type:'fixed',minimumValueCents:0},shares:{a:1,b:1},financedByPersonId:'a'}},b);
+      valuation:{type:'fixed',minimumValueCents:0},shares:{a:1,b:1},purchaseContributionsCents:{a:30000}}},b);
     assert.equal(second.status,0,second.stderr);
     assert.equal(JSON.parse(second.stdout).data.draft.createdAt,draft.createdAt);
     assert.equal(exec(b,draft.id,['--dry-run']).status,0);

@@ -22,7 +22,7 @@ function fixture() {
     items: [{ id: 'table', name: 'Table' }],
     events: [{ id: 'purchase', type: 'item-added', itemId: 'table', date: '2026-01-01',
       order: 1, initialValue: 100, valuation: { type: 'fixed', minimumValue: 0 },
-      shares: { anna: 1, ben: 1 }, financialMode: 'derived', financedByPersonId: 'anna' }],
+      shares: { anna: 1, ben: 1 }, financialMode: 'derived', purchaseContributionsCents:{anna:10000} }],
     drafts: [], lastSavedAt: '2026-01-01T10:00:00.000Z',
     versionHistory: { format: 'portable-v1', entries: [] }
   };
@@ -86,7 +86,6 @@ test('Q06: edited purchases cannot persist negative or sub-cent values', () => {
   }
   assert.equal(mutationProblem(p, { ...p, events: [{ ...p.events[0], initialValue: 12.48 }] })?.key,'errors.invalidPurchaseContributions');
   const corrected={...p.events[0], initialValue:12.48,purchaseContributionsCents:{anna:1248}};
-  delete corrected.financedByPersonId;
   assert.equal(mutationProblem(p, {...p, events:[corrected]}),null);
 });
 

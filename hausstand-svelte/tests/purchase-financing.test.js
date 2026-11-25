@@ -43,7 +43,7 @@ test('Q31 opt-in payments are independent, dated and atomic',()=>{
   assert.equal(projectMutationProblem(p,invalid).key,'errors.invalidPurchaseContributions');
 });
 
-test('Q31 legacy unknown funding stays unknown; new direct purchase without funding is rejected',()=>{
+test('Q31 incomplete purchases are rejected without compatibility fallback',()=>{
   const p=fixture();
   assert.throws(()=>addItem(p,{...payload,purchaseContributionsCents:undefined}));
   const unknown={id:'old',type:'item-added',itemId:'old-item',date,order:2,
@@ -51,7 +51,6 @@ test('Q31 legacy unknown funding stays unknown; new direct purchase without fund
   const imported={...p,items:[{id:'old-item',name:'Old'}],events:[...p.events,unknown]};
   assert.equal(ledgerAt(imported,date).claims.length,0);
   assert.equal(projectMutationProblem(p,imported).key,'errors.invalidPurchaseContributions');
-  assert.equal(projectMutationProblem(p,imported,{allowHistoricalUnknownFunding:true}),null);
 });
 test('Q31 partial and overpayments remain independent of the new purchase',()=>{
   const p=fixture();

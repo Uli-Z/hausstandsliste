@@ -10,7 +10,7 @@ const project = events => ({
 });
 const item = (id, value, shares, date = '2026-01-01', extra = {}) => ({
   id: 'create-' + id, type: 'item-added', itemId: id, date, order: 1,
-  initialValue: value, valuation: fixed, shares, ...extra
+  initialValue: value, valuation: fixed, shares, financialMode:'derived', purchaseContributionsCents:allocateCents(Math.round(value*100),shares), ...extra
 });
 const transfer = (id, itemId, shares, date = '2026-02-01', order = 1, extra = {}) => ({
   id, type: 'shares-set', itemId, date, order, shares, financialMode: 'derived', ...extra
@@ -37,6 +37,7 @@ test('counterclaims offset without a persisted settlement flag', () => {
 test('amount changes and deletion immediately recalculate debts', () => {
   const events = scenario();
   events[0].initialValue = 150;
+  events[0].purchaseContributionsCents = {ben:15000};
   assert.equal(ledgerAt(project(events), '2026-03-01').pairwise[0].amountCents, 3000);
   const withoutPurchase = scenario().filter(e => e.id !== 'buy200');
   assert.deepEqual(ledgerAt(project(withoutPurchase), '2026-03-01').pairwise, [
@@ -69,11 +70,11 @@ test('removing one owner yields proportional debts of remaining owners', () => {
 
 test('initial funding creates claims only when explicitly attributed', () => {
   const funding = item('one', 120, { anna: 1, ben: 1, clara: 1 }, '2026-01-01',
-    { financedByPersonId: 'anna', financialMode: 'derived' });
+    { purchaseContributionsCents:{anna:12000}, financialMode: 'derived' });
   assert.deepEqual(deriveClaims(project([funding]), '2026-03-01').map(c => [c.debtorPersonId, c.amountCents]), [
     ['ben', 4000], ['clara', 4000]
   ]);
-  delete funding.financedByPersonId;
+  funding.purchaseContributionsCents = {anna:4000,ben:4000,clara:4000};
   assert.deepEqual(deriveClaims(project([funding]), '2026-03-01'), []);
 });
 
