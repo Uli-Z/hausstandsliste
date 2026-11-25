@@ -5,7 +5,9 @@
   import { projectAt } from '../src/lib/projector.js';
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { normShares, money } from '../src/lib/domain.js';
-  import { allocateCents } from '../src/lib/ledger.js';
+  import { purchaseClaims as derivePurchaseClaims, personBalances } from '../src/lib/ledger.js';
+  import { recordedContributions } from '../src/lib/purchaseFinancing.js';
+  import PurchaseFinancing from './PurchaseFinancing.svelte';
   import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus } from '../src/lib/personMutations.js';
   import { addItem as applyItemAdd, continueItem as applyItemContinue, updateItemMetadata, setItemShares, endItem as applyItemEnd, validMoney } from '../src/lib/itemMutations.js';
   import { createItemDraft } from '../src/lib/draftMutations.js';
@@ -34,7 +36,10 @@
   let minimumValue = 0;
   let shares = {};
   let shareFinancialMode = 'derived';
-  let financedByPersonId = '';
+  let purchaseContributionsCents = null;
+  let financingValid = false;
+  let alreadySettled = false;
+  let paymentDate = '';
   let effectiveDate = '';
   let dateSharesRebased = false;
   let itemExtrasOpen = false;
@@ -45,6 +50,8 @@
     const draft = dialog.id ? (project.drafts || []).find(d => d.id === dialog.id) : null;
     effectiveDate = draft?.data?.effectiveDate || asOfDate;
     dateSharesRebased = false;
+    paymentDate = effectiveDate;
+    alreadySettled = false;
     itemExtrasOpen = dialog.type === 'itemContinue' || !!dialog.id;
     if (dialog.type === 'itemAdd' && !dialog.id) {
       // Make the default equal ownership explicit rather than silently
@@ -73,14 +80,13 @@
   $: minimumValueCents = Math.round(minimumValueAmount * 100);
   $: minimumValueValid = !itemNeedsOwners || validMoney(minimumValueAmount);
   $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid &&
-    itemCostValid && ownersValid && itemNameValid && minimumValueValid;
+    itemCostValid && ownersValid && itemNameValid && minimumValueValid &&
+    (dialog?.type !== 'itemAdd' || (financingValid && (!alreadySettled || validCalendarDate(paymentDate))));
   $: purchaseShares = normShares(shares);
   $: purchaseOwnerCount = Object.keys(purchaseShares).length;
-  $: purchaseClaims = dialog?.type === 'itemAdd' && itemCostValid && financedByPersonId
-    ? Object.entries(allocateCents(itemCostCents, purchaseShares))
-        .filter(([personId, amountCents]) => personId !== financedByPersonId && amountCents > 0)
-        .map(([personId, amountCents]) => ({ name: entryProjection.peopleById.get(personId)?.name || personId, amountCents }))
-    : [];
+  $: purchaseClaims = dialog?.type === 'itemAdd' && itemCostValid && ownersValid && financingValid
+    ? derivePurchaseClaims(itemCostCents,purchaseShares,purchaseContributionsCents) : [];
+  $: purchaseBalances = [...personBalances(purchaseClaims)];
   function changeEffectiveDate(event) {
     const nextDate = event.currentTarget.value;
     if (validCalendarDate(nextDate)) {
@@ -101,9 +107,10 @@
         // as an owner when the user chooses another purchase date.
         shares = Object.fromEntries(Object.entries(shares).filter(([id]) =>
           atDate.peopleById.get(id)?.active));
-        if (!atDate.peopleById.get(financedByPersonId)?.active) financedByPersonId = '';
+        // Preserve explicitly entered contributions; invalid participants block saving.
       }
     }
+    if (paymentDate === effectiveDate) paymentDate = nextDate;
     effectiveDate = nextDate;
   }
 
@@ -150,7 +157,7 @@
       annualRate = draft.data.valuation.annualRate || 0.2;
       minimumValue = draft.data.valuation.minimumValue || 0;
       shares = { ...(draft.data.shares || {}) };
-      financedByPersonId = draft.data.financedByPersonId || '';
+      purchaseContributionsCents = draft.data.purchaseContributionsCents ?? (draft.data.financedByPersonId ? {[draft.data.financedByPersonId]:Math.round(draft.data.initialValue*100)} : null);
     }
   }
   $: if ((dialog?.type === 'shareSet' || (dialog?.type === 'itemAdd' && !dialog.id) || dialog?.type === 'itemContinue') && projectedItem && Object.keys(shares).length === 0) {
@@ -187,7 +194,7 @@
     action();
   }
 
-  function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; shareFinancialMode = 'derived'; financedByPersonId = ''; reason = ''; initialValue = 0; valuationType = 'linear'; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
+  function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; shareFinancialMode = 'derived'; purchaseContributionsCents = null; financingValid = false; alreadySettled = false; paymentDate = ''; reason = ''; initialValue = 0; valuationType = 'linear'; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
   function addPerson() {
     if (!canSavePersonName) return;
     if (!dateValid) return;
@@ -281,7 +288,7 @@
           minimumValue: minimumValueAmount
         },
         shares: initialShares,
-        financedByPersonId: financedByPersonId || undefined
+        purchaseContributionsCents: purchaseContributionsCents && Object.values(purchaseContributionsCents).every(Number.isSafeInteger) ? purchaseContributionsCents : undefined
       }
       });
       if (appState.upsertDraft(draft)) close();
@@ -299,7 +306,7 @@
   function addItem() {
     if (!canSubmitDated) return;
     const saved = appState.mutateProject(p => applyItemAdd(p, { ...itemPayload(),
-      financedByPersonId: financedByPersonId || undefined, draftId: dialog.id }));
+      purchaseContributionsCents, ...(alreadySettled && purchaseClaims.length ? {settledPaymentDate:paymentDate}:{}), draftId: dialog.id }));
     finishDatedChange(saved);
   }
   function continueItem() {
@@ -433,30 +440,29 @@
               {#if !ownersValid}<p role="alert" class="notice warn">{$translate('items.selectOwner')}</p>{/if}
             </section>
             {#if dialog.type === 'itemAdd'}
-              <label class="item-financing-field">{$translate("ui.who-paid-for-this-item-57n9ck")}
-                <select bind:value={financedByPersonId}>
-                  <option value="">{$translate("ui.no-financing-recorded-no-claim-8fndbn")}</option>
-                  {#each entryProjection.people.filter(p => p.active) as person}
-                    <option value={person.id}>{person.name}</option>
-                  {/each}
-                </select>
-              </label>
-              {#if itemCostValid && ownersValid}
+              <PurchaseFinancing people={entryProjection.people.filter(p=>p.active)} shares={purchaseShares}
+                amountCents={itemCostCents} bind:contributions={purchaseContributionsCents} bind:valid={financingValid} />
+              {#if itemCostValid && ownersValid && financingValid}
                 <section class="item-purchase-preview" aria-live="polite">
                   <strong>{$translate('items.purchasePreview')}</strong>
                   <p>{$translate('items.purchaseSummary', {owners:purchaseOwnerCount, amount:money(itemCost)})}</p>
-                  {#if financedByPersonId && purchaseClaims.length}
-                    <p>{$translate('items.purchaseClaims')}</p>
+                  {#if purchaseClaims.length}
                     <ul>
-                      {#each purchaseClaims as claim}
-                        <li>{$translate('items.purchaseClaimRow', {
-                          debtor: claim.name,
-                          creditor: entryProjection.peopleById.get(financedByPersonId)?.name || financedByPersonId,
-                          amount: money(claim.amountCents / 100)
-                        })}</li>
+                      {#each purchaseBalances as [id,cents]}
+                        <li>{entryProjection.peopleById.get(id)?.name || id}: {cents>0?'+':''}{money(cents/100)}</li>
                       {/each}
                     </ul>
-                    <small>{$translate('items.purchaseNoPayment')}</small>
+                    <label><input type="checkbox" bind:checked={alreadySettled}> {$translate('purchase.alreadySettled')}</label>
+                    {#if alreadySettled}
+                      <label>{$translate('purchase.paymentDate')} <input type="date" bind:value={paymentDate}></label>
+                      <ul>
+                        {#each purchaseClaims as claim}
+                          <li>{$translate('items.purchaseClaimRow',{debtor:entryProjection.peopleById.get(claim.debtorPersonId)?.name || claim.debtorPersonId,
+                            creditor:entryProjection.peopleById.get(claim.creditorPersonId)?.name || claim.creditorPersonId,amount:money(claim.amountCents/100)})}</li>
+                        {/each}
+                      </ul>
+                      <small>{$translate('purchase.confirmActual')}</small>
+                    {/if}
                   {:else}
                     <p>{$translate('items.noPurchaseClaims')}</p>
                   {/if}

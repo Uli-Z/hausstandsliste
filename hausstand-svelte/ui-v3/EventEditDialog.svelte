@@ -5,6 +5,8 @@
   import { dateDE, uid, clone } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';
   import { projectAt } from '../src/lib/projector.js';
+  import { recordedContributions } from '../src/lib/purchaseFinancing.js';
+  import PurchaseFinancing from './PurchaseFinancing.svelte';
   import ShareEditor from './ShareEditor.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   import { isEnterForSubmit } from './form-behavior.js';
@@ -15,9 +17,13 @@
 
   $: event = project.events.find(e => e.id === dialog.eventId);
   let edited = null;
+  let contributions = null;
+  let financingValid = false;
+  $: isPurchase = event?.type === 'item-added' && !project.items.find(i=>i.id===event.itemId)?.predecessorItemId;
 
   $: if (event && !edited) {
     edited = clone(event);
+    if (event.type === 'item-added') contributions = recordedContributions(event);
     if (edited.type === 'shares-set' && !edited.financialMode) edited.financialMode = 'none';
   }
 
@@ -37,7 +43,8 @@
   }
 
   function save() {
-    if (!edited || !minimumValid) return;
+    if (!edited || !minimumValid || (isPurchase && !financingValid)) return;
+    if (isPurchase) edited.purchaseContributionsCents = contributions;
     if (edited.type === 'item-added') edited.valuation.minimumValue = minimumAmount;
     const saved = appState.mutateProject(p => replaceEditableEvent(p, edited));
     if (saved) appState.closeDialog();
@@ -92,17 +99,10 @@
             <section class="mini-card stack">
               <strong>{$translate("ui.original-ownership-shares-sekno0")}</strong>
               <ShareEditor {people} bind:shares={edited.shares} />
-              <label>{$translate("ui.financed-by-whom-1dlzo4q")}
-                <select value={edited.financedByPersonId || ''} on:change={e => {
-                  edited.financedByPersonId = e.currentTarget.value;
-                  edited.financialMode = edited.financedByPersonId ? 'derived' : 'none';
-                }}>
-                  <option value="">{$translate("ui.not-recorded-no-claim-1ixt11b")}</option>
-                  {#each project.people || [] as person}
-                    <option value={person.id}>{person.name}</option>
-                  {/each}
-                </select>
-              </label>
+              {#if isPurchase}
+                <PurchaseFinancing people={project.people} shares={edited.shares}
+                  amountCents={Math.round(edited.initialValue*100)} bind:contributions bind:valid={financingValid} editing={true} />
+              {/if}
             </section>
           {:else if edited.type === 'item-ended'}
             <label>{$translate("ui.status-afterwards-1g54j6w")} <select bind:value={edited.statusAfter}>
@@ -135,7 +135,7 @@
       <button class="danger" on:click={remove}>{$translate("ui.delete-odpvb4")}</button>
       <div style="flex:1"></div>
       <button on:click={() => appState.closeDialog()}>{$translate("ui.cancel-cl4zc9")}</button>
-      <button class="primary" on:click={save} disabled={!minimumValid || $appState.readOnly}>{$translate("ui.save-change-1pvx2yb")}</button>
+      <button class="primary" on:click={save} disabled={!minimumValid || (isPurchase && !financingValid) || $appState.readOnly}>{$translate("ui.save-change-1pvx2yb")}</button>
     </div>
   </div>
 </div>
