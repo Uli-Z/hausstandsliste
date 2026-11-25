@@ -292,7 +292,7 @@ async function writeCommand(key, p, opts, protection) {
   } else if (itemWrites.has(key)) {
     const payload=await readJSON(opts['--payload']);
     const required={
-      'items add':['name','date','initialValueCents','valuation','shares'],
+      'items add':['name','date','initialValueCents','valuation','shares','purchaseContributionsCents'],
       'items update':['itemId','name'],
       'items continue':['itemId','name','date','initialValueCents','valuation','shares'],
       'items end':['itemId','date'],
@@ -300,7 +300,7 @@ async function writeCommand(key, p, opts, protection) {
       'redistribution execute':['effectiveDate','changes','financialMode']
     }[key];
     const optional={
-      'items add':['tags','note','financedByPersonId','purchaseContributionsCents','settledPaymentDate'], 'items update':['tags','note'],
+      'items add':['tags','note','settledPaymentDate'], 'items update':['tags','note'],
       'items continue':['tags','note','reason'], 'items end':['reason','statusAfter'],
       'shares set':['note'], 'redistribution execute':['title']
     }[key];
@@ -336,7 +336,7 @@ async function writeCommand(key, p, opts, protection) {
         if (payload.type==='item') {
           const data=payload.data;
           if (!data || typeof data!=='object' || Array.isArray(data) || !validISODate(data.effectiveDate) ||
-              Object.keys(data).some(k=>!['effectiveDate','name','tags','note','initialValueCents','valuation','shares','financedByPersonId','purchaseContributionsCents'].includes(k)))
+              Object.keys(data).some(k=>!['effectiveDate','name','tags','note','initialValueCents','valuation','shares','purchaseContributionsCents'].includes(k)))
             fail('INVALID_PAYLOAD','Provide item draft data with effectiveDate.',4);
           const amount=data.initialValueCents??0, v=data.valuation??{type:'fixed',minimumValueCents:0};
           if (!Number.isSafeInteger(amount)||amount<0 || !Number.isSafeInteger(v.minimumValueCents)||v.minimumValueCents<0 ||

@@ -14,10 +14,15 @@ export function contributionProblem(amountCents, contributions, people) {
 export function contributionTotal(contributions) {
   return Object.values(contributions || {}).reduce((sum, cents) => sum + cents, 0);
 }
-// Never infer contributions for historic purchases without a recorded payer.
+// Only explicit acquisition contributions exist. A neutral successor is not a purchase.
 export function recordedContributions(event) {
-  if (Object.hasOwn(event, 'purchaseContributionsCents')) return event.purchaseContributionsCents;
-  if (event.financialMode === 'derived' && event.financedByPersonId)
-    return { [event.financedByPersonId]: Math.round(event.initialValue * 100) };
-  return null;
+  return event.purchaseContributionsCents ?? null;
+}
+
+// Shared rule for persisted purchase events and direct mutations.
+export function purchaseEventProblem(event, people, successor = false) {
+  if (successor) return event.financialMode === 'none' && !Object.hasOwn(event,'purchaseContributionsCents')
+    ? null : 'INVALID_CONTRIBUTIONS';
+  if (event.financialMode !== 'derived') return 'INVALID_CONTRIBUTIONS';
+  return contributionProblem(Math.round(event.initialValue*100),event.purchaseContributionsCents,people);
 }

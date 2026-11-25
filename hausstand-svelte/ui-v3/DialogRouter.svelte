@@ -156,7 +156,7 @@
       annualRate = draft.data.valuation.annualRate || 0.2;
       minimumValue = draft.data.valuation.minimumValue || 0;
       shares = { ...(draft.data.shares || {}) };
-      purchaseContributionsCents = draft.data.purchaseContributionsCents ?? (draft.data.financedByPersonId ? {[draft.data.financedByPersonId]:Math.round(draft.data.initialValue*100)} : null);
+      purchaseContributionsCents = draft.data.purchaseContributionsCents ?? null;
     }
   }
   $: if ((dialog?.type === 'shareSet' || (dialog?.type === 'itemAdd' && !dialog.id) || dialog?.type === 'itemContinue') && projectedItem && Object.keys(shares).length === 0) {

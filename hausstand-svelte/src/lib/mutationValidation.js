@@ -1,12 +1,12 @@
 import { claimSettlementErrors, validISODate } from './claimSettlement.js';
-import { contributionProblem } from './purchaseFinancing.js';
+import { purchaseEventProblem } from './purchaseFinancing.js';
 import { validMoney } from './util.js';
 import { unownedActiveTransitions } from './ownershipValidation.js';
 
 // Validate new/edited events before a mutation reaches the session history,
 // browser working copy or portable file. Existing invalid imported rows can
 // still be repaired: unchanged rows are not retroactively rejected.
-export function mutationProblem(before, after, {allowHistoricalUnknownFunding=false} = {}) {
+export function mutationProblem(before, after) {
   const previous = Array.isArray(before?.events) ? before.events : [];
   const events = Array.isArray(after?.events) ? after.events : [];
   const counts = list => {
@@ -45,17 +45,8 @@ export function mutationProblem(before, after, {allowHistoricalUnknownFunding=fa
       if (!validMoney(event.initialValue)) {
         return { key: 'errors.invalidItemValue' };
       }
-      if (Object.hasOwn(event,'purchaseContributionsCents')) {
-        if (event.financedByPersonId || event.financialMode !== 'derived' ||
-            contributionProblem(Math.round(event.initialValue*100), event.purchaseContributionsCents, people))
-          return { key:'errors.invalidPurchaseContributions' };
-      } else if (!original && !allowHistoricalUnknownFunding &&
-          !(after.items || []).find(i=>i.id===event.itemId)?.predecessorItemId) {
-        return { key:'errors.invalidPurchaseContributions' };
-      } else if (original && (Object.hasOwn(original,'purchaseContributionsCents') ||
-          (original.initialValue !== event.initialValue && !(after.items || []).find(i=>i.id===event.itemId)?.predecessorItemId))) {
-        return { key:'errors.invalidPurchaseContributions' };
-      }
+      const successor = !!(after.items || []).find(i=>i.id===event.itemId)?.predecessorItemId;
+      if (purchaseEventProblem(event,people,successor)) return { key:'errors.invalidPurchaseContributions' };
     }
   }
   return null;
@@ -63,8 +54,8 @@ export function mutationProblem(before, after, {allowHistoricalUnknownFunding=fa
 
 // Shared transaction guard for every frontend (browser, CLI, future adapters).
 // No UI, storage or global state; return stable diagnostic keys and parameters.
-export function projectMutationProblem(before, after, options) {
-  const eventProblem = mutationProblem(before, after, options);
+export function projectMutationProblem(before, after) {
+  const eventProblem = mutationProblem(before, after);
   if (eventProblem) return eventProblem;
   const first = unownedActiveTransitions(after)[0];
   if (first) {

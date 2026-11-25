@@ -45,21 +45,14 @@ function metadata({name,tags=[],note=''}) {
   return {name,tags,note};
 }
 function purchase(project,payload,predecessor=null) {
-  const {date,initialValue,valuation,shares,financedByPersonId,purchaseContributionsCents:providedContributions,settledPaymentDate,draftId}=payload;
+  const {date,initialValue,valuation,shares,purchaseContributionsCents,settledPaymentDate,draftId}=payload;
   const view=at(project,date);
   const meta=metadata(payload);
   if (!validMoney(initialValue)) reject('INVALID_ITEM_VALUE');
   const rule=checkedValuation(valuation);
   const clean=checkedShares(view,shares,predecessor?.shares);
-  if (financedByPersonId && (!text(financedByPersonId) || !view.peopleById.get(financedByPersonId)?.active))
-    reject('INVALID_FINANCIER');
-  // A legacy single-payer input explicitly identifies the actual payer;
-  // translate that input to the new representation, never persist it again.
-  if (providedContributions !== undefined && (financedByPersonId || predecessor)) reject('INVALID_CONTRIBUTIONS');
-  const purchaseContributionsCents = providedContributions !== undefined ? providedContributions : (financedByPersonId
-    ? {[financedByPersonId]:Math.round(initialValue*100)} : undefined);
   const explicit = purchaseContributionsCents !== undefined;
-  if (!predecessor && !explicit) reject('INVALID_CONTRIBUTIONS');
+  if (predecessor ? explicit : !explicit) reject('INVALID_CONTRIBUTIONS');
   if (explicit) {
     const problem = contributionProblem(Math.round(initialValue * 100), purchaseContributionsCents,
       new Set(view.people.filter(p => p.active).map(p => p.id)));
@@ -112,7 +105,7 @@ export function continueItem(project,{itemId,date,reason='',...payload}) {
   // Validate and create on a temporary copy, then commit both events in order.
   const copy={...project,items:[...project.items],events:[...project.events]};
   const ended=endItem(copy,{itemId,date,reason,statusAfter:'succeeded'}).event;
-  const result=purchase(copy,{...payload,date,financedByPersonId:undefined},previous);
+  const result=purchase(copy,{...payload,date},previous);
   project.items=copy.items;
   project.events=copy.events;
   return {...result,ended};

@@ -28,7 +28,7 @@ export const FINANCIAL_EVENT_NOTE = event => {
 };
 
 export const ITEM_FUNDING_NOTE = event => (
-  event?.financialMode === 'derived' && (event?.purchaseContributionsCents || event?.financedByPersonId)
+  event?.financialMode === 'derived' && event?.purchaseContributionsCents
     ? 'Die Kaufbeiträge sind eingetragen. Daraus werden Geldsalden berechnet; allein dadurch wird eine Ausgleichszahlung noch nicht gebucht.'
     : 'Ohne eingetragene zahlende Person entsteht bei diesem Kauf kein automatischer Geldanspruch.'
 );

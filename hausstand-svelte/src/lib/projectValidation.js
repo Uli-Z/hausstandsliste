@@ -36,7 +36,6 @@ export function storedProjectProblem(project) {
     if (['item-added','shares-set'].includes(event.type) && !sharesValid(event.shares)) return 'INVALID_SHARES';
     if (event.type === 'item-added') {
       try { checkedValuation(event.valuation); } catch { return 'INVALID_VALUATION'; }
-      if (event.financedByPersonId && !people.has(event.financedByPersonId)) return 'UNKNOWN_FINANCIER';
     }
     if (event.type === 'item-ended' && event.statusAfter !== undefined &&
         !['ended','taken-private','disposed','succeeded'].includes(event.statusAfter)) return 'INVALID_ITEM_END';
@@ -51,7 +50,7 @@ export function storedProjectProblem(project) {
       }
     }
   }
-  const problem = projectMutationProblem({ events: [] }, project, {allowHistoricalUnknownFunding:true});
+  const problem = projectMutationProblem({ events: [] }, project);
   if (problem) return problem.key;
   // Drafts may be unfinished. Validate structure using the shared draft
   // operation on a scratch container, never execute or mutate the input.

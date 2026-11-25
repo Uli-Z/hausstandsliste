@@ -1,4 +1,4 @@
-// Person IDs may occur as values (financedByPersonId, debtorPersonId,
+// Person IDs may occur as values (debtorPersonId,
 // sourcePersonId, etc.) or as keys in historical share maps. Inspect all
 // nested records conservatively, including event children and draft contents.
 const mentionsPersonId = (record, id) => {
