@@ -2,6 +2,7 @@ import { claimSettlementErrors, validISODate } from './claimSettlement.js';
 import { purchaseEventProblem } from './purchaseFinancing.js';
 import { validMoney } from './util.js';
 import { unownedActiveTransitions } from './ownershipValidation.js';
+import { personDeletionEligibility } from './personDeletion.js';
 
 // Validate new/edited events before a mutation reaches the session history,
 // browser working copy or portable file. Existing invalid imported rows can
@@ -55,6 +56,22 @@ export function mutationProblem(before, after) {
 // Shared transaction guard for every frontend (browser, CLI, future adapters).
 // No UI, storage or global state; return stable diagnostic keys and parameters.
 export function projectMutationProblem(before, after) {
+  // Check the original references as well as the proposed state: a caller
+  // must not bypass the no-cascade rule by deleting the person AND their
+  // history in one transaction. An unused person's initial creation event
+  // may be removed together with their master record.
+  const nextPeople = new Set((after?.people || []).map(person => String(person.id)));
+  for (const person of before?.people || []) {
+    const id = String(person.id);
+    if (nextPeople.has(id)) continue;
+    const candidate = { ...after, people: [...(after.people || []), person] };
+    const hasCreation = (after.events || []).some(event =>
+      event.type === 'person-added' && String(event.personId) === id);
+    if (!personDeletionEligibility(before, id).allowed ||
+        !personDeletionEligibility(candidate, id).allowed || hasCreation) {
+      return { key: 'errors.referencedPersonDeletion', params: { name: person.name || id } };
+    }
+  }
   const eventProblem = mutationProblem(before, after);
   if (eventProblem) return eventProblem;
   const first = unownedActiveTransitions(after)[0];

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { deleteUnusedPerson, personDeletionEligibility } from '../src/lib/personDeletion.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { projectAt } from '../src/lib/projector.js';
+import { projectMutationProblem } from '../src/lib/mutationValidation.js';
 
 const fixed = { type: 'fixed', minimumValue: 0 };
 const person = (id, name = id) => ({ id, name });
@@ -137,4 +138,31 @@ test('A03: nonexistent people cannot be deleted', () => {
   assert.equal(deleteUnusedPerson(project, 'missing').allowed, false);
   assert.equal(deleteUnusedPerson(project, null).allowed, false);
   assert.deepEqual(project, before);
+});
+
+test('Q27: shared transaction guard rejects removing a referenced person even together with their history', () => {
+  const before = makeProject();
+  before.events.push({
+    id: 'desk-created', type: 'item-added', date: '2026-01-02', order: 1,
+    itemId: 'desk', initialValue: 80, valuation: fixed, shares: { ben: 1 },
+    purchaseContributionsCents: { anna: 8000 }, financialMode: 'derived'
+  });
+  const after = structuredClone(before);
+  after.people = after.people.filter(p => p.id !== 'anna');
+  const expected = { key: 'errors.referencedPersonDeletion', params: { name: 'Anna' } };
+  assert.deepEqual(projectMutationProblem(before, after), expected);
+  after.events = after.events.filter(e => e.id === 'enter-ben');
+  after.items = [];
+  assert.deepEqual(projectMutationProblem(before, after), expected);
+});
+
+test('Q27: shared transaction guard allows only clean removal of an unused person', () => {
+  const before = makeProject();
+  const after = structuredClone(before);
+  assert.equal(deleteUnusedPerson(after, 'anna').allowed, true);
+  assert.equal(projectMutationProblem(before, after), null);
+  const dangling = { ...after, events: before.events };
+  assert.equal(projectMutationProblem(before, dangling).key, 'errors.referencedPersonDeletion');
+  const newReference = { ...after, drafts: [{ id: 'draft', shares: { anna: 1 } }] };
+  assert.equal(projectMutationProblem(before, newReference).key, 'errors.referencedPersonDeletion');
 });
