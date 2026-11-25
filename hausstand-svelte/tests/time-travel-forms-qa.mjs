@@ -133,13 +133,22 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.equal((await snapshot()).events.find(e=>e.name==='Carla')?.date,'2032-03-11');
 
     await page.locator('.person-tile').filter({hasText:'Anna'}).locator('.person-bottom button').click();
-    await page.getByRole('button',{name:'Als ausgezogen markieren'}).click();
+    // Person actions are intentionally collapsed in the detail view.
+    const personActions = page.locator('.detail-hero .secondary-actions');
+    async function openPersonActions() {
+      if (await personActions.getAttribute('open') === null) {
+        await personActions.locator('summary').click();
+      }
+    }
+    await openPersonActions();
+    await personActions.getByRole('button',{name:'Als ausgezogen markieren'}).click();
     assert.equal(await dateField.inputValue(),'2032-03-11');
     await dateField.fill('2032-04-05');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
     assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId==='anna')?.date,'2032-04-05');
-    await page.getByRole('button',{name:'Wieder aufnehmen'}).click();
+    await openPersonActions();
+    await personActions.getByRole('button',{name:'Wieder aufnehmen'}).click();
     assert.equal(await dateField.inputValue(),'2032-04-05');
     await dateField.fill('2032-05-05');
     await dialog.locator('.modal-footer .primary').click();
