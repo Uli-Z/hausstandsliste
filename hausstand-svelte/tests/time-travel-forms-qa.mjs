@@ -73,7 +73,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await checkHistory(3);
     await timeline.locator('.timeline-event-card').filter({hasText:'Latest future entry'}).locator('.event-open-overlay').press('Enter');
     assert.equal(await dialog.locator('input[type="date"]').inputValue(),'2030-01-01');
-    await dialog.locator('.modal-header button').click();
+    await dialog.locator('.modal-header > button.ghost').click();
 
     await cutoff('2029-06-01'); // same-day entries cross the cutoff together
     await checkHistory(1);
@@ -162,11 +162,11 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.equal(await dialog.locator('.redistribution-item-card').count(),0);
     await page.locator('#redistribution-effective-date').fill('2032-05-05');
     assert.ok(await dialog.locator('.redistribution-item-card').count()>0);
-    await dialog.locator('.modal-header button').click();
+    await dialog.locator('.modal-header > button.ghost').click();
 
     await page.getByRole('button',{name:'Zahlung erfassen',exact:true}).click();
     assert.equal(await dialog.getByLabel('Zahlungsdatum').inputValue(),'2032-05-05');
-    await dialog.locator('.modal-header button').click();
+    await dialog.locator('.modal-header > button.ghost').click();
 
     // Replacement forms are dated; plain metadata edits are intentionally not.
     await nav('Gegenstände').click();
@@ -174,10 +174,10 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await page.locator('.secondary-actions summary').click();
     await page.locator('.secondary-actions .action-grid button').filter({hasText:'Durch neuen Gegenstand ersetzen'}).click();
     assert.equal(await dateField.inputValue(),'2032-05-05');
-    await dialog.locator('.modal-header button').click();
+    await dialog.locator('.modal-header > button.ghost').click();
     await page.locator('.secondary-actions .action-grid button').first().click();
     assert.equal(await dateField.count(),0);
-    await dialog.locator('.modal-header button').click();
+    await dialog.locator('.modal-header > button.ghost').click();
 
     await nav('Gegenstände').click();
     await page.locator('.page-heading button').first().click();
@@ -190,7 +190,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await nav('Überblick').click();
     await page.locator('.draft-row').filter({hasText:'Geplanter Gegenstand'}).getByRole('button',{name:'Weiter'}).click();
     assert.equal(await dateField.inputValue(),'2027-07-07');
-    await dialog.locator('.modal-header button').click();
+    await dialog.locator('.modal-header > button.ghost').click();
 
     assert.deepEqual(failures,[]);
     console.log('Q14/Q15/Q19 time-travel form and chronological UI acceptance passed');
