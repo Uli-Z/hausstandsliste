@@ -164,6 +164,8 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.ok(await dialog.locator('.redistribution-item-card').count()>0);
     await dialog.locator('.modal-header > button.ghost').click();
 
+    // Manual payment recording lives on the money page, not the overview.
+    await nav('Geld & Ausgleich').click();
     await page.getByRole('button',{name:'Zahlung erfassen',exact:true}).click();
     assert.equal(await dialog.getByLabel('Zahlungsdatum').inputValue(),'2032-05-05');
     await dialog.locator('.modal-header > button.ghost').click();
