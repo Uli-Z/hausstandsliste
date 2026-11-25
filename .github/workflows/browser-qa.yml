@@ -4,6 +4,10 @@ name: Browser acceptance QA
 # Trigger this suite explicitly under Actions > Browser acceptance QA > Run workflow.
 on:
   workflow_dispatch:
+  # One-off explicitly requested acceptance run, isolated from master.
+  push:
+    branches: [qa/browser-retest-dialog-controls-2026-11-25]
+    paths: ['.github/workflows/browser-qa.yml']
 
 permissions:
   contents: read
