@@ -388,3 +388,49 @@ test('CLI historical correction preserves event identity and independent payment
     assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
+
+test('CLI draft creation, replacement, execution and deletion share browser draft operations',async()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-drafts-'));
+  try {
+    const input=join(dir,'p.json'), payload=join(dir,'payload.json'), a=join(dir,'a.json'), b=join(dir,'b.json'), c=join(dir,'c.json'), d=join(dir,'d.json'), e=join(dir,'e.json');
+    writeFileSync(input,JSON.stringify(p));
+    const put=(source,data,target)=>{
+      writeFileSync(payload,JSON.stringify(data));
+      return run(['drafts','put','--input',source,'--payload',payload,'--output',target]);
+    };
+    const initial={type:'item',title:'Draft',data:{effectiveDate:'2026-06-01'}};
+    const first=put(input,initial,a);
+    assert.equal(first.status,0,first.stderr);
+    const draft=JSON.parse(first.stdout).data.draft;
+    const aProject=JSON.parse(readFileSync(a,'utf8'));
+    assert.equal(query(['drafts','show','--id',draft.id],aProject).data.title,'Draft');
+    const exec=(source,id,mode)=>run(['drafts','execute','--input',source,'--id',id,...mode]);
+    assert.equal(exec(a,draft.id,['--dry-run']).status,4,'incomplete draft cannot execute');
+    const second=put(a,{...initial,id:draft.id,data:{...initial.data,name:'Table',initialValueCents:30000,
+      valuation:{type:'fixed',minimumValueCents:0},shares:{a:1,b:1},financedByPersonId:'a'}},b);
+    assert.equal(second.status,0,second.stderr);
+    assert.equal(JSON.parse(second.stdout).data.draft.createdAt,draft.createdAt);
+    assert.equal(exec(b,draft.id,['--dry-run']).status,0);
+    assert.equal(exec(b,draft.id,['--output',c]).status,2);
+    const applied=exec(b,draft.id,['--output',c,'--confirm']);
+    assert.equal(applied.status,0,applied.stderr);
+    const item=JSON.parse(applied.stdout).data.item;
+    const cProject=JSON.parse(readFileSync(c,'utf8'));
+    assert.equal(cProject.drafts.length,0);
+    assert.equal(ledgerAt(cProject,'2026-06-01').claims.find(claim=>claim.itemId===item.id).amountCents,15000);
+    const third=put(c,{type:'redistribution',title:'Transfer',effectiveDate:'2026-07-01',financialMode:'none',
+      changes:[{itemId:item.id,shares:{b:1}}]},d);
+    assert.equal(third.status,0,third.stderr);
+    const red=JSON.parse(third.stdout).data.draft;
+    const del=['drafts','delete','--input',d,'--id',red.id];
+    assert.equal(run([...del,'--dry-run']).status,0);
+    assert.equal(run([...del,'--output',e]).status,2);
+    assert.equal(exec(d,red.id,['--dry-run']).status,0);
+    const discard=run([...del,'--output',e,'--confirm']);
+    assert.equal(discard.status,0,discard.stderr);
+    const final=JSON.parse(readFileSync(e,'utf8'));
+    assert.equal(final.drafts.length,0);
+    assert.deepEqual(final.events,cProject.events);
+    assert.deepEqual(JSON.parse(readFileSync(input,'utf8')),p);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});

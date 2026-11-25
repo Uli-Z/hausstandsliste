@@ -8,6 +8,7 @@
   import { allocateCents } from '../src/lib/ledger.js';
   import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus } from '../src/lib/personMutations.js';
   import { addItem as applyItemAdd, continueItem as applyItemContinue, updateItemMetadata, setItemShares, endItem as applyItemEnd, validMoney } from '../src/lib/itemMutations.js';
+  import { createItemDraft } from '../src/lib/draftMutations.js';
   import { personDeletionEligibility, deleteUnusedPerson } from '../src/lib/personDeletion.js';
   import RedistributionDialog from './RedistributionDialog.svelte';
   import EventEditDialog from './EventEditDialog.svelte';
@@ -260,14 +261,12 @@
 
   function saveItemDraft() {
     if (!dateValid || !minimumValueValid) return;
-    const draftId = dialog.id || uid('draft_item');
+    const draftId = dialog.id;
     const activePeople = entryProjection.people.filter(p => p.active);
     const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
-    appState.upsertDraft({
+    appState.upsertDraft(createItemDraft({
       id: draftId,
-      type: 'item',
       title: itemName || 'Neuer Gegenstand (Entwurf)',
-      createdAt: new Date().toISOString(),
       data: {
         effectiveDate,
         name: itemName || 'Neuer Gegenstand',
@@ -283,7 +282,7 @@
         shares: initialShares,
         financedByPersonId: financedByPersonId || undefined
       }
-    });
+    }));
     close();
   }
 

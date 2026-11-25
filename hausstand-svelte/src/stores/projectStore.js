@@ -1,6 +1,7 @@
 import { derived, writable } from 'svelte/store';
 import { emptyProject, normalize } from '../lib/domain.js';
-import { clone, todayISO, uid } from '../lib/util.js';
+import { clone, todayISO } from '../lib/util.js';
+import { createRedistribution, upsertDraft, removeDraft } from '../lib/draftMutations.js';
 import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
 import { unownedActiveTransitions } from '../lib/ownershipValidation.js';
@@ -114,16 +115,15 @@ function createStore() {
     upsertDraft: draft => update(s => {
       if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
       const project = clone(s.project);
-      project.drafts = project.drafts || [];
-      const idx = project.drafts.findIndex(d => d.id === draft.id);
-      if (idx >= 0) project.drafts[idx] = clone(draft);
-      else project.drafts.push(clone(draft));
+      try { upsertDraft(project,draft); }
+      catch { alert(message('errors.changeFailed', getLocale())); return s; }
       return changedProject(s, project);
     }),
     deleteDraft: id => update(s => {
       if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
       const project = clone(s.project);
-      project.drafts = (project.drafts || []).filter(d => d.id !== id);
+      try { removeDraft(project,id); }
+      catch { return s; }
       return changedProject(s, project);
     }),
     undo: () => {
@@ -175,4 +175,4 @@ export const projection = derived(appState, $s => projectAt($s.project, $s.asOfD
 export const ledger = derived(appState, $s => ledgerAt($s.project, $s.asOfDate));
 
 export { createEvent } from '../lib/personMutations.js';
-export const createRedistribution = (title, effectiveDate, changes = []) => ({ id: uid('redistribution'), type: 'redistribution', title, createdAt: new Date().toISOString(), effectiveDate, changes, financialMode: 'derived' });
+export { createRedistribution } from '../lib/draftMutations.js';

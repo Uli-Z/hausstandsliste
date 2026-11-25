@@ -42,6 +42,9 @@ Use `--input project.json` (or `--input -` for stdin); writes use `--payload pay
 | shares set | {"itemId":"ID","date":"2026-12-01","shares":{"PERSON_ID":1},"financialMode":"none"} |
 | redistribution execute | {"effectiveDate":"2026-12-01","financialMode":"derived","changes":[{"itemId":"ID","shares":{"PERSON_ID":1}}],"title":"Optional"} |
 | payments record | payment payload below; --confirm for save |
+| drafts list / drafts show | input; show uses --id, list supports pagination |
+| drafts put | draft payload below; optional existing id for replacement |
+| drafts execute / drafts delete | --id draft ID; --confirm for save |
 | versions restore | --id archive ID; no payload |
 
 Purchase (use real IDs from people list):
@@ -60,6 +63,10 @@ Kinds paid, external, waived. Optional note. Payer is debtorPersonId. No purchas
 
 For events edit, payload contains only fields to change (not id, type, order or itemId/personId). Allowed fields: person-added date/name; person status date/reason; item-added date/name/initialValueCents/valuation/shares/financedByPersonId/financialMode; item-ended date/statusAfter/reason; shares-set date/shares/financialMode/note; redistribution-executed date/title/financialMode/events (only existing child IDs/types/item IDs, updated shares or removed children); payment date/amountCents/debtorPersonId/creditorPersonId/settlementKind/note. A valuation replacement requires type, minimumValueCents and durationYears/annualRate where applicable. Preview and confirm explicitly before saving. Never change past payments as a side effect of changing a purchase.
 
+## Drafts
+
+Item draft: {"type":"item","title":"Table plan","data":{"effectiveDate":"2026-11-25","name":"Table","initialValueCents":30000,"valuation":{"type":"fixed","minimumValueCents":0},"shares":{"PERSON_ID":1}}}. Only effectiveDate is mandatory inside item data; incomplete drafts must be finished before execution. Redistribution draft: {"type":"redistribution","title":"Transfer","effectiveDate":"2026-11-25","financialMode":"none","changes":[{"itemId":"ITEM_ID","shares":{"PERSON_ID":1}}]}. Omit id for new draft; include an existing same-type id to replace. Preview, then save. Executing a draft records its dated events using shared validation and removes the draft; deleting a draft never records a transaction. Both require --confirm for save.
+
 ## Typical workflow
 
 ```sh
@@ -73,4 +80,4 @@ hausstand versions list --input next.json
 
 Data response: {responseVersion:1,command,source,data}; source stored, projection, working or saved. Projection includes asOfDate. Lists have total,offset,limit,rows (limit max 1000). A saved response reports output, versionCount and encrypted; previews report saved:false. Error: {responseVersion:1,error:{code,message}}. Exit 2 usage/confirmation, 3 unreadable/invalid JSON input, 4 invalid project/mutation/archive/password, 5 missing ID, 6 output/save, 1 unexpected. On error do not retry by bypassing validation. Inspect help and correct input. Never expose private project contents outside the authorized task.
 
-Limitations: no arbitrary raw event injection or draft management, no PHP remote access, no in-place project replacement. Older saved versions may still contain deleted people; deletion is not privacy erasure.
+Limitations: no arbitrary raw event injection, no PHP remote access, no in-place project replacement. Older saved versions may still contain deleted people; deletion is not privacy erasure.
