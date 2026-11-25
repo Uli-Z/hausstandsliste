@@ -860,29 +860,43 @@ async function phpOnline(browser) {
 let browser;
 let server;
 const extraBrowsers = [];
+const failures = [];
+
+// Each scenario owns independent browser contexts. A failed selector in one
+// scenario must not prevent the PHP/security and other engine checks from
+// producing their own results. The overall workflow still fails on any error.
+async function acceptance(name, run) {
+  console.log('Browser QA start: ' + name);
+  try {
+    await run();
+    console.log('Browser QA passed: ' + name);
+  } catch (error) {
+    failures.push(new Error(name, { cause: error }));
+    console.error('Browser QA failed: ' + name, error);
+  }
+}
+
 try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
-  await localization(browser, offlineServer.url);
-  await offline(browser, offlineServer.url);
-  await portableFileAcceptance(browser, offlineServer.url, 'Chromium');
-  await settlementEndToEnd(browser, offlineServer.url);
-  await invalidInputAcceptance(browser, offlineServer.url);
-  await timeTravelFormsAcceptance(browser, offlineServer.url);
-  await responsiveUiAcceptance(browser, offlineServer.url);
-  // Exercise the same responsive interaction sequence in two additional real
-  // browser engines, including the Safari rendering engine (WebKit).
+  await acceptance('Chromium localization', () => localization(browser, offlineServer.url));
+  await acceptance('Chromium offline', () => offline(browser, offlineServer.url));
+  await acceptance('Chromium portable file', () => portableFileAcceptance(browser, offlineServer.url, 'Chromium'));
+  await acceptance('Chromium Q03 settlement', () => settlementEndToEnd(browser, offlineServer.url));
+  await acceptance('Chromium Q06 invalid inputs', () => invalidInputAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q06 PHP online', () => phpOnline(browser));
+  await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium responsive UI', () => responsiveUiAcceptance(browser, offlineServer.url));
   for (const [name, browserType] of [['Firefox', firefox], ['WebKit', webkit]]) {
-    const additional = await browserType.launch({ headless: true });
-    extraBrowsers.push(additional);
-    await responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name);
-    await portableFileAcceptance(additional, offlineServer.url, name);
+    await acceptance(name + ' browser launch', async () => {
+      const additional = await browserType.launch({ headless: true });
+      extraBrowsers.push(additional);
+      await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
+      await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
+    });
   }
-  await phpOnline(browser);
-} catch (error) {
-  console.error('Real-browser QA failed:', error);
-  throw error;
+  if (failures.length) throw new AggregateError(failures, failures.length + ' browser QA scenario(s) failed');
 } finally {
   for (const extra of extraBrowsers) await extra.close();
   if (browser) await browser.close();
