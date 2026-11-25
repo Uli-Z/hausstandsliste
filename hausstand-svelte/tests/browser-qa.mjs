@@ -389,6 +389,36 @@ async function settlementEndToEnd(browser, url) {
     await returnToday();
     await assertBalances({ Anna: 20000, Ben: -10000, Clara: -10000 });
 
+    // Q15: Both ways of opening a NEW payment must inherit the active
+    // cutoff, while cancelling a prefilled dialog never records a payment.
+    const browserToday = await page.evaluate(() => {
+      const d = new Date();
+      return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0')].join('-');
+    });
+    const beforeDateChecks = await readProject();
+    for (const selectedDate of [browserToday, '2025-01-02', '2099-01-01']) {
+      if (selectedDate === browserToday) await returnToday();
+      else await setDate(selectedDate);
+      await openFinance(page);
+      for (const entry of ['manual', 'proposal']) {
+        if (entry === 'manual') {
+          await page.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
+        } else {
+          await page.locator('.transfer-row').filter({ hasText: 'Ben zahlt an Anna' })
+            .getByRole('button', { name: 'Ausgleichen' }).click();
+        }
+        const payment = page.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
+        assert.equal(await payment.getByLabel('Zahlungsdatum').inputValue(), selectedDate,
+          'Q15: ' + entry + ' payment defaults to ' + selectedDate);
+        await payment.locator('.modal-header button').click();
+        await closeDialog();
+      }
+      assert.deepEqual((await readProject()).events, beforeDateChecks.events,
+        'Q15: cancelling payments must leave all events unchanged');
+    }
+    await returnToday();
+
     await makePayment('ben', 'anna', 60, '2025-01-03', 'Q03 Ben 60', true);
     await assertBalances({ Anna: 14000, Ben: -4000, Clara: -10000 });
     await setDate('2025-01-02');
