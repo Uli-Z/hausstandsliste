@@ -54,7 +54,7 @@
                 <strong>{personName(transfer.fromPersonId)} zahlt an {personName(transfer.toPersonId)}</strong>
               </div>
               <strong class="transfer-amount">{money(transfer.amountCents / 100)}</strong>
-              <button class="primary transfer-action" type="button" on:click={() => addSettlement(transfer)} disabled={$appState.readOnly}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
+              <button class="primary transfer-action" type="button" on:click={() => addSettlement(transfer)}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
             </div>
           {/each}
         </div>
@@ -89,7 +89,7 @@
       <div>
         <strong>{$translate("ui.another-payment-18vryrc")}</strong>
       </div>
-      <button type="button" on:click={() => addSettlement()} disabled={$appState.readOnly}><ActionIcon name="plus" size={17}/>{$translate("ui.record-payment-clxxpv")}</button>
+      <button type="button" on:click={() => addSettlement()}><ActionIcon name="plus" size={17}/>{$translate("ui.record-payment-clxxpv")}</button>
     </div>
 
     {#if data.warnings?.length}
