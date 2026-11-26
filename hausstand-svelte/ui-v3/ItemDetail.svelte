@@ -43,9 +43,9 @@
       <details class="secondary-actions">
         <summary>{$translate("ui.moreActions")}</summary>
         <div class="action-grid">
-          <button disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-item-birsg")}</button>
-          <button disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}><ActionIcon name="archive" size={17}/>{$translate("ui.archive-qlwwpx")}</button>
-          <button disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}><ActionIcon name="plus" size={17}/>{$translate('items.replace')}</button>
+          <button on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-item-birsg")}</button>
+          <button on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}><ActionIcon name="archive" size={17}/>{$translate("ui.archive-qlwwpx")}</button>
+          <button on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}><ActionIcon name="plus" size={17}/>{$translate('items.replace')}</button>
         </div>
       </details>
     </div>
@@ -56,7 +56,7 @@
   <section class="panel">
     <div class="panel-header ownership-header">
       <h2>{$translate("ui.who-owns-what-16guwgm")}</h2>
-      <button class="outline-action" disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}><ActionIcon name="arrows" size={17}/>{$translate("ui.change-ownership-shares-1x7cqup")}</button>
+      <button class="outline-action" on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}><ActionIcon name="arrows" size={17}/>{$translate("ui.change-ownership-shares-1x7cqup")}</button>
     </div>
     <div class="panel-body">
       {#if item.shareRows.length}
