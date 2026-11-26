@@ -16,6 +16,35 @@
   export let feedbackError = false;
   let initialized = null, pass = '', repeat = '', admin = '', error = '';
   let activePassword = '', editToken = '', leaseToken = '', revision = 0;
+  let leaseExpires = 0;
+  const leaseCheckInterval = 60_000;
+
+  function loseLease(reason) {
+    editing = false; leaseToken = ''; leaseExpires = 0;
+    sessionStorage.removeItem(deviceKey + ':lease');
+    appState.setReadOnly(true, reason);
+  }
+
+  // Check the server's existing lease rather than assuming that a tab retains
+  // write permission indefinitely. Do not renew hidden or signed-out tabs.
+  async function checkLease() {
+    if (!authenticated || !editing || !leaseToken || busy) return;
+    if (leaseExpires && Date.now() >= leaseExpires * 1000) {
+      const reason = serverErrorMessage('leaseExpired',409);
+      loseLease(reason); feedbackError = true; feedback = reason;
+      return;
+    }
+    if (document.visibilityState !== 'visible') return;
+    busy = true;
+    try {
+      const result = await api('renew', {});
+      leaseExpires = result.expiresAt;
+    } catch (e) {
+      // A transient network failure does not revoke a still-valid lease.
+      // The existing API guard handles explicit server rejection immediately.
+      if (!editing) { feedbackError = true; feedback = localizeDiagnostic(e.message); }
+    } finally { busy = false; }
+  }
 
   // The key is non-extractable; the saved passphrase is encrypted at rest in IndexedDB.
   function database() {
@@ -61,8 +90,7 @@
     if (!response.ok || !data.ok) {
       const reason = serverErrorMessage(data.errorCode, response.status);
       if (['checkout','renew','save','checkin','restore'].includes(action) && [403,409,423].includes(response.status)) {
-        editing = false; leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease');
-        appState.setReadOnly(true, reason);
+        loseLease(reason);
       }
       throw new Error(reason);
     }
@@ -80,7 +108,8 @@
       editToken = decrypted.editToken;
       revision = current.revision;
       const result = await api('checkout', {expectedRevision:revision});
-      leaseToken = result.leaseToken; sessionStorage.setItem(deviceKey + ':lease', leaseToken);
+      leaseToken = result.leaseToken; leaseExpires = result.expiresAt;
+      sessionStorage.setItem(deviceKey + ':lease', leaseToken);
       appState.importProject(project, {secure:true, readOnly:false, sameProjectRefresh:true});
       editing = true; appState.setReadOnly(false);
       feedback = $translate('session.checkoutOk');
@@ -104,11 +133,11 @@
     const savedLease = sessionStorage.getItem(deviceKey + ':lease');
     if (savedLease) {
       leaseToken = savedLease;
-      try { await api('renew', {}); editing = true; appState.setReadOnly(false); }
-      catch { leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease'); }
+      try { const renewed = await api('renew', {}); leaseExpires = renewed.expiresAt; editing = true; appState.setReadOnly(false); }
+      catch { leaseToken = ''; leaseExpires = 0; sessionStorage.removeItem(deviceKey + ':lease'); }
     }
   }
-  onMount(async () => {
+  async function initializeSession() {
     try {
       initialized = (await api('config')).initialized;
       if (initialized && (await api('session')).authenticated) {
@@ -116,6 +145,17 @@
         if (saved) await unlock(saved, false);
       }
     } catch (e) { error = localizeDiagnostic(e.message) || $translate('session.unreachable'); }
+  }
+  onMount(() => {
+    void initializeSession();
+    const timer = window.setInterval(checkLease, leaseCheckInterval);
+    window.addEventListener('focus', checkLease);
+    document.addEventListener('visibilitychange', checkLease);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', checkLease);
+      document.removeEventListener('visibilitychange', checkLease);
+    };
   });
   async function submit() {
     if (busy) return;
@@ -146,10 +186,10 @@
         const saved = await createPortableSave($appState.project, $appState.savedProject);
         const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
         const result = await api('save', {expectedRevision:revision, envelope});
-        revision = result.revision; appState.markSaved(saved);
+        revision = result.revision; leaseExpires = result.expiresAt; appState.markSaved(saved);
       }
       await api('checkin', {});
-      leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease');
+      leaseToken = ''; leaseExpires = 0; sessionStorage.removeItem(deviceKey + ':lease');
       editing = false; appState.setReadOnly(true);
       feedback = $translate('session.checkinOk');
     } catch (e) { feedbackError = true; feedback = $translate('session.checkinFailed', {reason:localizeDiagnostic(e.message)}); }
@@ -181,7 +221,7 @@
       const saved = await createPortableSave(project, $appState.savedProject);
       const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
       const result = await api('save', {expectedRevision:revision, envelope});
-      revision = result.revision; appState.importProject(saved, {secure:true, readOnly:false});
+      revision = result.revision; leaseExpires = result.expiresAt; appState.importProject(saved, {secure:true, readOnly:false});
       feedback = $translate('session.restoreOk');
     } catch(e) { feedbackError = true; feedback = $translate('session.restoreFailed', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
@@ -193,7 +233,7 @@
       if (leaseToken) await api('checkin', {});
       await api('logout', {});
       await deviceStore('delete'); sessionStorage.removeItem(deviceKey + ':lease');
-      leaseToken = ''; editToken = ''; activePassword = ''; editing = false; authenticated = false;
+      leaseToken = ''; leaseExpires = 0; editToken = ''; activePassword = ''; editing = false; authenticated = false;
     } catch(e) { feedbackError = true; feedback = $translate('session.logoutFailed', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
   }

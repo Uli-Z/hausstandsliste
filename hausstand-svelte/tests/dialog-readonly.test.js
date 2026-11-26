@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { get } from 'svelte/store';
@@ -55,4 +56,15 @@ test('Q37: read-only blocks all writing dialog entries and preserves an open dra
     setLanguage('auto');
     globalThis.alert = oldAlert;
   }
+});
+
+
+test('Q37: PHP main-file session checks leases and revokes access without replacing an open form', () => {
+  const source = readFileSync(new URL('../ui-v3/ServerSession.svelte', import.meta.url),'utf8');
+  assert.ok(source.includes('await api(\'renew\', {})'));
+  assert.ok(source.includes('window.setInterval(checkLease, leaseCheckInterval)'));
+  assert.ok(source.includes("document.visibilityState !== 'visible'"));
+  assert.ok(source.includes('Date.now() >= leaseExpires * 1000'));
+  assert.ok(source.includes('appState.setReadOnly(true, reason)'));
+  assert.ok(source.includes('window.clearInterval(timer)'));
 });

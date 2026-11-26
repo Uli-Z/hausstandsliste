@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { readFile, mkdtemp, rm, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { chromium, firefox, webkit } from 'playwright';
@@ -1886,6 +1886,32 @@ async function q37ReadOnlyAcceptance(browser) {
     await reader.locator('.quick-actions .task-grid > button').first().click();
     await reader.locator('.modal-backdrop').waitFor();
     assert.equal(await reader.locator('#event-effective-date').inputValue(), '2099-12-01', 'Q38: new purchase uses the selected date after checkout');
+    // Simulate server-side expiry in the private test directory (not an API
+    // mock). The next actual renew request must revoke the UI's permission.
+    const readerModal = reader.locator('.modal-backdrop');
+    const nameInput = readerModal.locator('.item-primary-fields input:not([type=date]):not([type=number])');
+    await nameInput.fill('Q37 unsaved input');
+    const metaPath = join(privateDir,'files','hausstand-hauptdatei','meta.json');
+    const meta = JSON.parse(await readFile(metaPath,'utf8'));
+    meta.leaseExpires = 1;
+    await writeFile(metaPath, JSON.stringify(meta));
+    const lost = reader.waitForEvent('dialog');
+    const renewResponse = reader.waitForResponse(response=>response.url().includes('api=renew') && response.status()===409);
+    await reader.evaluate(()=>window.dispatchEvent(new Event('focus')));
+    const lostPopup = await lost;
+    assert.match(lostPopup.message(),/read-only.*top right.*expired/s);
+    await lostPopup.accept();
+    assert.equal((await renewResponse).status(),409);
+    await reader.getByRole('button',{name:'Start editing',exact:true}).waitFor();
+    assert.equal(await readerModal.isVisible(),true);
+    assert.equal(await nameInput.inputValue(),'Q37 unsaved input');
+    assert.equal(await readerModal.locator('.modal-footer .primary').isDisabled(),true);
+    assert.equal(await reader.locator('#event-effective-date').inputValue(),'2099-12-01');
+    await readerModal.locator('.modal-header button.ghost').click();
+    await readerModal.waitFor({state:'hidden'});
+    await rejected(reader,reader.locator('.quick-actions .task-grid > button').first(),/read-only.*expired/s);
+    const afterExpiry = JSON.parse(await readFile(metaPath,'utf8'));
+    assert.equal(afterExpiry.revision,meta.revision,'rejected lease must not change server revision');
   } finally {
     for (const context of contexts) await context.close();
     php.kill();
