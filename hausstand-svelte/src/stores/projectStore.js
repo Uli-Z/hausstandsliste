@@ -83,7 +83,7 @@ function createStore() {
     }),
     setRoute: route => update(s => ({ ...s, route })),
     setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
-    closeDialog: () => update(s => ({ ...s, activeDialog: null })),
+    closeDialog: () => update(s => ({ ...s, activeDialog: s.activeDialog?.returnTo || null })),
     importProject: (raw, { secure = false, readOnly = false } = {}) => update(s => {
       const project = normalize(raw);
       return persist(resetUndo({ ...s, project, savedProject: clone(project), secure, readOnly,

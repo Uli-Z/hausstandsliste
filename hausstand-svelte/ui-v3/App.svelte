@@ -438,4 +438,6 @@
     </button>
   </div>
 </nav>
-<DialogRouter dialog={$appState.activeDialog} project={$appState.project} projection={$projection} asOfDate={$appState.asOfDate}/>
+{#key $appState.activeDialog}
+  <DialogRouter dialog={$appState.activeDialog} project={$appState.project} projection={$projection} asOfDate={$appState.asOfDate}/>
+{/key}

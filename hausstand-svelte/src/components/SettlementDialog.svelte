@@ -27,6 +27,7 @@
   $: if (dialog && dialog !== initializedFor) {
     initializedFor = dialog;
     date = original?.date || asOfDate || todayISO();
+    if (!original && dialog.effectiveDate) date = dialog.effectiveDate;
     payer = original?.debtorPersonId || dialog.payerPersonId || '';
     recipient = original?.creditorPersonId || dialog.recipientPersonId || '';
     amount = original ? (original.amountCents / 100).toFixed(2).replace('.', ',')
@@ -63,7 +64,7 @@
       if (saved) {
         // If a newly documented payment happens after the viewed cutoff,
         // reveal its effect instead of leaving an apparently unchanged balance.
-        if (date > asOfDate) appState.setAsOfDate(date);
+        if (!dialog.returnTo && date > asOfDate) appState.setAsOfDate(date);
         close();
       } else busy = false;
     } catch (error) {

@@ -69,5 +69,6 @@ export function previewPersonStatus(project, {personId,date,kind}) {
   const staged = {...project,events:[...(project.events || [])]};
   changePersonStatus(staged,{personId,date,kind});
   const problem = projectMutationProblem(project,staged);
-  return {statusProblem:null,problem,holdings,balanceCents};
+  const transfers = ledger.simplified.filter(t=>t.fromPersonId===personId || t.toPersonId===personId);
+  return {statusProblem:null,problem,holdings,balanceCents,transfers};
 }
