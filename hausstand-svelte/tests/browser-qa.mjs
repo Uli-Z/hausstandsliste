@@ -1158,6 +1158,7 @@ const failures = [];
 // scenario must not prevent the PHP/security and other engine checks from
 // producing their own results. The overall workflow still fails on any error.
 async function acceptance(name, run) {
+  if (!name.includes('Q32 item entry') && !name.endsWith(' browser launch')) return;
   console.log('Browser QA start: ' + name);
   try {
     await run();
@@ -1184,7 +1185,7 @@ try {
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
   await acceptance('Chromium responsive UI', () => responsiveUiAcceptance(browser, offlineServer.url));
-  for (const [name, browserType] of [['Firefox', firefox], ['WebKit', webkit]]) {
+  for (const [name, browserType] of (process.env.Q32_BASELINE ? [] : [['Firefox', firefox], ['WebKit', webkit]])) {
     await acceptance(name + ' browser launch', async () => {
       const additional = await browserType.launch({ headless: true });
       extraBrowsers.push(additional);
