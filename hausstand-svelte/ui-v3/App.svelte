@@ -364,7 +364,7 @@
                   <div class="debt-row">
                   <span>{personName(b.fromPersonId)} an {personName(b.toPersonId)}</span>
                   <strong>{money(b.amountCents / 100)}</strong>
-                  <button class="debt-action" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})} disabled={$appState.readOnly}><ActionIcon name="wallet" size={16}/>{$translate("app.settle")}</button>
+                  <button class="debt-action" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})}><ActionIcon name="wallet" size={16}/>{$translate("app.settle")}</button>
                 </div>
                 {/each}
               </div>
@@ -396,7 +396,7 @@
                     <div><strong>{draft.title || draft.data?.name || $translate("ui.untitled-draft-1uj507g")}</strong><small>{draft.type === 'redistribution' ? $translate("app.transfer") : $translate("ui.record-item-1dj7z2m")}</small></div>
                     <div class="draft-buttons">
                       <button on:click={() => appState.setDialog({type:draft.type==='redistribution'?'redistributionEdit':'itemAdd',id:draft.id})}>{$translate("app.continue")}</button>
-                      <button class="subtle-danger" title={$translate("ui.delete-draft-eyd06t")} aria-label={$translate("ui.delete-draft-eyd06t")} on:click={() => { if (confirm($translate("ui.delete-this-draft-1eyj6m4"))) appState.deleteDraft(draft.id); }}>×</button>
+                      <button class="subtle-danger" title={$translate("ui.delete-draft-eyd06t")} aria-label={$translate("ui.delete-draft-eyd06t")} on:click={() => { if (appState.requireEditing() && confirm($translate("ui.delete-this-draft-1eyj6m4"))) appState.deleteDraft(draft.id); }}>×</button>
                     </div>
                   </div>
                 {/each}
