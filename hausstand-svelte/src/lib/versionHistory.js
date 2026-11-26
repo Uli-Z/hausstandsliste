@@ -142,3 +142,16 @@ export async function readPortableVersion(project, versionId) {
   // The archive belongs to the current project and must survive an older restore.
   return requireProjectFile({ ...snapshot, versionHistory: copy(project.versionHistory), lastSavedAt: project.lastSavedAt });
 }
+
+// Check every embedded snapshot before accepting a file. Do not silently
+// carry incompatible historical snapshots into the new storage format.
+export async function verifyPortableHistory(project, validate = () => {}) {
+  const ids=new Set();
+  for(const entry of getVersionEntries(project)) {
+    if(typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id))
+      throw new Error('Invalid archive ID');
+    ids.add(entry.id);
+    const snapshot=await readPortableVersion(project,entry.id);
+    await validate(snapshot);
+  }
+}

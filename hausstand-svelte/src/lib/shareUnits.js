@@ -91,3 +91,12 @@ export function resolveShareEvent(before,event) {
   if (!validStoredShareEvent(event)) throw new ShareUnitError('INVALID_SHARES');
   return applyShareUnitDeltas(before,event.shareUnitDeltas);
 }
+
+export function requireShareEventFormat(project) {
+  if (!Array.isArray(project?.events) || project.events.some(e=>!e ||
+      (e.type==='shares-set' && !validStoredShareEvent(e)) ||
+      (e.type==='redistribution-executed' && (!Array.isArray(e.events) || e.events.some(child=>!validStoredShareEvent(child)))))) {
+    throw new Error('Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.');
+  }
+  return project;
+}

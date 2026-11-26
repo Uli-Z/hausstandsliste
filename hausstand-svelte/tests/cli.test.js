@@ -484,3 +484,40 @@ test('Q31 CLI requires actual cent contributions and previews confirmed independ
     assert.deepEqual(Object.fromEntries(ledgerAt(next,'2026-06-02').balances),Object.fromEntries(ledgerAt(p,'2026-06-02').balances));
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
+
+test('Q30 CLI: backdated insertions retain later deltas and reject conflicts without output',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'hausstand-q30-'));
+  try {
+    const start=structuredClone(p);
+    start.people.push({id:'c',name:'C'});
+    start.events.find(e=>e.type==='item-added').shares={a:6,b:4};
+    let current=join(dir,'initial.json');
+    writeFileSync(current,JSON.stringify(start));
+    const mutate=(verb,payload,out)=> {
+      const payloadPath=join(dir,'payload.json');
+      writeFileSync(payloadPath,JSON.stringify(payload));
+      return spawnSync(process.execPath,[bin,...verb,'--input',current,'--payload',payloadPath,'--output',out],{encoding:'utf8'});
+    };
+    const later=join(dir,'later.json');
+    let r=mutate(['shares','set'],{itemId:'i',date:'2026-03-01',shares:{a:5,b:5},financialMode:'derived'},later);
+    assert.equal(r.status,0,r.stderr);current=later;
+    const early=join(dir,'early.json');
+    r=mutate(['redistribution','execute'],{effectiveDate:'2026-02-01',financialMode:'derived',changes:[{itemId:'i',shares:{a:6,b:3,c:1}}]},early);
+    assert.equal(r.status,0,r.stderr);current=early;
+    const saved=JSON.parse(readFileSync(current,'utf8'));
+    const laterEvent=saved.events.find(e=>e.type==='shares-set');
+    assert.deepEqual(laterEvent.shareUnitDeltas,{a:-1,b:1});
+    assert.ok(!Object.hasOwn(laterEvent,'shares'));
+    assert.deepEqual(saved.events.at(-1).events[0].shareUnitDeltas,{b:-1,c:1});
+    assert.deepEqual(projectAt(saved,'2026-04-01').activeItems[0].shares,{a:5,b:4,c:1});
+    assert.equal(query(['project','validate'],saved).data.valid,true);
+    const rejected=join(dir,'rejected.json'), bytes=readFileSync(current);
+    r=mutate(['shares','set'],{itemId:'i',date:'2026-02-15',shares:{a:0,b:9,c:1},financialMode:'none'},rejected);
+    assert.equal(r.status,4,r.stderr);
+    assert.equal(JSON.parse(r.stderr).error.code,'MUTATION_REJECTED');
+    assert.match(r.stderr,new RegExp(laterEvent.id));
+    assert.equal(existsSync(rejected),false);
+    assert.deepEqual(readFileSync(current),bytes);
+    assert.deepEqual(saved.events.find(e=>e.id==='pay'),start.events.find(e=>e.id==='pay'));
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});

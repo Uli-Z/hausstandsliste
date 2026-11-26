@@ -7,7 +7,7 @@
   import { appState } from '../src/stores/projectStore.js';
   import { exportProject, downloadProject } from '../src/lib/persistence.js';
   import { requireProjectFile } from '../src/lib/domain.js';
-  import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
+  import { createPortableSave, readPortableVersion, verifyPortableHistory } from '../src/lib/versionHistory.js';
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
   export let onProjectLoaded = () => {};
@@ -138,6 +138,7 @@
         error = ''; message = $translate('storage.encryptedPasswordNeeded'); return;
       }
       const verified = requireProjectFile(data);
+      await verifyPortableHistory(verified);
       if (!ensureNoOverwrite()) return;
       clearOnlineLink(); pendingEncrypted = null; pendingFileName = ''; openPassword = '';
       appState.importProject(verified);
@@ -154,6 +155,7 @@
     requireLeaseReleased();
     const { project, editToken: token } = await decryptProject(pendingEncrypted, openPassword);
     const verified = requireProjectFile(project);
+    await verifyPortableHistory(verified);
     if (!ensureNoOverwrite()) return;
     clearOnlineLink();
     appState.importProject(verified, { secure: true });
@@ -176,6 +178,7 @@
     const result = await api('read', null, { id: file.id });
     const decrypted = await decryptProject(result.envelope, remotePassword);
     const verified = requireProjectFile(decrypted.project);
+    await verifyPortableHistory(verified);
     editToken = decrypted.editToken; activePassword = remotePassword;
     openedId = file.id; openedName = file.name; revision = result.revision; backupName = '';
     leaseToken = ''; leaseExpires = 0; selectedPortableVersion = '';

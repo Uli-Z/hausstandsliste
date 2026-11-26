@@ -6,7 +6,7 @@ import { requireProjectFile, emptyProject } from '../src/lib/domain.js';
 import { projectAt } from '../src/lib/projector.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { newestFirst } from '../src/lib/eventHistory.js';
-import { getVersionEntries, createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
+import { getVersionEntries, createPortableSave, readPortableVersion, verifyPortableHistory } from '../src/lib/versionHistory.js';
 import { todayISO } from '../src/lib/util.js';
 import { validISODate, createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
@@ -198,13 +198,9 @@ async function load(path) {
 }
 async function verifyArchive(project, auditBusiness = false) {
   try {
-    const ids=new Set();
-    for (const entry of getVersionEntries(project)) {
-      if (typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id)) throw Error('Invalid archive ID');
-      ids.add(entry.id);
-      const snapshot = requireProjectFile(await readPortableVersion(project,entry.id));
+    await verifyPortableHistory(project,snapshot=>{
       if (auditBusiness && storedProjectProblem(snapshot)) throw Error('Invalid archived business data');
-    }
+    });
   } catch { fail('INVALID_ARCHIVE','Embedded archive cannot be verified. No file was changed.',4); }
 }
 async function protectedOutput(project,opts,protection) {

@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { chromium, firefox, webkit } from 'playwright';
 import { decryptProject } from '../src/lib/crypto.js';
 import { ledgerAt } from '../src/lib/ledger.js';
+import { projectAt } from '../src/lib/projector.js';
 import { readPortableVersion } from '../src/lib/versionHistory.js';
 import { portableFileAcceptance } from './portable-file-qa.mjs';
 import { invalidInputAcceptance } from './invalid-input-qa.mjs';
@@ -647,6 +648,85 @@ async function purchaseFinancingAcceptance(browser, url) {
   } finally { await context.close(); }
 }
 
+async function shareDeltaAcceptance(browser,url) {
+  const context=await browser.newContext({locale:'de-DE',viewport:{width:1280,height:820},acceptDownloads:true});
+  try {
+    const page=await context.newPage();
+    const failures=[], alerts=[];
+    page.on('pageerror',e=>failures.push(e.message));
+    page.on('dialog',async d=>{alerts.push(d.message()); await d.accept();});
+    const original=structuredClone(fixture);
+    original.events.find(e=>e.type==='item-added').shares={anna:6,ben:4,clara:1};
+    original.events.push({id:'q30-payment',type:'claim-settlement-recorded',date:'2025-01-03',order:1,
+      debtorPersonId:'ben',creditorPersonId:'anna',amountCents:700,settlementKind:'paid'});
+    await page.goto(url);
+    await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(original)});
+    await page.reload();
+    await page.getByText('Browser-Abnahme').first().waitFor();
+    const snapshot=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)).project,key);
+    const dialog=page.locator('[role="dialog"]');
+    async function cutoff(date) {
+      if (!await page.locator('#time-travel-panel').count()) await page.locator('.time-travel-toggle').click();
+      await page.locator('#state-date').fill(date);
+      await page.keyboard.press('Escape');
+    }
+    async function targetShares(date,values,accepted=true) {
+      await cutoff(date);
+      await page.getByRole('button',{name:'Eigentumsanteile ändern'}).click();
+      assert.equal(await dialog.locator('#event-effective-date').inputValue(),date);
+      for(const [name,units] of Object.entries(values)) {
+        await dialog.locator('.share-row').filter({hasText:name}).locator('input[type=number]').fill(String(units));
+      }
+      await dialog.locator('select').last().selectOption('derived');
+      await dialog.locator('.modal-footer button.primary').click();
+      if(accepted) await dialog.waitFor({state:'hidden'});
+      else {
+        await page.waitForFunction(()=>document.querySelector('[role="dialog"]')!==null);
+        assert.ok(alerts.some(s=>s.includes('Anteile')&&s.includes('2025-03-01')),alerts.join(' | '));
+        await dialog.getByRole('button',{name:'Abbrechen',exact:true}).click();
+      }
+    }
+    await page.locator('.sidebar-links').getByRole('button',{name:'Gegenstände'}).click();
+    await page.locator('.item-tile').filter({hasText:'Kühlschrank'}).locator('.tile-open').click();
+    await targetShares('2025-03-01',{Anna:5,Ben:5,Clara:1});
+    const later=await snapshot();
+    const late=later.events.at(-1);
+    assert.equal(late.type,'shares-set');
+    assert.deepEqual(late.shareUnitDeltas,{anna:-1,ben:1});
+    assert.ok(!Object.hasOwn(late,'shares'));
+    await targetShares('2025-02-01',{Anna:6,Ben:3,Clara:2});
+    const retro=await snapshot();
+    assert.deepEqual(retro.events.at(-1).shareUnitDeltas,{ben:-1,clara:1});
+    assert.deepEqual(retro.events.find(e=>e.id===late.id),late);
+    assert.deepEqual(projectAt(retro,'2025-03-02').activeItems[0].shares,{anna:5,ben:4,clara:2});
+    assert.deepEqual(retro.events.slice(0,original.events.length),original.events);
+    assert.deepEqual(ledgerAt(retro,'2025-03-02').counterclaims,ledgerAt(original,'2025-03-02').counterclaims);
+    await cutoff('2025-03-02');
+    await page.locator('.timeline-event-card').filter({hasText:'01.03.2025'}).locator('.event-open-overlay').click();
+    const actual={};
+    for(const name of ['Anna','Ben','Clara'])
+      actual[name]=Number(await dialog.locator('.share-row').filter({hasText:name}).locator('input[type=number]').inputValue());
+    assert.deepEqual(actual,{Anna:5,Ben:4,Clara:2});
+    await dialog.getByRole('button',{name:'Abbrechen',exact:true}).click();
+    await targetShares('2025-02-15',{Anna:0,Ben:9,Clara:2},false);
+    assert.deepEqual((await snapshot()).events,retro.events,'conflicting insertion must be atomic');
+    await page.getByRole('button',{name:/Rückgängig \(Strg\+Z\)/}).click();
+    assert.deepEqual((await snapshot()).events,later.events);
+    await page.getByRole('button',{name:/Wiederholen \(Strg\+Y\)/}).click();
+    assert.deepEqual((await snapshot()).events,retro.events);
+    const saved=await download(page);
+    assert.deepEqual(saved.events,retro.events);
+    await openSave(page);
+    await page.locator('.save-basic-actions input[type=file]').setInputFiles({
+      name:'q30.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(saved))
+    });
+    await page.getByText('Browser-Abnahme').first().waitFor();
+    assert.deepEqual((await snapshot()).events,retro.events);
+    assert.deepEqual(failures,[]);
+    console.log('Q30 browser: backdating, historical editor, atomic conflict, immutable payments, undo/redo and file roundtrip passed');
+  } finally {await context.close();}
+}
+
 async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768, 1280], engine = 'Chromium') {
   for (const width of checks) {
     const context = await browser.newContext({
@@ -1003,6 +1083,7 @@ try {
   await acceptance('Chromium Q03 settlement', () => settlementEndToEnd(browser, offlineServer.url));
   await acceptance('Chromium Q06 invalid inputs', () => invalidInputAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q06 PHP online', () => phpOnline(browser));
+  await acceptance('Chromium Q30 signed share changes', () => shareDeltaAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
