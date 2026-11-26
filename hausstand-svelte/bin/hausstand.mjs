@@ -36,7 +36,7 @@ const commands = {
   'items update': 'Update item name, tags and note.',
   'items continue': 'End an item and create its successor in one transaction.',
   'items end': 'Archive an active item at an explicit date.',
-  'shares set': 'Replace an item’s share allocation at an explicit date.',
+  'shares set': 'Set a target allocation at an explicit date; stores signed absolute unit changes.',
   'redistribution execute': 'Apply several share changes in one dated transaction.',
   'items show': 'Show an item, its value and share distribution by stable ID.',
   'balances show': 'Show derived balances, claims and proposed settlement routes in integer cents.',

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyProject } from '../src/lib/domain.js';
 import { setItemShares, executeRedistribution } from '../src/lib/itemMutations.js';
+import { editEvent, removeEvent, editableEventCopy, redateEditableEvent, replaceEditableEvent } from '../src/lib/eventMutations.js';
 import { projectAt } from '../src/lib/projector.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
@@ -35,4 +36,29 @@ test('Q30: retroactive change causing a negative later balance is rejected with 
   assert.equal(problem.params.before,1);
   assert.equal(problem.params.delta,-4);
   assert.deepEqual(projectAt(p,date).activeItems[0].shares,{a:10});
+});
+
+test('Q30: editing a historical target recalculates only that event; later deltas remain immutable',()=>{
+  const p=makeProject();
+  const early=setItemShares(p,{itemId:'i',date:'2026-02-01',shares:{a:6,b:3,c:1},financialMode:'none'}).event;
+  const late=setItemShares(p,{itemId:'i',date:'2026-03-01',shares:{a:5,b:4,c:1},financialMode:'derived'}).event;
+  const original=structuredClone(late);
+  editEvent(p,early.id,{shares:{a:6,b:2,c:2}});
+  assert.deepEqual(p.events.find(e=>e.id===late.id),original);
+  assert.deepEqual(projectAt(p,date).activeItems[0].shares,{a:5,b:3,c:2});
+  removeEvent(p,early.id);
+  assert.deepEqual(projectAt(p,date).activeItems[0].shares,{a:5,b:5});
+});
+test('Q30: editing note or moving a date preserves signed unit changes',()=>{
+  const p=makeProject();
+  const later=setItemShares(p,{itemId:'i',date:'2026-03-01',shares:{a:5,b:5},financialMode:'none'}).event;
+  setItemShares(p,{itemId:'i',date:'2026-02-01',shares:{a:6,b:3,c:1},financialMode:'none'});
+  const form=editableEventCopy(p,later);
+  assert.deepEqual(form.shares,{a:5,b:4,c:1});
+  const moved=redateEditableEvent(p,form,'2026-01-15');
+  assert.deepEqual(moved.shares,{a:5,b:5});
+  const edited=replaceEditableEvent(p,{...moved,note:'moved'});
+  assert.deepEqual(edited.shareUnitDeltas,{a:-1,b:1});
+  assert.ok(!Object.hasOwn(edited,'shares'));
+  assert.deepEqual(projectAt(p,date).activeItems[0].shares,{a:5,b:4,c:1});
 });

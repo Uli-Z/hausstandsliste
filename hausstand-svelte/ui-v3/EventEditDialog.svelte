@@ -1,7 +1,7 @@
 <script>
   import { translate, parseDecimal } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
-  import { replaceEditableEvent, removeEvent } from '../src/lib/eventMutations.js';
+  import { replaceEditableEvent, removeEvent, editableEventCopy, redateEditableEvent } from '../src/lib/eventMutations.js';
   import { dateDE, uid, clone } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';
   import { projectAt } from '../src/lib/projector.js';
@@ -22,7 +22,7 @@
   $: isPurchase = event?.type === 'item-added' && !project.items.find(i=>i.id===event.itemId)?.predecessorItemId;
 
   $: if (event && !edited) {
-    edited = clone(event);
+    edited = editableEventCopy(project,event);
     if (event.type === 'item-added') contributions = recordedContributions(event);
     if (edited.type === 'shares-set' && !edited.financialMode) edited.financialMode = 'none';
   }
@@ -40,6 +40,15 @@
     if (!isEnterForSubmit(event)) return;
     event.preventDefault();
     save();
+  }
+
+  function changeDate(inputEvent) {
+    try {
+      edited = redateEditableEvent(project,edited,inputEvent.currentTarget.value);
+    } catch {
+      inputEvent.currentTarget.value = edited.date;
+      alert($translate('errors.shareDateConflict'));
+    }
   }
 
   function save() {
@@ -70,7 +79,7 @@
     <div class="modal-body stack">
       {#if edited}
         <div class="form-grid">
-          <label>{$translate("ui.date-o4j91o")} <input type="date" bind:value={edited.date}></label>
+          <label>{$translate("ui.date-o4j91o")} <input type="date" value={edited.date} on:change={changeDate}></label>
           
           {#if edited.type === 'person-added'}
             <label>{$translate("ui.name-at-that-time-81lqvy")} <input bind:value={edited.name}></label>

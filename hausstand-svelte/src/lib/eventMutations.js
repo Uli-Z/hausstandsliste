@@ -1,4 +1,5 @@
 import { validISODate, claimSettlementErrors, CLAIM_SETTLEMENT_TYPE } from './claimSettlement.js';
+import { resolveShareEvent, shareUnitDeltas, applyShareUnitDeltas } from './shareUnits.js';
 import { projectBeforeEvent } from './projector.js';
 import { clone, nextEventOrder, validMoney } from './util.js';
 import { purchaseEventProblem } from './purchaseFinancing.js';
@@ -54,7 +55,12 @@ export function editEvent(project,eventId,changes) {
       if (event.type==='shares-set') {
         const item=before.activeItems.find(i=>i.id===event.itemId);
         if (!item) fail('ITEM_NOT_ACTIVE');
-        event.shares=checkedShares(before,event.shares,{...item.shares,...original.shares});
+        if (Object.hasOwn(changes,'shares')) {
+          event.shareUnitDeltas=shareUnitDeltas(item.shares,checkedShares(before,event.shares,item.shares));
+          delete event.shares;
+        }
+        // A metadata/date-only edit preserves the actual historical units.
+        checkedShares(before,resolveShareEvent(item.shares,event),item.shares);
       } else {
         if (!Array.isArray(event.events)) fail('INVALID_REDISTRIBUTION');
         const seen=new Set();
@@ -65,7 +71,11 @@ export function editEvent(project,eventId,changes) {
           seen.add(prior.id);
           const item=before.activeItems.find(i=>i.id===prior.itemId);
           if (!item) fail('ITEM_NOT_ACTIVE');
-          return {...clone(prior),shares:checkedShares(before,child.shares,{...item.shares,...prior.shares})};
+          const next=clone(prior);
+          if (Object.hasOwn(child,'shares'))
+            next.shareUnitDeltas=shareUnitDeltas(item.shares,checkedShares(before,child.shares,item.shares));
+          checkedShares(before,resolveShareEvent(item.shares,next),item.shares);
+          return next;
         });
       }
     }
@@ -75,6 +85,40 @@ export function editEvent(project,eventId,changes) {
   project.events[i]=event;
   return event;
 }
+// Convert persisted unit deltas to editable target allocations only in a
+// transient editor model. No target allocation is written to an event.
+export function editableEventCopy(project,event) {
+  const copy=clone(event);
+  const before=projectBeforeEvent(project,event.id,event.date,event.order);
+  const asTarget=child=>{
+    const item=before.activeItems.find(i=>i.id===child.itemId);
+    if (!item) fail('ITEM_NOT_ACTIVE');
+    return {...child,shares:resolveShareEvent(item.shares,child)};
+  };
+  if (event.type==='shares-set') return asTarget(copy);
+  if (event.type==='redistribution-executed') copy.events=copy.events.map(asTarget);
+  return copy;
+}
+
+// Rebase an editor's allocations when its date changes. Preserve the units
+// represented by current form inputs (including unsaved user edits).
+export function redateEditableEvent(project,edited,newDate) {
+  if (!validISODate(newDate)) fail('INVALID_DATE');
+  if (!['shares-set','redistribution-executed'].includes(edited.type))
+    return {...edited,date:newDate};
+  const before=projectBeforeEvent(project,edited.id,edited.date,edited.order);
+  const after=projectBeforeEvent(project,edited.id,newDate,edited.order);
+  const move=child=>{
+    const oldItem=before.activeItems.find(i=>i.id===child.itemId);
+    const newItem=after.activeItems.find(i=>i.id===child.itemId);
+    if (!oldItem || !newItem) fail('ITEM_NOT_ACTIVE');
+    const delta=shareUnitDeltas(oldItem.shares,child.shares);
+    return {...child,shares:applyShareUnitDeltas(newItem.shares,delta)};
+  };
+  if (edited.type==='shares-set') return {...move(edited),date:newDate};
+  return {...edited,date:newDate,events:edited.events.map(move)};
+}
+
 /** The UI works on a full local event copy; submit only supported changes. */
 export function replaceEditableEvent(project,edited) {
   const original=project.events[indexOf(project,edited.id)];

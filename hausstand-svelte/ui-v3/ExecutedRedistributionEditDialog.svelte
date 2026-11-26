@@ -1,7 +1,7 @@
 <script>
   import { translate, localizeGermanText } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
-  import { replaceEditableEvent, removeEvent } from '../src/lib/eventMutations.js';
+  import { replaceEditableEvent, removeEvent, editableEventCopy, redateEditableEvent } from '../src/lib/eventMutations.js';
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
@@ -19,7 +19,7 @@
   let edited = null;
 
   $: if (event && !edited) {
-    edited = clone(event);
+    edited = editableEventCopy(project,event);
     if (!edited.financialMode) edited.financialMode = 'none';
   }
 
@@ -84,6 +84,15 @@
     else save();
   }
 
+  function changeDate(inputEvent) {
+    try {
+      edited = redateEditableEvent(project,edited,inputEvent.currentTarget.value);
+    } catch {
+      inputEvent.currentTarget.value = edited.date;
+      alert($translate('errors.shareDateConflict'));
+    }
+  }
+
   function save() {
     const saved = appState.mutateProject(p => replaceEditableEvent(p, edited));
     if (saved) appState.closeDialog();
@@ -121,7 +130,7 @@
           <section class="mini-card stack">
             <div class="grid-2">
               <label>{$translate("ui.title-2r13zr")} <input bind:value={edited.title}></label>
-              <label>{$translate("ui.date-o4j91o")} <input type="date" bind:value={edited.date}></label>
+              <label>{$translate("ui.date-o4j91o")} <input type="date" value={edited.date} on:change={changeDate}></label>
               <label>{$translate("ui.should-financial-claims-arise-qd7qky")}
                 <select bind:value={edited.financialMode}>
                   <option value="derived">{$translate("ui.yes-recalculate-claims-1o04vr5")}</option>
