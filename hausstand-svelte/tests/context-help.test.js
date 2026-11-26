@@ -45,3 +45,16 @@ test('redundant help icons are removed while meaningful explanations and warning
   assert.ok(!redistribution.includes('class="workflow-help"'));
   assert.ok(redistribution.includes('ui.what-is-the-financial-effect-of-thi-g85db9'));
 });
+
+
+test('Q17: long help is keyboard-scrollable without an extra tab stop or page scroll', () => {
+  const tip=source('src/components/HelpTip.svelte');
+  assert.match(tip,/on:focusin=\{onWindowFocus\}/);
+  assert.match(tip,/!root\.contains\(event\.target\)\) close\(\)/);
+  assert.match(tip,/event\.target !== trigger/);
+  assert.match(tip,/popup\.scrollHeight <= popup\.clientHeight/);
+  assert.match(tip,/popup\.scrollTop \+= increments\[event\.key\]/);
+  assert.match(tip,/ArrowDown: 32, ArrowUp: -32/);
+  assert.match(tip,/event\.key === 'Home' \|\| event\.key === 'End'/);
+  assert.match(tip,/@media \(pointer:coarse\).*min-width:44px;min-height:44px/);
+});

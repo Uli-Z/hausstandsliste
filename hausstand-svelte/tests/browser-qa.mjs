@@ -1578,8 +1578,24 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       const popup = await help.boundingBox();
       assert.ok(popup.x >= 0 && popup.x + popup.width <= width + 2,
         'Q04 ' + width + 'px help popup clipped horizontally: ' + JSON.stringify(popup));
-      await page.keyboard.press('Escape');
+      // Make the tooltip genuinely scrollable at every viewport width and
+      // verify keyboard access to the entire text, not merely to the trigger.
+      await help.evaluate(el=>{el.style.maxHeight='60px';});
+      assert.ok(await help.evaluate(el=>el.scrollHeight>el.clientHeight));
+      await helpButton.focus();
+      const pageScroll=await page.evaluate(()=>window.scrollY);
+      await helpButton.press('End');
+      assert.ok(await help.evaluate(el=>el.scrollTop>0));
+      assert.equal(await page.evaluate(()=>window.scrollY),pageScroll);
+      await helpButton.press('Home');
+      assert.equal(await help.evaluate(el=>el.scrollTop),0);
+      await helpButton.press('Escape');
       assert.equal(await help.count(), 0, 'Help should close on Escape');
+      assert.equal(await helpButton.evaluate(el=>document.activeElement===el),true);
+      await helpButton.press('Enter');
+      await help.waitFor();
+      await helpButton.press('Tab');
+      assert.equal(await help.count(),0,'Help closes when focus leaves the trigger');
       await helpButton.click();
       await page.locator('.page-heading').click();
       assert.equal(await help.count(), 0, 'Help should close when clicking outside');

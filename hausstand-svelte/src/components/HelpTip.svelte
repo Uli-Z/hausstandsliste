@@ -53,11 +53,30 @@
   function onWindowClick(event) {
     if (open && root && !root.contains(event.target)) close();
   }
+  function onWindowFocus(event) {
+    // Keyboard users should not carry a floating help overlay into the next field.
+    if (open && root && !root.contains(event.target)) close();
+  }
   function onKeydown(event) {
-    if (open && event.key === 'Escape') {
+    if (!open) return;
+    if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
       close(true);
+      return;
+    }
+    // A tooltip is not a second tab stop. Keep focus on its trigger, but let
+    // keyboard users scroll a long explanation without moving the page.
+    if (event.target !== trigger || !popup || popup.scrollHeight <= popup.clientHeight) return;
+    const increments = { ArrowDown: 32, ArrowUp: -32, PageDown: popup.clientHeight, PageUp: -popup.clientHeight };
+    if (Object.hasOwn(increments, event.key)) {
+      event.preventDefault();
+      event.stopPropagation();
+      popup.scrollTop += increments[event.key];
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      event.stopPropagation();
+      popup.scrollTop = event.key === 'Home' ? 0 : popup.scrollHeight;
     }
   }
   function onWindowScroll(event) {
@@ -68,6 +87,7 @@
 
 <svelte:window
   on:click={onWindowClick}
+  on:focusin={onWindowFocus}
   on:keydown={onKeydown}
   on:scroll|capture={onWindowScroll}
   on:resize={() => { if (open) positionPopup(); }}
@@ -113,6 +133,7 @@
     background:var(--soft);color:var(--text);border-color:var(--muted)
   }
   .help-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @media (pointer:coarse){.help-trigger{width:44px;height:44px;min-width:44px;min-height:44px}}
   .help-popup{
     position:fixed;z-index:150;display:block;box-sizing:border-box;max-height:min(270px,48vh);overflow-y:auto;
     border:1px solid var(--border);border-radius:12px;
