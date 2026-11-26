@@ -1,5 +1,6 @@
 <script>
   import CompactNames from './CompactNames.svelte';
+  import ActionIcon from '../src/components/ActionIcon.svelte';
   import { rankedItems } from '../src/lib/overviewNames.js';
   import { appState } from '../src/stores/projectStore.js';
   import { locale, translate, pluralMessage } from '../src/lib/i18n.js';
@@ -44,6 +45,7 @@
           {/if}
           <CompactNames entries={rankedItems((person.holdings || []).map(h => h.item), $locale)}/>
           <div class="person-bottom"><span>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</span><button class="card-primary" type="button" on:click={() => appState.setRoute({page:'person',id:person.id})}>{$translate("people.profile")}</button></div>
+          <button class="card-secondary person-status-action" type="button" on:click={() => appState.setDialog({type:'personStatus',personId:person.id,kind:person.active?'deactivate':'reactivate'})}><ActionIcon name={person.active?'archive':'person-add'} size={17}/>{$translate(person.active?'ui.mark-as-moved-out-11arjl':'ui.reactivate-iggdm2')}</button>
         </article>
       {/each}
     </div>
@@ -65,4 +67,5 @@
   .person-heading{align-items:baseline;flex-wrap:wrap}
   .person-heading h2{margin:0}
   .person-status-text{color:var(--muted);font-size:12px}
+  .person-status-action{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;align-self:stretch;white-space:normal}
 </style>

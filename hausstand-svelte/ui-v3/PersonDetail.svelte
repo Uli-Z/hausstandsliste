@@ -81,8 +81,8 @@
     </div>
     <div class="secondary-actions" role="group" aria-label={$translate("ui.moreActions")}>
       <div class="action-grid">
-        <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-person-jstaod")}</button>
         {#if person.active}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'deactivate'})}><ActionIcon name="archive" size={17}/>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'reactivate'})}><ActionIcon name="person-add" size={17}/>{$translate("ui.reactivate-iggdm2")}</button>{/if}
+        <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-person-jstaod")}</button>
         <button disabled={!person.active || !person.holdings?.length} on:click={startTransfer}><ActionIcon name="arrows" size={17}/>{$translate("app.transfer")}</button>
         <button disabled={!person.active || !person.holdings?.length} on:click={startDissolve}><ActionIcon name="archive" size={17}/>{$translate("ui.remove-shares-5g2njo")}</button>
       </div>

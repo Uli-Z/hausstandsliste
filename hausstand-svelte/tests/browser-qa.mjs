@@ -1272,6 +1272,64 @@ async function wholeCardAcceptance(browser,url) {
   }
 }
 
+async function archiveDiscoverabilityAcceptance(browser,url) {
+  for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
+    const context=await browser.newContext({locale,viewport:{width,height:820}});
+    try {
+      const page=await context.newPage();
+      const errors=[];page.on('pageerror',e=>errors.push(e.message));
+      const de=locale==='de-DE';
+      const archive=de?'Person archivieren':'Archive person';
+      const reactivate=de?'Person reaktivieren':'Reactivate person';
+      const copy=structuredClone(fixture);
+      copy.people.push({id:'free',name:'Q40 Free'});
+      copy.events.push({id:'join-free',type:'person-added',personId:'free',name:'Q40 Free',date:'2025-01-01',order:4});
+      await page.goto(url);
+      await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(copy)});
+      await page.reload();
+      await page.getByText('Browser-Abnahme').first().waitFor();
+      await page.locator('.time-travel-toggle').click();
+      await page.locator('#state-date').fill('2033-01-01');
+      await page.keyboard.press('Escape');
+      await page.locator('.metric-grid .metric').nth(2).locator('.metric-link').click();
+      const tile=name=>page.locator('.person-tile').filter({has:page.getByRole('heading',{name,exact:true})});
+      const dialog=page.getByRole('dialog');
+      const submit=dialog.locator('.modal-footer .primary');
+      const snapshot=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)).project,key);
+      await tile('Anna').getByRole('button',{name:archive,exact:true}).click();
+      await dialog.waitFor();
+      assert.equal(await submit.isDisabled(),true,'existing shares and balance still block archive');
+      await dialog.locator('.modal-header button.ghost').click();
+      await dialog.waitFor({state:'hidden'});
+      const direct=tile('Q40 Free').getByRole('button',{name:archive,exact:true});
+      assert.equal(await direct.isVisible(),true);
+      await direct.focus();
+      await page.keyboard.press('Enter');
+      await dialog.waitFor();
+      assert.equal(await page.locator('#event-effective-date').inputValue(),'2033-01-01');
+      assert.equal(await submit.isEnabled(),true);
+      assert.equal((await snapshot()).events.some(e=>e.type==='person-deactivated'&&e.personId==='free'),false);
+      await submit.click();
+      await dialog.waitFor({state:'hidden'});
+      assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId==='free')?.date,'2033-01-01');
+      assert.equal(await tile('Q40 Free').count(),0);
+      await page.locator('.people-status-filter button').nth(1).click();
+      const archived=tile('Q40 Free');
+      assert.equal(await archived.getByRole('button',{name:reactivate,exact:true}).isVisible(),true);
+      await archived.locator('.card-primary').click();
+      const detailAction=page.locator('.detail-hero').getByRole('button',{name:reactivate,exact:true});
+      assert.equal(await detailAction.isVisible(),true);
+      await detailAction.click();
+      await dialog.waitFor();
+      await page.locator('#event-effective-date').fill('2033-01-02');
+      await submit.click();
+      await dialog.waitFor({state:'hidden'});
+      assert.equal((await snapshot()).events.find(e=>e.type==='person-reactivated'&&e.personId==='free')?.date,'2033-01-02');
+      assert.deepEqual(errors,[]);
+    } finally {await context.close();}
+  }
+}
+
 async function overviewNamesAcceptance(browser,url) {
   for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
     const context=await browser.newContext({locale,viewport:{width,height:820}});
@@ -1865,6 +1923,7 @@ try {
   await acceptance('Chromium Q39 recent history', () => recentHistoryAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q40 archive discoverability', () => archiveDiscoverabilityAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
   await acceptance('Chromium responsive UI', () => responsiveUiAcceptance(browser, offlineServer.url));
   for (const [name, browserType] of [['Firefox', firefox], ['WebKit', webkit]]) {
@@ -1877,6 +1936,7 @@ try {
       await acceptance(name + ' Q36 unit movement display', () => unitMovementDisplayAcceptance(additional, offlineServer.url));
       await acceptance(name + ' Q25 whole cards', () => wholeCardAcceptance(additional, offlineServer.url));
       await acceptance(name + ' Q29 compact names', () => overviewNamesAcceptance(additional, offlineServer.url));
+      await acceptance(name + ' Q40 archive discoverability', () => archiveDiscoverabilityAcceptance(additional, offlineServer.url));
       await acceptance(name + ' Q39 recent history', () => recentHistoryAcceptance(additional, offlineServer.url));
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
