@@ -149,7 +149,7 @@ export async function verifyPortableHistory(project, validate = () => {}) {
   const ids=new Set();
   for(const entry of getVersionEntries(project)) {
     if(typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id))
-      throw new Error('Invalid archive ID');
+      throw new Error('Unbekanntes oder beschädigtes Versionsarchiv. Die Datei wurde nicht verändert.');
     ids.add(entry.id);
     const snapshot=await readPortableVersion(project,entry.id);
     await validate(snapshot);
