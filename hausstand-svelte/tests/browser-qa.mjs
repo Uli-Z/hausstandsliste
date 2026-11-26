@@ -111,6 +111,14 @@ async function itemEntryAcceptance(browser, url, engine) {
       await method.selectOption('linear');
       assert.equal(await duration.inputValue(),'8');
       await finance.locator('select').first().selectOption('individual');
+      assert.equal(await finance.locator('.purchase-person-row:not(.purchase-column-head)').count(),3);
+      assert.equal(await finance.locator('.purchase-units').count(),3);
+      assert.equal(await finance.locator('.purchase-contribution').count(),3);
+      const dateBox = await modal.locator('#event-effective-date').boundingBox();
+      const bodyBox = await modal.locator('.modal-body').boundingBox();
+      if(width<=390) assert.ok(dateBox.width >= bodyBox.width-40,'date occupies full usable width');
+      await finance.locator('.purchase-units').first().fill('2');
+      await finance.locator('.purchase-units').first().fill('1');
       await finance.getByLabel('Anna',{exact:true}).fill('150');
       await finance.getByLabel('Ben',{exact:true}).fill('100');
       await finance.getByLabel('Clara',{exact:true}).fill('0');

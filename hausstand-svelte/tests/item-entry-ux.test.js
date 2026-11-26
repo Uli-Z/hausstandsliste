@@ -17,7 +17,10 @@ test('item creation keeps ownership/financing explicit and secondary fields behi
     assert.ok(block.includes(name), name);
   }
   assert.ok(block.indexOf('bind:value={itemName}') < block.indexOf('ShareEditor'));
-  assert.ok(block.indexOf('ShareEditor') < block.indexOf('PurchaseFinancing'));
+  assert.ok(block.includes('bind:shares')); // PurchaseFinancing and neutral successor use the shared editor.
+  const financing = source('ui-v3/PurchaseFinancing.svelte');
+  assert.ok(financing.includes('<ShareEditor people={tablePeople} bind:shares allPeople={true} showAmounts={true}'));
+  assert.ok(financing.includes('slot="amount"'));
   assert.ok(block.includes('<details class="item-extra-fields"'));
   assert.ok(block.includes('bind:value={valuationType}'));
   assert.ok(block.includes('bind:value={durationYears}'));
@@ -123,9 +126,9 @@ test('Q22: depreciation is always visible; optional details retain explicit open
   assert.ok(visible.includes('bind:value={minimumValue}'));
   assert.ok(!extra.includes('bind:value={minimumValue}'));
   assert.ok(visible.includes('input type="text" inputmode="decimal"'));
-  assert.ok(dialog.includes('minimumValue: minimumValueAmount'));
+  assert.ok(dialog.includes("minimumValue: valuationType === 'fixed' && !validMoney(minimumValueAmount) ? 0 : minimumValueAmount"));
   // The draft and shared payload builder must both retain the localized minimum.
-  assert.equal((dialog.match(/minimumValue: minimumValueAmount/g) || []).length, 2);
+  assert.equal((dialog.match(/minimumValue: valuationType === 'fixed' && !validMoney\(minimumValueAmount\) \? 0 : minimumValueAmount/g) || []).length, 2);
   assert.ok(dialog.includes('applyItemAdd(p, { ...itemPayload()'));
   assert.ok(dialog.includes('applyItemContinue(p, { ...itemPayload()'));
   assert.ok(source('src/lib/itemMutations.js').includes('valuation:rule'));

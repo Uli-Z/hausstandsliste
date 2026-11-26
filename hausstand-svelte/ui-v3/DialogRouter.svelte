@@ -114,13 +114,12 @@
   // Keep the raw minimum-value text while typing: a German decimal comma must
   // neither collapse the details panel nor silently be stored as zero.
   $: minimumValueAmount = String(minimumValue ?? '').trim() === '' ? 0 : parseDecimal(minimumValue);
-  $: minimumValueValid = !itemNeedsOwners || validMoney(minimumValueAmount);
+  $: minimumValueValid = !itemNeedsOwners || valuationType === 'fixed' || validMoney(minimumValueAmount);
   $: valuationValid = !itemNeedsOwners || (valuationType === 'linear' ? Number.isFinite(durationYears) && durationYears > 0 : valuationType === 'degressive' ? Number.isFinite(annualRate) && annualRate >= 0 && annualRate <= 1 : valuationType === 'fixed');
   $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid && !statusPreview?.problem &&
     itemCostValid && ownersValid && itemNameValid && minimumValueValid && valuationValid &&
     (dialog?.type !== 'itemAdd' || (financingValid && (!alreadySettled || validCalendarDate(paymentDate))));
   $: purchaseShares = normShares(shares);
-  $: purchaseOwnerCount = Object.keys(purchaseShares).length;
   $: purchaseClaims = dialog?.type === 'itemAdd' && itemCostValid && ownersValid && financingValid
     ? derivePurchaseClaims(itemCostCents,purchaseShares,purchaseContributionsCents) : [];
   $: purchaseBalances = [...personBalances(purchaseClaims)];
@@ -279,7 +278,7 @@
           type: valuationType,
           durationYears: valuationType === 'linear' ? Number(durationYears) : undefined,
           annualRate: valuationType === 'degressive' ? Number(annualRate) : undefined,
-          minimumValue: minimumValueAmount
+          minimumValue: valuationType === 'fixed' && !validMoney(minimumValueAmount) ? 0 : minimumValueAmount
         },
         shares: initialShares,
         purchaseContributionsCents: purchaseContributionsCents && Object.values(purchaseContributionsCents).every(Number.isSafeInteger) ? purchaseContributionsCents : undefined
@@ -294,7 +293,7 @@
   function itemPayload() {
     return { date: effectiveDate, name: itemName, tags: parseTags(tags), note,
       initialValue: Number(initialValue), valuation: { type: valuationType,
-        durationYears: Number(durationYears), annualRate: Number(annualRate), minimumValue: minimumValueAmount },
+        durationYears: Number(durationYears), annualRate: Number(annualRate), minimumValue: valuationType === 'fixed' && !validMoney(minimumValueAmount) ? 0 : minimumValueAmount },
       shares: normShares(shares) };
   }
   function addItem() {
@@ -446,11 +445,11 @@
               <label class="item-name-field">{$translate("ui.name-4el6o6")}
                 <input bind:value={itemName} enterkeyhint="done" autocomplete="off">
               </label>
-              <label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
-            <input id="event-effective-date" type="date" bind:value={effectiveDate} on:change={changeEffectiveDate} />
-          </label>
               <label>{$translate("ui.purchase-price-in-euros-1858jaw")}
                 <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}>
+              </label>
+              <label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
+                <input id="event-effective-date" type="date" bind:value={effectiveDate} on:change={changeEffectiveDate} />
               </label>
             </div>
             <div class="form-grid item-valuation-fields">
@@ -481,19 +480,19 @@
             {#if !itemNameValid}<p class="notice warn" role="alert">{$translate('items.enterName')}</p>{/if}
             {#if !itemCostValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             <section class="item-ownership-fields">
-              <div class="item-flow-heading">
-                <strong>{$translate("ui.who-owns-this-item-nnrc3g")}</strong>
-              </div>
-              <ShareEditor people={entryProjection.people} bind:shares allowEqualize={true} />
+              {#if dialog.type === 'itemAdd'}
+                <PurchaseFinancing people={entryProjection.people.filter(p=>p.active)} bind:shares
+                  amountCents={itemCostCents} bind:contributions={purchaseContributionsCents} bind:valid={financingValid} />
+              {:else}
+                <div class="item-flow-heading"><strong>{$translate("ui.who-owns-this-item-nnrc3g")}</strong></div>
+                <ShareEditor people={entryProjection.people.filter(p=>p.active || Object.hasOwn(shares,p.id))} bind:shares allowEqualize={true} allPeople={true} />
+              {/if}
               {#if !ownersValid}<p role="alert" class="notice warn">{$translate('items.selectOwner')}</p>{/if}
             </section>
             {#if dialog.type === 'itemAdd'}
-              <PurchaseFinancing people={entryProjection.people.filter(p=>p.active)} shares={purchaseShares}
-                amountCents={itemCostCents} bind:contributions={purchaseContributionsCents} bind:valid={financingValid} />
               {#if itemCostValid && ownersValid && financingValid}
                 <section class="item-purchase-preview" aria-live="polite">
                   <strong>{$translate('items.purchasePreview')}</strong>
-                  <p>{$translate('items.purchaseSummary', {owners:purchaseOwnerCount, amount:money(itemCost)})}</p>
                   {#if purchaseClaims.length}
                     <ul>
                       {#each purchaseBalances as [id,cents]}
@@ -577,8 +576,15 @@
   .item-entry-flow{display:grid;gap:12px;min-width:0}
   .item-entry-modal .modal-body{gap:8px;align-content:start}
   .item-entry-modal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-  .item-name-field{grid-column:1/-1}
-  .item-valuation-fields>label:first-child{grid-column:1/-1}
+  .item-entry-modal .item-primary-fields{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr)}
+  .item-entry-modal .item-valuation-fields{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr)}
+  .item-entry-modal .event-effective-date input{min-width:0}
+  @media(max-width:680px){
+    .item-entry-modal .item-primary-fields{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
+    .item-entry-modal .item-primary-fields .event-effective-date{grid-column:1/-1}
+    .item-entry-modal .item-valuation-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .item-valuation-fields>label:first-child{grid-column:1/-1}
+  }
   .item-entry-flow label{min-width:0}
   .item-entry-flow input,.item-entry-flow select{min-width:0;max-width:100%}
   .item-entry-flow .notice{margin:0;padding:7px 9px}
@@ -587,7 +593,7 @@
   .item-entry-modal .modal-footer{gap:6px}
   .item-primary-fields,.item-valuation-fields{align-items:end}
   .item-valuation-fields{padding:2px 0 6px}
-  .item-ownership-fields{display:grid;gap:6px;padding-top:8px;border-top:1px solid var(--border)}
+  .item-ownership-fields{display:grid;gap:6px;min-width:0}
   .item-flow-heading{display:flex;align-items:center;gap:8px;font-size:14px}
   .item-purchase-preview{display:grid;gap:6px;background:var(--soft);border-radius:10px;padding:12px;font-size:12px}
   .item-purchase-preview p,.item-purchase-preview ul{margin:0}

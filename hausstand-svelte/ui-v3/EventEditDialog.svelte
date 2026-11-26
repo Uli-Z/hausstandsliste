@@ -105,12 +105,13 @@
               <label>{$translate("ui.minimum-value-hzgo71")} <input type="text" inputmode="decimal" autocomplete="off" bind:value={edited.valuation.minimumValue} aria-invalid={!minimumValid}></label>
               {#if !minimumValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             </section>
-            <section class="mini-card stack">
-              <strong>{$translate("ui.original-ownership-shares-sekno0")}</strong>
-              <ShareEditor {people} bind:shares={edited.shares} />
+            <section class="stack wide">
               {#if isPurchase}
-                <PurchaseFinancing people={project.people} shares={edited.shares}
+                <PurchaseFinancing people={project.people} ownerPeople={people} bind:shares={edited.shares}
                   amountCents={Math.round(edited.initialValue*100)} bind:contributions bind:valid={financingValid} editing={true} />
+              {:else}
+                <strong>{$translate("ui.original-ownership-shares-sekno0")}</strong>
+                <ShareEditor {people} bind:shares={edited.shares} />
               {/if}
             </section>
           {:else if edited.type === 'item-ended'}

@@ -5,6 +5,8 @@
   export let people = [];
   export let shares = {};
   export let allowEqualize = false;
+  export let allPeople = false;
+  export let showAmounts = false;
   function setShare(personId, value) { shares = { ...shares, [personId]: parseShareInput(value) }; }
   function removeShare(personId) { const next = { ...shares }; delete next[personId]; shares = next; }
   function addPerson(personId) { if (!personId) return; shares = { ...shares, [personId]: shares[personId] || 1 }; }
@@ -19,6 +21,35 @@
   // must choose someone participating on the event's effective date.
   $: available = people.filter(p => p.active !== false && !(p.id in shares));
 </script>
+{#if allPeople}
+  <div class="purchase-people" class:with-amounts={showAmounts}>
+    <div class="purchase-people-toolbar">
+      <strong>{$translate('purchase.people')}</strong>
+      {#if allowEqualize && positiveOwnerCount > 1}
+        <button type="button" class="small" on:click={equalize}>{$translate('items.equalShares')}</button>
+      {/if}
+    </div>
+    <div class="purchase-person-row purchase-column-head" aria-hidden="true">
+      <span>{$translate('purchase.personColumn')}</span>
+      <span>{$translate('ui.units-1xtsz9u')}</span>
+      <span>%</span>
+      {#if showAmounts}<span>{$translate('purchase.paidColumn')}</span>{/if}
+    </div>
+    {#each people as person (person.id)}
+      <div class="purchase-person-row">
+        <span class="share-person-name">{person.name}</span>
+        <input class="purchase-units" type="number" min="0" step="0.01" inputmode="decimal"
+          aria-label={person.name + ' – ' + $translate('ui.units-1xtsz9u')}
+          disabled={person.active === false && !(shares[person.id]>0)}
+          value={Object.hasOwn(shares,person.id) ? shares[person.id] ?? '' : 0}
+          on:input={e => setShare(person.id,e.currentTarget.value)} />
+        <small class="share-percent">{formatPercent(totalUnits > 0 ? Math.max(0,Number(shares[person.id])||0)/totalUnits : 0)}</small>
+        {#if showAmounts}<slot name="amount" personId={person.id} personName={person.name} />{/if}
+      </div>
+    {/each}
+    <small class="purchase-share-hint">{$translate('purchase.zeroShares')}</small>
+  </div>
+{:else}
 <div class="stack share-editor" class:compact={allowEqualize}>
   {#if allowEqualize && positiveOwnerCount > 1}
     <div class="share-editor-toolbar">
@@ -41,8 +72,26 @@
     <label>{$translate("ui.add-another-person-sw2l01")} <select on:change={e => { addPerson(e.currentTarget.value); e.currentTarget.value=''; }}><option value="">{$translate("ui.select-1ija1xu")}</option>{#each available as person}<option value={person.id}>{person.name}</option>{/each}</select></label>
   {/if}
 </div>
+{/if}
 
 <style>
+  .purchase-people{display:grid;gap:4px;min-width:0}
+  .purchase-people-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .purchase-people-toolbar button{min-height:44px}
+  .purchase-person-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(48px,90px) minmax(38px,64px);gap:8px;align-items:center;min-width:0;padding:2px 0}
+  .with-amounts .purchase-person-row{grid-template-columns:minmax(0,1fr) minmax(48px,90px) minmax(38px,64px) minmax(74px,130px)}
+  .purchase-person-row .share-percent{text-align:right;white-space:nowrap}
+  .purchase-person-row input{width:100%;min-width:0;padding:5px 6px}
+  .purchase-column-head{font-size:11px;color:var(--muted);overflow-wrap:anywhere;line-height:1.25}
+  .purchase-column-head span:not(:first-child){text-align:right}
+  .purchase-share-hint{color:var(--muted);font-size:11px}
+  @media(max-width:540px){
+    .purchase-person-row{grid-template-columns:minmax(0,1fr) 50px 42px;gap:5px}
+    .with-amounts .purchase-person-row{grid-template-columns:minmax(0,1fr) 48px 42px 76px;gap:5px}
+    .purchase-person-row .share-person-name{font-size:12px}
+    .purchase-person-row .share-percent{font-size:10px}
+    .purchase-person-row input{padding:5px;font-size:13px}
+  }
   .share-editor-toolbar{display:flex;justify-content:flex-end}
   .share-person-name{align-self:center;min-width:0;overflow-wrap:anywhere;font-size:13px;font-weight:650}
   .share-percent{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;align-self:center}

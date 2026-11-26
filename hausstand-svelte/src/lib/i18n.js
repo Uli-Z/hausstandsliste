@@ -5,6 +5,10 @@ export const LANGUAGE_KEY = 'hausstand-language';
 export const dictionaries = {
   "en": {
     "purchase.financing": "Purchase financing",
+    "purchase.people": "Ownership and contributions",
+    "purchase.personColumn": "Person",
+    "purchase.paidColumn": "Paid (€)",
+    "purchase.zeroShares": "0 units = no ownership.",
     "purchase.mode": "How was it paid?",
     "purchase.single": "One person paid everything",
     "purchase.individual": "Enter individual amounts",
@@ -781,6 +785,10 @@ export const dictionaries = {
   },
   "de": {
     "purchase.financing": "Anschaffungsfinanzierung",
+    "purchase.people": "Anteile und Kaufbeiträge",
+    "purchase.personColumn": "Person",
+    "purchase.paidColumn": "Bezahlt (€)",
+    "purchase.zeroShares": "0 Einheiten = kein Eigentum.",
     "purchase.mode": "Wie wurde bezahlt?",
     "purchase.single": "Eine Person hat alles bezahlt",
     "purchase.individual": "Einzelne Beträge eingeben",
