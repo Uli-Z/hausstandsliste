@@ -572,14 +572,14 @@
         <div style="flex:1"></div>
         {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName || $appState.readOnly}>{$translate("ui.create-zqi05d")}</button>{/if}
         {#if dialog.type === 'personStatus'}<button class="primary" on:click={savePersonStatus} disabled={!canSubmitDated || $appState.readOnly}>{$translate(dialog.kind === 'deactivate' ? 'ui.mark-as-moved-out-11arjl' : 'ui.reactivate-iggdm2')}</button>{/if}
-        {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName}>{$translate("ui.save-sq2189")}</button>{/if}
+        {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName || $appState.readOnly}>{$translate("ui.save-sq2189")}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely} disabled={!deleteEligibility.allowed || $appState.readOnly}>{$translate("ui.delete-person-permanently-e06bgl")}</button>{/if}
         {#if dialog.type === 'itemAdd'}
           <button on:click={saveItemDraft} disabled={!dateValid || !minimumValueValid || $appState.readOnly}>{$translate("ui.save-as-draft-sz9zgy")}</button>
           <button class="primary" on:click={addItem} disabled={!canSubmitDated || $appState.readOnly}>{$translate("ui.create-zqi05d")}</button>
         {/if}
         {#if dialog.type === 'itemContinue'}<button class="primary" on:click={continueItem} disabled={!canSubmitDated || $appState.readOnly}>{$translate("ui.replace-and-archive-old-item-y6ooa2")}</button>{/if}
-        {#if dialog.type === 'itemMeta'}<button class="primary" on:click={saveItemMeta}>{$translate("ui.save-sq2189")}</button>{/if}
+        {#if dialog.type === 'itemMeta'}<button class="primary" on:click={saveItemMeta} disabled={$appState.readOnly}>{$translate("ui.save-sq2189")}</button>{/if}
         {#if dialog.type === 'shareSet'}<button class="primary" on:click={saveShareSet} disabled={!canSubmitDated || $appState.readOnly}>{$translate("ui.apply-changes-7tqg8a")}</button>{/if}
         {#if dialog.type === 'itemEnd'}<button class="danger" on:click={endItem} disabled={!canSubmitDated || $appState.readOnly}>{$translate("ui.archive-qlwwpx")}</button>{/if}
       </div>
