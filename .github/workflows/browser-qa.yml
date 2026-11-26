@@ -4,6 +4,9 @@ name: Browser acceptance QA
 # Trigger this suite explicitly under Actions > Browser acceptance QA > Run workflow.
 on:
   workflow_dispatch:
+  push:
+    branches: [qa/q33-form-state-final-2026-11-26]
+    paths: [.github/workflows/browser-qa.yml]
 
 permissions:
   contents: read
@@ -35,3 +38,42 @@ jobs:
       - name: Exercise Chromium, Firefox, WebKit, portable history and responsive UI
         working-directory: hausstand-svelte
         run: npm run test:browser
+
+  before:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 27d17799f8703d7d01caed6ce5c4b29774ec4b4b
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - working-directory: hausstand-svelte
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.65.1
+          npx playwright install --with-deps chromium
+          npm run build:single
+          npm run build:php
+          git show 975176e59b6427b3aba2940375068ea857d6feee:hausstand-svelte/tests/browser-qa.mjs > tests/browser-qa.mjs
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/browser-qa.mjs')
+          s=p.read_text()
+          s=s[:s.rindex('let browser;')]
+          p.write_text(s+"""
+          const browser=await chromium.launch({headless:true});
+          const {server,url}=await makeHttpServer();
+          try { await itemEntryAcceptance(browser,url,'Chromium'); }
+          finally { await browser.close(); await new Promise(resolve=>server.close(resolve)); }
+          """)
+          PY
+          if node tests/browser-qa.mjs > before.log 2>&1; then
+            cat before.log
+            echo 'Unexpected baseline pass'
+            exit 1
+          fi
+          cat before.log
+          grep -Eq 'Q33 (sequential unequal entries|store focus notification|changing purchase price|changing date|changing valuation method|restoring individual financing after mode switch)' before.log
