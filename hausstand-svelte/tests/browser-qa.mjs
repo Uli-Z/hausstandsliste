@@ -166,6 +166,116 @@ async function itemEntryAcceptance(browser, url, engine) {
   }
 }
 
+// Q32 visual/functional edge cases: long lists, invalid financing, draft
+// restoration, dated purchases, automatic settlements and historical editing.
+async function itemEntryLongListAcceptance(browser,url,engine) {
+  for(const width of [375,1280]){
+    const context=await browser.newContext({locale:'de-DE',viewport:{width,height:812}});
+    try{
+      const page=await context.newPage();
+      const errors=[];
+      page.on('pageerror',e=>errors.push(e.message));
+      const original=structuredClone(fixture);
+      for(let i=0;i<6;i++){
+        const id='extra-'+i, name='Mitbewohnerin '+(i+1)+' mit langem Namen';
+        original.people.push({id,name});
+        original.events.push({id:'join-'+id,type:'person-added',personId:id,name,date:'2025-01-01',order:4+i});
+      }
+      await page.goto(url);
+      await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(original)});
+      await page.reload();
+      await page.getByText('Browser-Abnahme').first().waitFor();
+      const snapshot=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
+      const modal=page.getByRole('dialog');
+      const open=()=>page.locator('.quick-actions .task-grid > button').first().click();
+      const name=modal.locator('.item-primary-fields input:not([type=date]):not([type=number])');
+      const cost=modal.locator('.item-primary-fields input[type=number]');
+      const method=modal.locator('.item-valuation-fields select');
+      const minimum=modal.locator('.item-valuation-fields input[type=text]');
+      const finance=modal.locator('.item-financing-field');
+      const submit=modal.locator('.modal-footer .primary');
+      const screenshot=async suffix=>{
+        if(!process.env.Q32_SCREENSHOT_DIR)return;
+        await mkdir(process.env.Q32_SCREENSHOT_DIR,{recursive:true});
+        await page.screenshot({path:join(process.env.Q32_SCREENSHOT_DIR,engine+'-'+width+'-long-'+suffix+'.png')});
+      };
+      await open();
+      await screenshot('empty');
+      await name.fill('Q32 Langliste');
+      await cost.fill('900');
+      await modal.locator('#event-effective-date').fill('2025-02-01');
+      await method.selectOption('fixed');
+      assert.equal(await minimum.count(),0);
+      await method.selectOption('degressive');
+      await modal.locator('.item-valuation-fields input[type=number]').fill('0.25');
+      await minimum.fill('17,50');
+      await finance.locator('select').last().selectOption('anna');
+      assert.equal(await finance.locator('.purchase-person-row:not(.purchase-column-head)').count(),9);
+      assert.equal(await submit.isEnabled(),true);
+      const row=finance.locator('.purchase-person-row').filter({hasText:'Mitbewohnerin 6'});
+      await row.locator('.purchase-units').fill('0');
+      assert.match(await row.locator('.share-percent').innerText(),/^0(?:[,.]0+)?\s*%$/);
+      await row.locator('.purchase-units').fill('1');
+      await screenshot('middle');
+      await modal.locator('.modal-body').evaluate(el=>el.scrollTop=el.scrollHeight);
+      await screenshot('bottom');
+      await modal.getByRole('button',{name:'Als Entwurf sichern'}).click();
+      await modal.waitFor({state:'hidden'});
+      const withDraft=await snapshot();
+      const draft=withDraft.drafts.find(d=>d.data?.name==='Q32 Langliste');
+      assert.equal(draft.data.effectiveDate,'2025-02-01');
+      assert.deepEqual(draft.data.valuation,{type:'degressive',annualRate:0.25,minimumValue:17.5});
+      assert.deepEqual(draft.data.purchaseContributionsCents,{anna:90000});
+      assert.deepEqual(withDraft.events,original.events);
+      await page.locator('.draft-row').filter({hasText:'Q32 Langliste'}).getByRole('button',{name:'Weiter',exact:true}).click();
+      assert.equal(await name.inputValue(),'Q32 Langliste');
+      assert.equal(await cost.inputValue(),'900');
+      assert.equal(await method.inputValue(),'degressive');
+      assert.equal(Number((await minimum.inputValue()).replace(',','.')),17.5);
+      assert.equal(await modal.locator('#event-effective-date').inputValue(),'2025-02-01');
+      assert.equal(await finance.locator('.purchase-contribution').count(),9);
+      await finance.getByLabel('Anna',{exact:true}).fill('800');
+      assert.equal(await submit.isDisabled(),true);
+      await screenshot('invalid');
+      await finance.getByLabel('Anna',{exact:true}).fill('900');
+      const checkbox=modal.locator('.item-purchase-preview input[type=checkbox]');
+      assert.equal(await checkbox.isChecked(),false);
+      await checkbox.check();
+      await modal.getByLabel('Tatsächliches Zahlungsdatum').fill('2025-02-02');
+      await screenshot('settled');
+      await submit.click();
+      await modal.waitFor({state:'hidden'});
+      const saved=await snapshot();
+      const event=saved.events.find(e=>e.type==='item-added'&&e.name==='Q32 Langliste');
+      assert.ok(event);
+      assert.equal(event.date,'2025-02-01');
+      assert.equal(event.valuation.minimumValue,17.5);
+      assert.equal(Object.keys(event.shares).length,9);
+      const payments=saved.events.filter(e=>e.type==='claim-settlement-recorded');
+      assert.equal(payments.length,8);
+      assert.ok(payments.every(e=>e.amountCents===10000&&e.date==='2025-02-02'));
+      assert.ok(!saved.drafts.some(d=>d.id===draft.id));
+      if(width<780){
+        await page.getByRole('button',{name:'Weitere Bereiche öffnen'}).click();
+        await page.locator('.mobile-more-menu').getByRole('button',{name:'Änderungen'}).click();
+      } else await page.locator('.sidebar-links').getByRole('button',{name:'Änderungen'}).click();
+      await page.locator('.timeline-event-card').filter({hasText:'Q32 Langliste'}).locator('.event-open-overlay').click();
+      assert.equal(await modal.locator('.purchase-contribution').count(),9);
+      await modal.locator('.item-valuation-edit-fields input[type=text]').fill('18,25');
+      await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+      assert.equal(await modal.locator('.item-valuation-edit-fields input[type=text]').inputValue(),'18,25');
+      await screenshot('edit');
+      await modal.locator('.modal-footer .primary').click();
+      await modal.waitFor({state:'hidden'});
+      const edited=await snapshot();
+      assert.equal(edited.events.find(e=>e.id===event.id).valuation.minimumValue,18.25);
+      assert.deepEqual(edited.events.filter(e=>e.type==='claim-settlement-recorded'),payments);
+      assert.deepEqual(errors,[]);
+    }finally{await context.close()}
+    console.log('Q32 '+engine+' '+width+' long list, draft, date, edit and payments passed');
+  }
+}
+
 async function localization(browser, url) {
   // Browser language chooses English; manual override stays in browser storage
   // and must not modify the shared ownership project.
@@ -1181,6 +1291,7 @@ try {
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
+  await acceptance('Chromium Q32 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium localization', () => localization(browser, offlineServer.url));
   await acceptance('Chromium offline', () => offline(browser, offlineServer.url));
   await acceptance('Chromium portable file', () => portableFileAcceptance(browser, offlineServer.url, 'Chromium'));
@@ -1197,6 +1308,7 @@ try {
       const additional = await browserType.launch({ headless: true });
       extraBrowsers.push(additional);
       await acceptance(name + ' Q32 item entry', () => itemEntryAcceptance(additional, offlineServer.url, name));
+      await acceptance(name + ' Q32 long list', () => itemEntryLongListAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
     });
