@@ -190,15 +190,48 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await nav('Gegenstände').click();
     await page.locator('.page-heading button').first().click();
     await dateField.fill('2027-07-07');
-    await dialog.locator('.form-grid input').first().fill('Geplanter Gegenstand');
+    await dialog.locator('.item-primary-fields input').first().fill('Geplanter Gegenstand');
     await dialog.getByRole('button',{name:'Als Entwurf sichern'}).click();
     await dialog.waitFor({state:'hidden'});
     assert.equal((await snapshot()).drafts.find(d=>d.data?.name==='Geplanter Gegenstand')?.data?.effectiveDate,'2027-07-07');
     await cutoff('2033-01-01');
     await nav('Überblick').click();
-    await page.locator('.draft-row').filter({hasText:'Geplanter Gegenstand'}).getByRole('button',{name:'Fortsetzen',exact:true}).click();
+    const itemDraft = page.locator('.draft-row').filter({hasText:'Geplanter Gegenstand'});
+    await itemDraft.waitFor();
+    // Keyboard entry must dismiss the still-open time picker, not reset the cutoff.
+    await cutoff('2033-01-01');
+    await itemDraft.getByRole('button',{name:'Fortsetzen',exact:true}).press('Enter');
+    assert.equal(await page.locator('#time-travel-panel').count(),0);
     assert.equal(await dateField.inputValue(),'2027-07-07');
+    assert.equal(await dialog.locator('.item-primary-fields input').first().inputValue(),'Geplanter Gegenstand');
     await dialog.locator('.modal-header > button.ghost').click();
+
+    // Both draft types retain their own date and data, even when resumed
+    // at a different viewing date. Draft saving must not create an event.
+    const eventsBeforeDraft = (await snapshot()).events;
+    await cutoff('2033-01-01');
+    await page.locator('.quick-actions .task-grid > button').nth(1).press('Enter');
+    assert.equal(await page.locator('#time-travel-panel').count(),0);
+    const redistributionDate=page.locator('#redistribution-effective-date');
+    assert.equal(await redistributionDate.inputValue(),'2033-01-01');
+    await redistributionDate.fill('2027-08-09');
+    await dialog.locator('.redistribution-advanced input').fill('Geplante Umverteilung');
+    await dialog.getByRole('button',{name:'Als Entwurf sichern'}).click();
+    await dialog.waitFor({state:'hidden'});
+    const savedRedistribution=(await snapshot()).drafts.find(d=>d.title==='Geplante Umverteilung');
+    assert.equal(savedRedistribution?.effectiveDate,'2027-08-09');
+    await cutoff('2026-01-01');
+    const redistributionDraft=page.locator('.draft-row').filter({hasText:'Geplante Umverteilung'});
+    await redistributionDraft.getByRole('button',{name:'Fortsetzen',exact:true}).press('Enter');
+    assert.equal(await redistributionDate.inputValue(),'2027-08-09');
+    assert.equal(await dialog.locator('.redistribution-advanced input').inputValue(),'Geplante Umverteilung');
+    await redistributionDate.fill('2027-09-10');
+    await dialog.getByRole('button',{name:'Als Entwurf sichern'}).click();
+    await dialog.waitFor({state:'hidden'});
+    const revised=(await snapshot());
+    assert.equal(revised.drafts.filter(d=>d.title==='Geplante Umverteilung').length,1);
+    assert.equal(revised.drafts.find(d=>d.id===savedRedistribution.id)?.effectiveDate,'2027-09-10');
+    assert.deepEqual(revised.events,eventsBeforeDraft);
 
     assert.deepEqual(failures,[]);
     console.log('Q14/Q15/Q19 time-travel form and chronological UI acceptance passed');

@@ -115,3 +115,27 @@ test('only same-project PHP checkout opts into preserving the viewing date', () 
   assert.match(checkout, /appState\.importProject\(project, \{secure:true, readOnly:false, sameProjectRefresh:true\}\)/);
   assert.equal((server.match(/sameProjectRefresh:true/g) || []).length, 1);
 });
+
+
+test('Q16/Q19: entering dialogs and detail navigation closes the picker without changing the cutoff', () => {
+  appState.newProject('Q16 dialog');
+  const date='2033-01-01';
+  appState.setAsOfDate(date);
+  const before = get(appState);
+  for (const enter of [
+    () => appState.setDialog({type:'itemAdd'}),
+    () => appState.startRedistribution('Q16'),
+    () => appState.setRoute({page:'person',id:'a'})
+  ]) {
+    appState.openDatePicker();
+    enter();
+    const state=get(appState);
+    assert.equal(state.datePickerOpen,false);
+    assert.equal(state.asOfDate,date);
+    assert.equal(state.timeTravelActive,true);
+    assert.equal(state.project,before.project);
+    assert.equal(state.dirty,before.dirty);
+    if (state.activeDialog?.redistribution) assert.equal(state.activeDialog.redistribution.effectiveDate,date);
+    appState.closeDialog();
+  }
+});

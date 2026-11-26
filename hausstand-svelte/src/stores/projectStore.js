@@ -38,7 +38,7 @@ function createStore() {
   };
   const openDialog = (state, dialog) => {
     if (dialog && dialog.type !== 'options' && !requireEditing(state)) return state;
-    return { ...state, activeDialog: dialog, dialogRevision: state.dialogRevision + 1 };
+    return { ...dismissDatePicker(state), activeDialog: dialog, dialogRevision: state.dialogRevision + 1 };
   };
   const resetUndo = state => ({ ...state, history: sessionUndo.reset() });
   const changedProject = (state, nextProject) => {
@@ -93,7 +93,7 @@ function createStore() {
         localCacheWarning: false, secure: false, readOnly: false, readOnlyReason: '',
         asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, route: { page: 'dashboard' }, activeDialog: null });
     }),
-    setRoute: route => update(s => ({ ...s, route })),
+    setRoute: route => update(s => ({ ...dismissDatePicker(s), route })),
     requireEditing: () => requireEditing(get({ subscribe })),
     setDialog: activeDialog => update(s => openDialog(s, activeDialog)),
     closeDialog: () => update(s => ({ ...s, activeDialog: s.readOnly ? null : s.activeDialog?.returnTo || null, dialogRevision: s.dialogRevision + 1 })),
@@ -135,7 +135,7 @@ function createStore() {
       const { initialFinancialMode, ...dialogOptions } = extraDialog;
       const r = createRedistribution(title || 'Neue Umverteilung', date || s.asOfDate, changes);
       if (initialFinancialMode === 'none') r.financialMode = 'none';
-      return { ...s, dialogRevision: s.dialogRevision + 1, activeDialog: { type: 'redistributionEdit', redistribution: r, ...dialogOptions } };
+      return openDialog(s, { type: 'redistributionEdit', redistribution: r, ...dialogOptions });
     }),
     upsertDraft: draft => {
       let accepted = false;
