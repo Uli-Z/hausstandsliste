@@ -9,6 +9,8 @@ test('overview retains the four metrics and quick actions but has no duplicate a
   const overview = app.slice(app.indexOf("{:else if activeSection === 'overview'}"), app.indexOf("{:else if activeSection === 'items'}"));
   assert.equal((overview.match(/<div class="metric">/g) || []).length, 4);
   assert.equal((overview.match(/<span class="task-icon">/g) || []).length, 4);
+  assert.ok(overview.includes('rankedItems($projection.activeItems, $locale)'));
+  assert.ok(overview.includes('nameEntries($projection.people.filter(p=>p.active), $locale)'));
   assert.ok(overview.includes('app.suggestions'));
   assert.ok(overview.includes('app.recent'));
   assert.ok(overview.includes('balances.slice(0,5)'));
@@ -25,7 +27,7 @@ test('inventory list keeps details but hides technical or empty sections', () =>
   assert.ok(items.includes('tags.length > 1 || tag'));
   assert.ok(items.includes('{#if search.trim() || tag}'));
   assert.ok(items.includes('{#if archived.length}'));
-  assert.ok(items.includes("pluralMessage('items.ownerCount', item.shareRows.length)"));
+  assert.ok(items.includes("pluralMessage('items.ownerCount', item.shareRows.length, $locale)"));
   assert.ok(items.includes('appState.setRoute({page:\'item\',id:item.id})'));
   assert.ok(!items.includes('valuationLabel'));
   assert.ok(!items.includes('inventory-bottom'));
