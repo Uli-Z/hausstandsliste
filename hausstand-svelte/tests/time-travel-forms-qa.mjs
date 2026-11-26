@@ -203,7 +203,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.equal((await snapshot()).drafts.find(d=>d.data?.name==='Geplanter Gegenstand')?.data?.effectiveDate,'2027-07-07');
     await cutoff('2033-01-01');
     await nav('Überblick').click();
-    await page.locator('.draft-row').filter({hasText:'Geplanter Gegenstand'}).getByRole('button',{name:'Weiter',exact:true}).click();
+    await page.locator('.draft-row').filter({hasText:'Geplanter Gegenstand'}).getByRole('button',{name:'Fortsetzen',exact:true}).click();
     assert.equal(await dateField.inputValue(),'2027-07-07');
     await dialog.locator('.modal-header > button.ghost').click();
 

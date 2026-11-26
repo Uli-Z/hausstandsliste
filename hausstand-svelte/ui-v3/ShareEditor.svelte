@@ -31,7 +31,7 @@
     </div>
     <div class="purchase-person-row purchase-column-head" aria-hidden="true">
       <span>{$translate('purchase.personColumn')}</span>
-      <span>{$translate('ui.units-1xtsz9u')}</span>
+      <span>{$translate('purchase.unitsColumn')}</span>
       <span>%</span>
       {#if showAmounts}<span>{$translate('purchase.paidColumn')}</span>{/if}
     </div>
@@ -44,7 +44,7 @@
           value={Object.hasOwn(shares,person.id) ? shares[person.id] ?? '' : 0}
           on:input={e => setShare(person.id,e.currentTarget.value)} />
         <small class="share-percent">{formatPercent(totalUnits > 0 ? Math.max(0,Number(shares[person.id])||0)/totalUnits : 0)}</small>
-        {#if showAmounts}<slot name="amount" personId={person.id} personName={person.name} />{/if}
+        {#if showAmounts}<div class="purchase-amount"><slot name="amount" personId={person.id} personName={person.name} /></div>{/if}
       </div>
     {/each}
     <small class="purchase-share-hint">{$translate('purchase.zeroShares')}</small>
@@ -80,17 +80,22 @@
   .purchase-people-toolbar button{min-height:44px}
   .purchase-person-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(48px,90px) minmax(38px,64px);gap:8px;align-items:center;min-width:0;padding:2px 0}
   .with-amounts .purchase-person-row{grid-template-columns:minmax(0,1fr) minmax(48px,90px) minmax(38px,64px) minmax(74px,130px)}
-  .purchase-person-row .share-percent{text-align:right;white-space:nowrap}
+  .purchase-person-row .share-percent{grid-column:3;grid-row:1;text-align:right;white-space:nowrap}
+  .purchase-person-row>.share-person-name{grid-column:1;grid-row:1}
+  .purchase-person-row>.purchase-units{grid-column:2;grid-row:1}
+  .purchase-person-row>.purchase-amount{grid-column:4;grid-row:1;min-width:0;display:grid;align-items:center}
   .purchase-person-row input{width:100%;min-width:0;padding:5px 6px}
   .purchase-column-head{font-size:11px;color:var(--muted);overflow-wrap:anywhere;line-height:1.25}
   .purchase-column-head span:not(:first-child){text-align:right}
   .purchase-share-hint{color:var(--muted);font-size:11px}
   @media(max-width:540px){
     .purchase-person-row{grid-template-columns:minmax(0,1fr) 50px 42px;gap:5px}
-    .with-amounts .purchase-person-row{grid-template-columns:minmax(0,1fr) 48px 42px 76px;gap:5px}
+    .with-amounts .purchase-person-row{grid-template-columns:minmax(0,1fr) 54px 43px 76px;gap:4px}
     .purchase-person-row .share-person-name{font-size:12px}
     .purchase-person-row .share-percent{font-size:10px}
     .purchase-person-row input{padding:5px;font-size:13px}
+    .purchase-person-row input[type=number]{appearance:textfield;-moz-appearance:textfield}
+    .purchase-person-row input::-webkit-inner-spin-button,.purchase-person-row input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   }
   .share-editor-toolbar{display:flex;justify-content:flex-end}
   .share-person-name{align-self:center;min-width:0;overflow-wrap:anywhere;font-size:13px;font-weight:650}
@@ -108,5 +113,5 @@
     .compact .share-row>button{grid-column:3;grid-row:1/3}
     .compact .share-row>.share-percent{grid-column:1;grid-row:2}
   }
-  @media(max-width:680px){.share-row{grid-template-columns:minmax(0,1fr) 1fr;gap:8px}.share-row>.share-person-name{grid-column:1/-1}.share-row>label{grid-column:1}.share-row>button{grid-column:2;grid-row:2;min-height:44px}.share-percent{grid-column:1/-1}}
+  @media(max-width:680px){.share-row{grid-template-columns:minmax(0,1fr) 1fr;gap:8px}.share-row>.share-person-name{grid-column:1/-1}.share-row>label{grid-column:1}.share-row>button{grid-column:2;grid-row:2;min-height:44px}.share-row>.share-percent{grid-column:1/-1}}
 </style>

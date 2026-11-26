@@ -114,6 +114,12 @@ async function itemEntryAcceptance(browser, url, engine) {
       assert.equal(await finance.locator('.purchase-person-row:not(.purchase-column-head)').count(),3);
       assert.equal(await finance.locator('.purchase-units').count(),3);
       assert.equal(await finance.locator('.purchase-contribution').count(),3);
+      for(const row of await finance.locator('.purchase-person-row:not(.purchase-column-head)').all()){
+        const boxes=await row.locator('.purchase-units, .share-percent, .purchase-contribution').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y+r.height/2};}));
+        assert.equal(boxes.length,3);
+        assert.ok(Math.max(...boxes.map(b=>b.y))-Math.min(...boxes.map(b=>b.y))<5,'share units, percentage and payment must be on the same row');
+        assert.ok(boxes[0].x<boxes[1].x && boxes[1].x<boxes[2].x,'person columns are in the correct order');
+      }
       const dateBox = await modal.locator('#event-effective-date').boundingBox();
       const bodyBox = await modal.locator('.modal-body').boundingBox();
       if(width<=390) assert.ok(dateBox.width >= bodyBox.width-40,'date occupies full usable width');
@@ -227,7 +233,7 @@ async function itemEntryLongListAcceptance(browser,url,engine) {
       assert.deepEqual(draft.data.valuation,{type:'degressive',annualRate:0.25,minimumValue:17.5});
       assert.deepEqual(draft.data.purchaseContributionsCents,{anna:90000});
       assert.deepEqual(withDraft.events,original.events);
-      await page.locator('.draft-row').filter({hasText:'Q32 Langliste'}).getByRole('button',{name:'Weiter',exact:true}).click();
+      await page.locator('.draft-row').filter({hasText:'Q32 Langliste'}).getByRole('button',{name:'Fortsetzen',exact:true}).click();
       assert.equal(await name.inputValue(),'Q32 Langliste');
       assert.equal(await cost.inputValue(),'900');
       assert.equal(await method.inputValue(),'degressive');
