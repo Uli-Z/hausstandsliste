@@ -31,12 +31,12 @@ test('item creation keeps ownership/financing explicit and secondary fields behi
   assert.ok(block.includes('allowEqualize={true}'));
 });
 
-test('new items show default equal shares; changed dates remove unavailable owners and payer', () => {
+test('new items show default equal shares; changed dates preserve owners and block unavailable participants', () => {
   const dialog = source('ui-v3/DialogRouter.svelte');
   assert.ok(dialog.includes("if (dialog.type === 'itemAdd' && !dialog.id)"));
   assert.ok(dialog.includes('Object.fromEntries(projectAt(project, effectiveDate).people'));
-  assert.ok(dialog.includes('atDate.peopleById.get(id)?.active'));
-  assert.ok(source('ui-v3/PurchaseFinancing.svelte').includes('people.some(p => p.id === payer)'));
+  assert.ok(dialog.includes('entryProjection.peopleById.get(id)?.active'));
+  assert.ok(source('ui-v3/PurchaseFinancing.svelte').includes('eligible.some(p => p.id === payer)'));
   assert.ok(dialog.includes('dateSharesRebased = true'));
   assert.ok(dialog.includes('ownersValid'));
   assert.ok(dialog.includes('itemCostValid'));
@@ -68,7 +68,8 @@ test('share editor keeps editing, optional equal split and localized percentages
   assert.ok(editor.includes('class="share-person-name"'));
   assert.ok(!editor.includes('<select disabled>'));
   assert.ok(editor.includes('formatPercent('));
-  assert.ok(editor.includes('on:input={e => setShare(personId, e.currentTarget.value)}'));
+  assert.ok(editor.includes('onValue={value=>setShare(person.id,value)}'));
+  assert.ok(editor.includes('on:input={e => setShare(personId, parseShareInput(e.currentTarget.value))}'));
   assert.ok(editor.includes('positiveOwnerCount === 1'));
 });
 
