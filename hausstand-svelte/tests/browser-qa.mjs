@@ -1228,6 +1228,57 @@ async function unitMovementDisplayAcceptance(browser,url) {
   }
 }
 
+async function overviewNamesAcceptance(browser,url) {
+  for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
+    const context=await browser.newContext({locale,viewport:{width,height:820}});
+    try {
+      const page=await context.newPage();
+      const errors=[];page.on('pageerror',e=>errors.push(e.message));
+      const copy=structuredClone(fixture);
+      for(let i=0;i<10;i++) copy.people.push({id:'q29-person-'+i,name:'Person '+String(i).padStart(2,'0')});
+      const purchase=copy.events.find(e=>e.id==='purchase');
+      for(let i=0;i<12;i++){
+        const id='q29-item-'+i,name='Q29 Item '+String(i).padStart(2,'0');
+        copy.items.push({id,name,tags:[]});
+        copy.events.push({...purchase,id:'q29-buy-'+i,itemId:id,name,initialValue:400+i,
+          purchaseContributionsCents:{anna:(400+i)*100},shares:{ben:1},order:i+2});
+      }
+      // A formerly expensive item falls below other items in a later projection.
+      copy.events.find(e=>e.id==='q29-buy-11').valuation={type:'linear',durationYears:1,minimumValue:0};
+      await page.goto(url);
+      await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(copy)});
+      await page.reload();
+      await page.getByText('Browser-Abnahme').first().waitFor();
+      const metrics=page.locator('.metric-grid .metric');
+      const items=metrics.nth(1), people=metrics.nth(2);
+      const names=loc=>loc.locator('.name-chip').allTextContents();
+      assert.equal((await names(people)).length,10);
+      assert.match(await people.locator('.name-more').innerText(),/3/);
+      assert.deepEqual((await names(items)).map(s=>s.trim()),Array.from({length:10},(_,i)=>'Q29 Item '+String(10-i).padStart(2,'0')));
+      assert.match(await items.locator('.name-more').innerText(),/3/);
+      const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
+      assert.equal(overflow,false);
+      await people.locator('.name-more').click();
+      assert.equal(await page.locator('.person-tile').count(),13);
+      const goHome=()=>page.locator(width<600?'.mobile-bottom-nav > button':'.sidebar-links > button').first().click();
+      await goHome();
+      await page.locator('.time-travel-toggle').click();
+      await page.locator('#state-date').fill('2025-01-02');
+      await page.keyboard.press('Escape');
+      assert.equal((await names(items))[0].trim(),'Q29 Item 11');
+      await items.locator('.metric-link').click();
+      const tile=page.locator('.item-tile').filter({has:page.getByRole('heading',{name:'Q29 Item 11',exact:true})});
+      assert.match(await tile.locator('.compact-names').innerText(),/Ben/);
+      await tile.locator('.tile-open').click();
+      const detail=page.locator('.detail-hero .compact-names');
+      assert.match(await detail.innerText(),/Anna/);
+      assert.match(await detail.innerText(),/Ben/);
+      assert.match(await detail.innerText(),locale==='de-DE'?/Finanzierung/:/Funder/);
+      assert.deepEqual(errors,[]);
+    } finally {await context.close();}
+  }
+}
+
 async function recentHistoryAcceptance(browser,url) {
   for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
     const context=await browser.newContext({locale,viewport:{width,height:820}});
@@ -1765,6 +1816,7 @@ try {
   await acceptance('Chromium Q06 PHP online', () => phpOnline(browser));
   await acceptance('Chromium Q30 signed share changes', () => shareDeltaAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q36 unit movement display', () => unitMovementDisplayAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q29 compact names', () => overviewNamesAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q39 recent history', () => recentHistoryAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
@@ -1778,6 +1830,7 @@ try {
       await acceptance(name + ' Q32/Q33 long list', () => itemEntryLongListAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' Q33 other form drafts', () => formStateAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' Q36 unit movement display', () => unitMovementDisplayAcceptance(additional, offlineServer.url));
+      await acceptance(name + ' Q29 compact names', () => overviewNamesAcceptance(additional, offlineServer.url));
       await acceptance(name + ' Q39 recent history', () => recentHistoryAcceptance(additional, offlineServer.url));
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));

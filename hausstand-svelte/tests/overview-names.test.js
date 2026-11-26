@@ -15,13 +15,14 @@ test('Q29: cap, stable ordering, no mutation and full list',()=>{
   assert.deepEqual(rankedItems([{id:'z',name:'Same',value:1},{id:'a',name:'Same',value:1},{id:'x',name:'X',value:2}]).map(x=>x.id),['x','a','z']);
 });
 test('Q29: ranking uses projected value, active status and dated ownership, historical funders retained',()=>{
- const buy={id:'buy',type:'item-added',itemId:'i',date:'2020-01-01',order:1,initialValue:1000,valuation:{type:'linear',years:1,minimumValue:0},shares:{a:2,b:1},purchaseContributionsCents:{c:100000},financialMode:'derived'};
+ const buy={id:'buy',type:'item-added',itemId:'i',date:'2020-01-01',order:1,initialValue:1000,valuation:{type:'linear',durationYears:1,minimumValue:0},shares:{a:2,b:1},purchaseContributionsCents:{c:100000},financialMode:'derived'};
  const project={people:[{id:'a',name:'Anna'},{id:'b',name:'Ben'},{id:'c',name:'Chris'}],items:[{id:'i',name:'Old'},{id:'j',name:'New'}],events:[buy,
  {id:'new',type:'item-added',itemId:'j',date:'2021-01-01',order:1,initialValue:50,valuation:{type:'fixed'},shares:{a:1},financialMode:'none'},
  {id:'arch',type:'person-deactivated',personId:'c',date:'2021-01-01',order:2},
  {id:'end',type:'item-ended',itemId:'i',date:'2022-01-01',order:1}]};
  const first=projectAt(project,'2020-01-01'), later=projectAt(project,'2023-01-01');
  assert.deepEqual(rankedItems(first.activeItems).map(i=>i.id),['i']);
+ assert.deepEqual(rankedItems(projectAt(project,'2021-06-01').activeItems).map(i=>i.id),['j','i']);
  assert.deepEqual(rankedItems(later.activeItems).map(i=>i.id),['j']);
  assert.equal(later.people.find(p=>p.id==='c').active,false);
  assert.deepEqual(ownerNames(first.activeItems[0]).map(p=>p.id),['a','b']);

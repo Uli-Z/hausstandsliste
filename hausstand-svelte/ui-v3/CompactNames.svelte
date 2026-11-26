@@ -24,11 +24,11 @@
   </div>
 {/if}
 <style>
-  .compact-names{min-width:0;max-width:100%;font-size:12px;line-height:1.35;position:relative;z-index:2}
+  .compact-names{min-width:0;max-width:100%;font-size:12px;line-height:1.35;position:relative;z-index:2;pointer-events:none}
   .name-list{display:flex;flex-wrap:wrap;gap:4px;list-style:none;padding:0;margin:0;min-width:0}
   .name-chip{background:var(--soft);border-radius:8px;padding:3px 6px;max-width:100%;min-width:0;overflow-wrap:anywhere;color:var(--text)}
   .name-role{font-size:11px;color:var(--muted)}
-  .name-link,.name-more{background:transparent;color:var(--accent);border:0;padding:2px 0;font-size:inherit;text-align:left;overflow-wrap:anywhere;max-width:100%;white-space:normal}
+  .name-link,.name-more{background:transparent;color:var(--accent);border:0;padding:2px 0;font-size:inherit;text-align:left;overflow-wrap:anywhere;max-width:100%;white-space:normal;pointer-events:auto}
   .name-more{min-height:32px;text-decoration:underline}
   .name-link:focus-visible,.name-more:focus-visible{outline:2px solid var(--accent)}
 </style>
