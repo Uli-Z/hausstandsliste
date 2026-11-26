@@ -3,6 +3,7 @@
   import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
   import { uid, parseTags } from '../src/lib/util.js';
   import { projectAt } from '../src/lib/projector.js';
+  import { buildTransferChanges, buildRemovePersonChanges, soleOwnedItems } from '../src/lib/redistribution.js';
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { normShares, money } from '../src/lib/domain.js';
   import { purchaseClaims as derivePurchaseClaims, personBalances } from '../src/lib/ledger.js';
@@ -43,11 +44,18 @@
   let dateSharesRebased = false;
   let itemExtrasOpen = false;
   let initializedFor = null;
+  let archiveTarget = '';
   // Effective dates are independent of the view once a dialog/draft is opened.
   $: if (dialog && dialog !== initializedFor) {
     initializedFor = dialog;
     const draft = dialog.id ? (project.drafts || []).find(d => d.id === dialog.id) : null;
     effectiveDate = draft?.data?.effectiveDate || asOfDate;
+    if (dialog.effectiveDate) effectiveDate = dialog.effectiveDate;
+    reason = dialog.reason || '';
+    archiveTarget = '';
+    if (dialog.type === 'shareSet') {
+      shares = {...(projectAt(project,effectiveDate).activeItems.find(i=>i.id===dialog.itemId)?.shares || {})};
+    }
     dateSharesRebased = false;
     paymentDate = effectiveDate;
     alreadySettled = false;
@@ -70,6 +78,11 @@
     !personStatusProblem(project, { personId: dialog.personId, date: effectiveDate, kind: dialog.kind });
   $: statusPreview = dialog?.type === 'personStatus' && dateValid && statusTargetValid
     ? previewPersonStatus(project, {personId:dialog.personId,date:effectiveDate,kind:dialog.kind}) : null;
+  $: archiveTargets = entryProjection.people.filter(p=>p.active && p.id!==dialog?.personId);
+  $: archiveSoleItems = dialog?.type === 'personStatus' && dialog.kind === 'deactivate'
+    ? soleOwnedItems(entryProjection,dialog.personId) : [];
+  $: archiveGiftChanges = dialog?.type === 'personStatus' && dialog.kind === 'deactivate'
+    ? buildRemovePersonChanges(entryProjection,dialog.personId) : [];
   $: itemCost = Number(initialValue);
   $: itemCostCents = Math.round(itemCost * 100);
   $: itemCostValid = !itemNeedsOwners || validMoney(itemCost);
@@ -118,8 +131,9 @@
   function finishDatedChange(saved) {
     if (!saved) return;
     const confirmedDate = effectiveDate;
+    const returning = !!dialog.returnTo;
     close();
-    if (confirmedDate > asOfDate) appState.setAsOfDate(confirmedDate);
+    if (!returning && confirmedDate > asOfDate) appState.setAsOfDate(confirmedDate);
   }
   $: normalizedName = normalizePersonName(name);
   $: duplicatePerson = dialog?.type === 'personAdd'
@@ -223,13 +237,27 @@
     appState.setRoute({ page: 'dashboard' });
   }
 
-  function openArchivePreparation() {
-    if (!dateValid || !person || $appState.readOnly) return;
-    const id = person.id;
-    const date = effectiveDate;
-    close();
-    appState.setAsOfDate(date);
-    appState.setRoute({page:'person',id});
+  // Preserve the selected date and reason while using existing preparation dialogs.
+  function archiveReturn() {
+    return {type:'personStatus',personId:dialog.personId,kind:'deactivate',effectiveDate,reason};
+  }
+  function archiveItemStep(type, itemId) {
+    appState.setDialog({type,itemId,effectiveDate,returnTo:archiveReturn()});
+  }
+  function archiveBulkStep(gift) {
+    const target = archiveTargets.find(p=>p.id===archiveTarget);
+    if (!gift && !target) return;
+    const changes = gift ? archiveGiftChanges : buildTransferChanges(entryProjection,dialog.personId,target.id);
+    if (!changes.length) return;
+    const title = $translate(gift ? 'dialog.dissolveTitle' : 'dialog.transferTitle',
+      gift ? {name:person.name} : {from:person.name,to:target.name});
+    appState.startRedistribution(title,effectiveDate,changes,{
+      sourcePersonId:person.id,initialFinancialMode:gift?'none':'derived',returnTo:archiveReturn()
+    });
+  }
+  function archiveSettlementStep(transfer) {
+    appState.setDialog({type:'settlementAdd',effectiveDate,payerPersonId:transfer.fromPersonId,
+      recipientPersonId:transfer.toPersonId,amountCents:transfer.amountCents,returnTo:archiveReturn()});
   }
 
   function savePersonStatus() {
@@ -371,11 +399,46 @@
               <strong>{$translate('archive.requirements')}</strong>
               <div class="split"><span>{$translate('archive.holdings')}</span><strong>{statusPreview.holdings.length}</strong></div>
               {#if statusPreview.holdings.length}
-                <div class="muted">{statusPreview.holdings.map(h=>h.item.name).join(', ')}</div>
+                <div class="archive-item-steps">
+                  {#each statusPreview.holdings as h (h.item.id)}
+                    <div class="archive-step">
+                      <strong>{h.item.name}</strong>
+                      <div class="archive-step-actions">
+                        <button type="button" disabled={$appState.readOnly} on:click={() => archiveItemStep('shareSet',h.item.id)}>{$translate('ui.change-ownership-shares-1x7cqup')}</button>
+                        {#if archiveSoleItems.some(i=>i.id===h.item.id)}
+                          <button type="button" disabled={$appState.readOnly} on:click={() => archiveItemStep('itemEnd',h.item.id)}>{$translate('ui.archive-item-1j10bca')}</button>
+                        {/if}
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+                {#if archiveTargets.length}
+                  <label>{$translate('archive.transferTarget')}
+                    <select bind:value={archiveTarget}>
+                      <option value="">{$translate('ui.choose-1h2n4nz')}</option>
+                      {#each archiveTargets as target}<option value={target.id}>{target.name}</option>{/each}
+                    </select>
+                  </label>
+                  <button type="button" disabled={!archiveTargets.some(p=>p.id===archiveTarget) || $appState.readOnly} on:click={() => archiveBulkStep(false)}>{$translate('archive.transferAll')}</button>
+                {/if}
+                {#if archiveGiftChanges.length}
+                  <button type="button" disabled={$appState.readOnly} on:click={() => archiveBulkStep(true)}>{$translate('archive.giftRemaining')}</button>
+                {/if}
+                {#if archiveSoleItems.length}
+                  <p class="muted">{$translate('archive.soleItems',{items:archiveSoleItems.map(i=>i.name).join(', ')})}</p>
+                {/if}
               {/if}
               <div class="split"><span>{$translate('archive.balance')}</span><strong>{money(statusPreview.balanceCents / 100)}</strong></div>
+              {#if !statusPreview.holdings.length && statusPreview.balanceCents !== 0}
+                {#each statusPreview.transfers || [] as transfer}
+                  <div class="archive-step">
+                    <span>{entryProjection.peopleById.get(transfer.fromPersonId)?.name || transfer.fromPersonId} → {entryProjection.peopleById.get(transfer.toPersonId)?.name || transfer.toPersonId} · {money(transfer.amountCents / 100)}</span>
+                    <button type="button" disabled={$appState.readOnly} on:click={() => archiveSettlementStep(transfer)}>{$translate('archive.recordSettlement')}</button>
+                  </div>
+                {/each}
+                <p class="muted">{$translate('archive.paymentHint')}</p>
+              {/if}
               {#if statusPreview.holdings.length || statusPreview.balanceCents !== 0}
-                <button type="button" disabled={$appState.readOnly} on:click={openArchivePreparation}>{$translate('archive.prepare')}</button>
                 <p class="muted">{$translate('archive.prepareHint')}</p>
               {/if}
             </section>
@@ -510,6 +573,9 @@
 {/if}
 
 <style>
+  .archive-item-steps,.archive-step{display:grid;gap:8px;min-width:0}
+  .archive-step{padding:10px 0;border-bottom:1px solid var(--border)}
+  .archive-step-actions{display:flex;gap:8px;flex-wrap:wrap}
   .item-entry-flow{display:grid;gap:16px;min-width:0}
   .item-primary-fields,.item-valuation-fields{align-items:end}
   .item-valuation-fields{padding:2px 0 6px}
