@@ -11,7 +11,7 @@ import { decryptProject } from '../src/lib/crypto.js';
 import { readPortableVersion } from '../src/lib/versionHistory.js';
 import { portableFileAcceptance } from './portable-file-qa.mjs';
 import { invalidInputAcceptance } from './invalid-input-qa.mjs';
-import { timeTravelFormsAcceptance } from './time-travel-forms-qa.mjs';
+import { timeTravelFormsAcceptance, guidedArchiveAcceptance } from './time-travel-forms-qa.mjs';
 
 const fixture = {
   schemaVersion: 1, appVersion: '0.7.0-svelte', currency: 'EUR',
@@ -641,7 +641,10 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       const help = page.locator('.help-popup');
       await help.waitFor();
       assert.match(await help.innerText(), /Anna/);
-      assert.match(await help.innerText(), /300/);
+      assert.match(await help.innerText(), /200\s*€/);
+      assert.match(await help.innerText(), /100\s*€/);
+      assert.match(await help.innerText(), /Ben und Clara/);
+      assert.match(await help.innerText(), /nichts überwiesen/);
       const popup = await help.boundingBox();
       assert.ok(popup.x >= 0 && popup.x + popup.width <= width + 2,
         'Q04 ' + width + 'px help popup clipped horizontally: ' + JSON.stringify(popup));
@@ -888,6 +891,7 @@ try {
   await acceptance('Chromium Q03 settlement', () => settlementEndToEnd(browser, offlineServer.url));
   await acceptance('Chromium Q06 invalid inputs', () => invalidInputAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q06 PHP online', () => phpOnline(browser));
+  await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
   await acceptance('Chromium responsive UI', () => responsiveUiAcceptance(browser, offlineServer.url));
   for (const [name, browserType] of [['Firefox', firefox], ['WebKit', webkit]]) {
