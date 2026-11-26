@@ -410,8 +410,8 @@ async function formStateAcceptance(browser,url,engine) {
 
       await section('items');
       await page.locator('.item-tile').filter({hasText:'Kühlschrank'}).locator('.tile-open').click();
-      await page.locator('.detail-hero .secondary-actions summary').click();
-      await page.locator('.detail-hero .secondary-actions .action-grid button').first().click();
+      await page.locator('.secondary-actions summary').click();
+      await page.locator('.secondary-actions .action-grid button').first().click();
       const metadata=modal.locator('.form-grid');
       await metadata.locator('input').nth(0).fill('Q33 item name');
       await metadata.locator('input').nth(1).fill('Q33 category');
@@ -423,7 +423,7 @@ async function formStateAcceptance(browser,url,engine) {
       await close();
 
       // Shared ownership editor: date rebasing keeps the explicit changes.
-      await page.locator('.detail-hero .outline-action').click();
+      await page.getByRole('button',{name:/Eigentumsanteile ändern|Change ownership shares|Edit ownership shares/i}).click();
       const shares=modal.locator('.share-row input[inputmode=decimal]');
       await shares.nth(0).fill('2');
       await shares.nth(1).fill('0,');
@@ -1291,7 +1291,11 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       assert.ok(Math.abs(timeTravelHeader.y) <= 1,
         'Q16 ' + width + 'px active time-travel header no longer sticky');
       assert.equal(await page.locator('.time-travel-selected-text strong').isVisible(), true);
-      await page.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#time-travel-panel').count(),0);
+      const paymentButton=page.getByRole('button', { name: 'Zahlung erfassen', exact: true });
+      await paymentButton.evaluate(el=>el.scrollIntoView({block:'center'}));
+      await paymentButton.click();
       const paymentDialog = page.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
       assert.equal(await paymentDialog.locator('input[type=date]').inputValue(), '2025-01-05');
       await paymentDialog.getByRole('button', { name: 'Abbrechen' }).click();
