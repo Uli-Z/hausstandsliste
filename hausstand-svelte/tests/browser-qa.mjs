@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { chromium, firefox, webkit } from 'playwright';
 import { decryptProject } from '../src/lib/crypto.js';
+import { ledgerAt } from '../src/lib/ledger.js';
 import { readPortableVersion } from '../src/lib/versionHistory.js';
 import { portableFileAcceptance } from './portable-file-qa.mjs';
 import { invalidInputAcceptance } from './invalid-input-qa.mjs';
@@ -535,6 +536,117 @@ async function settlementEndToEnd(browser, url) {
 
 // Q04: Real Chromium checks at phone, tablet and desktop widths. These are
 // viewport/browser-engine checks, not claims about physical device coverage.
+
+async function purchaseFinancingAcceptance(browser, url) {
+  const context = await browser.newContext({
+    locale: 'de-DE', viewport: { width: 375, height: 812 }, acceptDownloads: true
+  });
+  const failures = [];
+  const date = '2025-02-01';
+  const paidDate = '2025-02-02';
+  try {
+    const page = await context.newPage();
+    page.on('pageerror', error => failures.push(error.message));
+    await bootFixture(page, url);
+    const snapshot = () => page.evaluate(k => JSON.parse(localStorage.getItem(k)).project, key);
+    const original = await snapshot();
+    const originalBalances = ledgerAt(original, paidDate).balances;
+    await page.getByRole('button', {name:'Stichtag wählen'}).click();
+    await page.locator('#state-date').fill(date);
+    await page.keyboard.press('Escape');
+    const dialog = page.locator('[role="dialog"]');
+    const submit = dialog.locator('.modal-footer .primary');
+    const financing = dialog.locator('.item-financing-field');
+    const optIn = dialog.getByLabel('Ausgleichszahlungen bereits erfolgt – mitbuchen');
+    async function prepare(name) {
+      await page.locator('.quick-actions .task-grid > button').first().click();
+      assert.equal(await dialog.locator('#event-effective-date').inputValue(), date);
+      await dialog.locator('.item-primary-fields input').first().fill(name);
+      await dialog.locator('.item-primary-fields input[type=number]').fill('300');
+      assert.equal(await submit.isDisabled(), true, 'no implicit purchase financing');
+      await financing.locator('select').first().selectOption('individual');
+      for (const person of ['Anna','Ben','Clara']) {
+        assert.equal(Number(await financing.getByLabel(person,{exact:true}).inputValue()), 100);
+      }
+      assert.equal(await dialog.locator('.item-purchase-preview').getByRole('checkbox').count(), 0,
+        'balanced financing must not offer settlement payments');
+      await financing.getByLabel('Anna',{exact:true}).fill('150');
+      assert.equal(await submit.isDisabled(), true, 'excess must block creation');
+      await financing.getByLabel('Ben',{exact:true}).fill('150');
+      await financing.getByLabel('Clara',{exact:true}).fill('0');
+      assert.equal(await submit.isEnabled(), true);
+      assert.equal(await optIn.isChecked(), false, 'confirmation must be opt-in');
+      const preview = await dialog.locator('.item-purchase-preview').innerText();
+      assert.match(preview, /Anna:.*50,00/);
+      assert.match(preview, /Ben:.*50,00/);
+      assert.match(preview, /Clara:.*100,00/);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth+2));
+    }
+
+    // Opting in and then cancelling must create neither an item nor a payment.
+    await prepare('Q31 cancelled');
+    await optIn.check();
+    assert.equal(await dialog.getByLabel('Tatsächliches Zahlungsdatum').inputValue(), date);
+    await dialog.getByRole('button',{name:'Abbrechen',exact:true}).click();
+    await dialog.waitFor({state:'hidden'});
+    assert.deepEqual((await snapshot()).events, original.events);
+
+    // With the checkbox off, outstanding purchase balances remain.
+    await prepare('Q31 without settlement');
+    await submit.click();
+    await dialog.waitFor({state:'hidden'});
+    const unpaid = await snapshot();
+    const unpaidEvent = unpaid.events.find(e => e.name === 'Q31 without settlement');
+    assert.deepEqual(unpaidEvent.purchaseContributionsCents,{anna:15000,ben:15000,clara:0});
+    assert.equal(unpaid.events.filter(e=>e.type==='claim-settlement-recorded').length,0);
+    assert.equal(ledgerAt(unpaid,date).balances.get('anna'),originalBalances.get('anna')+5000);
+    assert.equal(ledgerAt(unpaid,date).balances.get('ben'),originalBalances.get('ben')+5000);
+    assert.equal(ledgerAt(unpaid,date).balances.get('clara'),originalBalances.get('clara')-10000);
+    const undo = page.getByRole('button',{name:/Rückgängig \(Strg\+Z\)/});
+    const redo = page.getByRole('button',{name:/Wiederholen \(Strg\+Y\)/});
+    await undo.click();
+    assert.deepEqual((await snapshot()).events,original.events);
+
+    await prepare('Q31 with settlement');
+    await optIn.check();
+    await dialog.getByLabel('Tatsächliches Zahlungsdatum').fill(paidDate);
+    await submit.click();
+    await dialog.waitFor({state:'hidden'});
+    const recorded = await snapshot();
+    const acquisition = recorded.events.find(e=>e.name==='Q31 with settlement');
+    assert.deepEqual(acquisition.purchaseContributionsCents,{anna:15000,ben:15000,clara:0});
+    const payments = recorded.events.filter(e=>e.type==='claim-settlement-recorded');
+    assert.equal(payments.length,2);
+    assert.deepEqual(payments.map(e=>e.amountCents).sort(),[5000,5000]);
+    assert.ok(payments.every(e=>e.date===paidDate));
+    assert.equal(new Set(recorded.events.map(e=>e.id)).size,recorded.events.length);
+    assert.equal(ledgerAt(recorded,date).balances.get('anna'),originalBalances.get('anna')+5000);
+    assert.deepEqual(ledgerAt(recorded,paidDate).balances,originalBalances,
+      'automatic settlement must not pay unrelated outstanding balances');
+    await undo.click();
+    assert.deepEqual((await snapshot()).events, original.events, 'one undo removes purchase and payments');
+    await redo.click();
+    assert.deepEqual((await snapshot()).events, recorded.events, 'one redo restores the identical events');
+    const saved = await download(page);
+    assert.deepEqual(saved.events, recorded.events);
+    const fresh = await browser.newContext({locale:'de-DE',viewport:{width:375,height:812}});
+    try {
+      const target = await fresh.newPage();
+      await target.goto(url);
+      await openSave(target);
+      await target.locator('.save-basic-actions input[type=file]').setInputFiles({
+        name:'q31.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(saved))
+      });
+      await target.getByText('Browser-Abnahme').first().waitFor();
+      const restored = await target.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
+      assert.deepEqual(restored.events,recorded.events);
+      assert.deepEqual(ledgerAt(restored,paidDate).balances,originalBalances);
+    } finally { await fresh.close(); }
+    assert.deepEqual(failures,[]);
+    console.log('Q31 mobile QA: explicit contributions, opt-in only, dates, unrelated balances, atomic undo/redo and JSON roundtrip passed');
+  } finally { await context.close(); }
+}
+
 async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768, 1280], engine = 'Chromium') {
   for (const width of checks) {
     const context = await browser.newContext({
@@ -891,6 +1003,7 @@ try {
   await acceptance('Chromium Q03 settlement', () => settlementEndToEnd(browser, offlineServer.url));
   await acceptance('Chromium Q06 invalid inputs', () => invalidInputAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q06 PHP online', () => phpOnline(browser));
+  await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
   await acceptance('Chromium responsive UI', () => responsiveUiAcceptance(browser, offlineServer.url));
