@@ -132,12 +132,21 @@ async function itemEntryAcceptance(browser, url, engine) {
         assert.deepEqual((await readValues(units)).map(v=>v.replace(',','.')),expectedUnits,message+' (units)');
         assert.deepEqual((await readValues(paid)).map(v=>v.replace(',','.')),expectedPaid,message+' (contributions)');
       }
-      await units.nth(0).fill('2');
-      await units.nth(1).fill('3');
-      await units.nth(2).fill('0.5');
-      await finance.getByLabel('Anna',{exact:true}).fill('150.25');
-      await finance.getByLabel('Ben',{exact:true}).fill('100');
-      await finance.getByLabel('Clara',{exact:true}).fill('0');
+      async function type(field, text){
+        await field.fill('');
+        await field.pressSequentially(text);
+        await field.press('Tab');
+      }
+      await type(units.nth(0),'2');
+      await verifyRows(['2','1','1'],['100','100','100'],'Q33 first share');
+      await type(units.nth(1),'3');
+      await verifyRows(['2','3','1'],['100','100','100'],'Q33 second share');
+      await type(units.nth(2),'0.5');
+      await verifyRows(['2','3','0.5'],['100','100','100'],'Q33 fractional share');
+      await type(finance.getByLabel('Anna',{exact:true}),'150.25');
+      await verifyRows(['2','3','0.5'],['150.25','100','100'],'Q33 first contribution');
+      await type(finance.getByLabel('Ben',{exact:true}),'100');
+      await type(finance.getByLabel('Clara',{exact:true}),'0');
       const unequal=['2','3','0.5'];
       await verifyRows(unequal,['150.25','100','0'],'Q33 sequential unequal entries');
       await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
@@ -156,6 +165,15 @@ async function itemEntryAcceptance(browser, url, engine) {
       await finance.locator('select').first().selectOption('individual');
       await verifyRows(unequal,['150.25','100','0'],'Q33 restoring individual financing after mode switch');
       assert.equal(await submit.isDisabled(),true,'invalid financing blocks save');
+      const anna=finance.getByLabel('Anna',{exact:true});
+      await anna.fill(locale==='de-DE'?'150,':'150.');
+      await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+      await units.nth(1).click();
+      await finance.locator('select').first().selectOption('single');
+      await finance.locator('select').first().selectOption('individual');
+      assert.equal(await anna.inputValue(),locale==='de-DE'?'150,':'150.','Q33 raw invalid text survives focus and mode switching');
+      assert.equal(await submit.isDisabled(),true);
+      await anna.fill(locale==='de-DE'?'150,25':'150.25');
       await modal.locator('.modal-body').evaluate(el=>el.scrollTop=0);
       assert.equal(await name.inputValue(),itemName);
       assert.equal(await cost.inputValue(),'300');
@@ -277,6 +295,13 @@ async function itemEntryLongListAcceptance(browser,url,engine) {
       await checkbox.check();
       await modal.getByLabel('Tatsächliches Zahlungsdatum').fill('2025-02-02');
       await screenshot('settled');
+      await modal.getByRole('button',{name:'Als Entwurf sichern'}).click();
+      await modal.waitFor({state:'hidden'});
+      assert.equal((await snapshot()).drafts.find(d=>d.id===draft.id).data.settledPaymentDate,'2025-02-02');
+      assert.deepEqual((await snapshot()).events,original.events,'Q33 draft must not book payments');
+      await page.locator('.draft-row').filter({hasText:'Q32 Langliste'}).getByRole('button',{name:'Fortsetzen',exact:true}).click();
+      assert.equal(await checkbox.isChecked(),true,'Q33 opt-in restored with draft');
+      assert.equal(await modal.getByLabel('Tatsächliches Zahlungsdatum').inputValue(),'2025-02-02');
       await submit.click();
       await modal.waitFor({state:'hidden'});
       const saved=await snapshot();
@@ -295,6 +320,15 @@ async function itemEntryLongListAcceptance(browser,url,engine) {
       } else await page.locator('.sidebar-links').getByRole('button',{name:'Änderungen'}).click();
       await page.locator('.timeline-event-card').filter({hasText:'Q32 Langliste'}).locator('.event-open-overlay').click();
       assert.equal(await modal.locator('.purchase-contribution').count(),9);
+      await modal.locator('.purchase-units').nth(0).fill('2');
+      await modal.locator('.purchase-units').nth(1).fill('3');
+      await modal.getByLabel('Anna',{exact:true}).fill('850.50');
+      await modal.getByLabel('Ben',{exact:true}).fill('49.50');
+      await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+      assert.equal(await modal.locator('.purchase-units').nth(0).inputValue(),'2');
+      assert.equal(await modal.locator('.purchase-units').nth(1).inputValue(),'3');
+      assert.equal(Number(await modal.getByLabel('Anna',{exact:true}).inputValue()),850.5);
+      assert.equal(Number(await modal.getByLabel('Ben',{exact:true}).inputValue()),49.5);
       await modal.locator('.item-valuation-edit-fields input[type=text]').fill('18,25');
       await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
       assert.equal(await modal.locator('.item-valuation-edit-fields input[type=text]').inputValue(),'18,25');
@@ -303,10 +337,158 @@ async function itemEntryLongListAcceptance(browser,url,engine) {
       await modal.waitFor({state:'hidden'});
       const edited=await snapshot();
       assert.equal(edited.events.find(e=>e.id===event.id).valuation.minimumValue,18.25);
+      assert.equal(edited.events.find(e=>e.id===event.id).shares.anna,2);
+      assert.equal(edited.events.find(e=>e.id===event.id).shares.ben,3);
+      assert.equal(edited.events.find(e=>e.id===event.id).purchaseContributionsCents.anna,85050);
+      assert.equal(edited.events.find(e=>e.id===event.id).purchaseContributionsCents.ben,4950);
       assert.deepEqual(edited.events.filter(e=>e.type==='claim-settlement-recorded'),payments);
       assert.deepEqual(errors,[]);
     }finally{await context.close()}
     console.log('Q32 '+engine+' '+width+' long list, draft, date, edit and payments passed');
+  }
+}
+
+// Q33: other dialog families keep their working values across real edits,
+// blur, store notifications and deliberate navigation. Run in each engine.
+async function formStateAcceptance(browser,url,engine) {
+  for (const [width,locale] of [[375,'de-DE'],[1280,'en-GB']]) {
+    const context=await browser.newContext({locale,viewport:{width,height:820}});
+    try {
+      const page=await context.newPage();
+      const errors=[];
+      page.on('pageerror',e=>errors.push(e.message));
+      page.on('dialog',d=>d.accept());
+      await bootFixture(page,url);
+      const snapshot=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
+      const original=await snapshot();
+      const modal=page.getByRole('dialog');
+      const quick=page.locator('.quick-actions .task-grid > button');
+      const refresh=()=>page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+      const close=async()=>{await modal.locator('.modal-header > button.ghost').click();await modal.waitFor({state:'hidden'});};
+      async function section(id){
+        const ids=['overview','items','people','money','activity'];
+        if(width>780){
+          if(['save','settings'].includes(id))await page.locator('.sidebar-bottom button').nth(id==='save'?0:1).click();
+          else await page.locator('.sidebar-links button').nth(ids.indexOf(id)).click();
+        } else if(ids.includes(id)&&ids.indexOf(id)<4)await page.locator('.mobile-bottom-nav > button').nth(ids.indexOf(id)).click();
+        else {
+          await page.locator('.mobile-more-slot > button').click();
+          await page.locator('.mobile-more-menu > button').nth(({activity:0,save:1,settings:2})[id]).click();
+        }
+      }
+      await quick.nth(2).click();
+      const personName=modal.locator('.person-name-field input');
+      await personName.pressSequentially('Q33 Person');
+      await refresh();
+      await modal.locator('.modal-header h3').click();
+      assert.equal(await personName.inputValue(),'Q33 Person');
+      await close();
+
+      await page.locator('.simple-debts .debt-action').first().click();
+      const payer=modal.locator('select').nth(0), recipient=modal.locator('select').nth(1);
+      await payer.selectOption('ben');
+      await recipient.selectOption('anna');
+      const amount=modal.locator('input[inputmode=decimal]');
+      const date=modal.locator('input[type=date]');
+      const note=modal.locator('textarea');
+      await amount.fill('12,');
+      await note.fill('Q33 payment note');
+      await date.fill('2025-02-03');
+      await refresh();
+      assert.equal(await amount.inputValue(),'12,');
+      assert.equal(await payer.inputValue(),'ben');
+      assert.equal(await recipient.inputValue(),'anna');
+      assert.equal(await note.inputValue(),'Q33 payment note');
+      assert.equal(await date.inputValue(),'2025-02-03');
+      assert.equal(await modal.locator('.modal-footer .primary').isDisabled(),true);
+      await amount.fill('12,34');
+      await modal.locator('.modal-footer .primary').click();
+      await modal.waitFor({state:'hidden'});
+      const payment=(await snapshot()).events.at(-1);
+      assert.equal(payment.amountCents,1234);
+      assert.equal(payment.note,'Q33 payment note');
+
+      await section('items');
+      await page.locator('.item-tile').filter({hasText:'Kühlschrank'}).locator('.tile-open').click();
+      await page.locator('.detail-hero .secondary-actions summary').click();
+      await page.locator('.detail-hero .secondary-actions .action-grid button').first().click();
+      const metadata=modal.locator('.form-grid');
+      await metadata.locator('input').nth(0).fill('Q33 item name');
+      await metadata.locator('input').nth(1).fill('Q33 category');
+      await metadata.locator('textarea').fill('Q33 item note');
+      await refresh();
+      assert.equal(await metadata.locator('input').nth(0).inputValue(),'Q33 item name');
+      assert.equal(await metadata.locator('input').nth(1).inputValue(),'Q33 category');
+      assert.equal(await metadata.locator('textarea').inputValue(),'Q33 item note');
+      await close();
+
+      // Shared ownership editor: date rebasing keeps the explicit changes.
+      await page.locator('.detail-hero .outline-action').click();
+      const shares=modal.locator('.share-row input[inputmode=decimal]');
+      await shares.nth(0).fill('2');
+      await shares.nth(1).fill('0,');
+      await modal.locator('#event-effective-date').fill('2025-02-01');
+      await refresh();
+      assert.equal(await shares.nth(0).inputValue(),'2');
+      assert.equal(await shares.nth(1).inputValue(),'0,');
+      assert.equal(await modal.locator('.modal-footer .primary').isDisabled(),true);
+      await shares.nth(1).fill('3');
+      await modal.locator('select').last().selectOption('none');
+      await modal.locator('#event-effective-date').fill('2025-03-01');
+      assert.equal(await shares.nth(0).inputValue(),'2');
+      assert.equal(await shares.nth(1).inputValue(),'3');
+      await modal.locator('.modal-footer .primary').click();
+      await modal.waitFor({state:'hidden'});
+      const saved=(await snapshot()).events.at(-1);
+      assert.deepEqual(saved.shareUnitDeltas,{anna:1,ben:2});
+
+      await section('overview');
+      await quick.nth(1).click();
+      const main=page.locator('.large-modal');
+      await main.locator('.redistribution-advanced summary').click();
+      const title=main.locator('.redistribution-advanced input');
+      await title.fill('Q33 redistribution draft');
+      await main.locator('#redistribution-effective-date').fill('2025-04-01');
+      await main.locator('.redistribution-item-card').first().click();
+      const sub=page.locator('.sub-modal .modal');
+      const subShares=sub.locator('.share-row input[inputmode=decimal]');
+      await subShares.nth(0).fill('5');
+      await subShares.nth(1).fill('2');
+      await refresh();
+      assert.equal(await subShares.nth(0).inputValue(),'5');
+      assert.equal(await subShares.nth(1).inputValue(),'2');
+      await sub.locator('.modal-footer .primary').click();
+      await sub.waitFor({state:'hidden'});
+      assert.equal(await title.inputValue(),'Q33 redistribution draft');
+      await main.locator('.modal-footer button').nth(1).click();
+      await main.waitFor({state:'hidden'});
+      const draft=(await snapshot()).drafts.find(d=>d.title==='Q33 redistribution draft');
+      assert.equal(draft.effectiveDate,'2025-04-01');
+      assert.equal(draft.changes[0].shares.anna,5);
+      await page.locator('.draft-row').filter({hasText:'Q33 redistribution draft'}).locator('.draft-buttons button').first().click();
+      await main.locator('.redistribution-item-card').first().click();
+      assert.equal(await subShares.nth(0).inputValue(),'5');
+      assert.equal(await subShares.nth(1).inputValue(),'2');
+      await sub.locator('.modal-footer button').first().click();
+      await main.locator('.modal-header button.ghost').click();
+
+      await section('save');
+      const protectedCopy=page.locator('.storage-secondary').first();
+      await protectedCopy.locator('summary').click();
+      const pass=protectedCopy.locator('input[type=password]');
+      const backup=protectedCopy.locator('input:not([type=password])');
+      await pass.fill('test-only-passphrase');
+      await backup.fill('Q33 backup');
+      await refresh();
+      await section('settings');
+      await page.locator('#language-selection').selectOption(locale==='de-DE'?'en':'de');
+      await section('save');
+      assert.equal(await pass.inputValue(),'test-only-passphrase');
+      assert.equal(await backup.inputValue(),'Q33 backup');
+      assert.equal((await snapshot()).events.length,original.events.length+2);
+      assert.deepEqual(errors,[]);
+    } finally {await context.close();}
+    console.log('Q33 '+engine+' '+width+' '+locale+' other form drafts passed');
   }
 }
 
@@ -1325,7 +1507,8 @@ try {
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
-  await acceptance('Chromium Q32 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));
+  await acceptance('Chromium Q32/Q33 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));
+  await acceptance('Chromium Q33 other form drafts', () => formStateAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium localization', () => localization(browser, offlineServer.url));
   await acceptance('Chromium offline', () => offline(browser, offlineServer.url));
   await acceptance('Chromium portable file', () => portableFileAcceptance(browser, offlineServer.url, 'Chromium'));
@@ -1342,7 +1525,8 @@ try {
       const additional = await browserType.launch({ headless: true });
       extraBrowsers.push(additional);
       await acceptance(name + ' Q32 item entry', () => itemEntryAcceptance(additional, offlineServer.url, name));
-      await acceptance(name + ' Q32 long list', () => itemEntryLongListAcceptance(additional, offlineServer.url, name));
+      await acceptance(name + ' Q32/Q33 long list', () => itemEntryLongListAcceptance(additional, offlineServer.url, name));
+      await acceptance(name + ' Q33 other form drafts', () => formStateAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
     });
