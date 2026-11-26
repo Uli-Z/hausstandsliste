@@ -1823,8 +1823,8 @@ async function q37ReadOnlyAcceptance(browser) {
       contexts.push(context);
       const page = await context.newPage();
       await page.goto(url);
-      await page.getByLabel('Passwort',{exact:true}).fill(password);
-      await page.getByRole('button',{name:'Anmelden',exact:true}).click();
+      await page.getByLabel(locale==='de-DE'?'Passwort':'Password',{exact:true}).fill(password);
+      await page.getByRole('button',{name:locale==='de-DE'?'Anmelden':'Sign in',exact:true}).click();
       await page.locator('.quick-actions').waitFor();
       return page;
     };
@@ -1871,8 +1871,8 @@ async function q37ReadOnlyAcceptance(browser) {
     await modal.locator('input').first().fill('Q37 Person');
     await modal.locator('.modal-footer .primary').click();
     await modal.waitFor({state:'hidden'});
-    await reader.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
-    await reader.getByText(/Bearbeitung konnte nicht gestartet werden/).waitFor();
+    await reader.getByRole('button',{name:'Start editing',exact:true}).click();
+    await reader.getByText(/Could not start editing:.*already checked out/i).waitFor();
     await assertDate(reader, '2099-12-01');
     await rejected(reader,reader.locator('.quick-actions .task-grid > button').first(),/read-only.*top right/s);
     await editor.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).click();
@@ -1880,8 +1880,8 @@ async function q37ReadOnlyAcceptance(browser) {
     await assertDate(editor, '2025-01-03');
     await rejected(editor,firstAction,/schreibgeschützt.*oben rechts/s);
     // A new checkout after check-in must once again allow editing.
-    await reader.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
-    await reader.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).waitFor();
+    await reader.getByRole('button',{name:'Start editing',exact:true}).click();
+    await reader.getByRole('button',{name:'Save and finish editing',exact:true}).waitFor();
     await assertDate(reader, '2099-12-01');
     await reader.locator('.quick-actions .task-grid > button').first().click();
     await reader.locator('.modal-backdrop').waitFor();

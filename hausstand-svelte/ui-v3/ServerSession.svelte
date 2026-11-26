@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import { translate, serverErrorMessage, localizeDiagnostic } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { exportProject } from '../src/lib/persistence.js';
   import { emptyProject, requireProjectFile } from '../src/lib/domain.js';
@@ -12,6 +13,7 @@
   export let editing = false;
   export let busy = false;
   export let feedback = '';
+  export let feedbackError = false;
   let initialized = null, pass = '', repeat = '', admin = '', error = '';
   let activePassword = '', editToken = '', leaseToken = '', revision = 0;
 
@@ -57,7 +59,7 @@
     const response = await fetch(url, {method:body ? 'POST' : 'GET', headers, body:body ? JSON.stringify({id,...body}) : undefined, cache:'no-store'});
     const data = await response.json();
     if (!response.ok || !data.ok) {
-      const reason = data.error || 'Die Serveranfrage ist fehlgeschlagen.';
+      const reason = serverErrorMessage(data.errorCode, response.status);
       if (['checkout','renew','save','checkin','restore'].includes(action) && [403,409,423].includes(response.status)) {
         editing = false; leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease');
         appState.setReadOnly(true, reason);
@@ -68,7 +70,7 @@
   }
   async function checkout() {
     try {
-      if ($appState.dirty) throw new Error('Ungespeicherte Änderungen müssen zuerst gesichert werden.');
+      if ($appState.dirty) throw new Error($translate('session.saveFirst'));
       // Refresh before acquiring the lease so an older read-only view cannot
       // silently overwrite a revision saved by another person.
       const current = await api('read');
@@ -81,10 +83,11 @@
       leaseToken = result.leaseToken; sessionStorage.setItem(deviceKey + ':lease', leaseToken);
       appState.importProject(project, {secure:true, readOnly:false, sameProjectRefresh:true});
       editing = true; appState.setReadOnly(false);
-      feedback = 'Bearbeitung gestartet. Die Datei ist für andere schreibgeschützt.';
+      feedback = $translate('session.checkoutOk');
     } catch (e) {
       editing = false; appState.setReadOnly(true, e.message);
-      feedback = 'Bearbeitung konnte nicht gestartet werden: ' + e.message;
+      feedbackError = true;
+      feedback = $translate('session.checkoutFailed', {reason:localizeDiagnostic(e.message)});
     }
   }
   async function unlock(password, establishSession = true) {
@@ -112,16 +115,16 @@
         const saved = await rememberedPassword();
         if (saved) await unlock(saved, false);
       }
-    } catch (e) { error = e.message || 'Server nicht erreichbar.'; }
+    } catch (e) { error = localizeDiagnostic(e.message) || $translate('session.unreachable'); }
   });
   async function submit() {
     if (busy) return;
-    busy = true; error = ''; feedback = '';
+    busy = true; error = ''; feedback = ''; feedbackError = false;
     try {
       if (!initialized) {
-        if (pass.length < 8) throw new Error('Das Passwort muss mindestens acht Zeichen lang sein.');
-        if (pass !== repeat) throw new Error('Die Passwörter stimmen nicht überein.');
-        if (!admin) throw new Error('Bitte den Administrationsschlüssel eingeben.');
+        if (pass.length < 8) throw new Error($translate('session.passwordLength'));
+        if (pass !== repeat) throw new Error($translate('session.passwordMismatch'));
+        if (!admin) throw new Error($translate('session.adminRequired'));
         const token = randomSecret();
         const saved = await createPortableSave(emptyProject(), null);
         const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), pass, token);
@@ -130,13 +133,13 @@
       }
       const chosen = pass;
       await unlock(chosen);
-      try { await remember(chosen); } catch { feedback = 'Angemeldet. Dieses Gerät konnte die Anmeldung nicht dauerhaft speichern.'; }
-    } catch (e) { error = e.message || 'Anmeldung fehlgeschlagen.'; }
+      try { await remember(chosen); } catch { feedback = $translate('session.rememberFailed'); }
+    } catch (e) { error = localizeDiagnostic(e.message) || $translate('session.loginFailed'); }
     finally { busy = false; }
   }
   export async function save() {
     if (busy) return;
-    busy = true; feedback = '';
+    busy = true; feedback = ''; feedbackError = false;
     try {
       if (!editing) { await checkout(); return; }
       if ($appState.dirty) {
@@ -148,50 +151,50 @@
       await api('checkin', {});
       leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease');
       editing = false; appState.setReadOnly(true);
-      feedback = 'Gespeichert und Bearbeitung beendet. Die Datei ist wieder freigegeben.';
-    } catch (e) { feedback = 'Speichern oder Einchecken fehlgeschlagen: ' + e.message; }
+      feedback = $translate('session.checkinOk');
+    } catch (e) { feedbackError = true; feedback = $translate('session.checkinFailed', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
   }
   export async function downloadBackup() {
     if (busy) return;
-    busy = true; feedback = '';
+    busy = true; feedback = ''; feedbackError = false;
     try {
       const saved = await createPortableSave($appState.project, $appState.savedProject);
       const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, randomSecret());
       const url = URL.createObjectURL(new Blob([JSON.stringify(envelope)], {type:'application/json'}));
       const a = document.createElement('a'); a.href = url; a.download = 'hausstand-sicherung.enc.json'; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      feedback = 'Verschlüsselte Sicherung heruntergeladen.';
-    } catch (e) { feedback = e.message; } finally { busy = false; }
+      feedback = $translate('session.backupOk');
+    } catch (e) { feedbackError = true; feedback = localizeDiagnostic(e.message); } finally { busy = false; }
   }
   export async function restoreBackup(event) {
     const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
     if (!file || busy) return;
-    if (!confirm('Die aktuelle Serverdatei wird durch diese Sicherung überschrieben. Fortfahren?')) return;
-    const backupPassword = prompt('Passwort der Sicherungsdatei:');
+    if (!confirm($translate('session.restoreConfirm'))) return;
+    const backupPassword = prompt($translate('session.backupPassword'));
     if (!backupPassword) return;
-    busy = true; feedback = '';
+    busy = true; feedback = ''; feedbackError = false;
     try {
-      if (!editing) throw new Error('Die Datei ist gerade schreibgeschützt. Bitte zuerst die Bearbeitung starten.');
+      if (!editing) throw new Error($translate('session.restoreReadOnly'));
       const decrypted = await decryptProject(JSON.parse(await file.text()), backupPassword);
       const project = requireProjectFile(decrypted.project); await verifyPortableHistory(project);
       const saved = await createPortableSave(project, $appState.savedProject);
       const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
       const result = await api('save', {expectedRevision:revision, envelope});
       revision = result.revision; appState.importProject(saved, {secure:true, readOnly:false});
-      feedback = 'Die Sicherung wurde auf dem Server wiederhergestellt.';
-    } catch(e) { feedback = 'Wiederherstellung fehlgeschlagen: ' + e.message; }
+      feedback = $translate('session.restoreOk');
+    } catch(e) { feedbackError = true; feedback = $translate('session.restoreFailed', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
   }
   export async function logout() {
-    if (busy || ($appState.dirty && !confirm('Es gibt ungespeicherte Änderungen. Trotzdem abmelden?'))) return;
-    busy = true; feedback = '';
+    if (busy || ($appState.dirty && !confirm($translate('session.logoutConfirm')))) return;
+    busy = true; feedback = ''; feedbackError = false;
     try {
       if (leaseToken) await api('checkin', {});
       await api('logout', {});
       await deviceStore('delete'); sessionStorage.removeItem(deviceKey + ':lease');
       leaseToken = ''; editToken = ''; activePassword = ''; editing = false; authenticated = false;
-    } catch(e) { feedback = 'Abmelden fehlgeschlagen: ' + e.message; }
+    } catch(e) { feedbackError = true; feedback = $translate('session.logoutFailed', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
   }
 </script>
@@ -202,16 +205,16 @@
       <span class="login-mark" aria-hidden="true">H</span>
       <h1>Hausstandsliste</h1>
       {#if initialized === null}
-        {#if error}<p class="login-error" role="alert">{error}</p><button type="button" on:click={() => location.reload()}>Erneut versuchen</button>{:else}<p>Server wird verbunden …</p>{/if}
+        {#if error}<p class="login-error" role="alert">{error}</p><button type="button" on:click={() => location.reload()}>{$translate('session.retry')}</button>{:else}<p>{$translate('session.connecting')}</p>{/if}
       {:else}
-        <h2>{initialized ? 'Anmelden' : 'Hausstandsliste einrichten'}</h2>
-        <p>{initialized ? 'Melde dich mit dem Passwort deiner Hausstandsliste an.' : 'Lege das Passwort für die gemeinsame Hausstandsliste fest.'}</p>
-        {#if !initialized}<label>Administrationsschlüssel<input type="password" autocomplete="off" bind:value={admin} required /></label>{/if}
-        <label>Passwort<input type="password" autocomplete={initialized ? 'current-password' : 'new-password'} bind:value={pass} required minlength="8" /></label>
-        {#if !initialized}<label>Passwort wiederholen<input type="password" autocomplete="new-password" bind:value={repeat} required minlength="8" /></label>{/if}
+        <h2>{initialized ? $translate('session.signIn') : $translate('session.setup')}</h2>
+        <p>{initialized ? $translate('session.signInHint') : $translate('session.setupHint')}</p>
+        {#if !initialized}<label>{$translate('session.admin')}<input type="password" autocomplete="off" bind:value={admin} required /></label>{/if}
+        <label>{$translate('session.password')}<input type="password" autocomplete={initialized ? 'current-password' : 'new-password'} bind:value={pass} required minlength="8" /></label>
+        {#if !initialized}<label>{$translate('session.repeat')}<input type="password" autocomplete="new-password" bind:value={repeat} required minlength="8" /></label>{/if}
         {#if error}<p class="login-error" role="alert">{error}</p>{/if}
-        <button type="submit" disabled={busy}>{busy ? 'Bitte warten …' : initialized ? 'Anmelden' : 'Einrichten und anmelden'}</button>
-        <small>Die Anmeldung bleibt auf diesem Gerät gespeichert. Über „Abmelden“ kannst du sie entfernen.</small>
+        <button type="submit" disabled={busy}>{busy ? $translate('session.wait') : initialized ? $translate('session.signIn') : $translate('session.setupSubmit')}</button>
+        <small>{$translate('session.rememberHint')}</small>
       {/if}
     </form>
   </main>

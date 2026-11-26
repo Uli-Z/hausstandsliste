@@ -1,5 +1,5 @@
 <script>
-  import { translate, localizeGermanText } from '../src/lib/i18n.js';
+  import { translate, locale, formatDate, localizeGermanText } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { replaceEditableEvent, removeEvent, editableEventCopy, redateEditableEvent } from '../src/lib/eventMutations.js';
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
@@ -10,7 +10,7 @@
   import { validShareMap } from '../src/lib/shareUnits.js';
   import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
-  import { clone, dateDE } from '../src/lib/util.js';
+  import { clone } from '../src/lib/util.js';
   
   export let dialog;
   export let project;
@@ -122,7 +122,7 @@
     <div class="modal-header">
       <div class="stack">
         <h3>{$translate("ui.edit-earlier-ownership-change-s1489d")}</h3>
-        <div class="muted">{$translate('redistribution.since')} {dateDE(edited?.date)}</div>
+        <div class="muted">{$translate('redistribution.since')} {formatDate(edited?.date, $locale)}</div>
       </div>
       <button class="ghost" on:click={() => appState.closeDialog()}>✕</button>
     </div>
@@ -178,7 +178,7 @@
                 <div class="empty-small">{$translate("ui.no-transfer-of-value-awxg5c")}</div>
               {/if}
 
-              <div class="financial-help-heading"><strong>{edited.financialMode === 'derived' ? 'Ausgleichsvorschlag' : 'Kein Ausgleich'}</strong><HelpTip label={$translate("ui.what-is-the-financial-effect-of-thi-g85db9")}>{localizeGermanText(REDISTRIBUTION_SUGGESTION_TITLE)} {localizeGermanText(REDISTRIBUTION_SUGGESTION_NOTICE)}</HelpTip></div>
+              <div class="financial-help-heading"><strong>{$translate(edited.financialMode === 'derived' ? 'report.suggestions' : 'redistribution.withoutClaims')}</strong><HelpTip label={$translate("ui.what-is-the-financial-effect-of-thi-g85db9")}>{localizeGermanText(REDISTRIBUTION_SUGGESTION_TITLE, $locale)} {localizeGermanText(REDISTRIBUTION_SUGGESTION_NOTICE, $locale)}</HelpTip></div>
               {#if preview.payments.length}
                 <table class="tight">
                   <tbody>
@@ -189,7 +189,7 @@
                 </table>
                 
               {:else}
-                <div class="notice-small">{edited.financialMode === 'derived' ? $translate("ui.no-settlement-suggested-utyl3l") : 'Unentgeltlich – kein Ausgleich.'}</div>
+                <div class="notice-small">{edited.financialMode === 'derived' ? $translate("ui.no-settlement-suggested-utyl3l") : $translate('redistribution.withoutClaims')}</div>
               {/if}
             </div>
           </section>

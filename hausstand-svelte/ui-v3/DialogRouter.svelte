@@ -285,7 +285,7 @@
     try {
       const draft = createItemDraft({
       id: draftId,
-      title: itemName || 'Neuer Gegenstand (Entwurf)',
+      title: itemName || $translate('forms.itemDraftTitle'),
       data: {
         effectiveDate,
         name: itemName,
@@ -340,7 +340,7 @@
   function saveShareSet() {
     if (!canSubmitDated) return;
     const saved = appState.mutateProject(p => setItemShares(p, { itemId: dialog.itemId, date: effectiveDate,
-      shares: normShares(shares), financialMode: shareFinancialMode, note: 'Anteile geändert' }));
+      shares: normShares(shares), financialMode: shareFinancialMode, note: $translate('forms.shareChangeNote') }));
     finishDatedChange(saved);
   }
   function endItem() {

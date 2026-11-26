@@ -42,6 +42,7 @@
   let serverAuthenticated = false;
   let serverEditing = false;
   let serverFeedback = '';
+  let serverFeedbackError = false;
   let onlineEditing = false;
   let onlineProjectOpen = false;
   let storageBusy = false;
@@ -59,10 +60,10 @@
     try {
       const response = await fetch(`${location.pathname}?api=update`, { method: 'POST', headers: { 'X-Hausstand-Admin': adminToken, 'X-Requested-With': 'Hausstandsliste' } });
       const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || 'Update fehlgeschlagen.');
-      updateStatus = `Update auf ${data.version || 'aktuelle Version'} installiert. Seite wird neu geladen.`;
+      if (!response.ok || !data.ok) throw new Error(data.error || $translate('session.updateFailed'));
+      updateStatus = $translate('session.updateOk', {version:data.version || $translate('session.latestVersion')});
       setTimeout(() => location.reload(), 1200);
-    } catch (error) { updateStatus = error.message || 'Update fehlgeschlagen.'; }
+    } catch (error) { updateStatus = error.message || $translate('session.updateFailed'); }
     finally { updateBusy = false; }
   }
   function dismissFeedback() {
@@ -78,7 +79,7 @@
     if (!isError) feedbackTimer = window.setTimeout(() => { saveMessage = ''; feedbackTimer = undefined; }, 4500);
   }
   $: if (serverFeedback) {
-    showFeedback(serverFeedback, /fehlgeschlagen|schreibgeschützt/i.test(serverFeedback));
+    showFeedback(serverFeedback, serverFeedbackError);
     serverFeedback = '';
   }
 
@@ -219,7 +220,7 @@
 <svelte:window on:keydown={handleKeydown} on:pointerdown={handleOutsidePointer} on:beforeunload={warnUnsavedBeforeLeaving} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
 
 {#if SERVER_MODE}
-  <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:busy={storageBusy} bind:feedback={serverFeedback}/>
+  <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:busy={storageBusy} bind:feedback={serverFeedback} bind:feedbackError={serverFeedbackError}/>
 {/if}
 {#if !SERVER_MODE || serverAuthenticated}
 <div class="app-shell">
@@ -303,11 +304,11 @@
         </span>
         {#if !(route.page === 'dashboard' && activeSection === 'save')}
           <button class="header-save" disabled={storageBusy} on:click={saveNow}
-            aria-label={SERVER_MODE ? (serverEditing ? 'Speichern und Bearbeitung beenden' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
-            title={SERVER_MODE ? (serverEditing ? 'Speichern und Bearbeitung beenden' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
+            aria-label={SERVER_MODE ? (serverEditing ? $translate('session.finish') : $translate('storage.startEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
+            title={SERVER_MODE ? (serverEditing ? $translate('session.finish') : $translate('storage.startEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
             <ActionIcon name={SERVER_MODE || onlineEditing ? 'check' : 'download'} size={17}/>
-            <span class="header-save-long">{SERVER_MODE ? (serverEditing ? 'Speichern & Bearbeitung beenden' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span>
-            <span class="header-save-short">{SERVER_MODE ? (serverEditing ? 'Speichern & beenden' : 'Bearbeiten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.shortOnline' : 'storage.shortEditing') : 'storage.shortDownload')}</span>
+            <span class="header-save-long">{SERVER_MODE ? (serverEditing ? $translate('session.finishLong') : $translate('storage.startEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span>
+            <span class="header-save-short">{SERVER_MODE ? (serverEditing ? $translate('session.finishShort') : $translate('storage.shortEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.shortOnline' : 'storage.shortEditing') : 'storage.shortDownload')}</span>
           </button>
         {/if}
       </div>
@@ -315,7 +316,7 @@
 
     {#if SERVER_MODE}
       <div class="server-edit-status" role="status">
-        {serverEditing ? ($appState.dirty ? 'Du bearbeitest die Datei · Ungespeicherte Änderungen' : 'Du bearbeitest die Datei') : 'Schreibgeschützt · Starte die Bearbeitung, um Änderungen vorzunehmen'}
+        {serverEditing ? ($appState.dirty ? $translate('session.editingDirty') : $translate('session.editing')) : $translate('session.readOnly')}
       </div>
     {/if}
 
@@ -456,19 +457,19 @@
         </section>
         {#if SERVER_MODE}
           <section class="ux-panel setting-panel">
-            <h2>Datensicherung</h2>
-            <p>Eine verschlüsselte Sicherung herunterladen oder eine Sicherung wiederherstellen.</p>
-            <button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.downloadBackup()}>Sicherung herunterladen</button>
-            <label>Sicherung hochladen und Serverdatei ersetzen<input type="file" accept="application/json,.json" disabled={storageBusy} on:change={event => serverSession?.restoreBackup(event)} /></label>
+            <h2>{$translate('session.backup')}</h2>
+            <p>{$translate('session.backupHint')}</p>
+            <button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.downloadBackup()}>{$translate('session.backupDownload')}</button>
+            <label>{$translate('session.backupUpload')}<input type="file" accept="application/json,.json" disabled={storageBusy} on:change={event => serverSession?.restoreBackup(event)} /></label>
           </section>
           <section class="ux-panel setting-panel">
-            <h2>Server aktualisieren</h2>
-            <label for="server-admin-token">Administrationsschlüssel</label>
+            <h2>{$translate('session.update')}</h2>
+            <label for="server-admin-token">{$translate('session.admin')}</label>
             <input id="server-admin-token" type="password" autocomplete="current-password" bind:value={adminToken} />
-            <button class="outline-action" disabled={updateBusy || !adminToken.trim()} on:click={runServerUpdate}>{updateBusy ? 'Prüfe GitHub-Releases …' : 'Neueste Version installieren'}</button>
+            <button class="outline-action" disabled={updateBusy || !adminToken.trim()} on:click={runServerUpdate}>{updateBusy ? $translate('session.updateChecking') : $translate('session.updateInstall')}</button>
             {#if updateStatus}<p role="status">{updateStatus}</p>{/if}
           </section>
-          <section class="ux-panel setting-panel"><h2>Anmeldung</h2><button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.logout()}>Auf diesem Gerät abmelden</button></section>
+          <section class="ux-panel setting-panel"><h2>{$translate('session.login')}</h2><button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.logout()}>{$translate('session.logout')}</button></section>
         {/if}
         <section class="ux-panel setting-panel settings-advanced" aria-label={$translate('settings.advanced')}>
           <div class="settings-advanced-body">

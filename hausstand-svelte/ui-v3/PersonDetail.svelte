@@ -96,7 +96,7 @@
     <div class="panel-body stack">
       {#each transfersForPerson as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
         <div class="split action-card">
-          <span>{nameOf(transfer.fromPersonId)} an {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
+          <span>{nameOf(transfer.fromPersonId)} → {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
           <button class="card-primary" type="button" on:click={() => appState.setDialog({ type: 'settlementAdd', payerPersonId: transfer.fromPersonId, recipientPersonId: transfer.toPersonId, amountCents: transfer.amountCents })}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
         </div>
       {/each}

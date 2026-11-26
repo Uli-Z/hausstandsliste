@@ -81,3 +81,20 @@ test('Q13: transfer report language and amounts without changing user names', ()
   assert.match(de, /Umverteilung: WG Küche/);
   assert.match(de, /1\.234,56/);
 });
+
+
+test('Q13: PHP session controls, messages and new generated labels use the active language', () => {
+  assert.equal(message('session.signIn','en'),'Sign in');
+  assert.equal(message('session.finish','de'),'Speichern und Bearbeitung beenden');
+  assert.equal(message('session.checkoutFailed','en',{reason:serverErrorMessage('alreadyCheckedOut',423,'en')}),'Could not start editing: This file is already checked out.');
+  assert.equal(message('forms.itemDraftTitle','en'),'New item (draft)');
+  for (const path of ['App.svelte','ServerSession.svelte','ExecutedRedistributionEditDialog.svelte']) {
+    const component=readFileSync(new URL('../ui-v3/'+path,import.meta.url),'utf8');
+    for (const [,key] of component.matchAll(/\$translate\('(session\.[^']+)'/g)) {
+      assert.ok(dictionaries.en[key],key);
+      assert.ok(dictionaries.de[key],key);
+    }
+  }
+  const app=readFileSync(new URL('../ui-v3/App.svelte',import.meta.url),'utf8');
+  assert.ok(app.includes('showFeedback(serverFeedback, serverFeedbackError)'));
+});
