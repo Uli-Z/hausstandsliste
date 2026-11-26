@@ -37,7 +37,7 @@
   // Existing draft changes must still refer to owned items at the chosen date.
   $: invalidItems = (redistribution?.changes || []).filter(change =>
     !preview.base?.activeItems.some(item => item.id === change.itemId));
-  $: canExecute = dateValid && !invalidItems.length && !!redistribution?.changes?.length;
+  $: canExecute = dateValid && !invalidItems.length && !!redistribution?.changes?.length && !itemRows.some(row => row.unitDeltaProblem);
   $: itemsAtDate = preview.base?.activeItems || [];
   $: itemRows = preview.base ? buildRedistributionItemRows(preview.base, redistribution.changes || []) : [];
 

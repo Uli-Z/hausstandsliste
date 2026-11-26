@@ -1,6 +1,7 @@
 import { message, getLocale, formatMoney } from './i18n.js';
 import { normShares, shareTotal, money } from './domain.js';
 import { projectAt, projectBeforeEvent, shareDeltasForChange } from './projector.js';
+import { shareUnitDeltas, resolveShareEvent, ShareUnitError } from './shareUnits.js';
 
 export function sharesEqual(left, right) {
   const a = normShares(left);
@@ -15,6 +16,26 @@ export function formatShares(shares, peopleById) {
     .join(' · ');
 }
 
+// Actual unit movements, distinct from changes in fractional ownership value.
+// Stored events already contain the canonical signed map; draft targets use
+// the very same exact decimal arithmetic as event creation.
+export function unitChangeEntries(change, beforeShares = {}) {
+  const deltas = change.type === 'shares-set'
+    ? change.shareUnitDeltas
+    : shareUnitDeltas(beforeShares, normShares(change.shares));
+  return Object.entries(deltas).filter(([, units]) => units !== 0)
+    .map(([personId, unitsDelta]) => ({ personId, unitsDelta }));
+}
+
+// Read-only summaries need no projection or monetary threshold: even a
+// zero-valued item can have a real ownership change.
+export function eventUnitChangeRows(event) {
+  const children = event.type === 'redistribution-executed' ? event.events || [] : [event];
+  return children.filter(child => child.type === 'shares-set')
+    .map(child => ({ itemId: child.itemId, people: unitChangeEntries(child) }))
+    .filter(row => row.people.length);
+}
+
 export function buildRedistributionItemRows(baseProjection, changes = [], itemIds = null) {
   if (!baseProjection) return [];
 
@@ -26,30 +47,34 @@ export function buildRedistributionItemRows(baseProjection, changes = [], itemId
   return baseItems.map(item => {
     const change = changeByItemId.get(item.id) || null;
     const beforeShares = normShares(item.shares || {});
-    const afterShares = change ? normShares(change.shares) : beforeShares;
-    const deltas = change ? shareDeltasForChange(baseProjection, change) : [];
-    const peopleIds = [...new Set([...Object.keys(beforeShares), ...Object.keys(afterShares)])];
-
-    const changedPeople = peopleIds.map(personId => {
-      const beforeUnits = Number(beforeShares[personId] || 0);
-      const afterUnits = Number(afterShares[personId] || 0);
-      const delta = deltas.find(entry => entry.personId === personId);
-      const valueDelta = delta?.delta || 0;
-      return {
-        personId,
-        personName: baseProjection.peopleById.get(personId)?.name || personId,
-        beforeUnits,
-        afterUnits,
-        unitsDelta: afterUnits - beforeUnits,
-        valueDelta
-      };
-    }).filter(row => row.beforeUnits !== row.afterUnits || Math.abs(row.valueDelta) > 0.005);
+    let afterShares = beforeShares;
+    let entries = [];
+    let unitDeltaProblem = false;
+    if (change) {
+      try {
+        afterShares = change.type === 'shares-set' ? resolveShareEvent(beforeShares, change) : normShares(change.shares);
+        entries = unitChangeEntries(change, beforeShares);
+      } catch (error) {
+        if (!(error instanceof ShareUnitError)) throw error;
+        unitDeltaProblem = true;
+      }
+    }
+    const deltas = change && !unitDeltaProblem ? shareDeltasForChange(baseProjection, change) : [];
+    const changedPeople = entries.map(({ personId, unitsDelta }) => ({
+      personId,
+      personName: baseProjection.peopleById.get(personId)?.name || personId,
+      beforeUnits: Number(beforeShares[personId] || 0),
+      afterUnits: Number(afterShares[personId] || 0),
+      unitsDelta,
+      valueDelta: deltas.find(entry => entry.personId === personId)?.delta || 0
+    }));
 
     return {
       itemId: item.id,
       itemName: item.name,
       itemValue: item.value,
-      changed: !!change && !sharesEqual(beforeShares, afterShares),
+      changed: entries.length > 0 || unitDeltaProblem,
+      unitDeltaProblem,
       beforeShares,
       afterShares,
       beforeSummary: formatShares(beforeShares, baseProjection.peopleById),
@@ -160,7 +185,7 @@ export function redistributionPreview(project, redistribution, { beforeEventId =
     base,
     rows,
     payments: redistribution.financialMode === 'derived' ? settlementRecommendations(rows) : [],
-    itemRows: buildRedistributionItemRows(base, redistribution.changes || [])
+    itemRows: buildRedistributionItemRows(base, redistribution.changes || []).filter(row => row.changed)
   };
 }
 

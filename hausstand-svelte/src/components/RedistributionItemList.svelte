@@ -1,5 +1,5 @@
 <script>
-  import { translate, pluralMessage } from '../lib/i18n.js';
+  import { translate } from '../lib/i18n.js';
   import { createEventDispatcher } from 'svelte';
   import { money } from '../lib/domain.js';
 
@@ -34,17 +34,14 @@
           {/if}
         </div>
 
+        {#if row.unitDeltaProblem}<span class="negative small-text" role="alert">{$translate('forms.invalidShares')}</span>{/if}
         {#if row.changedPeople.length}
           <div class="redistribution-delta-list">
-            {#each row.changedPeople as person}
+            {#each row.changedPeople as person (person.personId)}
               <div class="redistribution-delta-row">
                 <span>{person.personName}</span>
                 <span class="muted small-text">
-                  {#if person.unitsDelta > 0}
-                    {pluralMessage('items.receive', person.unitsDelta)}
-                  {:else}
-                    {pluralMessage('items.give', Math.abs(person.unitsDelta))}
-                  {/if}
+                  {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}
                 </span>
                 <span class:positive={person.valueDelta > 0} class:negative={person.valueDelta < 0} class="money small-text">
                   {person.valueDelta > 0 ? '+' : ''}{money(person.valueDelta)}

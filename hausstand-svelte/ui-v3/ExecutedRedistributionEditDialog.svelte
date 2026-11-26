@@ -222,7 +222,7 @@
       <button class="danger" on:click={remove}>{$translate("ui.delete-ownership-change-ei8m7d")}</button>
       <div style="flex:1"></div>
       <button on:click={() => appState.closeDialog()}>{$translate("ui.cancel-cl4zc9")}</button>
-      <button class="primary" on:click={save}>{$translate("ui.save-change-1pvx2yb")}</button>
+      <button class="primary" on:click={save} disabled={itemRows.some(row => row.unitDeltaProblem) || $appState.readOnly}>{$translate("ui.save-change-1pvx2yb")}</button>
     </div>
   </div>
 </div>

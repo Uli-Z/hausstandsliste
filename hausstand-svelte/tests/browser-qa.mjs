@@ -1191,6 +1191,43 @@ async function shareDeltaAcceptance(browser,url) {
   } finally {await context.close();}
 }
 
+async function unitMovementDisplayAcceptance(browser,url) {
+  for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
+    const context=await browser.newContext({locale,viewport:{width,height:820}});
+    try {
+      const page=await context.newPage();
+      const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+      await bootFixture(page,url);
+      await page.locator('.quick-actions .task-grid > button').nth(1).click();
+      const main=page.locator('.large-modal');
+      const item=main.locator('.redistribution-item-card').first();
+      await item.click();
+      const sub=page.locator('.sub-modal .modal');
+      await sub.locator('.share-row').filter({hasText:'Anna'}).locator('input[inputmode=decimal]').fill('2');
+      await sub.locator('.modal-footer .primary').click();
+      await sub.waitFor({state:'hidden'});
+      const rows=item.locator('.redistribution-delta-row');
+      assert.equal(await rows.count(),1);
+      assert.match(await rows.first().innerText(),/Anna/);
+      assert.match(await rows.first().innerText(),/\+1/);
+      assert.doesNotMatch(await rows.first().innerText(),/Ben|Clara/);
+      const financial=main.locator('.redistribution-preview');
+      assert.match(await financial.innerText(),/Ben/);
+      assert.match(await financial.innerText(),/Clara/);
+      await main.locator('.redistribution-advanced input').fill('Q36 units only');
+      await main.locator('.modal-footer .primary').click();
+      await main.waitFor({state:'hidden'});
+      await page.locator('.overview-layout.second-row .section-header button').first().click();
+      const event=page.locator('.timeline-event-card').filter({hasText:'Q36 units only'});
+      const movements=event.locator('.event-unit-change');
+      assert.equal(await movements.count(),1);
+      assert.match(await movements.first().innerText(),/Anna.*\+1/s);
+      assert.doesNotMatch(await movements.first().innerText(),/Ben|Clara/);
+      assert.deepEqual(errors,[]);
+    } finally {await context.close();}
+  }
+}
+
 async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768, 1280], engine = 'Chromium') {
   for (const width of checks) {
     const context = await browser.newContext({
@@ -1653,6 +1690,7 @@ try {
   await acceptance('Chromium Q06 invalid inputs', () => invalidInputAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q06 PHP online', () => phpOnline(browser));
   await acceptance('Chromium Q30 signed share changes', () => shareDeltaAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q36 unit movement display', () => unitMovementDisplayAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
@@ -1664,6 +1702,7 @@ try {
       await acceptance(name + ' Q32 item entry', () => itemEntryAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' Q32/Q33 long list', () => itemEntryLongListAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' Q33 other form drafts', () => formStateAcceptance(additional, offlineServer.url, name));
+      await acceptance(name + ' Q36 unit movement display', () => unitMovementDisplayAcceptance(additional, offlineServer.url));
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
     });

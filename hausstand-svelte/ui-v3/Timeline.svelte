@@ -4,6 +4,7 @@
   import { dateDE } from '../src/lib/util.js';
   import { splitHistoryAt } from '../src/lib/eventHistory.js';
   import { money } from '../src/lib/domain.js';
+  import { eventUnitChangeRows } from '../src/lib/redistribution.js';
   import { projectBeforeEvent, shareDeltasForChange } from '../src/lib/projector.js';
   import { FINANCIAL_EVENT_NOTE, ITEM_FUNDING_NOTE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
@@ -49,7 +50,8 @@
   }
 
   function affectsPersonByShareDelta(baseProjection, change) {
-    return shareDeltasForChange(baseProjection, change).some(row => row.personId === personId);
+    return eventUnitChangeRows(change).some(row => row.people.some(person => person.personId === personId)) ||
+      shareDeltasForChange(baseProjection, change).some(row => row.personId === personId);
   }
 
   function eventAffectsPerson(event) {
@@ -101,16 +103,12 @@
       return `${kind}: ${personName(event.debtorPersonId)} → ${personName(event.creditorPersonId)} · ${money(event.amountCents / 100)}${event.note ? ' · ' + event.note : ''}`;
     }
     if (event.type === 'redistribution-executed') {
-      const affectedItems = [...new Set((event.events || []).filter(e => e.type === 'shares-set').map(e => itemName(e.itemId)).filter(Boolean))];
-      const itemInfo = affectedItems.length ? ` · ${affectedItems.join(', ')}` : '';
-      return `${event.title || localizeGermanText('Umverteilung')} · ${pluralMessage('timeline.changeCount', (event.events || []).length)} · ${localizeGermanText(FINANCIAL_EVENT_NOTE(event))}${itemInfo}`;
+      const rows = eventUnitChangeRows(event);
+      return `${event.title || localizeGermanText('Umverteilung')} · ${pluralMessage('timeline.changeCount', rows.length)} · ${localizeGermanText(FINANCIAL_EVENT_NOTE(event))}`;
     }
     if (event.type === 'shares-set') {
-      const before = projectBeforeEvent(project, event.id, event.date);
-      const deltas = shareDeltasForChange(before, event);
       const item = itemName(event.itemId);
-      if (deltas.length === 0) return `${item} · ${event.note || localizeGermanText('Manuelle Korrektur')}`;
-      return `${item} · ${event.note || $translate('ui.shares-1y9v96b')} · ${deltas.map(d => `${d.personName} ${d.delta >= 0 ? '+' : ''}${money(d.delta)}`).join(' · ')}`;
+      return `${item} · ${event.note || $translate('ui.shares-1y9v96b')} · ${localizeGermanText(FINANCIAL_EVENT_NOTE(event))}`;
     }
     if (event.type === 'person-added') return `${localizeGermanText('Willkommen,')} ${event.name || personName(event.personId)}!`;
     if (event.type === 'person-deactivated') return `${personName(event.personId)} · ${event.reason || localizeGermanText('Auszug')}`;
@@ -120,15 +118,9 @@
     return event.note || event.name || event.reason || event.type;
   }
 
-  function deltasFor(event) {
-    const before = projectBeforeEvent(project, event.id, event.date);
-    return shareDeltasForChange(before, event);
-  }
-
-  function redistributionData(event) {
-    const shareEvents = (event.events || []).filter(e => e.type === 'shares-set');
-    const affectedItems = [...new Set(shareEvents.map(e => e.itemId).filter(Boolean))];
-    return { affectedItems };
+  function visibleUnitRows(event, focusedItemId) {
+    const rows = eventUnitChangeRows(event);
+    return focusedItemId ? rows.filter(row => row.itemId === focusedItemId) : rows;
   }
 
   function openEdit(event) {
@@ -171,25 +163,28 @@
             </div>
             <div class="event-summary">
               {#if event.type === 'redistribution-executed'}
-                {@const data = redistributionData(event)}
-                <span>{event.title || localizeGermanText('Umverteilung')} · {pluralMessage('timeline.changeCount', (event.events || []).length)}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
-                {#if data.affectedItems.length}
-                  <span> · </span>
-                  {#each data.affectedItems as currentItemId, index}
-                    <button class="entity-link" on:click={() => openItem(currentItemId)}>{itemName(currentItemId)}</button>{#if index < data.affectedItems.length - 1}, {/if}
-                  {/each}
-                {/if}
+                {@const rows = visibleUnitRows(event, itemId)}
+                <span>{event.title || localizeGermanText('Umverteilung')} · {pluralMessage('timeline.changeCount', rows.length)}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
+                {#each rows as row}
+                  <div class="event-unit-change">
+                    <button class="entity-link" on:click={() => openItem(row.itemId)}>{itemName(row.itemId)}</button>
+                    {#each row.people as person, index}
+                      <span>{index === 0 ? ' · ' : ', '}</span><button class="entity-link" on:click={() => openPerson(person.personId)}>{personName(person.personId)}</button>
+                      <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
+                    {/each}
+                  </div>
+                {/each}
               {:else if event.type === 'shares-set'}
-                {@const deltas = deltasFor(event)}
                 <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
                 <span> · {event.note || $translate("ui.shares-1y9v96b")}</span>
-                {#if deltas.length}
-                  <span> · </span>
-                  {#each deltas as delta, index}
-                    <button class="entity-link" on:click={() => openPerson(delta.personId)}>{delta.personName}</button>
-                    <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
-                  {/each}
-                {/if}
+                {#each visibleUnitRows(event, itemId) as row}
+                  <div class="event-unit-change">
+                    {#each row.people as person, index}
+                      {#if index > 0}<span> · </span>{/if}<button class="entity-link" on:click={() => openPerson(person.personId)}>{personName(person.personId)}</button>
+                      <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
+                    {/each}
+                  </div>
+                {/each}
                 <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
               {:else if event.type === 'person-added'}
                 <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
@@ -235,27 +230,30 @@
           </div>
           <div class="event-summary">
             {#if event.type === 'redistribution-executed'}
-              {@const data = redistributionData(event)}
-              <span>{event.title || localizeGermanText('Umverteilung')} · {pluralMessage('timeline.changeCount', (event.events || []).length)}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
-              {#if data.affectedItems.length}
-                <span> · </span>
-                {#each data.affectedItems as currentItemId, index}
-                  <button class="entity-link" on:click={() => openItem(currentItemId)}>{itemName(currentItemId)}</button>{#if index < data.affectedItems.length - 1}, {/if}
+              {@const rows = visibleUnitRows(event, itemId)}
+                <span>{event.title || localizeGermanText('Umverteilung')} · {pluralMessage('timeline.changeCount', rows.length)}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
+                {#each rows as row}
+                  <div class="event-unit-change">
+                    <button class="entity-link" on:click={() => openItem(row.itemId)}>{itemName(row.itemId)}</button>
+                    {#each row.people as person, index}
+                      <span>{index === 0 ? ' · ' : ', '}</span><button class="entity-link" on:click={() => openPerson(person.personId)}>{personName(person.personId)}</button>
+                      <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
+                    {/each}
+                  </div>
                 {/each}
-              {/if}
-            {:else if event.type === 'shares-set'}
-              {@const deltas = deltasFor(event)}
-              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
-              <span> · {event.note || $translate("ui.shares-1y9v96b")}</span>
-              {#if deltas.length}
-                <span> · </span>
-                {#each deltas as delta, index}
-                  <button class="entity-link" on:click={() => openPerson(delta.personId)}>{delta.personName}</button>
-                  <span> {delta.delta >= 0 ? '+' : ''}{money(delta.delta)}</span>{#if index < deltas.length - 1}<span> · </span>{/if}
+              {:else if event.type === 'shares-set'}
+                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
+                <span> · {event.note || $translate("ui.shares-1y9v96b")}</span>
+                {#each visibleUnitRows(event, itemId) as row}
+                  <div class="event-unit-change">
+                    {#each row.people as person, index}
+                      {#if index > 0}<span> · </span>{/if}<button class="entity-link" on:click={() => openPerson(person.personId)}>{personName(person.personId)}</button>
+                      <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
+                    {/each}
+                  </div>
                 {/each}
-              {/if}
-              <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
-            {:else if event.type === 'person-added'}
+                <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
+              {:else if event.type === 'person-added'}
               <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
             {:else if event.type === 'person-deactivated'}
               <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || localizeGermanText('Auszug')}</span>
@@ -344,6 +342,7 @@
     color: var(--text);
     line-height: 1.3;
   }
+  .event-unit-change { margin-top: 4px; overflow-wrap: anywhere; }
   .event-summary :global(.help-wrap),
   .event-summary .entity-link {
     position: relative;
