@@ -52,7 +52,9 @@ if ($api === 'update') {
     // separate file outside the web root, so the atomic code swap cannot overwrite it.
     $checkFile = __FILE__ . '.validate-' . bin2hex(random_bytes(6));
     if (file_put_contents($checkFile, $php, LOCK_EX) === false) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'Updateprüfung fehlgeschlagen.']); exit; }
-    $lint = []; $lintCode = 1; exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($checkFile) . ' 2>&1', $lint, $lintCode); @unlink($checkFile);
+    // Under FPM, PHP_BINARY identifies php-fpm rather than the CLI interpreter.
+    $phpCli = PHP_SAPI === 'cli' ? PHP_BINARY : 'php';
+    $lint = []; $lintCode = 1; exec(escapeshellarg($phpCli) . ' -l ' . escapeshellarg($checkFile) . ' 2>&1', $lint, $lintCode); @unlink($checkFile);
     if ($lintCode !== 0) { http_response_code(502); echo json_encode(['ok'=>false,'error'=>'Release enthält ungültigen PHP-Code.']); exit; }
     $tmp = __FILE__ . '.update-' . bin2hex(random_bytes(6));
     if (file_put_contents($tmp, $php, LOCK_EX) === false || !rename($tmp, __FILE__)) { @unlink($tmp); http_response_code(500); echo json_encode(['ok'=>false,'error'=>'Update konnte nicht atomar installiert werden.']); exit; }
