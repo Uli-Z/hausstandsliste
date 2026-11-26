@@ -69,7 +69,7 @@ test('share editor keeps editing, optional equal split and localized percentages
   assert.ok(!editor.includes('<select disabled>'));
   assert.ok(editor.includes('formatPercent('));
   assert.ok(editor.includes('onValue={value=>setShare(person.id,value)}'));
-  assert.ok(editor.includes('on:input={e => setShare(personId, parseShareInput(e.currentTarget.value))}'));
+  assert.ok(editor.includes('onValue={value=>setShare(personId,value)}'));
   assert.ok(editor.includes('positiveOwnerCount === 1'));
 });
 
@@ -147,7 +147,7 @@ test('Q22: existing purchase editing preserves a localized minimum and the focus
   assert.ok(editor.includes('ui.how-does-the-value-change-16f9eit'));
   assert.ok(editor.includes('bind:value={edited.valuation.minimumValue} aria-invalid={!minimumValid}'));
   assert.ok(editor.includes('edited.valuation.minimumValue = minimumAmount'));
-  assert.ok(editor.includes('disabled={!minimumValid || (isPurchase && !financingValid) || $appState.readOnly}'));
+  assert.ok(editor.includes('disabled={!minimumValid || !sharesValid || (isPurchase && !financingValid) || $appState.readOnly}'));
   const css = source('ui-v3/design.css');
   assert.ok(css.includes('.modal-body input:focus-visible'));
   assert.ok(css.includes('outline:2px solid #276f84'));

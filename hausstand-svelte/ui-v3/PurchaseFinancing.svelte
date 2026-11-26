@@ -14,35 +14,34 @@
   export let editing = false;
   export let ownerPeople = null;
   $: eligible = editing ? people : (ownerPeople || people).filter(p=>p.active !== false);
-  $: tablePeople = ownerPeople ? people.map(p => ({...p,active:ownerPeople.find(o=>o.id===p.id)?.active ?? false}))
-    .filter(p=>editing || p.active || Object.hasOwn(shares,p.id) || Object.hasOwn(contributions || {},p.id)) : people;
   let mode = editing || contributions ? 'individual' : 'single';
   let payer = '';
   let individualDraft = contributions ? {...contributions} : null;
-  $: if (mode === 'single' && !editing) {
-    contributions = payer && eligible.some(p => p.id === payer) && Number.isSafeInteger(amountCents) && amountCents >= 0
-      ? {[payer]:amountCents} : null;
-  }
+  $: tablePeople = ownerPeople ? people.map(p => ({...p,active:ownerPeople.find(o=>o.id===p.id)?.active ?? false}))
+    .filter(p=>editing || p.active || Object.hasOwn(shares,p.id) || Object.hasOwn(individualDraft || {},p.id) || p.id===payer) : people;
+  // Independent mode state. The active contribution map is a projection; it
+  // never becomes the source of the other mode's manually edited amounts.
+  $: contributions = mode === 'individual' ? individualDraft :
+    (payer && eligible.some(p => p.id === payer) && Number.isSafeInteger(amountCents) && amountCents >= 0
+      ? {[payer]:amountCents} : null);
   $: total = contributionTotal(contributions);
   $: valid = !contributionProblem(amountCents, contributions, new Set(eligible.map(p=>p.id)));
   function selectMode(next) {
     if (next === mode) return;
-    if (mode === 'individual') individualDraft = {...(contributions || {})};
-    mode = next;
-    if (next === 'individual') {
+    if (next === 'individual' && individualDraft === null) {
       const owners = Object.fromEntries(eligible.filter(p=>shares[p.id]>0).map(p=>[p.id,1]));
-      contributions = individualDraft ? {...individualDraft} :
-        (Number.isSafeInteger(amountCents) && amountCents >= 0 ? allocateCents(amountCents, owners) : {});
+      individualDraft = Number.isSafeInteger(amountCents) && amountCents >= 0 ? allocateCents(amountCents, owners) : {};
     }
+    mode = next;
   }
   function parseContribution(raw) {
     const amount = raw.trim() === '' ? NaN : parseDecimal(raw);
     return validMoney(amount) ? Math.round(amount*100) : NaN;
   }
   function change(id, cents) {
-    const next = {...(contributions || {}), [id]:cents};
+    const next = {...(individualDraft || {}), [id]:cents};
     if (!editing && cents === 0 && !eligible.some(p=>p.id===id)) delete next[id];
-    contributions = next;
+    individualDraft = next;
   }
   const displayContribution = cents => Number.isFinite(cents) ? String(cents/100) : '';
 </script>
@@ -59,6 +58,7 @@
     <label>{$translate('purchase.payer')}
       <select bind:value={payer}>
         <option value="">{$translate('purchase.choose')}</option>
+        {#if payer && !eligible.some(p=>p.id===payer)}<option value={payer} disabled>{people.find(p=>p.id===payer)?.name || payer}</option>{/if}
         {#each eligible as person (person.id)}<option value={person.id}>{person.name}</option>{/each}
       </select>
     </label>
@@ -67,11 +67,11 @@
   {/if}
   <ShareEditor people={tablePeople} bind:shares allPeople={true} showAmounts={true} allowEqualize={!editing}>
     <svelte:fragment slot="amount" let:personId let:personName>
-      {#if mode === 'individual'}
-        <NumericDraftInput inputClass="purchase-contribution" label={personName} description={$translate('purchase.paidColumn')}
-          value={contributions && Object.hasOwn(contributions,personId) ? contributions[personId] : 0}
-          display={displayContribution} parse={parseContribution} onValue={cents=>change(personId,cents)} />
-      {:else}
+      <NumericDraftInput inputClass="purchase-contribution" label={personName} description={$translate('purchase.paidColumn')}
+        hidden={mode !== 'individual'} disabled={mode !== 'individual'}
+        value={individualDraft && Object.hasOwn(individualDraft,personId) ? individualDraft[personId] : 0}
+        display={displayContribution} parse={parseContribution} onValue={cents=>change(personId,cents)} />
+      {#if mode !== 'individual'}
         <span class="purchase-paid-text">{money((contributions?.[personId] ?? 0)/100)}</span>
       {/if}
     </svelte:fragment>

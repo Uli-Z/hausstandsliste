@@ -11,7 +11,7 @@
   export let project;
   export let asOfDate;
 
-  let initializedFor;
+  let initialized = false;
   let date = '';
   let payer = '';
   let recipient = '';
@@ -24,8 +24,8 @@
   $: original = dialog?.eventId
     ? (project.events || []).find(e => e.id === dialog.eventId && e.type === 'claim-settlement-recorded')
     : null;
-  $: if (dialog && dialog !== initializedFor) {
-    initializedFor = dialog;
+  $: if (dialog && !initialized) {
+    initialized = true;
     date = original?.date || asOfDate || todayISO();
     if (!original && dialog.effectiveDate) date = dialog.effectiveDate;
     payer = original?.debtorPersonId || dialog.payerPersonId || '';

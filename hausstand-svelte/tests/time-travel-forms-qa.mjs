@@ -111,7 +111,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await page.getByRole('button',{name:'Eigentumsanteile ändern'}).click();
     assert.equal(await dateField.inputValue(),'2031-01-15', 'share editor starts on the lamp purchase date');
     await dateField.fill('2031-02-01');
-    await dialog.locator('.share-row input[type="number"]').first().fill('2');
+    await dialog.locator('.share-row input[inputmode="decimal"]').first().fill('2');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
     assert.ok((await snapshot()).events.some(e=>e.type==='shares-set' &&

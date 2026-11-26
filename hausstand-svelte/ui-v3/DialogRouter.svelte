@@ -19,7 +19,7 @@
   import ShareEditor from './ShareEditor.svelte';
   import SettlementDialog from '../src/components/SettlementDialog.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
-  import { isEnterForSubmit } from './form-behavior.js';
+  import { isEnterForSubmit, rebaseUneditedMap } from './form-behavior.js';
   export let dialog;
   export let project;
   export let projection;
@@ -52,6 +52,7 @@
     effectiveDate = draft?.data?.effectiveDate || asOfDate;
     if (dialog.effectiveDate) effectiveDate = dialog.effectiveDate;
     reason = dialog.reason || '';
+    archiveTarget = dialog.archiveTarget || '';
     paymentDate = effectiveDate;
     itemExtrasOpen = dialog.type === 'itemContinue' || !!dialog.id;
     const current = projectAt(project, effectiveDate).activeItems.find(i => i.id === dialog.itemId);
@@ -67,16 +68,18 @@
         .filter(p => p.active).map(p => [p.id, 1]));
     }
     if (dialog.type === 'itemAdd' && draft?.type === 'item') {
-      itemName = draft.data.name;
+      itemName = draft.data.name ?? '';
       tags = (draft.data.tags || []).join(', ');
       note = draft.data.note || '';
       initialValue = draft.data.initialValue;
-      valuationType = draft.data.valuation.type;
-      durationYears = draft.data.valuation.durationYears ?? 6;
-      annualRate = draft.data.valuation.annualRate ?? 0.2;
-      minimumValue = draft.data.valuation.minimumValue ?? 0;
+      valuationType = draft.data.valuation?.type ?? 'linear';
+      durationYears = draft.data.valuation?.durationYears ?? 6;
+      annualRate = draft.data.valuation?.annualRate ?? 0.2;
+      minimumValue = draft.data.valuation?.minimumValue ?? 0;
       shares = { ...(draft.data.shares || {}) };
       purchaseContributionsCents = draft.data.purchaseContributionsCents ?? null;
+      alreadySettled = !!draft.data.settledPaymentDate;
+      paymentDate = draft.data.settledPaymentDate || effectiveDate;
     }
     if (dialog.type === 'shareSet' && current) shares = { ...current.shares };
     if (dialog.type === 'itemContinue' && current) {
@@ -91,6 +94,10 @@
       minimumValue = current.runtime.valuation.minimumValue ?? 0;
     }
   }
+  let shareDefaults = {...shares};
+  let manualShareIds = new Set();
+  let replacementDefault = initialValue;
+  let replacementEdited = false;
   $: dateValid = validCalendarDate(effectiveDate);
   $: entryProjection = dateValid ? projectAt(project, effectiveDate) : projection;
   $: hasEventDate = ['personStatus', 'itemAdd', 'itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
@@ -110,7 +117,7 @@
   $: itemCost = Number(initialValue);
   $: itemCostCents = Math.round(itemCost * 100);
   $: itemCostValid = !itemNeedsOwners || validMoney(itemCost);
-  $: ownersValid = !itemNeedsOwners || (validShareMap(shares) && Object.keys(normShares(shares)).length > 0 &&
+  $: ownersValid = (!itemNeedsOwners && dialog?.type !== 'shareSet') || (validShareMap(shares) && Object.keys(normShares(shares)).length > 0 &&
     (dialog?.type !== 'itemAdd' || Object.keys(normShares(shares)).every(id=>entryProjection.peopleById.get(id)?.active)));
   $: itemNameValid = !itemNeedsOwners || !!String(itemName || '').trim();
   // Keep the raw minimum-value text while typing: a German decimal comma must
@@ -132,11 +139,16 @@
       if (['shareSet', 'itemContinue'].includes(dialog?.type)) {
         const item = atDate.activeItems.find(item => item.id === dialog.itemId);
         if (item) {
-          // Default shares and replacement value must reflect the new date,
-          // not the shares from when the dialog was first opened.
-          shares = { ...item.shares };
+          // Rebase only untouched defaults. Explicitly edited rows survive
+          // repeated date changes, even if their value matches a later default.
+          const rebased = rebaseUneditedMap(shares, shareDefaults, item.shares, manualShareIds);
+          shares = rebased.values;
+          manualShareIds = rebased.editedKeys;
+          shareDefaults = {...item.shares};
           if (dialog.type === 'itemContinue') {
-            initialValue = Math.round(item.value * 100) / 100;
+            replacementEdited ||= !Object.is(initialValue,replacementDefault);
+            replacementDefault = Math.round(item.value * 100) / 100;
+            if (!replacementEdited) initialValue = replacementDefault;
           }
           dateSharesRebased = true;
         }
@@ -227,7 +239,7 @@
 
   // Preserve the selected date and reason while using existing preparation dialogs.
   function archiveReturn() {
-    return {type:'personStatus',personId:dialog.personId,kind:'deactivate',effectiveDate,reason};
+    return {type:'personStatus',personId:dialog.personId,kind:'deactivate',effectiveDate,reason,archiveTarget};
   }
   function archiveItemStep(type, itemId) {
     appState.setDialog({type,itemId,effectiveDate,returnTo:archiveReturn()});
@@ -259,19 +271,27 @@
 
   function saveItemDraft() {
     if (!dateValid || !minimumValueValid) return;
+    // Incomplete but valid drafts are allowed. Never silently replace a
+    // malformed value with zero or discard the entire contribution map.
+    if (!validShareMap(shares) || !valuationValid ||
+        (initialValue != null && !validMoney(Number(initialValue))) ||
+        (purchaseContributionsCents && !Object.values(purchaseContributionsCents).every(c=>Number.isSafeInteger(c)&&c>=0)) ||
+        (alreadySettled && !validCalendarDate(paymentDate))) {
+      alert($translate('forms.invalidDraft'));
+      return;
+    }
     const draftId = dialog.id;
-    const activePeople = entryProjection.people.filter(p => p.active);
-    const initialShares = Object.keys(shares).length ? normShares(shares) : Object.fromEntries(activePeople.map(p => [p.id, 1]));
+    const initialShares = {...shares};
     try {
       const draft = createItemDraft({
       id: draftId,
       title: itemName || 'Neuer Gegenstand (Entwurf)',
       data: {
         effectiveDate,
-        name: itemName || 'Neuer Gegenstand',
+        name: itemName,
         tags: parseTags(tags),
         note,
-        initialValue: Number(initialValue) || 0,
+        ...(initialValue != null ? {initialValue:Number(initialValue)} : {}),
         valuation: {
           type: valuationType,
           durationYears: valuationType === 'linear' ? Number(durationYears) : undefined,
@@ -279,7 +299,8 @@
           minimumValue: valuationType === 'fixed' && !validMoney(minimumValueAmount) ? 0 : minimumValueAmount
         },
         shares: initialShares,
-        purchaseContributionsCents: purchaseContributionsCents && Object.values(purchaseContributionsCents).every(Number.isSafeInteger) ? purchaseContributionsCents : undefined
+        ...(purchaseContributionsCents ? {purchaseContributionsCents} : {}),
+        ...(alreadySettled ? {settledPaymentDate:paymentDate} : {})
       }
       });
       if (appState.upsertDraft(draft)) close();
@@ -358,7 +379,7 @@
       <div class="modal-body stack">
         {#if hasEventDate}
           {#if !itemNeedsOwners}<label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
-            <input id="event-effective-date" type="date" bind:value={effectiveDate} on:change={changeEffectiveDate} />
+            <input id="event-effective-date" type="date" value={effectiveDate} on:change={changeEffectiveDate} />
           </label>{/if}
           {#if !dateValid}<p role="alert" class="notice warn">{$translate('timeTravel.invalidDate')}</p>{/if}
           {#if dateValid && !itemAvailable}<p role="alert" class="notice warn">{$translate('timeTravel.itemUnavailable')}</p>{/if}
@@ -447,7 +468,7 @@
                 <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}>
               </label>
               <label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
-                <input id="event-effective-date" type="date" bind:value={effectiveDate} on:change={changeEffectiveDate} />
+                <input id="event-effective-date" type="date" value={effectiveDate} on:change={changeEffectiveDate} />
               </label>
             </div>
             <div class="form-grid item-valuation-fields">
@@ -485,7 +506,7 @@
                 <div class="item-flow-heading"><strong>{$translate("ui.who-owns-this-item-nnrc3g")}</strong></div>
                 <ShareEditor people={entryProjection.people.filter(p=>p.active || Object.hasOwn(shares,p.id))} bind:shares allowEqualize={true} allPeople={true} />
               {/if}
-              {#if !ownersValid}<p role="alert" class="notice warn">{$translate('items.selectOwner')}</p>{/if}
+              {#if !ownersValid}<p role="alert" class="notice warn">{$translate('forms.invalidShares')}</p>{/if}
             </section>
             {#if dialog.type === 'itemAdd'}
               {#if itemCostValid && ownersValid && financingValid}
@@ -531,6 +552,7 @@
           <div class="form-grid"><label>{$translate("ui.name-4el6o6")} <input bind:value={itemName} enterkeyhint="done"></label><label>{$translate("ui.categories-2lwhku")} <input bind:value={tags}></label><label class="wide">{$translate("ui.note-86vuh")} <textarea bind:value={note}></textarea></label></div>
         {:else if dialog.type === 'shareSet'}
           <ShareEditor people={entryProjection.people} bind:shares />
+          {#if !ownersValid}<p role="alert" class="notice warn">{$translate('forms.invalidShares')}</p>{/if}
           <label>{$translate("ui.should-financial-claims-arise-qd7qky")}
             <select bind:value={shareFinancialMode}>
               <option value="derived">{$translate("ui.yes-calculate-automatically-1jfscg7")}</option>

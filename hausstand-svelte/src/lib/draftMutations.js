@@ -6,8 +6,9 @@ import { addItem, executeRedistribution, checkedValuation, validShareMap, validM
 const reject=code=>{throw new Error(code);};
 function checkItemData(data) {
   if (!data || typeof data!=='object' || Array.isArray(data) ||
-      Object.keys(data).some(k=>!['effectiveDate','name','note','tags','initialValue','valuation','shares','purchaseContributionsCents'].includes(k)) ||
+      Object.keys(data).some(k=>!['effectiveDate','name','note','tags','initialValue','valuation','shares','purchaseContributionsCents','settledPaymentDate'].includes(k)) ||
       (data.effectiveDate!==undefined && !validISODate(data.effectiveDate)) ||
+      (data.settledPaymentDate!==undefined && !validISODate(data.settledPaymentDate)) ||
       ['name','note'].some(k=>data[k]!==undefined && typeof data[k]!=='string') ||
       (data.tags!==undefined && (!Array.isArray(data.tags) || !data.tags.every(tag=>typeof tag==='string'))) ||
       (data.initialValue!==undefined && !validMoney(data.initialValue)) ||

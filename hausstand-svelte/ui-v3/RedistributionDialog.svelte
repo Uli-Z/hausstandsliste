@@ -15,6 +15,7 @@
     sharesEqual
   } from '../src/lib/redistribution.js';
   import ShareEditor from './ShareEditor.svelte';
+  import { validShareMap } from '../src/lib/shareUnits.js';
   import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
   import { uid, clone, nextEventOrder } from '../src/lib/util.js';
@@ -48,6 +49,7 @@
   let subModalData = {};
 
   function upsertChange(itemId, shares) {
+    if (!validShareMap(shares)) { alert($translate('forms.invalidShares')); return false; }
     const clean = normShares(shares);
     if (shareTotal(clean) <= 0) {
       alert($translate("ui.an-active-item-needs-at-least-one--na47gt"));

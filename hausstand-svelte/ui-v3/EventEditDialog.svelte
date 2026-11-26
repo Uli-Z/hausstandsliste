@@ -4,6 +4,7 @@
   import { replaceEditableEvent, removeEvent, editableEventCopy, redateEditableEvent } from '../src/lib/eventMutations.js';
   import { dateDE, uid, clone } from '../src/lib/util.js';
   import { normShares } from '../src/lib/domain.js';
+  import { validShareMap } from '../src/lib/shareUnits.js';
   import { projectAt } from '../src/lib/projector.js';
   import { recordedContributions } from '../src/lib/purchaseFinancing.js';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
@@ -36,6 +37,9 @@
     minimumAmount >= 0 && Number.isSafeInteger(minimumCents) &&
     Math.abs(minimumAmount * 100 - minimumCents) <= 1e-7);
 
+  $: sharesValid = !['item-added','shares-set'].includes(edited?.type) ||
+    (validShareMap(edited.shares) && Object.values(edited.shares).some(value=>value>0));
+
   function confirmFromInput(event) {
     if (!isEnterForSubmit(event)) return;
     event.preventDefault();
@@ -52,7 +56,7 @@
   }
 
   function save() {
-    if (!edited || !minimumValid || (isPurchase && !financingValid)) return;
+    if (!edited || !minimumValid || !sharesValid || (isPurchase && !financingValid)) return;
     if (isPurchase) edited.purchaseContributionsCents = contributions;
     if (edited.type === 'item-added') edited.valuation.minimumValue = minimumAmount;
     const saved = appState.mutateProject(p => replaceEditableEvent(p, edited));
@@ -141,11 +145,12 @@
         <div class="empty">{$translate("ui.event-not-found-xoq41p")}</div>
       {/if}
     </div>
+    {#if !sharesValid}<p role="alert" class="notice warn">{$translate('forms.invalidShares')}</p>{/if}
     <div class="modal-footer">
       <button class="danger" on:click={remove}>{$translate("ui.delete-odpvb4")}</button>
       <div style="flex:1"></div>
       <button on:click={() => appState.closeDialog()}>{$translate("ui.cancel-cl4zc9")}</button>
-      <button class="primary" on:click={save} disabled={!minimumValid || (isPurchase && !financingValid) || $appState.readOnly}>{$translate("ui.save-change-1pvx2yb")}</button>
+      <button class="primary" on:click={save} disabled={!minimumValid || !sharesValid || (isPurchase && !financingValid) || $appState.readOnly}>{$translate("ui.save-change-1pvx2yb")}</button>
     </div>
   </div>
 </div>

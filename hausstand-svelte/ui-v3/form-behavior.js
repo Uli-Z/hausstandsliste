@@ -38,3 +38,19 @@ export function parseShareInput(value) {
   const parsed = parseDecimal(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
+
+// A date-dependent default can change, but a user's explicit values (including
+// deletion and invalid intermediate values) belong to the current draft.
+export function rebaseUneditedMap(values, previousDefaults, nextDefaults, editedKeys = new Set()) {
+  const edited = new Set(editedKeys);
+  for (const key of new Set([...Object.keys(values), ...Object.keys(previousDefaults)])) {
+    if (Object.hasOwn(values,key) !== Object.hasOwn(previousDefaults,key) ||
+        !Object.is(values[key],previousDefaults[key])) edited.add(key);
+  }
+  const result = {...nextDefaults};
+  for (const key of edited) {
+    if (Object.hasOwn(values,key)) result[key] = values[key];
+    else delete result[key];
+  }
+  return {values:result, editedKeys:edited};
+}

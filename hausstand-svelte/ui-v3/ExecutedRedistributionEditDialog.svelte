@@ -7,6 +7,7 @@
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { redistributionPreview, redistributionMarkdown, buildRedistributionItemRows, sharesEqual } from '../src/lib/redistribution.js';
   import ShareEditor from './ShareEditor.svelte';
+  import { validShareMap } from '../src/lib/shareUnits.js';
   import { isEnterForSubmit } from './form-behavior.js';
   import RedistributionItemList from '../src/components/RedistributionItemList.svelte';
   import { clone, dateDE } from '../src/lib/util.js';
@@ -54,6 +55,7 @@
   function saveChild() {
     const idx = edited.events.findIndex(e => e.id === editingChildId);
     if (idx >= 0) {
+      if (!validShareMap(editedChildShares)) { alert($translate('forms.invalidShares')); return; }
       const clean = normShares(editedChildShares);
       if (shareTotal(clean) <= 0) {
         alert($translate("ui.an-active-item-must-have-at-least--1wzqqo1"));

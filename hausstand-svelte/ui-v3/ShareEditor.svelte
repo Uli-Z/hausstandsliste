@@ -59,7 +59,7 @@
   {#each Object.entries(shares) as [personId, units] (personId)}
     <div class="share-row">
       <span class="share-person-name">{people.find(p=>p.id===personId)?.name || personId}</span>
-      <label>{$translate("ui.units-1xtsz9u")} <input type="number" min="0" step="0.01" value={units ?? ''} on:input={e => setShare(personId, parseShareInput(e.currentTarget.value))}></label>
+      <label>{$translate("ui.units-1xtsz9u")} <NumericDraftInput label={$translate('ui.units-1xtsz9u')} value={units} parse={parseShareInput} onValue={value=>setShare(personId,value)} /></label>
       <button class="danger" on:click={() => removeShare(personId)} type="button" aria-label={$translate("ui.remove-person-s-share-xybgun")}
         disabled={positiveOwnerCount === 1 && Number(units) > 0}
         title={positiveOwnerCount === 1 && Number(units) > 0 ? $translate("ui.transfer-the-last-owner-s-share-fi-1a7v21u") : $translate("ui.remove-share-xy7097")}>{$translate("ui.remove-9iqu14")}</button>
@@ -104,7 +104,7 @@
   .share-editor.compact{gap:5px}
   .compact .share-row{grid-template-columns:minmax(0,1fr) 76px auto auto;align-items:center;gap:5px}
   .compact .share-row>label{min-width:0;font-size:11px}
-  .compact .share-row input{min-width:0;padding:6px}
+  .compact .share-row :global(input){min-width:0;padding:6px}
   .compact .share-row button{padding:6px;font-size:11px;min-height:36px}
   @media(max-width:540px){
     .compact .share-row{grid-template-columns:minmax(0,1fr) 66px auto;gap:5px}

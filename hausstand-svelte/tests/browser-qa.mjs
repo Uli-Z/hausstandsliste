@@ -743,8 +743,8 @@ async function settlementEndToEnd(browser, url) {
     const changeShares = async (first, second, mode) => {
       await ownership.getByRole('button', { name: 'Eigentumsanteile ändern' }).click();
       const modal = ownership.locator('[role="dialog"]');
-      await modal.locator('.share-row').nth(0).locator('input[type=number]').fill(first);
-      await modal.locator('.share-row').nth(1).locator('input[type=number]').fill(second);
+      await modal.locator('.share-row').nth(0).locator('input[inputmode=decimal]').fill(first);
+      await modal.locator('.share-row').nth(1).locator('input[inputmode=decimal]').fill(second);
       await modal.locator('select').last().selectOption(mode);
       await modal.locator('.modal-footer button.primary').click();
       await modal.waitFor({ state: 'hidden' });
@@ -922,7 +922,7 @@ async function shareDeltaAcceptance(browser,url) {
       await page.getByRole('button',{name:'Eigentumsanteile ändern'}).click();
       assert.equal(await dialog.locator('#event-effective-date').inputValue(),date);
       for(const [name,units] of Object.entries(values)) {
-        await dialog.locator('.share-row').filter({hasText:name}).locator('input[type=number]').fill(String(units));
+        await dialog.locator('.share-row').filter({hasText:name}).locator('input[inputmode=decimal]').fill(String(units));
       }
       await dialog.locator('select').last().selectOption('derived');
       await dialog.locator('.modal-footer button.primary').click();
@@ -952,7 +952,7 @@ async function shareDeltaAcceptance(browser,url) {
     await page.locator('.timeline-event-card').filter({hasText:'01.03.2025'}).locator('.event-open-overlay').click();
     const actual={};
     for(const name of ['Anna','Ben','Clara'])
-      actual[name]=Number(await dialog.locator('.share-row').filter({hasText:name}).locator('input[type=number]').inputValue());
+      actual[name]=Number(await dialog.locator('.share-row').filter({hasText:name}).locator('input[inputmode=decimal]').inputValue());
     assert.deepEqual(actual,{Anna:5,Ben:4,Clara:2});
     await dialog.getByRole('button',{name:'Abbrechen',exact:true}).click();
     await targetShares('2025-02-15',{Anna:0,Ben:9,Clara:2},false);
@@ -1051,7 +1051,7 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       await page.getByRole('button', { name: 'Eigentumsanteile ändern' }).click();
       const ownershipDialog = page.locator('[role="dialog"]');
       await noOverflow('share editor');
-      const firstShare = ownershipDialog.locator('.share-row input[type=number]').first();
+      const firstShare = ownershipDialog.locator('.share-row input[inputmode=decimal]').first();
       const shareBounds = await firstShare.boundingBox();
       assert.ok(shareBounds.x >= 0 && shareBounds.x + shareBounds.width <= width + 2,
         'Q04 ' + width + 'px ownership field clipped');

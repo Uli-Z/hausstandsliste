@@ -22,12 +22,12 @@ test('new dated forms use the selected effective date; saved item drafts retain 
   assert.ok(router.includes('applyPersonAdd(p, { name }'));
   assert.ok(!router.match(/hasEventDate\s*=\s*\[[^\]]*'personAdd'/));
   assert.ok(router.includes('effectiveDate = draft?.data?.effectiveDate || asOfDate'));
-  assert.ok(router.includes('bind:value={effectiveDate}'));
+  assert.ok(router.includes('value={effectiveDate} on:change={changeEffectiveDate}'));
   assert.ok(router.includes('id="event-effective-date"'));
   assert.ok(router.includes('        effectiveDate,'));
   assert.ok(router.includes('projectAt(project, effectiveDate)'));
   assert.ok(router.includes('on:change={changeEffectiveDate}'));
-  assert.ok(router.includes('shares = { ...item.shares }'));
+  assert.ok(router.includes('rebaseUneditedMap(shares, shareDefaults, item.shares, manualShareIds)'));
   assert.ok(router.includes('dateSharesRebased = true'));
   assert.ok(router.includes('disabled={!canSubmitDated'));
   assert.ok(router.includes('itemAvailable'));

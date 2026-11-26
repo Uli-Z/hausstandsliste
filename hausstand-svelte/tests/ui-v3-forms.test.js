@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isEnterForSubmit, prepareDialogNumber, finishDialogNumber, parseShareInput } from '../ui-v3/form-behavior.js';
+import { isEnterForSubmit, prepareDialogNumber, finishDialogNumber, parseShareInput, rebaseUneditedMap } from '../ui-v3/form-behavior.js';
 
 const key = (tagName='INPUT', type='text', modifiers={}) => ({key:'Enter',target:{tagName,type},...modifiers});
 test('Enter submits ordinary inputs, not multiline or special controls',()=>{
@@ -49,4 +49,12 @@ test('dialog session identity changes only on explicit transitions, not calendar
   appState.closeDialog();
   assert.notEqual(get(appState).dialogRevision, second);
   assert.equal(get(appState).activeDialog, null);
+});
+
+test('Q33 date rebase preserves manually edited, removed and invalid rows across repeated changes',()=>{
+  const first = rebaseUneditedMap({a:3,b:null,d:0},{a:1,b:1,c:1,d:1},{a:3,b:2,c:2,d:4,e:1});
+  assert.deepEqual(first.values,{a:3,b:null,d:0,e:1});
+  assert.deepEqual([...first.editedKeys].sort(),['a','b','c','d']);
+  const second = rebaseUneditedMap(first.values,{a:3,b:2,c:2,d:4,e:1},{a:7,b:8,c:9,d:10,e:2},first.editedKeys);
+  assert.deepEqual(second.values,{a:3,b:null,d:0,e:2});
 });
