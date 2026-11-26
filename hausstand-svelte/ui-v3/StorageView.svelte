@@ -104,7 +104,7 @@
         // A rejected lease/revision/capability is no longer permission to edit.
         // Keep the dirty working copy intact for an encrypted recovery download.
         leaseToken = ''; leaseExpires = 0;
-        appState.setReadOnly(true);
+        appState.setReadOnly(true, serverErrorMessage(data.errorCode, response.status));
       }
       throw new Error(serverErrorMessage(data.errorCode, response.status));
     }
