@@ -49,12 +49,12 @@
       {#if suggestions.length}
         <div class="transfer-list">
           {#each suggestions as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
-            <div class="transfer-row">
+            <div class="transfer-row action-card">
               <div class="transfer-people">
                 <strong>{personName(transfer.fromPersonId)} zahlt an {personName(transfer.toPersonId)}</strong>
               </div>
               <strong class="transfer-amount">{money(transfer.amountCents / 100)}</strong>
-              <button class="primary transfer-action" type="button" on:click={() => addSettlement(transfer)}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
+              <button class="primary transfer-action card-primary" type="button" on:click={() => addSettlement(transfer)}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
             </div>
           {/each}
         </div>
@@ -85,11 +85,11 @@
       {/if}
     </section>
 
-    <div class="manual-payment">
+    <div class="manual-payment action-card">
       <div>
         <strong>{$translate("ui.another-payment-18vryrc")}</strong>
       </div>
-      <button type="button" on:click={() => addSettlement()}><ActionIcon name="plus" size={17}/>{$translate("ui.record-payment-clxxpv")}</button>
+      <button class="card-primary" type="button" on:click={() => addSettlement()}><ActionIcon name="plus" size={17}/>{$translate("ui.record-payment-clxxpv")}</button>
     </div>
 
     {#if data.warnings?.length}
@@ -102,14 +102,14 @@
         {#if recorded.length}
           <div class="audit-list">
             {#each recorded as entry (entry.sourceEventId)}
-              <div class="audit-row">
+              <div class="audit-row action-card">
                 <div class="audit-main">
                   <strong>{personName(entry.creditorPersonId)} an {personName(entry.debtorPersonId)}</strong>
                   <span>{dateDE(entry.date)} · {$translate(entry.entryKind === 'paid' ? 'timeline.payment' : entry.entryKind === 'external' ? 'timeline.external' : 'timeline.waiver')}</span>
                   {#if eventById.get(entry.sourceEventId)?.note}<span>{eventById.get(entry.sourceEventId).note}</span>{/if}
                 </div>
                 <strong class="audit-amount">{money(entry.amountCents / 100)}</strong>
-                <button class="audit-edit" type="button" on:click={() => appState.setDialog({type:'settlementEdit',eventId:entry.sourceEventId})}><ActionIcon name="edit" size={16}/>{$translate("ui.edit-m49ms0")}</button>
+                <button class="audit-edit card-primary" type="button" on:click={() => appState.setDialog({type:'settlementEdit',eventId:entry.sourceEventId})}><ActionIcon name="edit" size={16}/>{$translate("ui.edit-m49ms0")}</button>
               </div>
             {/each}
           </div>
@@ -122,13 +122,13 @@
         {#if data.claims.length}
           <div class="audit-list">
             {#each data.claims as claim, index (claim.sourceEventId + ':' + index)}
-              <div class="audit-row">
+              <div class="audit-row action-card">
                 <div class="audit-main">
                   <strong>{itemName(claim.itemId)}</strong>
                   <span>{dateDE(claim.date)} · {$translate('ledger.fromTo', {creditor:personName(claim.creditorPersonId),debtor:personName(claim.debtorPersonId)})}</span>
                 </div>
                 <strong class="audit-amount">{money(claim.amountCents / 100)}</strong>
-                <button class="audit-edit" type="button" on:click={() => editClaim(claim)}>{$translate("ui.view-event-8joqb1")}</button>
+                <button class="audit-edit card-primary" type="button" on:click={() => editClaim(claim)}>{$translate("ui.view-event-8joqb1")}</button>
               </div>
             {/each}
           </div>

@@ -26,14 +26,14 @@
   {#if filtered.length}
     <div class="item-grid">
       {#each filtered as item (item.id)}
-        <article class="item-tile">
+        <article class="item-tile action-card">
           <div class="item-top"><span class="item-worth">{money(item.value)}</span></div>
           <h2>{item.name}</h2>
           {#if item.note}<p class="item-note">{item.note}</p>{/if}
           {#if item.tags?.length}<p class="item-categories">{item.tags.join(', ')}</p>{/if}
           <div class="item-facts"><span>{pluralMessage('items.ownerCount', item.shareRows.length, $locale)}</span></div>
           <CompactNames entries={ownerNames(item, $locale)}/>
-          <button class="tile-open" on:click={() => appState.setRoute({page:'item',id:item.id})}>{$translate("items.details")} <span aria-hidden="true">→</span></button>
+          <button class="tile-open card-primary" type="button" on:click={() => appState.setRoute({page:'item',id:item.id})}>{$translate("items.details")} <span aria-hidden="true">→</span></button>
         </article>
       {/each}
     </div>
@@ -50,7 +50,7 @@
     {#if showArchive}
       <div class="archive-list">
         {#each archived as item (item.id)}
-          <div class="archive-row"><div><strong>{item.name}</strong><small>{item.runtime.endedAt || $translate('items.dateUnknown')} · {item.runtime.endReason || item.status || $translate('items.archived')}</small></div><button on:click={() => appState.setRoute({page:'item',id:item.id})}>{$translate("items.detailsLink")}</button></div>
+          <div class="archive-row action-card"><div><strong>{item.name}</strong><small>{item.runtime.endedAt || $translate('items.dateUnknown')} · {item.runtime.endReason || item.status || $translate('items.archived')}</small></div><button class="card-primary" type="button" on:click={() => appState.setRoute({page:'item',id:item.id})}>{$translate("items.detailsLink")}</button></div>
         {/each}
       </div>
     {/if}

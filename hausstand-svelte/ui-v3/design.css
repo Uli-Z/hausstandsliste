@@ -574,3 +574,15 @@ tr.clickable-row:hover td{background:#eef7f8}
 
 /* Q29: metric navigation is separate from the overflow control. */
 .metric .metric-link{display:grid;gap:5px;text-align:left;border:0;padding:0;background:transparent;min-width:0;align-content:start;border-radius:4px}.metric .metric-link:hover{text-decoration:underline;text-decoration-color:var(--muted)}.metric .metric-link:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.metric{align-content:start;min-width:0}
+
+/* Q25: one actual primary button per card. Its transparent hit area covers
+   the card; native keyboard activation and secondary controls stay independent. */
+.action-card{position:relative;isolation:isolate;cursor:pointer}
+.action-card .card-primary{position:static}
+.action-card .card-primary::after{content:"";position:absolute;inset:0;z-index:1;border-radius:inherit}
+.action-card .card-primary:focus-visible::after{outline:3px solid var(--accent);outline-offset:-2px}
+.action-card .card-secondary{position:relative;z-index:2}
+.action-card:hover{border-color:var(--accent)}
+.action-card:focus-within{border-color:var(--accent)}
+.recent-row.action-card{justify-content:space-between;align-items:center}
+.recent-open{display:inline-flex;align-items:center;justify-content:center;align-self:center;color:var(--accent);background:transparent;border:0;flex:none;min-width:40px;min-height:40px}

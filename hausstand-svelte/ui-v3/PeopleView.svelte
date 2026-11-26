@@ -30,7 +30,7 @@
     <div class="people-grid">
       {#each filtered as person (person.id)}
         {@const cents = ledger?.balances?.get(person.id) || 0}
-        <article class="person-tile">
+        <article class="person-tile action-card">
           <div class="person-heading">
             <h2>{person.name}</h2>
             {#if !person.active}<span class="person-status-text">{person.inactiveFrom ? $translate('people.moved') : $translate('people.inactive')}</span>{/if}
@@ -43,7 +43,7 @@
             </div>
           {/if}
           <CompactNames entries={rankedItems((person.holdings || []).map(h => h.item), $locale)}/>
-          <div class="person-bottom"><span>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</span><button on:click={() => appState.setRoute({page:'person',id:person.id})}>{$translate("people.profile")}</button></div>
+          <div class="person-bottom"><span>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</span><button class="card-primary" type="button" on:click={() => appState.setRoute({page:'person',id:person.id})}>{$translate("people.profile")}</button></div>
         </article>
       {/each}
     </div>

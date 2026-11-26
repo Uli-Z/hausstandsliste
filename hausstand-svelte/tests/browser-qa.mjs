@@ -1228,6 +1228,50 @@ async function unitMovementDisplayAcceptance(browser,url) {
   }
 }
 
+async function wholeCardAcceptance(browser,url) {
+  for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
+    const context=await browser.newContext({locale,viewport:{width,height:820}});
+    try {
+      const page=await context.newPage();
+      const errors=[];page.on('pageerror',e=>errors.push(e.message));
+      await bootFixture(page,url);
+      const goHome=()=>page.locator(width<600?'.mobile-bottom-nav > button':'.sidebar-links > button').first().click();
+      const title=page.locator('.detail-title h2');
+      const metric=page.locator('.metric-grid .metric');
+      // Non-button content and padding must activate the same primary action.
+      await metric.nth(1).locator('.name-chip').first().click({force:true});
+      const item=page.locator('.item-tile').filter({hasText:'Kühlschrank'});
+      await item.locator('h2').click({force:true});
+      await title.filter({hasText:'Kühlschrank'}).waitFor();
+      await goHome();
+      await metric.nth(2).click({position:{x:3,y:3}});
+      const anna=page.locator('.person-tile').filter({has:page.getByRole('heading',{name:'Anna',exact:true})});
+      await anna.locator('.card-primary').focus();
+      await page.keyboard.press('Enter');
+      await title.filter({hasText:'Anna'}).waitFor();
+      await goHome();
+      // The viewing date must survive a navigation from a recent event.
+      await page.locator('.time-travel-toggle').click();
+      await page.locator('#state-date').fill('2025-01-02');
+      await page.keyboard.press('Escape');
+      const recent=page.locator('.recent-row[data-event-id="purchase"]');
+      await recent.locator('strong').first().click({force:true});
+      const timeline=page.locator('.timeline-event-card[data-event-id="purchase"] .event-open-overlay');
+      await timeline.waitFor();
+      assert.equal(await timeline.evaluate(el=>el===document.activeElement),true);
+      assert.equal(await page.locator('.time-travel-toggle').getAttribute('aria-pressed'),'true');
+      await goHome();
+      // The payment card opens the existing confirmation form, not a payment.
+      const debt=page.locator('.debt-row').first();
+      await debt.locator('strong').first().click({force:true});
+      await page.locator('.modal-backdrop').waitFor();
+      await page.locator('.modal-footer button').first().click();
+      await page.locator('.modal-backdrop').waitFor({state:'hidden'});
+      assert.deepEqual(errors,[]);
+    } finally {await context.close();}
+  }
+}
+
 async function overviewNamesAcceptance(browser,url) {
   for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
     const context=await browser.newContext({locale,viewport:{width,height:820}});
@@ -1816,6 +1860,7 @@ try {
   await acceptance('Chromium Q06 PHP online', () => phpOnline(browser));
   await acceptance('Chromium Q30 signed share changes', () => shareDeltaAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q36 unit movement display', () => unitMovementDisplayAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q25 whole cards', () => wholeCardAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q29 compact names', () => overviewNamesAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q39 recent history', () => recentHistoryAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
@@ -1830,6 +1875,7 @@ try {
       await acceptance(name + ' Q32/Q33 long list', () => itemEntryLongListAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' Q33 other form drafts', () => formStateAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' Q36 unit movement display', () => unitMovementDisplayAcceptance(additional, offlineServer.url));
+      await acceptance(name + ' Q25 whole cards', () => wholeCardAcceptance(additional, offlineServer.url));
       await acceptance(name + ' Q29 compact names', () => overviewNamesAcceptance(additional, offlineServer.url));
       await acceptance(name + ' Q39 recent history', () => recentHistoryAcceptance(additional, offlineServer.url));
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));

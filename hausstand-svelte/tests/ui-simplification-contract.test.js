@@ -7,7 +7,7 @@ const source = (path) => readFileSync(new URL('../' + path, import.meta.url), 'u
 test('overview retains the four metrics and quick actions but has no duplicate add-item button', () => {
   const app = source('ui-v3/App.svelte');
   const overview = app.slice(app.indexOf("{:else if activeSection === 'overview'}"), app.indexOf("{:else if activeSection === 'items'}"));
-  assert.equal((overview.match(/<div class="metric">/g) || []).length, 4);
+  assert.equal((overview.match(/<div class="metric action-card">/g) || []).length, 4);
   assert.equal((overview.match(/<span class="task-icon">/g) || []).length, 4);
   assert.ok(overview.includes('rankedItems($projection.activeItems, $locale)'));
   assert.ok(overview.includes('nameEntries($projection.people.filter(p=>p.active), $locale)'));
@@ -113,4 +113,21 @@ test('Q35: short option groups are visible while extensive histories remain coll
   assert.ok(storage.includes('<details class="ux-panel storage-versions"'));
   const ledger = source('ui-v3/LedgerView.svelte');
   assert.ok(ledger.includes('<details class="audit-disclosure">'));
+});
+
+test('Q25: cards extend native primary buttons without nesting secondary controls', () => {
+  const css=source('ui-v3/design.css');
+  assert.match(css,/\.action-card \.card-primary::after\{[^}]*inset:0/);
+  assert.match(css,/\.card-primary:focus-visible::after/);
+  assert.match(css,/\.card-secondary\{position:relative;z-index:2/);
+  for(const [path,kind] of [['InventoryView','item-tile'],['PeopleView','person-tile'],['App','metric'],['LedgerView','transfer-row']]){
+    const s=source('ui-v3/'+path+'.svelte');
+    assert.ok(s.includes('class="'+kind+' action-card"'),path);
+    assert.ok(s.includes('card-primary'),path);
+  }
+  const app=source('ui-v3/App.svelte');
+  assert.ok(app.includes('subtle-danger card-secondary'));
+  assert.ok(app.includes('focusRecentEvent(event.id)'));
+  assert.ok(app.includes("navigate('activity')"));
+  assert.ok(source('ui-v3/CompactNames.svelte').includes('pointer-events:auto'));
 });

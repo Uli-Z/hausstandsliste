@@ -95,9 +95,9 @@
     <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.settlement-options-1u5xuy7")}</h2><HelpTip label={$translate("ui.what-do-these-settlement-options-me-xd2ddh")}>{$translate("ui.these-are-potential-payment-routes--1gkcqar")}</HelpTip></div></div>
     <div class="panel-body stack">
       {#each transfersForPerson as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
-        <div class="split">
+        <div class="split action-card">
           <span>{nameOf(transfer.fromPersonId)} an {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
-          <button on:click={() => appState.setDialog({ type: 'settlementAdd', payerPersonId: transfer.fromPersonId, recipientPersonId: transfer.toPersonId, amountCents: transfer.amountCents })}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
+          <button class="card-primary" type="button" on:click={() => appState.setDialog({ type: 'settlementAdd', payerPersonId: transfer.fromPersonId, recipientPersonId: transfer.toPersonId, amountCents: transfer.amountCents })}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
         </div>
       {/each}
     </div>

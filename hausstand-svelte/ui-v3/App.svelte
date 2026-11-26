@@ -147,6 +147,15 @@
     if ($appState.route.page !== 'dashboard') appState.setRoute({ page: 'dashboard' });
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+  async function focusRecentEvent(eventId) {
+    // Recent events are the first entries in the shared chronological list.
+    // Navigate without changing the viewing date or starting an edit.
+    navigate('activity');
+    await tick();
+    const card = Array.from(document.querySelectorAll('.timeline-event-card')).find(node => node.dataset.eventId === eventId);
+    card?.querySelector('.event-open-overlay')?.focus();
+    card?.scrollIntoView({block:'center',behavior:'instant'});
+  }
   function goToDetailReturn() {
     appState.setRoute({ page: 'dashboard' });
   }
@@ -343,10 +352,10 @@
         {/if}
 
         <div class="metric-grid">
-          <div class="metric"><span>{$translate("app.totalValue")}</span><strong>{money($projection.totalValue)}</strong><small>{$translate("app.activeItems")}</small></div>
-          <div class="metric"><button class="metric-link" on:click={() => navigate("items")}><span>{$translate("nav.items")}</span><strong>{$projection.activeItems.length}</strong><small>{$translate("app.inInventory")}</small></button><CompactNames entries={rankedItems($projection.activeItems, $locale)} onMore={() => navigate("items")}/></div>
-          <div class="metric"><button class="metric-link" on:click={() => navigate("people")}><span>{$translate("nav.people")}</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>{$translate("app.participants")}</small></button><CompactNames entries={nameEntries($projection.people.filter(p=>p.active), $locale)} onMore={() => navigate("people")}/></div>
-          <div class="metric"><span>{$translate("app.outstanding")}</span><strong>{money(outstandingCents / 100)}</strong><small>{$translate("app.sharedBalance")}</small></div>
+          <div class="metric action-card"><button class="metric-link card-primary" type="button" on:click={() => navigate("items")}><span>{$translate("app.totalValue")}</span><strong>{money($projection.totalValue)}</strong><small>{$translate("app.activeItems")}</small></button></div>
+          <div class="metric action-card"><button class="metric-link card-primary" type="button" on:click={() => navigate("items")}><span>{$translate("nav.items")}</span><strong>{$projection.activeItems.length}</strong><small>{$translate("app.inInventory")}</small></button><CompactNames entries={rankedItems($projection.activeItems, $locale)} onMore={() => navigate("items")}/></div>
+          <div class="metric action-card"><button class="metric-link card-primary" type="button" on:click={() => navigate("people")}><span>{$translate("nav.people")}</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>{$translate("app.participants")}</small></button><CompactNames entries={nameEntries($projection.people.filter(p=>p.active), $locale)} onMore={() => navigate("people")}/></div>
+          <div class="metric action-card"><button class="metric-link card-primary" type="button" on:click={() => navigate("money")}><span>{$translate("app.outstanding")}</span><strong>{money(outstandingCents / 100)}</strong><small>{$translate("app.sharedBalance")}</small></button></div>
         </div>
 
         <div class="overview-layout">
@@ -364,10 +373,10 @@
             {#if balances.length}
               <div class="simple-debts">
                 {#each balances.slice(0,5) as b}
-                  <div class="debt-row">
+                  <div class="debt-row action-card">
                   <span>{personName(b.fromPersonId)} an {personName(b.toPersonId)}</span>
                   <strong>{money(b.amountCents / 100)}</strong>
-                  <button class="debt-action" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})}><ActionIcon name="wallet" size={16}/>{$translate("app.settle")}</button>
+                  <button class="debt-action card-primary" type="button" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})}><ActionIcon name="wallet" size={16}/>{$translate("app.settle")}</button>
                 </div>
                 {/each}
               </div>
@@ -384,7 +393,7 @@
             {#if latestEvents.length}
               <div class="recent-list">
                 {#each latestEvents as event (event.id)}
-                  <div class="recent-row" data-event-id={event.id}>
+                  <div class="recent-row action-card" data-event-id={event.id}>
                     <div>
                       {#if event.type === 'redistribution-executed' || event.type === 'shares-set'}
                         <OwnershipHistorySummary {event} project={$appState.project} compact={true}/>
@@ -394,6 +403,7 @@
                       {/if}
                       <small>{formatDate(event.date,$locale)}</small>
                     </div>
+                    <button class="recent-open card-primary" type="button" aria-label={`${$translate("timeline.viewDetails")}: ${eventName(event)} · ${formatDate(event.date,$locale)}`} on:click={() => focusRecentEvent(event.id)}><ActionIcon name="chevron-right" size={19}/></button>
                   </div>
                 {/each}
               </div>
@@ -407,11 +417,11 @@
             <div class="section-header"><div><h2>{$translate("app.drafts")}</h2></div></div>
               <div class="draft-list">
                 {#each drafts as draft (draft.id)}
-                  <div class="draft-row">
+                  <div class="draft-row action-card">
                     <div><strong>{draft.title || draft.data?.name || $translate("ui.untitled-draft-1uj507g")}</strong><small>{draft.type === 'redistribution' ? $translate("app.transfer") : $translate("ui.record-item-1dj7z2m")}</small></div>
                     <div class="draft-buttons">
-                      <button on:click={() => appState.setDialog({type:draft.type==='redistribution'?'redistributionEdit':'itemAdd',id:draft.id})}>{$translate("app.continue")}</button>
-                      <button class="subtle-danger" title={$translate("ui.delete-draft-eyd06t")} aria-label={$translate("ui.delete-draft-eyd06t")} on:click={() => { if (appState.requireEditing() && confirm($translate("ui.delete-this-draft-1eyj6m4"))) appState.deleteDraft(draft.id); }}>×</button>
+                      <button class="card-primary" type="button" on:click={() => appState.setDialog({type:draft.type==='redistribution'?'redistributionEdit':'itemAdd',id:draft.id})}>{$translate("app.continue")}</button>
+                      <button class="subtle-danger card-secondary" type="button" title={$translate("ui.delete-draft-eyd06t")} aria-label={$translate("ui.delete-draft-eyd06t")} on:click={() => { if (appState.requireEditing() && confirm($translate("ui.delete-this-draft-1eyj6m4"))) appState.deleteDraft(draft.id); }}>×</button>
                     </div>
                   </div>
                 {/each}
