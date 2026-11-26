@@ -1,13 +1,14 @@
 <script>
   import { translate, formatPercent } from '../src/lib/i18n.js';
   import { normShares, shareTotal } from '../src/lib/domain.js';
+  import NumericDraftInput from './NumericDraftInput.svelte';
   import { parseShareInput } from './form-behavior.js';
   export let people = [];
   export let shares = {};
   export let allowEqualize = false;
   export let allPeople = false;
   export let showAmounts = false;
-  function setShare(personId, value) { shares = { ...shares, [personId]: parseShareInput(value) }; }
+  function setShare(personId, value) { shares = { ...shares, [personId]: value }; }
   function removeShare(personId) { const next = { ...shares }; delete next[personId]; shares = next; }
   function addPerson(personId) { if (!personId) return; shares = { ...shares, [personId]: shares[personId] || 1 }; }
   $: positiveOwnerCount = Object.keys(normShares(shares)).length;
@@ -38,11 +39,10 @@
     {#each people as person (person.id)}
       <div class="purchase-person-row">
         <span class="share-person-name">{person.name}</span>
-        <input class="purchase-units" type="number" min="0" step="0.01" inputmode="decimal"
-          aria-label={person.name + ' – ' + $translate('ui.units-1xtsz9u')}
-          disabled={person.active === false && !(shares[person.id]>0)}
-          value={Object.hasOwn(shares,person.id) ? shares[person.id] ?? '' : 0}
-          on:input={e => setShare(person.id,e.currentTarget.value)} />
+        <NumericDraftInput inputClass="purchase-units" label={person.name + ' – ' + $translate('ui.units-1xtsz9u')}
+          disabled={person.active === false && !Object.hasOwn(shares,person.id)}
+          value={Object.hasOwn(shares,person.id) ? shares[person.id] : 0}
+          parse={parseShareInput} onValue={value=>setShare(person.id,value)} />
         <small class="share-percent">{formatPercent(totalUnits > 0 ? Math.max(0,Number(shares[person.id])||0)/totalUnits : 0)}</small>
         {#if showAmounts}<div class="purchase-amount"><slot name="amount" personId={person.id} personName={person.name} /></div>{/if}
       </div>
@@ -59,7 +59,7 @@
   {#each Object.entries(shares) as [personId, units] (personId)}
     <div class="share-row">
       <span class="share-person-name">{people.find(p=>p.id===personId)?.name || personId}</span>
-      <label>{$translate("ui.units-1xtsz9u")} <input type="number" min="0" step="0.01" value={units ?? ''} on:input={e => setShare(personId, e.currentTarget.value)}></label>
+      <label>{$translate("ui.units-1xtsz9u")} <input type="number" min="0" step="0.01" value={units ?? ''} on:input={e => setShare(personId, parseShareInput(e.currentTarget.value))}></label>
       <button class="danger" on:click={() => removeShare(personId)} type="button" aria-label={$translate("ui.remove-person-s-share-xybgun")}
         disabled={positiveOwnerCount === 1 && Number(units) > 0}
         title={positiveOwnerCount === 1 && Number(units) > 0 ? $translate("ui.transfer-the-last-owner-s-share-fi-1a7v21u") : $translate("ui.remove-share-xy7097")}>{$translate("ui.remove-9iqu14")}</button>
@@ -82,9 +82,9 @@
   .with-amounts .purchase-person-row{grid-template-columns:minmax(0,1fr) minmax(48px,90px) minmax(38px,64px) minmax(74px,130px)}
   .purchase-person-row .share-percent{grid-column:3;grid-row:1;text-align:right;white-space:nowrap}
   .purchase-person-row>.share-person-name{grid-column:1;grid-row:1}
-  .purchase-person-row>.purchase-units{grid-column:2;grid-row:1}
+  .purchase-person-row>:global(.purchase-units){grid-column:2;grid-row:1}
   .purchase-person-row>.purchase-amount{grid-column:4;grid-row:1;min-width:0;display:grid;align-items:center}
-  .purchase-person-row input{width:100%;min-width:0;padding:5px 6px}
+  .purchase-person-row :global(input){width:100%;min-width:0;padding:5px 6px}
   .purchase-column-head{font-size:11px;color:var(--muted);overflow-wrap:anywhere;line-height:1.25}
   .purchase-column-head span:not(:first-child){text-align:right}
   .purchase-share-hint{color:var(--muted);font-size:11px}
@@ -93,7 +93,7 @@
     .with-amounts .purchase-person-row{grid-template-columns:minmax(0,1fr) 54px 43px 76px;gap:4px}
     .purchase-person-row .share-person-name{font-size:12px}
     .purchase-person-row .share-percent{font-size:10px}
-    .purchase-person-row input{padding:5px;font-size:13px}
+    .purchase-person-row :global(input){padding:5px;font-size:13px}
     .purchase-person-row input[type=number]{appearance:textfield;-moz-appearance:textfield}
     .purchase-person-row input::-webkit-inner-spin-button,.purchase-person-row input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
   }

@@ -5,6 +5,7 @@
   import { projectAt } from '../src/lib/projector.js';
   import { buildTransferChanges, buildRemovePersonChanges, soleOwnedItems } from '../src/lib/redistribution.js';
   import { validCalendarDate } from '../src/lib/timeTravel.js';
+  import { validShareMap } from '../src/lib/shareUnits.js';
   import { normShares, money } from '../src/lib/domain.js';
   import { purchaseClaims as derivePurchaseClaims, personBalances } from '../src/lib/ledger.js';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
@@ -109,7 +110,8 @@
   $: itemCost = Number(initialValue);
   $: itemCostCents = Math.round(itemCost * 100);
   $: itemCostValid = !itemNeedsOwners || validMoney(itemCost);
-  $: ownersValid = !itemNeedsOwners || Object.keys(normShares(shares)).length > 0;
+  $: ownersValid = !itemNeedsOwners || (validShareMap(shares) && Object.keys(normShares(shares)).length > 0 &&
+    (dialog?.type !== 'itemAdd' || Object.keys(normShares(shares)).every(id=>entryProjection.peopleById.get(id)?.active)));
   $: itemNameValid = !itemNeedsOwners || !!String(itemName || '').trim();
   // Keep the raw minimum-value text while typing: a German decimal comma must
   // neither collapse the details panel nor silently be stored as zero.
@@ -138,13 +140,9 @@
           }
           dateSharesRebased = true;
         }
-      } else if (dialog?.type === 'itemAdd') {
-        // A future or former participant must not remain silently selected
-        // as an owner when the user chooses another purchase date.
-        shares = Object.fromEntries(Object.entries(shares).filter(([id]) =>
-          atDate.peopleById.get(id)?.active));
-        // Preserve explicitly entered contributions; invalid participants block saving.
       }
+      // A different purchase date must not erase entered owners. The matrix
+      // keeps referenced participants visible; eligibility blocks invalid save.
     }
     if (paymentDate === effectiveDate) paymentDate = nextDate;
     effectiveDate = nextDate;
@@ -481,7 +479,7 @@
             {#if !itemCostValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             <section class="item-ownership-fields">
               {#if dialog.type === 'itemAdd'}
-                <PurchaseFinancing people={entryProjection.people.filter(p=>p.active)} bind:shares
+                <PurchaseFinancing people={project.people} ownerPeople={entryProjection.people} bind:shares
                   amountCents={itemCostCents} bind:contributions={purchaseContributionsCents} bind:valid={financingValid} />
               {:else}
                 <div class="item-flow-heading"><strong>{$translate("ui.who-owns-this-item-nnrc3g")}</strong></div>
