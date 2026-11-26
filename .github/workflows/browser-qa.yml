@@ -4,6 +4,9 @@ name: Browser acceptance QA
 # Trigger this suite explicitly under Actions > Browser acceptance QA > Run workflow.
 on:
   workflow_dispatch:
+  push:
+    branches: ['qa/q27-archive-acceptance-2026-11-26']
+    paths: ['.github/workflows/browser-qa.yml']
 
 permissions:
   contents: read
