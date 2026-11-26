@@ -46,8 +46,11 @@ test('redistribution preview and execution use a single editable date; edits pre
   assert.ok(create.includes('executeRedistribution(p, redistribution)'));
   assert.ok(source('src/lib/itemMutations.js').includes("createEvent('redistribution-executed',effectiveDate"));
   assert.ok(create.includes('invalidItems.length'));
-  assert.ok(editing.includes('bind:value={edited.date}'));
-  assert.ok(standard.includes('bind:value={edited.date}'));
+  for (const dialog of [editing,standard]) {
+    assert.ok(dialog.includes('value={edited.date} on:change={changeDate}'));
+    assert.ok(dialog.includes('editableEventCopy(project,event)'));
+    assert.ok(dialog.includes('redateEditableEvent(project,edited,inputEvent.currentTarget.value)'));
+  }
   assert.ok(standard.includes('projectAt(project, edited.date)'));
   assert.ok(payment.includes('original?.date || asOfDate || todayISO()'));
   assert.ok(payment.includes('bind:value={date}'));

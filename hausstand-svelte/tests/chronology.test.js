@@ -108,7 +108,7 @@ test('A07: group before preview excludes later same-day nested redistribution', 
   ]);
   const make = (id, shares, order) => redistributionPreview(p, {
     effectiveDate: date, financialMode: 'derived',
-    changes: [{ itemId: 'sofa', shareUnitDeltas }]
+    changes: [{ itemId: 'sofa', shares }]
   }, { beforeEventId: id, order });
   assert.deepEqual(make('first', { ben: 1 }, 5).base.activeItems[0].shares, { anna: 1 });
   assert.deepEqual(make('second', { carla: 1 }, 6).base.activeItems[0].shares, { ben: 1 });

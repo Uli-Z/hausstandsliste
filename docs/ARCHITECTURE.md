@@ -25,7 +25,7 @@ A file is accepted by `requireProjectFile()`. Unsupported schemas are rejected, 
 
 ## Events and values
 
-- Stable person and item IDs; ownership shares are relative units.
+- Stable person and item IDs; ownership shares are relative units. Purchase events and unexecuted drafts store absolute allocations as `shares`. Individual `shares-set` events and each executed redistribution child store only signed absolute unit changes as `shareUnitDeltas` (e.g. `{"anna":-1,"ben":1}`), not percentages or allocation snapshots. The projector applies these to the preceding chronological state; the ledger consumes the same resolved result. The transaction guard checks the entire future history. Invalid negative, ownerless, inactive-item or nonrepresentable transitions are rejected without changing stored payments or other events. Unsupported old allocation-snapshot events are rejected, not migrated.
 - Events have effective ISO date and order. The as-of view reconstructs ownership and values deterministically.
 - `item-added`, `item-ended`, `shares-set`, `redistribution-executed`, membership events and `claim-settlement-recorded` comprise the active event model.
 - Financially compensated ownership events may derive claims; there is **no persisted debt or paid/unpaid status**.

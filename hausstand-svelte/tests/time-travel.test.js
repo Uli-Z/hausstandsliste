@@ -70,6 +70,6 @@ test('no global arrow date shortcut; editing preserves the original event date',
   assert.match(app, /class="time-travel-selected-text"/);
   assert.doesNotMatch(app, /class="date-toolbar"/);
   assert.match(app, /appState\.exitTimeTravel\(\)/);
-  assert.match(edit, /edited\s*=\s*clone\(event\)/);
-  assert.match(edit, /bind:value=\{edited\.date\}/);
+  assert.match(edit, /edited\s*=\s*editableEventCopy\(project,event\)/);
+  assert.match(edit, /value=\{edited\.date\} on:change=\{changeDate\}/);
 });

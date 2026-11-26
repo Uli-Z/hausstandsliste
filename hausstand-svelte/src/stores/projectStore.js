@@ -4,7 +4,7 @@ import { clone, todayISO } from '../lib/util.js';
 import { createRedistribution, upsertDraft, removeDraft } from '../lib/draftMutations.js';
 import { projectAt } from '../lib/projector.js';
 import { ledgerAt } from '../lib/ledger.js';
-import { unownedActiveTransitions } from '../lib/ownershipValidation.js';
+import { ownershipHistoryProblems } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
 import { createSessionUndo } from '../lib/sessionUndo.js';
@@ -137,7 +137,7 @@ function createStore() {
       let applied = false;
       update(s => {
         if (s.readOnly || s.activeDialog) return s;
-        const project = sessionUndo.undo(s.project, p => !unownedActiveTransitions(p).length);
+        const project = sessionUndo.undo(s.project, p => !ownershipHistoryProblems(p).length);
         if (!project) return s;
         applied = true;
         return persist({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
@@ -149,7 +149,7 @@ function createStore() {
       let applied = false;
       update(s => {
         if (s.readOnly || s.activeDialog) return s;
-        const project = sessionUndo.redo(s.project, p => !unownedActiveTransitions(p).length);
+        const project = sessionUndo.redo(s.project, p => !ownershipHistoryProblems(p).length);
         if (!project) return s;
         applied = true;
         return persist({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
