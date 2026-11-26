@@ -7,7 +7,7 @@ import { readFile, mkdtemp, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { chromium, firefox, webkit } from 'playwright';
-import { decryptProject } from '../src/lib/crypto.js';
+import { decryptProject, encryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { projectAt } from '../src/lib/projector.js';
 import { readPortableVersion } from '../src/lib/versionHistory.js';
@@ -1446,7 +1446,7 @@ async function phpOnline(browser) {
       // A second browser can see balances but must not be able to mutate them.
       await openFinance(viewer);
       await balance(viewer, 'Ben', '100,00');
-      assert.equal(await viewer.getByRole('button', { name: 'Zahlung erfassen', exact: true }).isDisabled(), true);
+      assert.equal(await viewer.getByRole('button', { name: 'Zahlung erfassen', exact: true }).isEnabled(), true); // Q37: entry guard gives feedback instead of disabling
       assert.equal(await viewer.getByRole('button', { name: /Rückgängig \(Strg\+Z\)/ }).isDisabled(), true);
       assert.equal(await viewer.getByRole('button', { name: 'Bearbeitung starten', exact: true }).isVisible(), true);
       await openSave(viewer);
@@ -1509,7 +1509,7 @@ async function phpOnline(browser) {
         await viewer.getByRole('button', { name: 'Online speichern', exact: true }).click();
         await viewer.getByRole('button', { name: 'Bearbeitung starten', exact: true }).waitFor();
         await balance(viewer, 'Ben', '30,00');
-        assert.equal(await viewer.getByRole('button', { name: 'Zahlung erfassen', exact: true }).isDisabled(), true);
+        assert.equal(await viewer.getByRole('button', { name: 'Zahlung erfassen', exact: true }).isEnabled(), true); // Q37: entry guard gives feedback instead of disabling
         await openSave(viewer);
         assert.match(await viewer.locator('.storage-context').innerText(), /Änderungen noch nicht online gespeichert/);
         assert.equal(await viewer.getByRole('button', { name: 'Bearbeitung beenden' }).count(), 0);
@@ -1524,6 +1524,85 @@ async function phpOnline(browser) {
     await rm(privateDir, { recursive: true, force: true });
   }
 }
+
+async function q37ReadOnlyAcceptance(browser) {
+  const privateDir = await mkdtemp(join(tmpdir(), 'hausstand-q37-'));
+  const port = await freePort();
+  const url = 'http://127.0.0.1:' + port + '/hausstand.php';
+  const php = spawn('php', ['-S', '127.0.0.1:' + port, '-t', 'dist'], {
+    env: {...process.env, HAUSSTAND_DATA_DIR: privateDir, HAUSSTAND_ADMIN_TOKEN: 'q37-browser-admin'},
+    stdio: ['ignore','ignore','pipe']
+  });
+  const contexts = [];
+  try {
+    let ready = false;
+    for (let i=0;i<80;i++) {
+      try { ready = (await fetch(url+'?api=config')).ok; if (ready) break; } catch {}
+      await pause(100);
+    }
+    assert.ok(ready,'Q37 PHP server ready');
+    const password = 'q37-browser-password';
+    const token = randomSecret();
+    const seeded = await fetch(url+'?api=create', {method:'POST',headers:{
+      'Content-Type':'application/json','X-Hausstand-Admin':'q37-browser-admin'
+    },body:JSON.stringify({id:'hausstand-hauptdatei',name:'Q37',envelope:await encryptProject(fixture,password,token),tokenHash:await hashSecret(token)})});
+    assert.equal(seeded.status,200);
+    const login = async (locale,width) => {
+      const context = await browser.newContext({locale,viewport:{width,height:812}});
+      contexts.push(context);
+      const page = await context.newPage();
+      await page.goto(url);
+      await page.getByLabel('Passwort',{exact:true}).fill(password);
+      await page.getByRole('button',{name:'Anmelden',exact:true}).click();
+      await page.locator('.quick-actions').waitFor();
+      return page;
+    };
+    const editor = await login('de-DE',1280);
+    const reader = await login('en-GB',375);
+    const rejected = async (page,control,expected,keyboard=false) => {
+      const alert = page.waitForEvent('dialog');
+      // Handle the browser alert before waiting for completion of the click.
+      const interaction = keyboard ? control.press('Enter') : control.click();
+      const popup = await alert;
+      assert.equal(popup.type(),'alert');
+      assert.match(popup.message(),expected);
+      await popup.accept();
+      await interaction;
+      assert.equal(await page.locator('.modal-backdrop').count(),0,'no editing dialog in read-only mode');
+    };
+    for (const [page,pattern] of [[editor,/schreibgeschützt.*oben rechts/s],[reader,/read-only.*top right/s]]) {
+      const actions = page.locator('.quick-actions .task-grid > button');
+      for (let i=0;i<3;i++) await rejected(page,actions.nth(i),pattern,i===1);
+      // Navigation and the financial overview remain readable.
+      assert.ok(await page.locator('.financial-overview').isVisible());
+      await rejected(page,page.locator('.debt-action').first(),pattern);
+    }
+    await editor.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
+    await editor.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).waitFor();
+    const firstAction = editor.locator('.quick-actions .task-grid > button').nth(2);
+    await firstAction.click();
+    const modal = editor.locator('.modal-backdrop');
+    await modal.locator('input').first().fill('Q37 Person');
+    await modal.locator('.modal-footer .primary').click();
+    await modal.waitFor({state:'hidden'});
+    await reader.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
+    await reader.getByText(/Bearbeitung konnte nicht gestartet werden/).waitFor();
+    await rejected(reader,reader.locator('.quick-actions .task-grid > button').first(),/read-only.*top right/s);
+    await editor.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).click();
+    await editor.getByRole('button',{name:'Bearbeitung starten',exact:true}).waitFor();
+    await rejected(editor,firstAction,/schreibgeschützt.*oben rechts/s);
+    // A new checkout after check-in must once again allow editing.
+    await reader.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
+    await reader.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).waitFor();
+    await reader.locator('.quick-actions .task-grid > button').first().click();
+    await reader.locator('.modal-backdrop').waitFor();
+  } finally {
+    for (const context of contexts) await context.close();
+    php.kill();
+    await rm(privateDir,{recursive:true,force:true});
+  }
+}
+
 let browser;
 let server;
 const extraBrowsers = [];
@@ -1547,6 +1626,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
+  await acceptance('Chromium Q37 read-only dialog guard', () => q37ReadOnlyAcceptance(browser));
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium Q32/Q33 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium Q33 other form drafts', () => formStateAcceptance(browser, offlineServer.url, 'Chromium'));
