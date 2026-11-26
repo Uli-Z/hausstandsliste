@@ -1,4 +1,4 @@
-import { derived, writable } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
 import { emptyProject, normalize } from '../lib/domain.js';
 import { clone, todayISO } from '../lib/util.js';
 import { createRedistribution, upsertDraft, removeDraft } from '../lib/draftMutations.js';
@@ -21,6 +21,7 @@ const initial = {
   dirty: false,
   secure: false,
   readOnly: false,
+  readOnlyReason: '',
   route: { page: 'dashboard' },
   activeDialog: null,
   dialogRevision: 0 // Session-only identity; unrelated store notifications must not remount forms.
@@ -29,6 +30,16 @@ const initial = {
 function createStore() {
   const { subscribe, update } = writable(initial);
   const sessionUndo = createSessionUndo(50);
+  // Central UI entry guard; the mutation guard remains the second layer.
+  const requireEditing = state => {
+    if (!state.readOnly) return true;
+    alert([message('errors.readOnly', getLocale()), state.readOnlyReason].filter(Boolean).join('\n\n'));
+    return false;
+  };
+  const openDialog = (state, dialog) => {
+    if (dialog && dialog.type !== 'options' && !requireEditing(state)) return state;
+    return { ...state, activeDialog: dialog, dialogRevision: state.dialogRevision + 1 };
+  };
   const resetUndo = state => ({ ...state, history: sessionUndo.reset() });
   const changedProject = (state, nextProject) => {
     if (!sessionUndo.record(state.project, nextProject)) return state;
@@ -79,23 +90,29 @@ function createStore() {
         : copy.dirty ? null : normalize(copy.project);
       return resetUndo({ ...s, project: normalize(copy.project), savedProject: saved,
         dirty: hasProjectChanges(normalize(copy.project), saved),
-        localCacheWarning: false, secure: false, readOnly: false,
+        localCacheWarning: false, secure: false, readOnly: false, readOnlyReason: '',
         asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, route: { page: 'dashboard' }, activeDialog: null });
     }),
     setRoute: route => update(s => ({ ...s, route })),
-    setDialog: activeDialog => update(s => ({ ...s, activeDialog, dialogRevision: s.dialogRevision + 1 })),
-    closeDialog: () => update(s => ({ ...s, activeDialog: s.activeDialog?.returnTo || null, dialogRevision: s.dialogRevision + 1 })),
+    requireEditing: () => requireEditing(get({ subscribe })),
+    setDialog: activeDialog => update(s => openDialog(s, activeDialog)),
+    closeDialog: () => update(s => ({ ...s, activeDialog: s.readOnly ? null : s.activeDialog?.returnTo || null, dialogRevision: s.dialogRevision + 1 })),
     importProject: (raw, { secure = false, readOnly = false } = {}) => update(s => {
       const project = normalize(raw);
-      return persist(resetUndo({ ...s, project, savedProject: clone(project), secure, readOnly,
+      return persist(resetUndo({ ...s, project, savedProject: clone(project), secure, readOnly, readOnlyReason: '',
         asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
     }),
-    setReadOnly: readOnly => update(s => ({ ...s, readOnly })),
-    newProject: name => update(s => persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, secure: false, readOnly: false, asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard' }, activeDialog: null }))),
+    setReadOnly: (readOnly, reason = '') => update(s => {
+      const next = { ...s, readOnly, readOnlyReason: readOnly ? reason : '' };
+      // Do not remount or discard an already-open form when the lease is lost.
+      if (readOnly && !s.readOnly && s.activeDialog && s.activeDialog.type !== 'options') requireEditing(next);
+      return next;
+    }),
+    newProject: name => update(s => persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, secure: false, readOnly: false, readOnlyReason: '', asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard' }, activeDialog: null }))),
     mutateProject: mutator => {
       let saved = false;
       update(s => {
-        if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
+        if (!requireEditing(s)) return s;
         const project = clone(s.project);
         try { mutator(project); }
         catch { alert(message('errors.changeFailed', getLocale())); return s; }
@@ -110,6 +127,7 @@ function createStore() {
       return saved;
     },
     startRedistribution: (title, date, changes = [], extraDialog = {}) => update(s => {
+      if (!requireEditing(s)) return s;
       const { initialFinancialMode, ...dialogOptions } = extraDialog;
       const r = createRedistribution(title || 'Neue Umverteilung', date || s.asOfDate, changes);
       if (initialFinancialMode === 'none') r.financialMode = 'none';
@@ -118,7 +136,7 @@ function createStore() {
     upsertDraft: draft => {
       let accepted = false;
       update(s => {
-        if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
+        if (!requireEditing(s)) return s;
         const project = clone(s.project);
         try { upsertDraft(project,draft); }
         catch { alert(message('errors.changeFailed', getLocale())); return s; }
@@ -128,7 +146,7 @@ function createStore() {
       return accepted;
     },
     deleteDraft: id => update(s => {
-      if (s.readOnly) { alert(message('errors.readOnly', getLocale())); return s; }
+      if (!requireEditing(s)) return s;
       const project = clone(s.project);
       try { removeDraft(project,id); }
       catch { return s; }
