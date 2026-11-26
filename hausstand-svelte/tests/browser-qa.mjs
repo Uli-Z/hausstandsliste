@@ -410,7 +410,6 @@ async function formStateAcceptance(browser,url,engine) {
 
       await section('items');
       await page.locator('.item-tile').filter({hasText:'Kühlschrank'}).locator('.tile-open').click();
-      await page.locator('.secondary-actions summary').click();
       await page.locator('.secondary-actions .action-grid button').first().click();
       const metadata=modal.locator('.form-grid');
       await metadata.locator('input').nth(0).fill('Q33 item name');
@@ -445,7 +444,7 @@ async function formStateAcceptance(browser,url,engine) {
       await section('overview');
       await quick.nth(1).click();
       const main=page.locator('.large-modal');
-      await main.locator('.redistribution-advanced summary').click();
+      assert.equal(await main.locator('.redistribution-advanced input').isVisible(), true, 'Q35: description is directly visible');
       const title=main.locator('.redistribution-advanced input');
       await title.fill('Q33 redistribution draft');
       await main.locator('#redistribution-effective-date').fill('2025-04-01');
@@ -474,7 +473,7 @@ async function formStateAcceptance(browser,url,engine) {
 
       await section('save');
       const protectedCopy=page.locator('.storage-secondary').first();
-      await protectedCopy.locator('summary').click();
+      assert.equal(await protectedCopy.locator('input[type=password]').isVisible(), true, 'Q35: encrypted backup directly accessible');
       const pass=protectedCopy.locator('input[type=password]');
       const backup=protectedCopy.locator('input:not([type=password])');
       await pass.fill('test-only-passphrase');
@@ -638,7 +637,6 @@ async function offline(browser, url) {
 
   // Local encrypted download carries the same complete portable history.
   await openSave(mobile);
-  await mobile.locator('.storage-main details > summary').click();
   await mobile.getByLabel('Passwort für diese Datei').fill('encrypted-browser-qa-secret');
   await mobile.getByLabel('Name der Sicherung').fill('verschlüsselt');
   const encryptedWait = mobile.waitForEvent('download');
@@ -1427,8 +1425,7 @@ async function phpOnline(browser) {
       const editor = await first.newPage();
       await bootFixture(editor, host + '/hausstand.php');
       await openSave(editor);
-      await editor.locator('.storage-online details > summary').filter({ hasText: 'Neues Online-Projekt anlegen' }).click();
-      await editor.getByLabel('Passwort des Online-Projekts').fill('browser-test-passphrase');
+      await editor.locator('.storage-create input[type=password]').fill('browser-test-passphrase');
       await editor.getByLabel('Name des neuen Online-Projekts').fill('Gemeinsame Browser-Abnahme');
       await editor.locator('.storage-online details .storage-form button').click();
       await editor.getByText('Gemeinsame Browser-Abnahme').first().waitFor();

@@ -44,7 +44,6 @@
   let paymentDate = '';
   let effectiveDate = '';
   let dateSharesRebased = false;
-  let itemExtrasOpen = false;
   let archiveTarget = '';
   // App keys this component by a primitive dialog session revision. Initialize
   // once for that session, not whenever a field is cleared or a store emits.
@@ -55,7 +54,6 @@
     reason = dialog.reason || '';
     archiveTarget = dialog.archiveTarget || '';
     paymentDate = effectiveDate;
-    itemExtrasOpen = dialog.type === 'itemContinue' || !!dialog.id;
     const current = projectAt(project, effectiveDate).activeItems.find(i => i.id === dialog.itemId);
     if (dialog.type === 'personMeta') name = project.people.find(p => p.id === dialog.personId)?.name || '';
     if (dialog.type === 'itemMeta') {
@@ -533,8 +531,7 @@
                 </section>
               {/if}
             {/if}
-            <details class="item-extra-fields" bind:open={itemExtrasOpen}>
-              <summary>{$translate('items.moreDetails')}</summary>
+            <section class="item-extra-fields" aria-label={$translate('items.moreDetails')}>
               <div class="form-grid">
                 
                 <label>{$translate("ui.categories-2lwhku")}
@@ -544,7 +541,7 @@
                   <textarea bind:value={note}></textarea>
                 </label>
               </div>
-            </details>
+            </section>
           </div>
         {:else if dialog.type === 'itemMeta'}
           <div class="form-grid"><label>{$translate("ui.name-4el6o6")} <input bind:value={itemName} enterkeyhint="done"></label><label>{$translate("ui.categories-2lwhku")} <input bind:value={tags}></label><label class="wide">{$translate("ui.note-86vuh")} <textarea bind:value={note}></textarea></label></div>
@@ -618,9 +615,10 @@
   .item-purchase-preview ul{padding-left:18px}
   .item-purchase-preview small{color:var(--muted);line-height:1.5}
   .item-extra-fields{border-top:1px solid var(--border);padding-top:6px;min-width:0}
-  .item-extra-fields>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;color:#246f85;font-size:13px;font-weight:650}
-  .item-extra-fields[open]>summary{margin-bottom:12px}
-  .item-extra-fields>.form-grid{min-width:0}
+  .item-extra-fields>.form-grid{min-width:0;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+  .item-extra-fields .wide{grid-column:auto}
+  .item-extra-fields textarea{min-height:42px;resize:vertical}
+  @media(max-width:480px){.item-extra-fields>.form-grid{grid-template-columns:minmax(0,1fr)}}
   @media(max-width:540px){
     .item-entry-modal .modal-body{padding:12px}
     .item-entry-modal .modal-footer>button{flex:1 1 0;min-width:0;padding:7px 5px;overflow-wrap:anywhere}

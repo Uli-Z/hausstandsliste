@@ -35,19 +35,17 @@
           <div class="mini-card"><div class="muted">{$translate("ui.value-opx6hb")}</div><strong>{money(item.value)}</strong></div>
           <div class="mini-card"><div class="muted">{$translate("ui.owners-1df2egp")}</div><strong>{item.shareRows.length}</strong></div>
         </div>
-        <details class="valuation-detail">
-          <summary>{$translate("ui.valuation-13jfos6")}</summary>
-          <div>{valuationLabel(item.runtime.valuation)}</div>
-        </details>
+        <div class="valuation-detail">
+          <strong>{$translate("ui.valuation-13jfos6")}:</strong> {valuationLabel(item.runtime.valuation)}
+        </div>
       </div>
-      <details class="secondary-actions">
-        <summary>{$translate("ui.moreActions")}</summary>
+      <div class="secondary-actions" role="group" aria-label={$translate("ui.moreActions")}>
         <div class="action-grid">
           <button on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-item-birsg")}</button>
           <button on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}><ActionIcon name="archive" size={17}/>{$translate("ui.archive-qlwwpx")}</button>
           <button on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}><ActionIcon name="plus" size={17}/>{$translate('items.replace')}</button>
         </div>
-      </details>
+      </div>
     </div>
   </div>
 </section>
@@ -126,10 +124,9 @@
   .item-status-text{color:var(--muted);font-size:12px}
   .item-core-facts{margin:0}
   .valuation-detail{font-size:12px;color:var(--muted)}
-  .valuation-detail summary,.secondary-actions summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:#246f85;font-weight:650}
-  .valuation-detail>div{padding:0 0 8px 14px}
-  .secondary-actions{align-self:start}
-  .secondary-actions .action-grid{padding:8px 0;display:grid;gap:8px}
+  .secondary-actions{align-self:start;min-width:0}
+  .secondary-actions .action-grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
+  .secondary-actions button{min-height:44px;white-space:normal}
   .ownership-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .ownership-header .outline-action{display:inline-flex;gap:8px;align-items:center}
   .item-categories,.item-description{margin:0;color:var(--muted);font-size:12px;line-height:1.55}

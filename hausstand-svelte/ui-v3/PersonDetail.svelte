@@ -75,15 +75,14 @@
         <div class="mini-card"><div class="muted">{$translate("ui.total-value-1bsjxfe")}</div><strong>{money(person.totalValue || 0)}</strong><small>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</small></div>
       </div>
     </div>
-    <details class="secondary-actions">
-      <summary>{$translate("ui.moreActions")}</summary>
+    <div class="secondary-actions" role="group" aria-label={$translate("ui.moreActions")}>
       <div class="action-grid">
         <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-person-jstaod")}</button>
         {#if person.active}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'deactivate'})}><ActionIcon name="archive" size={17}/>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'reactivate'})}><ActionIcon name="person-add" size={17}/>{$translate("ui.reactivate-iggdm2")}</button>{/if}
         <button disabled={!person.active || !person.holdings?.length} on:click={startTransfer}><ActionIcon name="arrows" size={17}/>{$translate("app.transfer")}</button>
         <button disabled={!person.active || !person.holdings?.length} on:click={startDissolve}><ActionIcon name="archive" size={17}/>{$translate("ui.remove-shares-5g2njo")}</button>
       </div>
-    </details>
+    </div>
   </div>
 </div></section>
 
@@ -148,7 +147,7 @@
   .person-inactive { color:var(--muted);font-size:13px; }
   .person-core-facts{margin:0}
   .person-core-facts small{display:block;margin-top:6px;font-size:11px;color:var(--muted)}
-  .secondary-actions{align-self:start}
-  .secondary-actions summary{cursor:pointer;display:flex;align-items:center;min-height:44px;color:#246f85;font-size:13px;font-weight:650}
-  .secondary-actions .action-grid{display:grid;gap:8px;padding:8px 0}
+  .secondary-actions{align-self:start;min-width:0}
+  .secondary-actions .action-grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
+  .secondary-actions button{min-height:44px;white-space:normal}
 </style>

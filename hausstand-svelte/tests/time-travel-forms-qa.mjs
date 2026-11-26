@@ -117,7 +117,6 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.ok((await snapshot()).events.some(e=>e.type==='shares-set' &&
       e.itemId===lamp.itemId && e.date==='2031-02-01'));
 
-    await page.locator('.secondary-actions summary').click();
     await page.getByRole('button',{name:'Gegenstand beenden'}).click();
     assert.equal(await dateField.inputValue(),'2031-02-01');
     await dateField.fill('2031-03-01');
@@ -137,21 +136,16 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /01\.03\.2031/);
 
     await page.locator('.person-tile').filter({hasText:'Carla'}).locator('.person-bottom button').click();
-    // Person actions are intentionally collapsed in the detail view.
+    // Q35/Q40: the archive action must be discoverable without a disclosure.
     const personActions = page.locator('.detail-hero .secondary-actions');
-    async function openPersonActions() {
-      if (await personActions.getAttribute('open') === null) {
-        await personActions.locator('summary').click();
-      }
-    }
-    await openPersonActions();
+    assert.equal(await personActions.getByRole('button',{name:'Person archivieren'}).isVisible(),true);
     await personActions.getByRole('button',{name:'Person archivieren'}).click();
     assert.equal(await dateField.inputValue(),'2031-03-01');
     await dateField.fill('2032-04-05');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
     assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId===carla.personId)?.date,'2032-04-05');
-    await openPersonActions();
+    assert.equal(await personActions.getByRole('button',{name:'Person reaktivieren'}).isVisible(),true);
     await personActions.getByRole('button',{name:'Person reaktivieren'}).click();
     assert.equal(await dateField.inputValue(),'2032-04-05');
     await dateField.fill('2032-05-05');
@@ -186,7 +180,6 @@ export async function timeTravelFormsAcceptance(browser,url) {
     // Replacement forms are dated; plain metadata edits are intentionally not.
     await nav('Gegenstände').click();
     await page.locator('.item-tile').filter({hasText:'Sessel'}).locator('.tile-open').click();
-    await page.locator('.secondary-actions summary').click();
     await page.locator('.secondary-actions .action-grid button').filter({hasText:'Durch neuen Gegenstand ersetzen'}).click();
     assert.equal(await dateField.inputValue(),'2032-05-05');
     await dialog.locator('.modal-header > button.ghost').click();
@@ -243,7 +236,7 @@ export async function guidedArchiveAcceptance(browser,url) {
     await nav('Personen').click();
     await page.locator('.person-tile').filter({hasText:'Anna'}).locator('.person-bottom button').click();
     const personActions = page.locator('.detail-hero .secondary-actions');
-    await personActions.locator('summary').click();
+    assert.equal(await personActions.getByRole('button',{name:'Person archivieren'}).isVisible(),true);
     await personActions.getByRole('button',{name:'Person archivieren'}).click();
     await dateField.fill('2033-02-01');
     assert.equal(await dialog.locator('.modal-footer .primary').isDisabled(),true);

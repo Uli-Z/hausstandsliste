@@ -43,12 +43,12 @@ test('people keep directional balances and a link to detail without an idle coun
 });
 
 
-test('item detail has one back control, prominent ownership and collapsible advanced actions', () => {
+test('item detail has one back control, prominent ownership and directly visible actions', () => {
   const item = source('ui-v3/ItemDetail.svelte');
   assert.ok(!item.includes('class="breadcrumb"'));
   assert.ok(item.includes('item-core-facts'));
-  assert.ok(item.includes('<details class="valuation-detail">'));
-  assert.ok(item.includes('<details class="secondary-actions">'));
+  assert.ok(item.includes('<div class="valuation-detail">'));
+  assert.ok(item.includes('<div class="secondary-actions" role="group"'));
   assert.ok(item.includes('class="panel-header ownership-header"'));
   assert.ok(item.includes("type: 'shareSet', itemId: item.id"));
   assert.ok(item.includes("type: 'itemContinue', itemId: item.id"));
@@ -63,7 +63,7 @@ test('person detail puts the personal balance and settlement first, without losi
   const person = source('ui-v3/PersonDetail.svelte');
   assert.ok(!person.includes('class="breadcrumb"'));
   assert.ok(person.includes('person-core-facts'));
-  assert.ok(person.includes('<details class="secondary-actions">'));
+  assert.ok(person.includes('<div class="secondary-actions" role="group"'));
   assert.ok(person.includes("type: 'personMeta', personId: person.id"));
   assert.ok(person.includes("type:'personStatus'"));
   assert.ok(person.includes('on:click={startTransfer}'));
@@ -85,17 +85,30 @@ test('finance view leads with settlement suggestions rather than ownership trans
   assert.ok(ledger.includes('on:click={() => addSettlement(transfer)}'));
 });
 
-test('settings show one language selector and place rarely used commands in advanced options', () => {
+test('settings show one language selector and show commands without a nested disclosure, retaining explicit confirmation', () => {
   const app = source('ui-v3/App.svelte');
   const settings = app.slice(app.indexOf("{:else if activeSection === 'settings'}"), app.indexOf('      {/key}'));
   assert.equal((settings.match(/id="language-selection"/g) || []).length, 1);
   assert.ok(settings.includes("resolveLocale('auto'") === false); // Resolution is shared with the app script.
   assert.ok(app.includes("const autoLanguage = resolveLocale('auto'"));
   assert.ok(settings.includes('settings.advanced'));
-  assert.ok(settings.includes('<details class="ux-panel setting-panel settings-advanced">'));
+  assert.ok(settings.includes('<section class="ux-panel setting-panel settings-advanced"'));
   assert.ok(settings.includes('showJson'));
   assert.ok(settings.includes('showDanger'));
   const language = source('src/lib/i18n.js');
   assert.equal((language.match(/"settings.advanced"/g) || []).length, 2);
   assert.equal((language.match(/"ui.moreActions"/g) || []).length, 2);
+});
+
+test('Q35: short option groups are visible while extensive histories remain collapsible', () => {
+  for (const [path, group] of [['ItemDetail','secondary-actions'],['PersonDetail','secondary-actions'],['DialogRouter','item-extra-fields'],['RedistributionDialog','redistribution-advanced'],['App','settings-advanced'],['StorageView','storage-secondary']]) {
+    const component = source('ui-v3/' + path + '.svelte');
+    assert.ok(!component.split('\n').some(line => line.includes('<details') && line.includes(group)), path);
+  }
+  const storage = source('ui-v3/StorageView.svelte');
+  assert.ok(storage.includes('bind:value={remoteCreatePassword}'));
+  assert.ok(storage.includes('bind:value={remotePassword}'));
+  assert.ok(storage.includes('<details class="ux-panel storage-versions"'));
+  const ledger = source('ui-v3/LedgerView.svelte');
+  assert.ok(ledger.includes('<details class="audit-disclosure">'));
 });

@@ -6,7 +6,7 @@ import { parseDecimal } from '../src/lib/i18n.js';
 
 const source = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('item creation keeps ownership/financing explicit and secondary fields behind disclosure', () => {
+test('item creation keeps ownership/financing explicit and directly visible metadata fields', () => {
   const dialog = source('ui-v3/DialogRouter.svelte');
   const block = dialog.slice(
     dialog.indexOf("{:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}"),
@@ -21,7 +21,7 @@ test('item creation keeps ownership/financing explicit and secondary fields behi
   const financing = source('ui-v3/PurchaseFinancing.svelte');
   assert.ok(financing.includes('<ShareEditor people={tablePeople} bind:shares allPeople={true} showAmounts={true}'));
   assert.ok(financing.includes('slot="amount"'));
-  assert.ok(block.includes('<details class="item-extra-fields"'));
+  assert.ok(block.includes('<section class="item-extra-fields"'));
   assert.ok(block.includes('bind:value={valuationType}'));
   assert.ok(block.includes('bind:value={durationYears}'));
   assert.ok(block.includes('bind:value={annualRate}'));
@@ -79,13 +79,13 @@ test('redistribution starts with dated item changes and a meaningful preview', (
   assert.ok(body.includes('bind:value={redistribution.effectiveDate}'));
   assert.ok(body.includes('bind:value={redistribution.financialMode}'));
   assert.ok(body.includes('<RedistributionItemList'));
-  assert.ok(body.includes('<details class="redistribution-advanced">'));
+  assert.ok(body.includes('<section class="redistribution-advanced"'));
   assert.ok(body.includes('redistribution-bulk-actions'));
   assert.ok(body.includes('redistribution-preview'));
   assert.ok(body.includes('preview.rows.length'));
   assert.ok(body.includes('preview.payments.length'));
   assert.ok(body.includes('redistribution.noPaymentRecorded'));
-  assert.ok(body.includes('<details class="redistribution-export">'));
+  assert.ok(!body.includes('redistribution-export'));
   assert.ok(dialog.includes('redistributionPreview(project, redistribution)'));
   assert.ok(dialog.includes('executeRedistribution(p, redistribution)'));
   assert.ok(source('src/lib/itemMutations.js').includes("createEvent('redistribution-executed',effectiveDate"));
@@ -108,22 +108,22 @@ test('new fields have complete English and German translations', () => {
   }
 });
 
-test('Q22: depreciation is always visible; optional details retain explicit open state', () => {
+test('Q22: depreciation is always visible; optional metadata is directly visible', () => {
   const dialog = source('ui-v3/DialogRouter.svelte');
   const block = dialog.slice(
     dialog.indexOf("{:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}"),
     dialog.indexOf("{:else if dialog.type === 'itemMeta'}")
   );
   const visible = block.slice(0, block.indexOf('<section class="item-ownership-fields">'));
-  const extra = block.slice(block.indexOf('<details class="item-extra-fields"'));
+  const extra = block.slice(block.indexOf('<section class="item-extra-fields"'));
   for (const key of ['bind:value={valuationType}', 'bind:value={durationYears}', 'bind:value={annualRate}']) {
     assert.ok(visible.includes(key), key);
     assert.ok(!extra.includes(key), 'not hidden: ' + key);
   }
   assert.ok(visible.indexOf('bind:value={valuationType}') > visible.indexOf('bind:value={initialValue}'));
-  assert.ok(block.includes('<details class="item-extra-fields" bind:open={itemExtrasOpen}>'));
-  assert.ok(dialog.includes("itemExtrasOpen = dialog.type === 'itemContinue' || !!dialog.id"));
-  assert.ok(!block.includes("open={dialog.type === 'itemContinue' || !!dialog.id}"));
+  assert.ok(block.includes('<section class="item-extra-fields" aria-label='));
+  assert.ok(!dialog.includes('itemExtrasOpen'));
+  assert.ok(!block.includes('<details'));
   assert.ok(visible.includes('bind:value={minimumValue}'));
   assert.ok(!extra.includes('bind:value={minimumValue}'));
   assert.ok(visible.includes('input type="text" inputmode="decimal"'));

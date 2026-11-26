@@ -445,8 +445,7 @@
           </section>
           <section class="ux-panel setting-panel"><h2>Anmeldung</h2><button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.logout()}>Auf diesem Gerät abmelden</button></section>
         {/if}
-        <details class="ux-panel setting-panel settings-advanced">
-          <summary>{$translate('settings.advanced')}</summary>
+        <section class="ux-panel setting-panel settings-advanced" aria-label={$translate('settings.advanced')}>
           <div class="settings-advanced-body">
             <section class="setting-advanced-block">
               <div class="section-header"><div class="help-heading"><h2>{$translate("app.inspect")}</h2><HelpTip label={$translate("ui.what-does-the-technical-view-show-fofuc8")}>{$translate("ui.the-technical-view-shows-the-compl-xkqom1")}</HelpTip></div></div>
@@ -459,7 +458,7 @@
               {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" disabled={storageBusy} on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
             </section>{/if}
           </div>
-        </details>
+        </section>
       {/if}
       {/key}
       <!-- Keep the collaborative-storage component mounted: the server lease, edit token,

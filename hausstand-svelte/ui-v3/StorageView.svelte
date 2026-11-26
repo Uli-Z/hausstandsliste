@@ -11,9 +11,9 @@
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
   export let onProjectLoaded = () => {};
-  let showProtected = false, error = '', message = '';
+  let error = '', message = '';
   export let busy = false;
-  let password = '', remotePassword = '', openPassword = '', newPassword = '';
+  let password = '', remotePassword = '', remoteCreatePassword = '', openPassword = '', newPassword = '';
   let backupName = '', remoteDraftName = '', openedName = '', pendingEncrypted = null, pendingFileName = '';
   let serverCanCreate = false, serverReady = false;
   let files = [], selectedPortableVersion = '';
@@ -58,7 +58,7 @@
   function clearOnlineLink() {
     openedId = ''; openedName = ''; revision = 0;
     leaseToken = ''; leaseExpires = 0; editToken = '';
-    activePassword = ''; remotePassword = ''; selectedPortableVersion = ''; backupName = '';
+    activePassword = ''; remotePassword = ''; remoteCreatePassword = ''; selectedPortableVersion = ''; backupName = '';
   }
   export function prepareToReplace() {
     if (busy) { alert($translate('storage.busy')); return false; }
@@ -190,16 +190,16 @@
     requireLeaseReleased();
     if (!remoteDraftName.trim()) throw new Error($translate("ui.a-filename-is-required-14d9i2"));
     if (!serverCanCreate) throw new Error($translate("ui.creating-projects-is-disabled-on-t-1eru9h5"));
-    if (!remotePassword || remotePassword.length < 8) throw new Error($translate("ui.enter-a-project-password-of-at-lea-1r6gpqg"));
+    if (!remoteCreatePassword || remoteCreatePassword.length < 8) throw new Error($translate("ui.enter-a-project-password-of-at-lea-1r6gpqg"));
     if (!ensureNoOverwrite()) return;
     const id = crypto.randomUUID(), token = randomSecret();
     const saved = await createPortableSave($appState.project, $appState.savedProject);
-    const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), remotePassword, token);
+    const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), remoteCreatePassword, token);
     const result = await api('create', {
       id, name: remoteDraftName.trim(), envelope, tokenHash: await hashSecret(token)
     });
     openedId = id; openedName = remoteDraftName.trim(); editToken = token; revision = result.revision; backupName = '';
-    activePassword = remotePassword; remotePassword = ''; leaseToken = ''; leaseExpires = 0;
+    activePassword = remoteCreatePassword; remoteCreatePassword = ''; remotePassword = ''; leaseToken = ''; leaseExpires = 0;
     appState.importProject(saved, { secure: true, readOnly: true });
     await refreshFiles();
     message = $translate("ui.new-encrypted-file-created-check-o-7hax1o");
@@ -261,7 +261,7 @@
     if (busy) return;
     if (openedId && !leaseToken) { await run(checkout); return; }
     if ($appState.secure && !activePassword && !openedId) {
-      showProtected = true; message = $translate('storage.protectedSessionUnavailable'); return;
+      message = $translate('storage.protectedSessionUnavailable'); return;
     }
     await saveFromHeader();
   }
@@ -301,8 +301,8 @@
     <button type="button" class="solid-action storage-primary" disabled={busy} on:click={savePrimary}>
       {$translate(openedId ? (leaseToken ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
     </button>
-    <details class="storage-secondary" bind:open={showProtected}>
-      <summary>{$translate('storage.protectCopy')}</summary>
+    <section class="storage-secondary">
+      <h3>{$translate('storage.protectCopy')}</h3>
       <p class="muted">{$translate('storage.protectCopyExplanation')}</p>
       <div class="storage-form">
         <div class="form-grid">
@@ -312,7 +312,7 @@
         <button type="button" disabled={busy || !password} on:click={() => run(exportEncrypted)}>{$translate("ui.download-encrypted-file-1m533vw")}</button>
         {#if openedId}<p class="muted">{$translate('storage.backupNotOnlineSave')}</p>{/if}
       </div>
-    </details>
+    </section>
   </section>
   <section class="ux-panel storage-open">
     <h2>{$translate('storage.open')}</h2>
@@ -362,23 +362,23 @@
         {:else if serverReady}<p class="muted">{$translate('storage.noProjects')}</p>{/if}
       </div>
       {#if serverCanCreate}
-        <details class="storage-secondary">
-          <summary>{$translate('storage.createOnline')}</summary>
+        <section class="storage-secondary storage-create">
+          <h3>{$translate('storage.createOnline')}</h3>
           <div class="storage-form stack">
             <label>{$translate('storage.newOnlineName')}<input bind:value={remoteDraftName}/></label>
-            <label>{$translate('storage.onlinePassword')}<input type="password" autocomplete="new-password" bind:value={remotePassword}/></label>
+            <label>{$translate("ui.password-for-this-file-119cdf1")}<input type="password" autocomplete="new-password" bind:value={remoteCreatePassword}/></label>
             <button type="button" disabled={busy || !!leaseToken || !serverReady} on:click={() => run(createRemote)}>{$translate('storage.createOnline')}</button>
           </div>
-        </details>
+        </section>
       {/if}
       {#if openedId && leaseToken}
-        <details class="storage-secondary">
-          <summary>{$translate('storage.securityOptions')}</summary>
+        <section class="storage-secondary storage-security">
+          <h3>{$translate('storage.securityOptions')}</h3>
           <div class="storage-form stack">
             <label>{$translate("ui.new-password-for-the-shared-file-1h62si2")}<input type="password" autocomplete="new-password" bind:value={newPassword}/></label>
             <button type="button" disabled={busy} on:click={() => run(changePassword)}>{$translate("ui.change-file-password-1btazly")}</button>
           </div>
-        </details>
+        </section>
       {/if}
     </section>
   {/if}
@@ -412,8 +412,10 @@
   .storage-plain-warning { margin:0 0 12px;font-size:.84rem; }
   .storage-primary { min-height:44px; }
   .storage-secondary { margin-top:18px;padding-top:12px;border-top:1px solid var(--border); }
-  .storage-secondary > summary,.storage-versions > summary { cursor:pointer;font-weight:600;min-height:38px; }
-  .storage-secondary > summary:focus-visible,.storage-versions > summary:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
+  .storage-secondary > h3 { margin:0 0 6px;font-size:.95rem;font-weight:650; }
+  .storage-secondary .storage-form { border:0;padding-top:0;margin-top:8px; }
+  .storage-versions > summary { cursor:pointer;font-weight:600;min-height:38px; }
+  .storage-versions > summary:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
   .storage-form { display:grid;gap:12px;margin-top:12px; }
   .storage-form .form-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
   .storage-form label,.storage-form input { min-width:0;width:100%; }

@@ -6,7 +6,6 @@
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { 
     redistributionPreview, 
-    redistributionMarkdown, 
     buildRedistributionItemRows,
     buildTransferChanges, 
     buildRemovePersonChanges, 
@@ -147,8 +146,7 @@
             }}
           />
         </section>
-        <details class="redistribution-advanced">
-          <summary>{$translate('redistribution.moreActions')}</summary>
+        <section class="redistribution-advanced" aria-label={$translate('redistribution.moreActions')}>
           <div class="stack">
             <label>{$translate("ui.description-kc1lkc")}
               <input bind:value={redistribution.title} placeholder={$translate('redistribution.titleExample')}>
@@ -159,7 +157,7 @@
               <button class="small" on:click={() => { activeSubModal = 'special-add'; subModalData = { targetId: '', units: 1 }; }}>{$translate("ui.give-a-person-shares-in-all-items-9usel9")}</button>
             </div>
           </div>
-        </details>
+        </section>
       </div>
 
       <div class="stack content-right">
@@ -194,10 +192,6 @@
               <p class="muted">{redistribution.financialMode === 'derived' ? $translate("ui.no-settlement-suggested-utyl3l") : $translate('redistribution.withoutClaims')}</p>
             {/if}
             <p class="redistribution-notice">{$translate('redistribution.noPaymentRecorded')}</p>
-            <details class="redistribution-export">
-              <summary>{$translate('redistribution.export')}</summary>
-              <button class="small" on:click={() => navigator.clipboard.writeText(redistributionMarkdown(redistribution, preview)).then(() => alert($translate("ui.markdown-copied-111azzg")))}>{$translate("ui.copy-markdown-y6z6dt")}</button>
-            </details>
           {:else}
             <p class="muted">{$translate('redistribution.selectItemFirst')}</p>
           {/if}
@@ -274,9 +268,8 @@
   .redistribution-items{display:grid;gap:10px;min-width:0}
   .redistribution-item-heading{align-items:center;flex-wrap:wrap}
   .redistribution-item-heading .small-input{min-width:150px;max-width:210px}
-  .redistribution-advanced{border-top:1px solid var(--border);padding-top:4px}
-  .redistribution-advanced>summary,.redistribution-export>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;color:#246f85;font-size:13px;font-weight:650}
-  .redistribution-advanced>.stack{padding:8px 0}
+  .redistribution-advanced{border-top:1px solid var(--border);padding-top:10px}
+  .redistribution-advanced>.stack{gap:8px}
   .redistribution-bulk-actions{display:flex;gap:8px;flex-wrap:wrap}
   .redistribution-bulk-actions>button{white-space:normal;text-align:left}
   .redistribution-preview{display:grid;gap:10px;border:1px solid var(--border);border-radius:12px;padding:14px;min-width:0}
