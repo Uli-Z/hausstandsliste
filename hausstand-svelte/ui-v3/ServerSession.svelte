@@ -56,7 +56,14 @@
     if (leaseToken) headers['X-Lease-Token'] = leaseToken;
     const response = await fetch(url, {method:body ? 'POST' : 'GET', headers, body:body ? JSON.stringify({id,...body}) : undefined, cache:'no-store'});
     const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || 'Die Serveranfrage ist fehlgeschlagen.');
+    if (!response.ok || !data.ok) {
+      const reason = data.error || 'Die Serveranfrage ist fehlgeschlagen.';
+      if (['checkout','renew','save','checkin','restore'].includes(action) && [403,409,423].includes(response.status)) {
+        editing = false; leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease');
+        appState.setReadOnly(true, reason);
+      }
+      throw new Error(reason);
+    }
     return data;
   }
   async function checkout() {
@@ -76,7 +83,7 @@
       editing = true; appState.setReadOnly(false);
       feedback = 'Bearbeitung gestartet. Die Datei ist für andere schreibgeschützt.';
     } catch (e) {
-      editing = false; appState.setReadOnly(true);
+      editing = false; appState.setReadOnly(true, e.message);
       feedback = 'Bearbeitung konnte nicht gestartet werden: ' + e.message;
     }
   }
