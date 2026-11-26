@@ -85,6 +85,10 @@
   }
 
   function changeDate(inputEvent) {
+    if (editingChildId) {
+      inputEvent.currentTarget.value = edited.date;
+      return;
+    }
     try {
       edited = redateEditableEvent(project,edited,inputEvent.currentTarget.value);
     } catch {

@@ -63,7 +63,7 @@ test('Q27: nested redistribution and actual payments cannot involve an archived 
   const p=fixture();
   const before=extend(p,purchase('2026-01-02',{b:1},10,{b:1000}),archive());
   const batch=event('batch','redistribution-executed','2026-02-02',{
-    financialMode:'none',events:[{id:'child',type:'shares-set',itemId:'i',shares:{a:1,b:1}}]});
+    financialMode:'none',events:[{id:'child',type:'shares-set',itemId:'i',shareUnitDeltas:{a:1}}]});
   const problem=projectMutationProblem(before,extend(before,batch));
   assert.equal(problem.key,'errors.archivedPersonInvolvement');
   assert.equal(problem.params.eventId,'batch');
