@@ -58,7 +58,7 @@ test('explicit stored-data audit rejects corrupted historical rows without rewri
     p => p.events.at(-1).amountCents=-100,
     p => p.events.at(-1).creditorPersonId='missing',
     p => p.events.push({id:'red',type:'redistribution-executed',date:'2026-01-04',order:1,
-      financialMode:'none',events:[{id:'child',type:'shares-set',itemId:p.items[0].id,shares:{missing:1}}]}),
+      financialMode:'none',events:[{id:'child',type:'shares-set',itemId:p.items[0].id,shareUnitDeltas:{missing:1}}]}),
     p => p.drafts.push({id:'draft',type:'item',data:{effectiveDate:'2026-01-01',shares:{a:-1}}})
   ];
   const dir = mkdtempSync(join(tmpdir(),'hausstand-audit-'));

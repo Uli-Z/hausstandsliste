@@ -56,14 +56,14 @@ test('A04: an executed gift remains claim-free and its editor preview respects i
   const event = {
     id: 'redistribution-1', type: 'redistribution-executed', date: '2026-02-01',
     order: 2, title: 'Schenkung', financialMode: 'none',
-    events: [{ id: 'child-1', type: 'shares-set', itemId: 'fridge', shares: { anna: 1 } }]
+    events: [{ id: 'child-1', type: 'shares-set', itemId: 'fridge', shareUnitDeltas: { ben: -1, anna: 1 } }]
   };
   project.events.push(event);
   assert.deepEqual(deriveClaims(project, '2026-03-01'), []);
   const editedPreview = redistributionPreview(
     { ...project, events: project.events.filter(e => e.id !== event.id) },
     { title: event.title, effectiveDate: event.date, financialMode: event.financialMode,
-      changes: event.events.map(e => ({ itemId: e.itemId, shares: e.shares })) }
+      changes: [{itemId:'fridge',shares:{anna:1}}] }
   );
   assert.deepEqual(editedPreview.payments, []);
   event.financialMode = 'derived';

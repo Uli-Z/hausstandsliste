@@ -177,7 +177,7 @@ test('CLI membership changes preserve ownership, financial history and effective
     const input=join(dir,'p.json'), payload=join(dir,'payload.json'), out=join(dir,'out.json'), back=join(dir,'back.json');
     const clean=structuredClone(p);
     clean.events.push(
-      {id:'give',type:'shares-set',itemId:'i',date:'2028-01-01',order:1,shares:{b:1},financialMode:'none'},
+      {id:'give',type:'shares-set',itemId:'i',date:'2028-01-01',order:1,shareUnitDeltas:{a:-1},financialMode:'none'},
       {id:'settle',type:'claim-settlement-recorded',date:'2028-01-01',order:2,
        debtorPersonId:'b',creditorPersonId:'a',amountCents:ledgerAt(p,'2028-01-01').balances.get('a'),settlementKind:'paid'}
     );

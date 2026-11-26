@@ -32,7 +32,7 @@ test('A05 store: rejected ownerless mutation leaves data and unsaved flag untouc
   const saved = appState.mutateProject(p => {
     p.events.push({
       id: 'remove', type: 'shares-set', itemId: 'desk',
-      date: '2026-02-01', order: 2, shares: {}
+      date: '2026-02-01', order: 2, shareUnitDeltas: { anna: -1 }
     });
   });
   assert.equal(saved, false);
@@ -47,12 +47,12 @@ test('A05 store: valid transfer is saved and marked dirty', () => {
   const saved = appState.mutateProject(p => {
     p.events.push({
       id: 'transfer', type: 'shares-set', itemId: 'desk',
-      date: '2026-02-01', order: 2, shares: { ben: 1 }, financialMode: 'none'
+      date: '2026-02-01', order: 2, shareUnitDeltas: { anna: -1, ben: 1 }, financialMode: 'none'
     });
   });
   assert.equal(saved, true);
   assert.equal(get(appState).dirty, true);
-  assert.equal(get(appState).project.events.at(-1).shares.ben, 1);
+  assert.equal(get(appState).project.events.at(-1).shareUnitDeltas.ben, 1);
   assert.equal(alerts.length, 0);
 });
 

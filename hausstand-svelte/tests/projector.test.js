@@ -59,7 +59,7 @@ test('A01: zero-value item remains available for redistribution without creating
 
   project.events.push({
     id: 'fridge-transfer', type: 'shares-set', date: '2026-11-22', order: 5,
-    itemId: 'fridge', shares: { ben: 1 }, financialMode: 'derived'
+    itemId: 'fridge', shareUnitDeltas: { anna: -1, ben: 1 }, financialMode: 'derived'
   });
   assert.deepEqual(deriveClaims(project, '2026-11-22'), []);
   const afterTransfer = projectAt(project, '2026-11-22');
