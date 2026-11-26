@@ -123,18 +123,46 @@ async function itemEntryAcceptance(browser, url, engine) {
       const dateBox = await modal.locator('#event-effective-date').boundingBox();
       const bodyBox = await modal.locator('.modal-body').boundingBox();
       if(width<=390) assert.ok(dateBox.width >= bodyBox.width-40,'date occupies full usable width');
-      await finance.locator('.purchase-units').first().fill('2');
-      await finance.locator('.purchase-units').first().fill('1');
-      await finance.getByLabel('Anna',{exact:true}).fill('150');
+      // Q33: each row is independently editable; do not undo the first
+      // unequal share before touching the other rows (the old test did).
+      const units=finance.locator('.purchase-units');
+      const paid=finance.locator('.purchase-contribution');
+      const readValues=async fields=>Promise.all((await fields.all()).map(field=>field.inputValue()));
+      async function verifyRows(expectedUnits,expectedPaid,message){
+        assert.deepEqual((await readValues(units)).map(v=>v.replace(',','.')),expectedUnits,message+' (units)');
+        assert.deepEqual((await readValues(paid)).map(v=>v.replace(',','.')),expectedPaid,message+' (contributions)');
+      }
+      await units.nth(0).fill('2');
+      await units.nth(1).fill('3');
+      await units.nth(2).fill('0.5');
+      await finance.getByLabel('Anna',{exact:true}).fill('150.25');
       await finance.getByLabel('Ben',{exact:true}).fill('100');
       await finance.getByLabel('Clara',{exact:true}).fill('0');
+      const unequal=['2','3','0.5'];
+      await verifyRows(unequal,['150.25','100','0'],'Q33 sequential unequal entries');
+      await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+      await verifyRows(unequal,['150.25','100','0'],'Q33 store focus notification');
+      await cost.fill('301');
+      await cost.press('Tab');
+      await verifyRows(unequal,['150.25','100','0'],'Q33 changing purchase price');
+      await cost.fill('300');
+      await modal.locator('#event-effective-date').fill('2025-02-01');
+      await verifyRows(unequal,['150.25','100','0'],'Q33 changing date');
+      await method.selectOption('fixed');
+      await method.selectOption('linear');
+      await verifyRows(unequal,['150.25','100','0'],'Q33 changing valuation method');
+      await finance.locator('select').first().selectOption('single');
+      await finance.locator('select').last().selectOption('ben');
+      await finance.locator('select').first().selectOption('individual');
+      await verifyRows(unequal,['150.25','100','0'],'Q33 restoring individual financing after mode switch');
       assert.equal(await submit.isDisabled(),true,'invalid financing blocks save');
       await modal.locator('.modal-body').evaluate(el=>el.scrollTop=0);
       assert.equal(await name.inputValue(),itemName);
       assert.equal(await cost.inputValue(),'300');
       assert.equal(await duration.inputValue(),'8');
       assert.equal(await minimum.inputValue(),locale==='de-DE'?'12,48':'12.48');
-      await finance.getByLabel('Clara',{exact:true}).fill('50');
+      await finance.getByLabel('Clara',{exact:true}).fill('49.75');
+      await verifyRows(unequal,['150.25','100','49.75'],'Q33 correction preserves prior values');
       assert.equal(await submit.isEnabled(),true);
       assert.equal(await modal.locator('.item-purchase-preview input[type=checkbox]').isChecked(),false);
       assert.ok(await modal.evaluate(el=>el.scrollWidth<=el.clientWidth+2),'modal horizontal overflow');
@@ -156,8 +184,8 @@ async function itemEntryAcceptance(browser, url, engine) {
       assert.equal(event.date,effectiveDate);
       assert.equal(event.initialValue,300);
       assert.deepEqual(event.valuation,{type:'linear',minimumValue:12.48,durationYears:8});
-      assert.deepEqual(event.shares,{anna:1,ben:1,clara:1});
-      assert.deepEqual(event.purchaseContributionsCents,{anna:15000,ben:10000,clara:5000});
+      assert.deepEqual(event.shares,{anna:2,ben:3,clara:0.5});
+      assert.deepEqual(event.purchaseContributionsCents,{anna:15025,ben:10000,clara:4975});
       assert.equal(saved.events.length,original.events.length+1);
       assert.ok(projectAt(saved,effectiveDate).activeItems.some(i=>i.id===event.itemId&&i.value===300));
       await open();
