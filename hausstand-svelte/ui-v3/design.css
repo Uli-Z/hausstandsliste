@@ -39,6 +39,7 @@ button{border-radius:10px}
 .header-context{display:grid;gap:4px}.context-kicker{font-size:10px;letter-spacing:.14em;color:#82919d;font-weight:800}.header-context strong{font-size:15px;letter-spacing:-.01em}
 .header-actions{display:flex;align-items:center;gap:14px}
 .working-indicator{font-size:11px;color:#667784;display:inline-flex;align-items:center;gap:7px}
+.server-edit-status{padding:8px 24px;background:#f0f6f3;color:#345a49;font-size:12px;line-height:1.4}
 .status-dot{width:8px;height:8px;background:#54a88d;border-radius:50%}.status-dot.needs-save{background:#e2a441}
 .header-save{border:1px solid #bfdce4;background:#eaf4f7;color:#175f75;font-weight:650;padding:9px 16px}
 .work-content{max-width:1460px;margin:0 auto;padding:29px clamp(20px,4vw,53px) 80px}

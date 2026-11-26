@@ -291,15 +291,21 @@
         </span>
         {#if !(route.page === 'dashboard' && activeSection === 'save')}
           <button class="header-save" disabled={storageBusy} on:click={saveNow}
-            aria-label={SERVER_MODE ? (serverEditing ? 'Auf dem Server speichern' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
-            title={SERVER_MODE ? (serverEditing ? 'Auf dem Server speichern' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
+            aria-label={SERVER_MODE ? (serverEditing ? 'Speichern und Bearbeitung beenden' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
+            title={SERVER_MODE ? (serverEditing ? 'Speichern und Bearbeitung beenden' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
             <ActionIcon name={SERVER_MODE || onlineEditing ? 'check' : 'download'} size={17}/>
-            <span class="header-save-long">{SERVER_MODE ? (serverEditing ? 'Auf dem Server speichern' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span>
-            <span class="header-save-short">{SERVER_MODE ? (serverEditing ? 'Speichern' : 'Bearbeiten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.shortOnline' : 'storage.shortEditing') : 'storage.shortDownload')}</span>
+            <span class="header-save-long">{SERVER_MODE ? (serverEditing ? 'Speichern & Bearbeitung beenden' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span>
+            <span class="header-save-short">{SERVER_MODE ? (serverEditing ? 'Speichern & beenden' : 'Bearbeiten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.shortOnline' : 'storage.shortEditing') : 'storage.shortDownload')}</span>
           </button>
         {/if}
       </div>
     </header>
+
+    {#if SERVER_MODE}
+      <div class="server-edit-status" role="status">
+        {serverEditing ? ($appState.dirty ? 'Du bearbeitest die Datei · Ungespeicherte Änderungen' : 'Du bearbeitest die Datei') : 'Schreibgeschützt · Starte die Bearbeitung, um Änderungen vorzunehmen'}
+      </div>
+    {/if}
 
     {#if saveMessage}
       <div class="save-feedback" class:save-feedback-error={saveMessageError}

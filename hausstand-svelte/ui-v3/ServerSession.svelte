@@ -60,19 +60,24 @@
     return data;
   }
   async function checkout() {
-    const savedLease = sessionStorage.getItem(deviceKey + ':lease');
-    if (savedLease) {
-      leaseToken = savedLease;
-      try { await api('renew', {}); editing = true; appState.setReadOnly(false); return; }
-      catch { leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease'); }
-    }
     try {
+      if ($appState.dirty) throw new Error('Ungespeicherte Änderungen müssen zuerst gesichert werden.');
+      // Refresh before acquiring the lease so an older read-only view cannot
+      // silently overwrite a revision saved by another person.
+      const current = await api('read');
+      const decrypted = await decryptProject(current.envelope, activePassword);
+      const project = requireProjectFile(decrypted.project);
+      await verifyPortableHistory(project);
+      editToken = decrypted.editToken;
+      revision = current.revision;
       const result = await api('checkout', {expectedRevision:revision});
       leaseToken = result.leaseToken; sessionStorage.setItem(deviceKey + ':lease', leaseToken);
+      appState.importProject(project, {secure:true, readOnly:false});
       editing = true; appState.setReadOnly(false);
+      feedback = 'Bearbeitung gestartet. Die Datei ist für andere schreibgeschützt.';
     } catch (e) {
       editing = false; appState.setReadOnly(true);
-      feedback = 'Die Datei ist gerade in Bearbeitung. Sie wurde schreibgeschützt geöffnet. ' + e.message;
+      feedback = 'Bearbeitung konnte nicht gestartet werden: ' + e.message;
     }
   }
   async function unlock(password, establishSession = true) {
@@ -84,7 +89,14 @@
     if (establishSession) await api('login', {});
     appState.importProject(project, {secure:true, readOnly:true});
     authenticated = true; pass = ''; admin = ''; repeat = '';
-    await checkout();
+    // Restore a lease belonging to this tab after a reload, without starting a
+    // new checkout just because somebody signed in.
+    const savedLease = sessionStorage.getItem(deviceKey + ':lease');
+    if (savedLease) {
+      leaseToken = savedLease;
+      try { await api('renew', {}); editing = true; appState.setReadOnly(false); }
+      catch { leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease'); }
+    }
   }
   onMount(async () => {
     try {
@@ -120,13 +132,17 @@
     busy = true; feedback = '';
     try {
       if (!editing) { await checkout(); return; }
-      if (!$appState.dirty) { feedback = 'Alle Änderungen sind gespeichert.'; return; }
-      const saved = await createPortableSave($appState.project, $appState.savedProject);
-      const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
-      const result = await api('save', {expectedRevision:revision, envelope});
-      revision = result.revision; appState.markSaved(saved);
-      feedback = 'Auf dem Server gespeichert.';
-    } catch (e) { feedback = 'Speichern fehlgeschlagen: ' + e.message; }
+      if ($appState.dirty) {
+        const saved = await createPortableSave($appState.project, $appState.savedProject);
+        const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
+        const result = await api('save', {expectedRevision:revision, envelope});
+        revision = result.revision; appState.markSaved(saved);
+      }
+      await api('checkin', {});
+      leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease');
+      editing = false; appState.setReadOnly(true);
+      feedback = 'Gespeichert und Bearbeitung beendet. Die Datei ist wieder freigegeben.';
+    } catch (e) { feedback = 'Speichern oder Einchecken fehlgeschlagen: ' + e.message; }
     finally { busy = false; }
   }
   export async function downloadBackup() {

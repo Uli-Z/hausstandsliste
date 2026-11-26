@@ -53,7 +53,7 @@ The UI uses its own address (`hausstand.php?api=...`); there is no API URL or wo
 
 1. Open the deployed PHP URL over HTTPS. On first use, initialize the single project with the admin token and a project password.
 2. Sign in with the project password. The browser keeps an encrypted device credential and a session cookie for subsequent visits.
-3. Edit and use **Auf dem Server speichern**. An exclusive lease protects against conflicting changes.
+3. Use **Bearbeitung starten** to check out the project, then **Speichern & Bearbeitung beenden** to save and release it. An exclusive lease protects against conflicting changes.
 4. Download an encrypted backup or restore one in Settings. Restoring replaces the current server project after confirmation.
 
 Each online project has one current encrypted document containing its portable archive. Technical revisions and an exclusive lease prevent conflicting writes; there is no separate server-side history or real-time merging.
