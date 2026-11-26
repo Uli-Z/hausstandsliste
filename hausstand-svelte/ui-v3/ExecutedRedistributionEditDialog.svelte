@@ -5,7 +5,7 @@
   import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
-  import { redistributionPreview, redistributionMarkdown, buildRedistributionItemRows, sharesEqual } from '../src/lib/redistribution.js';
+  import { redistributionPreview, buildRedistributionItemRows, sharesEqual } from '../src/lib/redistribution.js';
   import ShareEditor from './ShareEditor.svelte';
   import { validShareMap } from '../src/lib/shareUnits.js';
   import { isEnterForSubmit } from './form-behavior.js';
@@ -115,10 +115,6 @@
     ? buildRedistributionItemRows(preview.base, redistributionForPreview?.changes || [], (edited?.events || []).map(child => child.itemId))
     : [];
 
-  function copyMarkdown() {
-    const md = redistributionMarkdown(redistributionForPreview, preview);
-    navigator.clipboard.writeText(md).then(() => alert('Markdown in Zwischenablage kopiert.'));
-  }
 </script>
 
 <div class="modal-backdrop">
@@ -167,10 +163,7 @@
 
         <div class="stack content-right">
           <section class="mini-card stack">
-            <div class="split">
-              <strong>{$translate("ui.effect-of-the-change-13xavst")}</strong>
-              <button class="small ghost" on:click={copyMarkdown}>{$translate("ui.copy-markdown-pb2l7m")}</button>
-            </div>
+            <strong>{$translate("ui.effect-of-the-change-13xavst")}</strong>
             <div class="stack">
               <div class="muted">{$translate("ui.change-in-ownership-value-132omm0")}</div>
               {#if preview.rows.length}

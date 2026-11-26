@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const source = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
@@ -130,4 +130,22 @@ test('Q25: cards extend native primary buttons without nesting secondary control
   assert.ok(app.includes('focusRecentEvent(event.id)'));
   assert.ok(app.includes("navigate('activity')"));
   assert.ok(source('ui-v3/CompactNames.svelte').includes('pointer-events:auto'));
+});
+
+
+test('Q28: no Markdown detail exports in the supported browser UI; project saving stays available', () => {
+  for (const dir of ['ui-v3/', 'src/components/']) {
+    for (const name of readdirSync(new URL('../' + dir, import.meta.url)).filter(name => name.endsWith('.svelte'))) {
+      const component = source(dir + name);
+      assert.doesNotMatch(component, /redistributionMarkdown|copyMarkdown|copy-markdown|export-markdown|details-exportieren|export-details|Markdown exportieren|Markdown kopieren/i, dir + name);
+    }
+  }
+  const edit = source('ui-v3/ExecutedRedistributionEditDialog.svelte');
+  assert.ok(edit.includes('ui.effect-of-the-change-13xavst'));
+  assert.ok(edit.includes('preview.rows'));
+  assert.ok(edit.includes('preview.payments'));
+  const storage = source('ui-v3/StorageView.svelte');
+  assert.ok(storage.includes('exportPlain'));
+  assert.ok(storage.includes('exportEncrypted'));
+  assert.ok(storage.includes('saveFromHeader'));
 });

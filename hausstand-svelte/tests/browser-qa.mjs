@@ -1223,6 +1223,16 @@ async function unitMovementDisplayAcceptance(browser,url) {
       assert.equal(await movements.count(),1);
       assert.match(await movements.first().innerText(),/Anna.*\+1/s);
       assert.doesNotMatch(await movements.first().innerText(),/Ben|Clara/);
+      // Q28: the executed redistribution editor keeps its preview and editing
+      // action but exposes no Markdown/detail export in either UI language.
+      await event.locator('.event-open-overlay').click();
+      const edit=page.locator('.large-modal');
+      await edit.waitFor();
+      assert.equal(await edit.getByRole('button',{name:/markdown|details exportieren|export details/i}).count(),0);
+      assert.equal(await edit.locator('.content-right .mini-card').first().isVisible(),true);
+      assert.equal(await edit.locator('.modal-footer .primary').isVisible(),true);
+      await edit.locator('.modal-header button.ghost').click();
+      await edit.waitFor({state:'hidden'});
       assert.deepEqual(errors,[]);
     } finally {await context.close();}
   }
