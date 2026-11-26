@@ -120,8 +120,9 @@ test('Q22: depreciation is always visible; optional details retain explicit open
   assert.ok(block.includes('<details class="item-extra-fields" bind:open={itemExtrasOpen}>'));
   assert.ok(dialog.includes("itemExtrasOpen = dialog.type === 'itemContinue' || !!dialog.id"));
   assert.ok(!block.includes("open={dialog.type === 'itemContinue' || !!dialog.id}"));
-  assert.ok(extra.includes('bind:value={minimumValue}'));
-  assert.ok(extra.includes('input type="text" inputmode="decimal"'));
+  assert.ok(visible.includes('bind:value={minimumValue}'));
+  assert.ok(!extra.includes('bind:value={minimumValue}'));
+  assert.ok(visible.includes('input type="text" inputmode="decimal"'));
   assert.ok(dialog.includes('minimumValue: minimumValueAmount'));
   // The draft and shared payload builder must both retain the localized minimum.
   assert.equal((dialog.match(/minimumValue: minimumValueAmount/g) || []).length, 2);

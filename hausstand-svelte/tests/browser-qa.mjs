@@ -62,6 +62,102 @@ async function bootFixture(page, url) {
   await page.reload();
   await page.getByText('Browser-Abnahme').first().waitFor();
 }
+// Q32: exercise intermediate values and DOM identity, not just the final submit.
+async function itemEntryAcceptance(browser, url, engine) {
+  for (const [width, locale] of [[320,'de-DE'], [375,'de-DE'], [390,'en-GB'], [1280,'en-GB']]) {
+    const context = await browser.newContext({locale,viewport:{width,height:812}});
+    try {
+      const page = await context.newPage();
+      const errors = [];
+      page.on('pageerror', e => errors.push(e.message));
+      await bootFixture(page,url);
+      const snapshot = () => page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
+      const original = await snapshot();
+      const open = () => page.locator('.quick-actions .task-grid > button').first().click();
+      const modal = page.getByRole('dialog');
+      const name = modal.locator('.item-primary-fields input:not([type=date]):not([type=number])');
+      const cost = modal.locator('.item-primary-fields input[type=number]');
+      const method = modal.locator('.item-valuation-fields select');
+      const duration = modal.locator('.item-valuation-fields input[type=number]');
+      const minimum = modal.locator('.item-valuation-fields input[inputmode=decimal][type=text]');
+      const finance = modal.locator('.item-financing-field');
+      const submit = modal.locator('.modal-footer .primary');
+      const itemName = 'Q32 '+engine+' '+width;
+      await open();
+      await name.pressSequentially(itemName);
+      await modal.locator('.modal-header h3').click();
+      assert.equal(await name.inputValue(),itemName,'name survives click/blur');
+      // Real tab focus/visibility notifications also refresh the store. Deliver
+      // the focus event deterministically even in a single headless window.
+      await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+      assert.equal(await name.inputValue(),itemName,'name survives unrelated store notification');
+      await cost.fill('300');
+      await cost.press('Tab');
+      assert.equal(await name.inputValue(),itemName);
+      assert.equal(await cost.inputValue(),'300');
+      await duration.fill('8');
+      await modal.locator('.modal-header h3').click();
+      assert.equal(await duration.inputValue(),'8');
+      assert.equal(await name.inputValue(),itemName);
+      assert.equal(await cost.inputValue(),'300');
+      assert.equal(await minimum.isVisible(),true,'minimum must not be hidden in optional details');
+      await minimum.fill('0');
+      await minimum.press('Tab');
+      assert.equal(await minimum.inputValue(),'0');
+      await minimum.fill(locale==='de-DE'?'12,48':'12.48');
+      await method.selectOption('degressive');
+      assert.equal(await minimum.inputValue(),locale==='de-DE'?'12,48':'12.48');
+      await duration.fill('0.3');
+      await method.selectOption('linear');
+      assert.equal(await duration.inputValue(),'8');
+      await finance.locator('select').first().selectOption('individual');
+      await finance.getByLabel('Anna',{exact:true}).fill('150');
+      await finance.getByLabel('Ben',{exact:true}).fill('100');
+      await finance.getByLabel('Clara',{exact:true}).fill('0');
+      assert.equal(await submit.isDisabled(),true,'invalid financing blocks save');
+      await modal.locator('.modal-body').evaluate(el=>el.scrollTop=0);
+      assert.equal(await name.inputValue(),itemName);
+      assert.equal(await cost.inputValue(),'300');
+      assert.equal(await duration.inputValue(),'8');
+      assert.equal(await minimum.inputValue(),locale==='de-DE'?'12,48':'12.48');
+      await finance.getByLabel('Clara',{exact:true}).fill('50');
+      assert.equal(await submit.isEnabled(),true);
+      assert.equal(await modal.locator('.item-purchase-preview input[type=checkbox]').isChecked(),false);
+      assert.ok(await modal.evaluate(el=>el.scrollWidth<=el.clientWidth+2),'modal horizontal overflow');
+      assert.ok(await modal.locator('.modal-body').evaluate(el=>el.scrollWidth<=el.clientWidth+2),'body horizontal overflow');
+      assert.ok(await submit.isVisible(),'primary action remains reachable');
+      if(process.env.Q32_SCREENSHOT_DIR){
+        await mkdir(process.env.Q32_SCREENSHOT_DIR,{recursive:true});
+        await modal.locator('.modal-body').evaluate(el=>el.scrollTop=0);
+        await page.screenshot({path:join(process.env.Q32_SCREENSHOT_DIR,engine+'-'+width+'-top.png')});
+        await modal.locator('.modal-body').evaluate(el=>el.scrollTop=el.scrollHeight);
+        await page.screenshot({path:join(process.env.Q32_SCREENSHOT_DIR,engine+'-'+width+'-bottom.png')});
+      }
+      const effectiveDate=await modal.locator('#event-effective-date').inputValue();
+      await submit.click();
+      await modal.waitFor({state:'hidden'});
+      const saved=await snapshot();
+      const event=saved.events.find(e=>e.type==='item-added'&&e.name===itemName);
+      assert.ok(event,'created event persisted');
+      assert.equal(event.date,effectiveDate);
+      assert.equal(event.initialValue,300);
+      assert.deepEqual(event.valuation,{type:'linear',minimumValue:12.48,durationYears:8});
+      assert.deepEqual(event.shares,{anna:1,ben:1,clara:1});
+      assert.deepEqual(event.purchaseContributionsCents,{anna:15000,ben:10000,clara:5000});
+      assert.equal(saved.events.length,original.events.length+1);
+      assert.ok(projectAt(saved,effectiveDate).activeItems.some(i=>i.id===event.itemId&&i.value===300));
+      await open();
+      await name.fill('Cancelled Q32');
+      await modal.locator('.modal-header h3').click();
+      await modal.locator('.modal-footer button').first().click();
+      await modal.waitFor({state:'hidden'});
+      assert.deepEqual((await snapshot()).events,saved.events);
+      assert.deepEqual(errors,[]);
+    } finally { await context.close(); }
+    console.log('Q32 '+engine+' '+width+' '+locale+' passed');
+  }
+}
+
 async function localization(browser, url) {
   // Browser language chooses English; manual override stays in browser storage
   // and must not modify the shared ownership project.
@@ -375,7 +471,6 @@ async function settlementEndToEnd(browser, url) {
     const purchase = page.locator('[role="dialog"]');
     await purchase.locator('.form-grid > label').first().locator('input').fill('Q03 Kühlschrank');
     await purchase.locator('input[type=number][step="0.01"]').first().fill('300');
-    await purchase.locator('.item-extra-fields summary').click();
     await purchase.locator('select').filter({ has: page.locator('option[value="fixed"]') })
       .first().selectOption('fixed');
     await purchase.locator('select').filter({ has: page.locator('option[value="anna"]') })
@@ -1077,6 +1172,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
+  await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium localization', () => localization(browser, offlineServer.url));
   await acceptance('Chromium offline', () => offline(browser, offlineServer.url));
   await acceptance('Chromium portable file', () => portableFileAcceptance(browser, offlineServer.url, 'Chromium'));
@@ -1092,6 +1188,7 @@ try {
     await acceptance(name + ' browser launch', async () => {
       const additional = await browserType.launch({ headless: true });
       extraBrowsers.push(additional);
+      await acceptance(name + ' Q32 item entry', () => itemEntryAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
     });

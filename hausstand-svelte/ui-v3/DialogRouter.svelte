@@ -43,28 +43,51 @@
   let effectiveDate = '';
   let dateSharesRebased = false;
   let itemExtrasOpen = false;
-  let initializedFor = null;
   let archiveTarget = '';
-  // Effective dates are independent of the view once a dialog/draft is opened.
-  $: if (dialog && dialog !== initializedFor) {
-    initializedFor = dialog;
+  // App keys this component by a primitive dialog session revision. Initialize
+  // once for that session, not whenever a field is cleared or a store emits.
+  if (dialog) {
     const draft = dialog.id ? (project.drafts || []).find(d => d.id === dialog.id) : null;
     effectiveDate = draft?.data?.effectiveDate || asOfDate;
     if (dialog.effectiveDate) effectiveDate = dialog.effectiveDate;
     reason = dialog.reason || '';
-    archiveTarget = '';
-    if (dialog.type === 'shareSet') {
-      shares = {...(projectAt(project,effectiveDate).activeItems.find(i=>i.id===dialog.itemId)?.shares || {})};
-    }
-    dateSharesRebased = false;
     paymentDate = effectiveDate;
-    alreadySettled = false;
     itemExtrasOpen = dialog.type === 'itemContinue' || !!dialog.id;
+    const current = projectAt(project, effectiveDate).activeItems.find(i => i.id === dialog.itemId);
+    if (dialog.type === 'personMeta') name = project.people.find(p => p.id === dialog.personId)?.name || '';
+    if (dialog.type === 'itemMeta') {
+      const metadata = project.items.find(i => i.id === dialog.itemId);
+      itemName = metadata?.name || '';
+      tags = (metadata?.tags || []).join(', ');
+      note = metadata?.note || '';
+    }
     if (dialog.type === 'itemAdd' && !dialog.id) {
-      // Make the default equal ownership explicit rather than silently
-      // assigning all currently active people only on save.
       shares = Object.fromEntries(projectAt(project, effectiveDate).people
         .filter(p => p.active).map(p => [p.id, 1]));
+    }
+    if (dialog.type === 'itemAdd' && draft?.type === 'item') {
+      itemName = draft.data.name;
+      tags = (draft.data.tags || []).join(', ');
+      note = draft.data.note || '';
+      initialValue = draft.data.initialValue;
+      valuationType = draft.data.valuation.type;
+      durationYears = draft.data.valuation.durationYears ?? 6;
+      annualRate = draft.data.valuation.annualRate ?? 0.2;
+      minimumValue = draft.data.valuation.minimumValue ?? 0;
+      shares = { ...(draft.data.shares || {}) };
+      purchaseContributionsCents = draft.data.purchaseContributionsCents ?? null;
+    }
+    if (dialog.type === 'shareSet' && current) shares = { ...current.shares };
+    if (dialog.type === 'itemContinue' && current) {
+      shares = { ...current.shares };
+      itemName = current.name + ' (neu)';
+      tags = (current.tags || []).join(', ');
+      note = current.note || '';
+      initialValue = Math.round(current.value * 100) / 100;
+      valuationType = current.runtime.valuation.type;
+      durationYears = current.runtime.valuation.durationYears ?? 6;
+      annualRate = current.runtime.valuation.annualRate ?? 0.2;
+      minimumValue = current.runtime.valuation.minimumValue ?? 0;
     }
   }
   $: dateValid = validCalendarDate(effectiveDate);
@@ -91,10 +114,10 @@
   // Keep the raw minimum-value text while typing: a German decimal comma must
   // neither collapse the details panel nor silently be stored as zero.
   $: minimumValueAmount = String(minimumValue ?? '').trim() === '' ? 0 : parseDecimal(minimumValue);
-  $: minimumValueCents = Math.round(minimumValueAmount * 100);
   $: minimumValueValid = !itemNeedsOwners || validMoney(minimumValueAmount);
+  $: valuationValid = !itemNeedsOwners || (valuationType === 'linear' ? Number.isFinite(durationYears) && durationYears > 0 : valuationType === 'degressive' ? Number.isFinite(annualRate) && annualRate >= 0 && annualRate <= 1 : valuationType === 'fixed');
   $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid && !statusPreview?.problem &&
-    itemCostValid && ownersValid && itemNameValid && minimumValueValid &&
+    itemCostValid && ownersValid && itemNameValid && minimumValueValid && valuationValid &&
     (dialog?.type !== 'itemAdd' || (financingValid && (!alreadySettled || validCalendarDate(paymentDate))));
   $: purchaseShares = normShares(shares);
   $: purchaseOwnerCount = Object.keys(purchaseShares).length;
@@ -148,38 +171,6 @@
   $: person = dialog?.personId ? project.people.find(p => p.id === dialog.personId) : null;
   $: deleteEligibility = person ? personDeletionEligibility(project, person.id) : { allowed: false, reason: 'Keine Person ausgewählt.' };
   $: item = dialog?.itemId ? project.items.find(i => i.id === dialog.itemId) : null;
-  $: projectedItem = dialog?.itemId ? projection.items.find(i => i.id === dialog.itemId) : null;
-  $: if (dialog?.type === 'personMeta' && person && !name) name = person.name;
-  $: if (dialog?.type === 'itemMeta' && item && !itemName) { itemName = item.name; tags = (item.tags || []).join(', '); note = item.note || ''; }
-  $: if (dialog?.type === 'itemAdd' && dialog.id && !itemName) {
-    const draft = (project.drafts || []).find(d => d.id === dialog.id);
-    if (draft && draft.type === 'item') {
-      itemName = draft.data.name;
-      tags = (draft.data.tags || []).join(', ');
-      note = draft.data.note;
-      initialValue = draft.data.initialValue;
-      valuationType = draft.data.valuation.type;
-      durationYears = draft.data.valuation.durationYears || 6;
-      annualRate = draft.data.valuation.annualRate || 0.2;
-      minimumValue = draft.data.valuation.minimumValue || 0;
-      shares = { ...(draft.data.shares || {}) };
-      purchaseContributionsCents = draft.data.purchaseContributionsCents ?? null;
-    }
-  }
-  $: if ((dialog?.type === 'shareSet' || (dialog?.type === 'itemAdd' && !dialog.id) || dialog?.type === 'itemContinue') && projectedItem && Object.keys(shares).length === 0) {
-    shares = { ...(projectedItem.shares || {}) };
-    if (dialog?.type === 'itemContinue') {
-      itemName = projectedItem.name + ' (neu)';
-      tags = (projectedItem.tags || []).join(', ');
-      note = projectedItem.note || '';
-      initialValue = Math.round(projectedItem.value * 100) / 100;
-      valuationType = projectedItem.runtime.valuation.type;
-      durationYears = projectedItem.runtime.valuation.durationYears || 6;
-      annualRate = projectedItem.runtime.valuation.annualRate || 0.2;
-      minimumValue = projectedItem.runtime.valuation.minimumValue || 0;
-    }
-  }
-
   // Enter bestätigt den primären Dialog-Button; Textbereiche und Auswahlfelder bleiben unbeeinflusst.
   function confirmFromInput(event) {
     if (!isEnterForSubmit(event)) return;
@@ -200,7 +191,7 @@
     action();
   }
 
-  function close() { appState.closeDialog(); name = ''; itemName = ''; tags = ''; note = ''; shares = {}; shareFinancialMode = 'derived'; purchaseContributionsCents = null; financingValid = false; alreadySettled = false; paymentDate = ''; reason = ''; initialValue = 0; valuationType = 'linear'; durationYears = 6; annualRate = 0.2; minimumValue = 0; }
+  function close() { appState.closeDialog(); }
   function addPerson() {
     if (!canSavePersonName) return;
     const saved = appState.mutateProject(p => { applyPersonAdd(p, { name }); });
@@ -352,7 +343,7 @@
   <ExecutedRedistributionEditDialog {dialog} {project} {projection} />
 {:else if dialog}
   <div class="modal-backdrop">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="active-dialog-title" style="max-width:720px" on:keydown={confirmFromInput}>
+    <div class="modal" class:item-entry-modal={itemNeedsOwners} role="dialog" aria-modal="true" aria-labelledby="active-dialog-title" style="max-width:720px" on:keydown={confirmFromInput}>
       <div class="modal-header">
         <h3 id="active-dialog-title">{
           dialog.type === 'personAdd' ? $translate("app.personAdd") : 
@@ -369,9 +360,9 @@
       </div>
       <div class="modal-body stack">
         {#if hasEventDate}
-          <label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
+          {#if !itemNeedsOwners}<label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
             <input id="event-effective-date" type="date" bind:value={effectiveDate} on:change={changeEffectiveDate} />
-          </label>
+          </label>{/if}
           {#if !dateValid}<p role="alert" class="notice warn">{$translate('timeTravel.invalidDate')}</p>{/if}
           {#if dateValid && !itemAvailable}<p role="alert" class="notice warn">{$translate('timeTravel.itemUnavailable')}</p>{/if}
           {#if dateValid && !peopleAvailable}<p role="alert" class="notice warn">{$translate('timeTravel.peopleUnavailable')}</p>{/if}
@@ -452,9 +443,12 @@
         {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
           <div class="item-entry-flow">
             <div class="form-grid item-primary-fields">
-              <label>{$translate("ui.name-4el6o6")}
+              <label class="item-name-field">{$translate("ui.name-4el6o6")}
                 <input bind:value={itemName} enterkeyhint="done" autocomplete="off">
               </label>
+              <label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
+            <input id="event-effective-date" type="date" bind:value={effectiveDate} on:change={changeEffectiveDate} />
+          </label>
               <label>{$translate("ui.purchase-price-in-euros-1858jaw")}
                 <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}>
               </label>
@@ -476,7 +470,14 @@
                   <input type="number" min="0" max="1" step="0.01" inputmode="decimal" bind:value={annualRate}>
                 </label>
               {/if}
+              {#if valuationType !== 'fixed'}
+                <label>{$translate("ui.minimum-value-hzgo71")}
+                  <input type="text" inputmode="decimal" autocomplete="off" bind:value={minimumValue} aria-invalid={!minimumValueValid}>
+                </label>
+              {/if}
             </div>
+            {#if !minimumValueValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
+            {#if !valuationValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             {#if !itemNameValid}<p class="notice warn" role="alert">{$translate('items.enterName')}</p>{/if}
             {#if !itemCostValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             <section class="item-ownership-fields">
@@ -499,7 +500,7 @@
                         <li>{entryProjection.peopleById.get(id)?.name || id}: {cents>0?'+':''}{money(cents/100)}</li>
                       {/each}
                     </ul>
-                    <label><input type="checkbox" bind:checked={alreadySettled}> {$translate('purchase.alreadySettled')}</label>
+                    <label class="purchase-settled"><input type="checkbox" bind:checked={alreadySettled}> {$translate('purchase.alreadySettled')}</label>
                     {#if alreadySettled}
                       <label>{$translate('purchase.paymentDate')} <input type="date" bind:value={paymentDate}></label>
                       <ul>
@@ -519,9 +520,7 @@
             <details class="item-extra-fields" bind:open={itemExtrasOpen}>
               <summary>{$translate('items.moreDetails')}</summary>
               <div class="form-grid">
-                <label>{$translate("ui.minimum-value-hzgo71")}
-                  <input type="text" inputmode="decimal" autocomplete="off" bind:value={minimumValue} aria-invalid={!minimumValueValid}>
-                </label>
+                
                 <label>{$translate("ui.categories-2lwhku")}
                   <input bind:value={tags} placeholder={$translate("ui.kitchen-electronics-yb541o")}>
                 </label>
@@ -529,7 +528,6 @@
                   <textarea bind:value={note}></textarea>
                 </label>
               </div>
-              {#if !minimumValueValid}<p class="notice warn" role="alert">{$translate('errors.invalidItemValue')}</p>{/if}
             </details>
           </div>
         {:else if dialog.type === 'itemMeta'}
@@ -576,10 +574,20 @@
   .archive-item-steps,.archive-step{display:grid;gap:8px;min-width:0}
   .archive-step{padding:10px 0;border-bottom:1px solid var(--border)}
   .archive-step-actions{display:flex;gap:8px;flex-wrap:wrap}
-  .item-entry-flow{display:grid;gap:16px;min-width:0}
+  .item-entry-flow{display:grid;gap:12px;min-width:0}
+  .item-entry-modal .modal-body{gap:8px;align-content:start}
+  .item-entry-modal .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .item-name-field{grid-column:1/-1}
+  .item-valuation-fields>label:first-child{grid-column:1/-1}
+  .item-entry-flow label{min-width:0}
+  .item-entry-flow input,.item-entry-flow select{min-width:0;max-width:100%}
+  .item-entry-flow .notice{margin:0;padding:7px 9px}
+  .purchase-settled{display:flex;align-items:center;gap:8px}
+  .purchase-settled input{width:auto;flex:none}
+  .item-entry-modal .modal-footer{gap:6px}
   .item-primary-fields,.item-valuation-fields{align-items:end}
   .item-valuation-fields{padding:2px 0 6px}
-  .item-ownership-fields{display:grid;gap:10px;padding-top:4px}
+  .item-ownership-fields{display:grid;gap:6px;padding-top:8px;border-top:1px solid var(--border)}
   .item-flow-heading{display:flex;align-items:center;gap:8px;font-size:14px}
   .item-purchase-preview{display:grid;gap:6px;background:var(--soft);border-radius:10px;padding:12px;font-size:12px}
   .item-purchase-preview p,.item-purchase-preview ul{margin:0}
@@ -589,5 +597,10 @@
   .item-extra-fields>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;color:#246f85;font-size:13px;font-weight:650}
   .item-extra-fields[open]>summary{margin-bottom:12px}
   .item-extra-fields>.form-grid{min-width:0}
-  @media(max-width:540px){.item-primary-fields{grid-template-columns:minmax(0,1fr)}}
+  @media(max-width:540px){
+    .item-entry-modal .modal-body{padding:12px}
+    .item-entry-modal .modal-footer>button{flex:1 1 0;min-width:0;padding:7px 5px;overflow-wrap:anywhere}
+    .item-entry-modal .modal-footer>div{display:none}
+    .item-entry-modal .form-grid .wide{grid-column:1/-1}
+  }
 </style>

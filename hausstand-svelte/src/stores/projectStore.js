@@ -22,7 +22,8 @@ const initial = {
   secure: false,
   readOnly: false,
   route: { page: 'dashboard' },
-  activeDialog: null
+  activeDialog: null,
+  dialogRevision: 0 // Session-only identity; unrelated store notifications must not remount forms.
 };
 
 function createStore() {
@@ -82,8 +83,8 @@ function createStore() {
         asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, route: { page: 'dashboard' }, activeDialog: null });
     }),
     setRoute: route => update(s => ({ ...s, route })),
-    setDialog: activeDialog => update(s => ({ ...s, activeDialog })),
-    closeDialog: () => update(s => ({ ...s, activeDialog: s.activeDialog?.returnTo || null })),
+    setDialog: activeDialog => update(s => ({ ...s, activeDialog, dialogRevision: s.dialogRevision + 1 })),
+    closeDialog: () => update(s => ({ ...s, activeDialog: s.activeDialog?.returnTo || null, dialogRevision: s.dialogRevision + 1 })),
     importProject: (raw, { secure = false, readOnly = false } = {}) => update(s => {
       const project = normalize(raw);
       return persist(resetUndo({ ...s, project, savedProject: clone(project), secure, readOnly,
@@ -112,7 +113,7 @@ function createStore() {
       const { initialFinancialMode, ...dialogOptions } = extraDialog;
       const r = createRedistribution(title || 'Neue Umverteilung', date || s.asOfDate, changes);
       if (initialFinancialMode === 'none') r.financialMode = 'none';
-      return { ...s, activeDialog: { type: 'redistributionEdit', redistribution: r, ...dialogOptions } };
+      return { ...s, dialogRevision: s.dialogRevision + 1, activeDialog: { type: 'redistributionEdit', redistribution: r, ...dialogOptions } };
     }),
     upsertDraft: draft => {
       let accepted = false;

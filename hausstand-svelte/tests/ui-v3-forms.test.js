@@ -33,3 +33,20 @@ test('share entry can stay empty while typing, without turning into zero',()=>{
   assert.equal(parseShareInput('2'),2);
   assert.equal(parseShareInput('foo'),null);
 });
+
+test('dialog session identity changes only on explicit transitions, not calendar or permission notifications', async () => {
+  const { appState } = await import('../src/stores/projectStore.js');
+  const { get } = await import('svelte/store');
+  appState.setDialog({type:'itemAdd'});
+  const first = get(appState);
+  appState.syncToday(first.asOfDate);
+  appState.setReadOnly(first.readOnly);
+  assert.equal(get(appState).dialogRevision, first.dialogRevision);
+  assert.equal(get(appState).activeDialog, first.activeDialog);
+  appState.setDialog({type:'itemAdd'});
+  assert.notEqual(get(appState).dialogRevision, first.dialogRevision);
+  const second = get(appState).dialogRevision;
+  appState.closeDialog();
+  assert.notEqual(get(appState).dialogRevision, second);
+  assert.equal(get(appState).activeDialog, null);
+});

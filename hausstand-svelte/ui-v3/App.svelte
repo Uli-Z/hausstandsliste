@@ -445,6 +445,7 @@
     </button>
   </div>
 </nav>
-{#key $appState.activeDialog}
+<!-- A primitive session key changes only on intentional dialog transitions. -->
+{#key $appState.activeDialog ? $appState.dialogRevision : null}
   <DialogRouter dialog={$appState.activeDialog} project={$appState.project} projection={$projection} asOfDate={$appState.asOfDate}/>
 {/key}

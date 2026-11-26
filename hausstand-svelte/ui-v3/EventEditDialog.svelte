@@ -91,7 +91,7 @@
           {:else if edited.type === 'item-added'}
             <label>{$translate("ui.name-at-that-time-81lqvy")} <input bind:value={edited.name}></label>
             <label>{$translate("ui.initial-value-1dch75t")} <input type="number" step="0.01" bind:value={edited.initialValue}></label>
-            <section class="mini-card stack item-valuation-edit-fields">
+            <section class="stack item-valuation-edit-fields wide">
               <label>{$translate("ui.how-does-the-value-change-16f9eit")} <select bind:value={edited.valuation.type}>
                 <option value="linear">{$translate("ui.value-decreases-linearly-1u8yk0y")}</option>
                 <option value="degressive">{$translate("ui.value-decreases-by-a-percentage-eac-1g9op4c")}</option>
@@ -148,3 +148,9 @@
     </div>
   </div>
 </div>
+
+<style>
+  .item-valuation-edit-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;min-width:0}
+  .item-valuation-edit-fields>label:first-child,.item-valuation-edit-fields>.notice{grid-column:1/-1}
+  .item-valuation-edit-fields input,.item-valuation-edit-fields select{min-width:0;max-width:100%}
+</style>

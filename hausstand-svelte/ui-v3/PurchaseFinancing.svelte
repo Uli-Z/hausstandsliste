@@ -50,7 +50,7 @@
     </label>
   {:else}
     {#each people as person (person.id)}
-      <label>{person.name}
+      <label class="contribution-row">{person.name}
         <input type="number" min="0" step="0.01" inputmode="decimal"
           value={Number.isFinite(contributions?.[person.id]) ? contributions[person.id]/100 : contributions && Object.hasOwn(contributions,person.id) ? '' : 0}
           on:input={e=>change(person.id,e.currentTarget.value)} />
@@ -58,7 +58,7 @@
     {/each}
     {#if !contributions}<p class="notice warn">{$translate('purchase.unknown')}</p>{/if}
   {/if}
-  {#if Number.isFinite(total)}<p>{$translate('purchase.total',{paid:money(total/100),price:money(amountCents/100)})}</p>{/if}
+  {#if Number.isFinite(total)}<p class="financing-total">{$translate('purchase.total',{paid:money(total/100),price:money(amountCents/100)})}</p>{/if}
   {#if !valid}
     <p class="notice warn" role="alert">
       {#if Number.isFinite(total) && Number.isFinite(amountCents) && total !== amountCents}
@@ -67,3 +67,11 @@
     </p>
   {/if}
 </section>
+
+<style>
+  .item-financing-field{gap:7px;min-width:0;border-top:1px solid var(--border);padding-top:9px}
+  .contribution-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,42%);align-items:center;gap:8px;overflow-wrap:anywhere}
+  .contribution-row input{min-width:0}
+  .financing-total,.item-financing-field .notice{margin:0;font-size:13px}
+  .item-financing-field .notice{padding:7px 9px}
+</style>
