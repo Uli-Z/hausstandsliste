@@ -79,7 +79,7 @@
       revision = current.revision;
       const result = await api('checkout', {expectedRevision:revision});
       leaseToken = result.leaseToken; sessionStorage.setItem(deviceKey + ':lease', leaseToken);
-      appState.importProject(project, {secure:true, readOnly:false});
+      appState.importProject(project, {secure:true, readOnly:false, sameProjectRefresh:true});
       editing = true; appState.setReadOnly(false);
       feedback = 'Bearbeitung gestartet. Die Datei ist für andere schreibgeschützt.';
     } catch (e) {

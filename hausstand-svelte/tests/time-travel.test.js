@@ -73,3 +73,45 @@ test('no global arrow date shortcut; editing preserves the original event date',
   assert.match(edit, /edited\s*=\s*editableEventCopy\(project,event\)/);
   assert.match(edit, /value=\{edited\.date\} on:change=\{changeDate\}/);
 });
+
+// Q38: permission transitions and a verified reload of the same project must
+// not replace an explicitly selected historical/future date with today.
+test('checkout and check-in keep the selected date across same-project refresh', () => {
+  appState.newProject('Q38');
+  const raw = structuredClone(get(appState).project);
+  appState.importProject(raw, { secure: true, readOnly: true });
+  for (const date of ['2024-05-21', '2099-12-01', todayISO()]) {
+    appState.setAsOfDate(date);
+    appState.dismissDatePicker();
+    appState.setReadOnly(true, 'lease rejected');
+    assert.equal(get(appState).asOfDate, date);
+    assert.equal(get(appState).timeTravelActive, true);
+    const refreshed = structuredClone(raw);
+    refreshed.community.name = 'Q38 refreshed';
+    appState.importProject(refreshed, { secure: true, readOnly: false, sameProjectRefresh: true });
+    assert.equal(get(appState).project.community.name, 'Q38 refreshed');
+    assert.equal(get(appState).asOfDate, date);
+    assert.equal(get(appState).timeTravelActive, true);
+    assert.equal(get(appState).readOnly, false);
+    assert.equal(get(appState).dirty, false);
+    appState.setReadOnly(true);
+    appState.setReadOnly(false);
+    assert.equal(get(appState).asOfDate, date);
+    assert.equal(get(appState).timeTravelActive, true);
+  }
+  appState.exitTimeTravel();
+  appState.importProject(raw, { secure: true, readOnly: false, sameProjectRefresh: true });
+  assert.equal(get(appState).asOfDate, todayISO());
+  assert.equal(get(appState).timeTravelActive, false);
+  appState.setAsOfDate('2024-05-21');
+  appState.importProject(raw, { secure: true, readOnly: true });
+  assert.equal(get(appState).asOfDate, todayISO());
+  assert.equal(get(appState).timeTravelActive, false);
+});
+
+test('only same-project PHP checkout opts into preserving the viewing date', () => {
+  const server = readFileSync(new URL('../ui-v3/ServerSession.svelte', import.meta.url), 'utf8');
+  const checkout = server.slice(server.indexOf('async function checkout()'), server.indexOf('async function unlock('));
+  assert.match(checkout, /appState\.importProject\(project, \{secure:true, readOnly:false, sameProjectRefresh:true\}\)/);
+  assert.equal((server.match(/sameProjectRefresh:true/g) || []).length, 1);
+});

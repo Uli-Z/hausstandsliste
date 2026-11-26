@@ -97,10 +97,14 @@ function createStore() {
     requireEditing: () => requireEditing(get({ subscribe })),
     setDialog: activeDialog => update(s => openDialog(s, activeDialog)),
     closeDialog: () => update(s => ({ ...s, activeDialog: s.readOnly ? null : s.activeDialog?.returnTo || null, dialogRevision: s.dialogRevision + 1 })),
-    importProject: (raw, { secure = false, readOnly = false } = {}) => update(s => {
+    importProject: (raw, { secure = false, readOnly = false, sameProjectRefresh = false } = {}) => update(s => {
       const project = normalize(raw);
+      // A checkout refreshes the same project, not the user's chosen viewing date.
+      // Explicit imports/new projects still start at today.
+      const view = sameProjectRefresh ? syncCalendarDay(s, todayISO()) : returnToToday(s, todayISO());
       return persist(resetUndo({ ...s, project, savedProject: clone(project), secure, readOnly, readOnlyReason: '',
-        asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
+        asOfDate: view.asOfDate, datePickerOpen: view.datePickerOpen, timeTravelActive: view.timeTravelActive,
+        dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
     }),
     setReadOnly: (readOnly, reason = '') => update(s => {
       const next = { ...s, readOnly, readOnlyReason: readOnly ? reason : '' };

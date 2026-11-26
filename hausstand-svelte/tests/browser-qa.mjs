@@ -1577,8 +1577,23 @@ async function q37ReadOnlyAcceptance(browser) {
       assert.ok(await page.locator('.financial-overview').isVisible());
       await rejected(page,page.locator('.debt-action').first(),pattern);
     }
+    // Q38: select different viewing dates before acquiring the lease.
+    const setDate = async (page, date) => {
+      await page.locator('.time-travel-toggle').click();
+      await page.locator('#state-date').fill(date);
+      await page.locator('.time-travel-close').click();
+    };
+    const assertDate = async (page, date) => {
+      assert.equal(await page.locator('.time-travel-toggle').getAttribute('aria-pressed'), 'true');
+      await page.locator('.time-travel-toggle').click();
+      assert.equal(await page.locator('#state-date').inputValue(), date);
+      await page.locator('.time-travel-close').click();
+    };
+    await setDate(editor, '2025-01-03');
+    await setDate(reader, '2099-12-01');
     await editor.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
     await editor.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).waitFor();
+    await assertDate(editor, '2025-01-03');
     const firstAction = editor.locator('.quick-actions .task-grid > button').nth(2);
     await firstAction.click();
     const modal = editor.locator('.modal-backdrop');
@@ -1587,15 +1602,19 @@ async function q37ReadOnlyAcceptance(browser) {
     await modal.waitFor({state:'hidden'});
     await reader.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
     await reader.getByText(/Bearbeitung konnte nicht gestartet werden/).waitFor();
+    await assertDate(reader, '2099-12-01');
     await rejected(reader,reader.locator('.quick-actions .task-grid > button').first(),/read-only.*top right/s);
     await editor.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).click();
     await editor.getByRole('button',{name:'Bearbeitung starten',exact:true}).waitFor();
+    await assertDate(editor, '2025-01-03');
     await rejected(editor,firstAction,/schreibgeschützt.*oben rechts/s);
     // A new checkout after check-in must once again allow editing.
     await reader.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
     await reader.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).waitFor();
+    await assertDate(reader, '2099-12-01');
     await reader.locator('.quick-actions .task-grid > button').first().click();
     await reader.locator('.modal-backdrop').waitFor();
+    assert.equal(await reader.locator('#event-effective-date').inputValue(), '2099-12-01', 'Q38: new purchase uses the selected date after checkout');
   } finally {
     for (const context of contexts) await context.close();
     php.kill();

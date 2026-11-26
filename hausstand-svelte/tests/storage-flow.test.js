@@ -89,7 +89,7 @@ test('rejected online authorization clears the lease but keeps unsaved work reco
   const failure = storage.slice(storage.indexOf('if (!response.ok || data.ok === false)'), storage.indexOf('return data;'));
   assert.match(failure, /if \(authorized && \[403, 409, 423\]\.includes\(response.status\)\) \{/);
   assert.match(failure, /leaseToken = ''; leaseExpires = 0;/);
-  assert.match(failure, /appState\.setReadOnly\(true\)/);
+  assert.match(failure, /appState\.setReadOnly\(true, serverErrorMessage\(data\.errorCode, response\.status\)\)/);
   assert.doesNotMatch(failure, /markSaved|importProject|clearOnlineLink|newProject/);
   assert.match(storage, /\$: onlineEditing = !!\(openedId && leaseToken\)/);
   assert.match(storage, /if \(openedId && !leaseToken\) return \{ handled: false \}/);
