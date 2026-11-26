@@ -1,7 +1,8 @@
 <script>
   import { translate, pluralMessage } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
-  import { money, normShares } from '../src/lib/domain.js';
+  import { money } from '../src/lib/domain.js';
+  import { buildTransferChanges, buildRemovePersonChanges, soleOwnedItems } from '../src/lib/redistribution.js';
   import { dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
   import BalanceBreakdown from '../src/components/BalanceBreakdown.svelte';
@@ -22,14 +23,7 @@
 
   function runTransfer(target) {
     if (!target) return;
-    const changes = (person.holdings || []).map(h => {
-      const sourceUnits = Number(h.item.shares?.[person.id] || 0);
-      const targetUnits = Number(h.item.shares?.[target.id] || 0);
-      const shares = { ...(h.item.shares || {}) };
-      delete shares[person.id];
-      shares[target.id] = sourceUnits + targetUnits;
-      return { itemId: h.item.id, shares: normShares(shares) };
-    }).filter(c => Object.keys(c.shares).length);
+    const changes = buildTransferChanges(projection,person.id,target.id);
 
     appState.startRedistribution(
       $translate('dialog.transferTitle', { from: person.name, to: target.name }),
@@ -40,12 +34,13 @@
   }
 
   function startDissolve() {
-    const changes = (person.holdings || []).map(h => {
-      const shares = { ...(h.item.shares || {}) };
-      delete shares[person.id];
-      return { itemId: h.item.id, shares: normShares(shares) };
-    }).filter(c => Object.keys(c.shares).length);
-    appState.startRedistribution($translate('dialog.dissolveTitle', { name: person.name }), asOfDate, changes, { sourcePersonId: person.id });
+    const blocked = soleOwnedItems(projection,person.id);
+    if (blocked.length) {
+      alert($translate('dialog.lastOwners',{items:blocked.map(item=>item.name).join(', ')}));
+      return;
+    }
+    const changes = buildRemovePersonChanges(projection,person.id);
+    appState.startRedistribution($translate('dialog.dissolveTitle', { name: person.name }), asOfDate, changes, { sourcePersonId: person.id, initialFinancialMode:'none' });
   }
 
   function startTransfer() {
@@ -82,8 +77,8 @@
       <div class="action-grid">
         <button disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-person-jstaod")}</button>
         {#if person.active}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'deactivate'})} disabled={$appState.readOnly}><ActionIcon name="archive" size={17}/>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'reactivate'})} disabled={$appState.readOnly}><ActionIcon name="person-add" size={17}/>{$translate("ui.reactivate-iggdm2")}</button>{/if}
-        <button disabled={$appState.readOnly} on:click={startTransfer}><ActionIcon name="arrows" size={17}/>{$translate("app.transfer")}</button>
-        <button disabled={$appState.readOnly} on:click={startDissolve}><ActionIcon name="archive" size={17}/>{$translate("ui.remove-shares-5g2njo")}</button>
+        <button disabled={$appState.readOnly || !person.active || !person.holdings?.length} on:click={startTransfer}><ActionIcon name="arrows" size={17}/>{$translate("app.transfer")}</button>
+        <button disabled={$appState.readOnly || !person.active || !person.holdings?.length} on:click={startDissolve}><ActionIcon name="archive" size={17}/>{$translate("ui.remove-shares-5g2njo")}</button>
       </div>
     </details>
   </div>

@@ -109,8 +109,10 @@ function createStore() {
       return saved;
     },
     startRedistribution: (title, date, changes = [], extraDialog = {}) => update(s => {
+      const { initialFinancialMode, ...dialogOptions } = extraDialog;
       const r = createRedistribution(title || 'Neue Umverteilung', date || s.asOfDate, changes);
-      return { ...s, activeDialog: { type: 'redistributionEdit', redistribution: r, ...extraDialog } };
+      if (initialFinancialMode === 'none') r.financialMode = 'none';
+      return { ...s, activeDialog: { type: 'redistributionEdit', redistribution: r, ...dialogOptions } };
     }),
     upsertDraft: draft => {
       let accepted = false;

@@ -1,6 +1,8 @@
 import { uid, nextEventOrder, todayISO } from './util.js';
 import { validISODate } from './claimSettlement.js';
 import { projectAt } from './projector.js';
+import { ledgerAt } from './ledger.js';
+import { projectMutationProblem } from './mutationValidation.js';
 
 // Shared domain operations. Call inside the frontend's guarded transaction.
 export const normalizePersonName = value => String(value || '').trim().toLocaleLowerCase('de');
@@ -53,4 +55,19 @@ export function changePersonStatus(project, { personId, date, kind, reason = '' 
   const event = createEvent(type,date,{personId,reason:reason.trim()},project);
   project.events.push(event);
   return {person,event};
+}
+
+// Read-only preview for the UI and other adapters. Stage the actual shared
+// event operation and use the exact same guard that will validate saving.
+export function previewPersonStatus(project, {personId,date,kind}) {
+  const statusProblem = personStatusProblem(project,{personId,date,kind});
+  if (statusProblem) return {statusProblem, problem:null, holdings:[], balanceCents:0};
+  const projection = projectAt(project,date);
+  const ledger = ledgerAt(project,date);
+  const holdings = projection.people.find(p=>p.id===personId)?.holdings || [];
+  const balanceCents = ledger.balances.get(personId) || 0;
+  const staged = {...project,events:[...(project.events || [])]};
+  changePersonStatus(staged,{personId,date,kind});
+  const problem = projectMutationProblem(project,staged);
+  return {statusProblem:null,problem,holdings,balanceCents};
 }

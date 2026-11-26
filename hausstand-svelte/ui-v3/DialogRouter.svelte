@@ -7,7 +7,7 @@
   import { normShares, money } from '../src/lib/domain.js';
   import { purchaseClaims as derivePurchaseClaims, personBalances } from '../src/lib/ledger.js';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
-  import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus } from '../src/lib/personMutations.js';
+  import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus, previewPersonStatus } from '../src/lib/personMutations.js';
   import { addItem as applyItemAdd, continueItem as applyItemContinue, updateItemMetadata, setItemShares, endItem as applyItemEnd, validMoney } from '../src/lib/itemMutations.js';
   import { createItemDraft } from '../src/lib/draftMutations.js';
   import { personDeletionEligibility, deleteUnusedPerson } from '../src/lib/personDeletion.js';
@@ -68,6 +68,8 @@
   $: peopleAvailable = !itemNeedsOwners || entryProjection.people.some(person => person.active);
   $: statusTargetValid = dialog?.type !== 'personStatus' ||
     !personStatusProblem(project, { personId: dialog.personId, date: effectiveDate, kind: dialog.kind });
+  $: statusPreview = dialog?.type === 'personStatus' && dateValid && statusTargetValid
+    ? previewPersonStatus(project, {personId:dialog.personId,date:effectiveDate,kind:dialog.kind}) : null;
   $: itemCost = Number(initialValue);
   $: itemCostCents = Math.round(itemCost * 100);
   $: itemCostValid = !itemNeedsOwners || validMoney(itemCost);
@@ -78,7 +80,7 @@
   $: minimumValueAmount = String(minimumValue ?? '').trim() === '' ? 0 : parseDecimal(minimumValue);
   $: minimumValueCents = Math.round(minimumValueAmount * 100);
   $: minimumValueValid = !itemNeedsOwners || validMoney(minimumValueAmount);
-  $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid &&
+  $: canSubmitDated = dateValid && itemAvailable && peopleAvailable && statusTargetValid && !statusPreview?.problem &&
     itemCostValid && ownersValid && itemNameValid && minimumValueValid &&
     (dialog?.type !== 'itemAdd' || (financingValid && (!alreadySettled || validCalendarDate(paymentDate))));
   $: purchaseShares = normShares(shares);
@@ -221,6 +223,15 @@
     appState.setRoute({ page: 'dashboard' });
   }
 
+  function openArchivePreparation() {
+    if (!dateValid || !person || $appState.readOnly) return;
+    const id = person.id;
+    const date = effectiveDate;
+    close();
+    appState.setAsOfDate(date);
+    appState.setRoute({page:'person',id});
+  }
+
   function savePersonStatus() {
     if (!canSubmitDated || !person) return;
     const reasonText = reason.trim() || $translate(dialog.kind === 'deactivate' ? 'timeTravel.moveOut' : 'timeTravel.rejoin');
@@ -355,6 +366,25 @@
             {/if}
           {/if}
         {:else if dialog.type === 'personStatus'}
+          {#if dialog.kind === 'deactivate' && statusPreview}
+            <section class="stack archive-preparation">
+              <strong>{$translate('archive.requirements')}</strong>
+              <div class="split"><span>{$translate('archive.holdings')}</span><strong>{statusPreview.holdings.length}</strong></div>
+              {#if statusPreview.holdings.length}
+                <div class="muted">{statusPreview.holdings.map(h=>h.item.name).join(', ')}</div>
+              {/if}
+              <div class="split"><span>{$translate('archive.balance')}</span><strong>{money(statusPreview.balanceCents / 100)}</strong></div>
+              {#if statusPreview.holdings.length || statusPreview.balanceCents !== 0}
+                <button type="button" disabled={$appState.readOnly} on:click={openArchivePreparation}>{$translate('archive.prepare')}</button>
+                <p class="muted">{$translate('archive.prepareHint')}</p>
+              {/if}
+            </section>
+          {/if}
+          {#if statusPreview?.problem}
+            <p role="alert" class="notice warn">{$translate(statusPreview.problem.key,statusPreview.problem.params)}</p>
+          {:else if statusPreview && dialog.kind === 'deactivate'}
+            <p role="status" class="notice">{$translate('archive.ready')}</p>
+          {/if}
           <label>{$translate("ui.reason-1rj1mxt")} <input bind:value={reason} placeholder={dialog.kind === 'deactivate' ? $translate('timeTravel.moveOut') : $translate('timeTravel.rejoin')} /></label>
         {:else if dialog.type === 'itemAdd' || dialog.type === 'itemContinue'}
           <div class="item-entry-flow">

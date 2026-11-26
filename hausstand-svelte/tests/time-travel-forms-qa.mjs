@@ -156,6 +156,15 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await dialog.waitFor({state:'hidden'});
     assert.equal((await snapshot()).events.find(e=>e.type==='person-reactivated'&&e.personId===carla.personId)?.date,'2032-05-05');
 
+    await nav('Personen').click();
+    await page.getByRole('button',{name:'Archiviert (0)',exact:true}).click();
+    assert.equal(await page.locator('.person-tile').count(),0);
+    await cutoff('2032-04-05');
+    assert.equal(await page.locator('.person-tile').filter({hasText:'Carla'}).count(),1);
+    await page.getByRole('button',{name:/^Aktiv \(/}).click();
+    assert.equal(await page.locator('.person-tile').filter({hasText:'Carla'}).count(),0);
+    await cutoff('2032-05-05');
+    assert.equal(await page.locator('.person-tile').filter({hasText:'Carla'}).count(),1);
     await nav('Überblick').click();
     await page.locator('.quick-actions .task-grid > button').nth(1).click();
     assert.equal(await page.locator('#redistribution-effective-date').inputValue(),'2032-05-05');

@@ -5,15 +5,23 @@
   export let people = [];
   export let ledger = null;
   let search = '';
-  $: filtered = people.filter(p => p.name.toLowerCase().includes(search.toLowerCase().trim()))
-    .sort((a,b)=>Number(b.active)-Number(a.active) || a.name.localeCompare(b.name, $locale));
+  let showArchived = false;
+  $: activeCount = people.filter(p=>p.active).length;
+  $: archivedCount = people.length - activeCount;
+  $: visiblePeople = people.filter(p => showArchived ? !p.active : p.active);
+  $: filtered = visiblePeople.filter(p => p.name.toLowerCase().includes(search.toLowerCase().trim()))
+    .sort((a,b)=>a.name.localeCompare(b.name, $locale));
 </script>
 
 <section class="ux-panel">
+  <div class="people-status-filter" role="group" aria-label={$translate('people.statusFilter')}>
+    <button type="button" aria-pressed={!showArchived} class:primary={!showArchived} on:click={() => showArchived=false}>{$translate('people.active')} ({activeCount})</button>
+    <button type="button" aria-pressed={showArchived} class:primary={showArchived} on:click={() => showArchived=true}>{$translate('people.moved')} ({archivedCount})</button>
+  </div>
   <div class="list-tools">
     <label class="search-wrap"><span class="sr-only">{$translate("people.searchLabel")}</span><input type="search" bind:value={search} placeholder={$translate("people.search")}/></label>
     {#if search.trim()}
-      <span class="result-count" aria-live="polite">{filtered.length} / {people.length} {$translate("nav.people")}</span>
+      <span class="result-count" aria-live="polite">{filtered.length} / {visiblePeople.length} {$translate("nav.people")}</span>
     {/if}
   </div>
   {#if filtered.length}
@@ -37,14 +45,16 @@
       {/each}
     </div>
   {:else}
-    <div class="gentle-empty"><strong>{people.length ? $translate('people.noMatches') : $translate('people.none')}</strong>
-      <p>{people.length ? $translate('people.try') : $translate('people.first')}</p>
-      {#if !people.length}<button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>{$translate("app.personAdd")}</button>{/if}
+    <div class="gentle-empty"><strong>{visiblePeople.length ? $translate('people.noMatches') : $translate(showArchived ? 'people.noneArchived' : 'people.noneActive')}</strong>
+      {#if visiblePeople.length}<p>{$translate('people.try')}</p>
+      {:else if !showArchived}<button class="solid-action" disabled={$appState.readOnly} on:click={() => appState.setDialog({type:'personAdd'})}>{$translate("app.personAdd")}</button>{/if}
     </div>
   {/if}
 </section>
 
 <style>
+  .people-status-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .people-status-filter button{min-height:44px}
   .person-tile{padding:15px;gap:8px}
   .person-value{margin:2px 0}
   .person-value strong{font-size:20px}

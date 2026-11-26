@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { archiveHistoryProblems } from '../src/lib/personArchiveValidation.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
 import { projectAt } from '../src/lib/projector.js';
+import { previewPersonStatus } from '../src/lib/personMutations.js';
+import { buildRemovePersonChanges, soleOwnedItems } from '../src/lib/redistribution.js';
 
 const event = (id,type,date,fields={},order=1) => ({id,type,date,order,...fields});
 const fixed = {type:'fixed',minimumValue:0};
@@ -71,4 +73,31 @@ test('Q27: repeated archive/reactivate allowed; orphan or duplicate status event
   assert.equal(projectMutationProblem(p,extend(p,archive(),{...archive('2026-04-01'),id:'archive2'})).key,'errors.archiveStatus');
   const orphan={...good,events:good.events.filter(e=>e.id!=='archive')};
   assert.equal(projectMutationProblem(good,orphan).key,'errors.archiveStatus');
+});
+
+test('Q27: archive preview exposes remaining zero-value holdings, balance and future conflicts without mutation',()=>{
+  const p=extend(fixture(),purchase('2026-01-02',{a:1},0,{a:0}));
+  const before=structuredClone(p);
+  const preview=previewPersonStatus(p,{personId:'a',date:'2026-02-01',kind:'deactivate'});
+  assert.equal(preview.holdings.length,1);
+  assert.equal(preview.balanceCents,0);
+  assert.equal(preview.problem.key,'errors.archiveHoldings');
+  assert.deepEqual(p,before);
+  const debt=extend(fixture(),purchase('2026-01-02'));
+  const owed=previewPersonStatus(debt,{personId:'a',date:'2026-02-01',kind:'deactivate'});
+  assert.equal(owed.balanceCents,1000);
+  assert.equal(owed.problem.key,'errors.archiveBalance');
+  const future=extend(fixture(),purchase('2026-04-01'));
+  assert.equal(previewPersonStatus(future,{personId:'a',date:'2026-02-01',kind:'deactivate'}).problem.key,'errors.archivedPersonInvolvement');
+  assert.equal(previewPersonStatus(fixture(),{personId:'a',date:'2026-02-01',kind:'deactivate'}).problem,null);
+});
+test('Q27: relinquishment retains remaining relative ownership and identifies sole ownership separately',()=>{
+  const p=fixture();
+  p.people.push({id:'c',name:'C'});
+  p.items.push({id:'sole',name:'Sole item'});
+  p.events.push(purchase('2026-01-02',{a:2,b:3,c:1},0,{a:0}),
+    {...purchase('2026-01-03',{a:1},0,{a:0}),id:'sole-buy',itemId:'sole'});
+  const projection=projectAt(p,'2026-02-01');
+  assert.deepEqual(buildRemovePersonChanges(projection,'a'),[{itemId:'i',shares:{b:3,c:1}}]);
+  assert.deepEqual(soleOwnedItems(projection,'a').map(i=>i.id),['sole']);
 });
