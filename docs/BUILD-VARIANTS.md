@@ -34,28 +34,27 @@ The current build copies this configuration block from `server-php/backend.php` 
 ```php
 $HAUSSTAND_CONFIG = [
     'data_dir' => __DIR__ . '/../hausstand-private-data',
-    'allow_create' => false,
     'backup_email' => '',
     'mail_from' => '',
+    'admin_token' => '',
 ];
 ```
 
 - `data_dir`: writable directory **outside the public webroot**. PHP creates it when needed; adjust the path for subdirectory installations. In-webroot storage is rejected.
-- `allow_create`: defaults to false. Setting true allows any visitor with access to the application to create a project; use an upstream access restriction such as HTTP authentication or protected network access.
+- `admin_token`: a long secret required to initialize the one server project and install application updates.
 - `backup_email` and `mail_from`: optional addresses for encrypted backup attachments if the host supports PHP mail.
-- Environment overrides: `HAUSSTAND_DATA_DIR`, `HAUSSTAND_ALLOW_CREATE`, `HAUSSTAND_BACKUP_EMAIL`, `HAUSSTAND_MAIL_FROM`.
+- Environment overrides: `HAUSSTAND_DATA_DIR`, `HAUSSTAND_ADMIN_TOKEN`, `HAUSSTAND_BACKUP_EMAIL`, `HAUSSTAND_MAIL_FROM`.
 
-Example: `/home/account/public_html/hausstand.php` and `/home/account/hausstand-private-data/`. PHP 8.1+, HTTPS and PHP write permission to the private folder are required. Keep configuration secrets out of the public repository. Manual admin-authenticated self-update and separate local configuration are planned under S05, **not implemented**.
+Example: `/home/account/public_html/hausstand.php` and `/home/account/hausstand-private-data/`. PHP 8.1+, HTTPS, cURL and PHP write permission to the script and private data folder are required. Copy `server-php/hausstand-config.example.php` to a private file outside the web root and set `HAUSSTAND_CONFIG_FILE` to its path, then set `backup_email`, `mail_from` and a long random `admin_token`. The config filename is ignored by Git. In Settings, enter the same token and use **Neueste Version installieren**; it downloads the PHP asset from the latest GitHub release and checks PHP syntax before atomically replacing the app. Configure mail only on the server and verify real delivery after deployment.
 
 The UI uses its own address (`hausstand.php?api=...`); there is no API URL or workspace-key setting in the browser. Project passwords remain in the browser.
 
 ## 4. Using online storage
 
-1. Open the deployed PHP URL over HTTPS.
-2. In **Save & open → Work together online** (German: **Sichern & Öffnen**), choose a project and enter its password.
-3. Start editing (checkout), make changes, save online and stop editing (checkin). Read-only viewing does not acquire an editing lease.
-4. If creation is enabled, create a new online project from the current working copy with a long passphrase.
-5. A separate local encrypted download is a backup, not a confirmed online save. Only online projects have a remote identity.
+1. Open the deployed PHP URL over HTTPS. On first use, initialize the single project with the admin token and a project password.
+2. Sign in with the project password. The browser keeps an encrypted device credential and a session cookie for subsequent visits.
+3. Edit and use **Auf dem Server speichern**. An exclusive lease protects against conflicting changes.
+4. Download an encrypted backup or restore one in Settings. Restoring replaces the current server project after confirmation.
 
 Each online project has one current encrypted document containing its portable archive. Technical revisions and an exclusive lease prevent conflicting writes; there is no separate server-side history or real-time merging.
 

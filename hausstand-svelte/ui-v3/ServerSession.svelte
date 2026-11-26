@@ -1,0 +1,202 @@
+<script>
+  import { onMount } from 'svelte';
+  import { appState } from '../src/stores/projectStore.js';
+  import { exportProject } from '../src/lib/persistence.js';
+  import { emptyProject, requireProjectFile } from '../src/lib/domain.js';
+  import { createPortableSave, verifyPortableHistory } from '../src/lib/versionHistory.js';
+  import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
+
+  const id = 'hausstand-hauptdatei';
+  const deviceKey = `hausstand-session:${location.pathname}`;
+  export let authenticated = false;
+  export let editing = false;
+  export let busy = false;
+  export let feedback = '';
+  let initialized = null, pass = '', repeat = '', admin = '', error = '';
+  let activePassword = '', editToken = '', leaseToken = '', revision = 0;
+
+  // The key is non-extractable; the saved passphrase is encrypted at rest in IndexedDB.
+  function database() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('hausstand-device-login', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('credentials');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  async function deviceStore(mode, value) {
+    const db = await database();
+    try {
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction('credentials', mode === 'get' ? 'readonly' : 'readwrite');
+        const store = tx.objectStore('credentials');
+        const req = mode === 'get' ? store.get(deviceKey) : mode === 'delete' ? store.delete(deviceKey) : store.put(value, deviceKey);
+        req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
+      });
+    } finally { db.close(); }
+  }
+  async function remember(password) {
+    const key = await crypto.subtle.generateKey({name:'AES-GCM',length:256}, false, ['encrypt','decrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt({name:'AES-GCM',iv}, key, new TextEncoder().encode(password));
+    await deviceStore('put', {key, iv, encrypted});
+  }
+  async function rememberedPassword() {
+    const saved = await deviceStore('get');
+    if (!saved) return '';
+    return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:saved.iv}, saved.key, saved.encrypted));
+  }
+  async function api(action, body = null, extraHeaders = {}) {
+    const url = new URL(location.pathname, location.origin);
+    url.searchParams.set('api', action);
+    if (action === 'read') url.searchParams.set('id', id);
+    const headers = {Accept:'application/json', ...extraHeaders};
+    if (body) headers['Content-Type'] = 'application/json';
+    if (editToken) headers['X-File-Token'] = editToken;
+    if (leaseToken) headers['X-Lease-Token'] = leaseToken;
+    const response = await fetch(url, {method:body ? 'POST' : 'GET', headers, body:body ? JSON.stringify({id,...body}) : undefined, cache:'no-store'});
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Die Serveranfrage ist fehlgeschlagen.');
+    return data;
+  }
+  async function checkout() {
+    const savedLease = sessionStorage.getItem(deviceKey + ':lease');
+    if (savedLease) {
+      leaseToken = savedLease;
+      try { await api('renew', {}); editing = true; appState.setReadOnly(false); return; }
+      catch { leaseToken = ''; sessionStorage.removeItem(deviceKey + ':lease'); }
+    }
+    try {
+      const result = await api('checkout', {expectedRevision:revision});
+      leaseToken = result.leaseToken; sessionStorage.setItem(deviceKey + ':lease', leaseToken);
+      editing = true; appState.setReadOnly(false);
+    } catch (e) {
+      editing = false; appState.setReadOnly(true);
+      feedback = 'Die Datei ist gerade in Bearbeitung. Sie wurde schreibgeschützt geöffnet. ' + e.message;
+    }
+  }
+  async function unlock(password, establishSession = true) {
+    const data = await api('read');
+    const decrypted = await decryptProject(data.envelope, password);
+    const project = requireProjectFile(decrypted.project);
+    await verifyPortableHistory(project);
+    editToken = decrypted.editToken; activePassword = password; revision = data.revision;
+    if (establishSession) await api('login', {});
+    appState.importProject(project, {secure:true, readOnly:true});
+    authenticated = true; pass = ''; admin = ''; repeat = '';
+    await checkout();
+  }
+  onMount(async () => {
+    try {
+      initialized = (await api('config')).initialized;
+      if (initialized && (await api('session')).authenticated) {
+        const saved = await rememberedPassword();
+        if (saved) await unlock(saved, false);
+      }
+    } catch (e) { error = e.message || 'Server nicht erreichbar.'; }
+  });
+  async function submit() {
+    if (busy) return;
+    busy = true; error = ''; feedback = '';
+    try {
+      if (!initialized) {
+        if (pass.length < 8) throw new Error('Das Passwort muss mindestens acht Zeichen lang sein.');
+        if (pass !== repeat) throw new Error('Die Passwörter stimmen nicht überein.');
+        if (!admin) throw new Error('Bitte den Administrationsschlüssel eingeben.');
+        const token = randomSecret();
+        const saved = await createPortableSave(emptyProject(), null);
+        const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), pass, token);
+        await api('create', {name:'Hausstandsliste', envelope, tokenHash:await hashSecret(token)}, {'X-Hausstand-Admin':admin});
+        initialized = true;
+      }
+      const chosen = pass;
+      await unlock(chosen);
+      try { await remember(chosen); } catch { feedback = 'Angemeldet. Dieses Gerät konnte die Anmeldung nicht dauerhaft speichern.'; }
+    } catch (e) { error = e.message || 'Anmeldung fehlgeschlagen.'; }
+    finally { busy = false; }
+  }
+  export async function save() {
+    if (busy) return;
+    busy = true; feedback = '';
+    try {
+      if (!editing) { await checkout(); return; }
+      if (!$appState.dirty) { feedback = 'Alle Änderungen sind gespeichert.'; return; }
+      const saved = await createPortableSave($appState.project, $appState.savedProject);
+      const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
+      const result = await api('save', {expectedRevision:revision, envelope});
+      revision = result.revision; appState.markSaved(saved);
+      feedback = 'Auf dem Server gespeichert.';
+    } catch (e) { feedback = 'Speichern fehlgeschlagen: ' + e.message; }
+    finally { busy = false; }
+  }
+  export async function downloadBackup() {
+    if (busy) return;
+    busy = true; feedback = '';
+    try {
+      const saved = await createPortableSave($appState.project, $appState.savedProject);
+      const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, randomSecret());
+      const url = URL.createObjectURL(new Blob([JSON.stringify(envelope)], {type:'application/json'}));
+      const a = document.createElement('a'); a.href = url; a.download = 'hausstand-sicherung.enc.json'; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      feedback = 'Verschlüsselte Sicherung heruntergeladen.';
+    } catch (e) { feedback = e.message; } finally { busy = false; }
+  }
+  export async function restoreBackup(event) {
+    const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
+    if (!file || busy) return;
+    if (!confirm('Die aktuelle Serverdatei wird durch diese Sicherung überschrieben. Fortfahren?')) return;
+    const backupPassword = prompt('Passwort der Sicherungsdatei:');
+    if (!backupPassword) return;
+    busy = true; feedback = '';
+    try {
+      if (!editing) throw new Error('Die Datei ist gerade schreibgeschützt. Bitte zuerst die Bearbeitung starten.');
+      const decrypted = await decryptProject(JSON.parse(await file.text()), backupPassword);
+      const project = requireProjectFile(decrypted.project); await verifyPortableHistory(project);
+      const saved = await createPortableSave(project, $appState.savedProject);
+      const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
+      const result = await api('save', {expectedRevision:revision, envelope});
+      revision = result.revision; appState.importProject(saved, {secure:true, readOnly:false});
+      feedback = 'Die Sicherung wurde auf dem Server wiederhergestellt.';
+    } catch(e) { feedback = 'Wiederherstellung fehlgeschlagen: ' + e.message; }
+    finally { busy = false; }
+  }
+  export async function logout() {
+    if (busy || ($appState.dirty && !confirm('Es gibt ungespeicherte Änderungen. Trotzdem abmelden?'))) return;
+    busy = true; feedback = '';
+    try {
+      if (leaseToken) await api('checkin', {});
+      await api('logout', {});
+      await deviceStore('delete'); sessionStorage.removeItem(deviceKey + ':lease');
+      leaseToken = ''; editToken = ''; activePassword = ''; editing = false; authenticated = false;
+    } catch(e) { feedback = 'Abmelden fehlgeschlagen: ' + e.message; }
+    finally { busy = false; }
+  }
+</script>
+
+{#if !authenticated}
+  <main class="server-login">
+    <form class="login-card" on:submit|preventDefault={submit}>
+      <span class="login-mark" aria-hidden="true">H</span>
+      <h1>Hausstandsliste</h1>
+      {#if initialized === null}
+        {#if error}<p class="login-error" role="alert">{error}</p><button type="button" on:click={() => location.reload()}>Erneut versuchen</button>{:else}<p>Server wird verbunden …</p>{/if}
+      {:else}
+        <h2>{initialized ? 'Anmelden' : 'Hausstandsliste einrichten'}</h2>
+        <p>{initialized ? 'Melde dich mit dem Passwort deiner Hausstandsliste an.' : 'Lege das Passwort für die gemeinsame Hausstandsliste fest.'}</p>
+        {#if !initialized}<label>Administrationsschlüssel<input type="password" autocomplete="off" bind:value={admin} required /></label>{/if}
+        <label>Passwort<input type="password" autocomplete={initialized ? 'current-password' : 'new-password'} bind:value={pass} required minlength="8" /></label>
+        {#if !initialized}<label>Passwort wiederholen<input type="password" autocomplete="new-password" bind:value={repeat} required minlength="8" /></label>{/if}
+        {#if error}<p class="login-error" role="alert">{error}</p>{/if}
+        <button type="submit" disabled={busy}>{busy ? 'Bitte warten …' : initialized ? 'Anmelden' : 'Einrichten und anmelden'}</button>
+        <small>Die Anmeldung bleibt auf diesem Gerät gespeichert. Über „Abmelden“ kannst du sie entfernen.</small>
+      {/if}
+    </form>
+  </main>
+{/if}
+
+<style>
+  .server-login{min-height:100vh;display:grid;place-items:center;padding:24px;background:#f4f6f4;color:#23372d;font-family:system-ui,sans-serif}
+  .login-card{width:min(100%,420px);display:grid;gap:16px;background:white;padding:32px;border:1px solid #dce5df;border-radius:18px;box-shadow:0 12px 40px #193d2614}
+  .login-card h1,.login-card h2,.login-card p{margin:0}.login-card h1{font-size:1.35rem}.login-card h2{font-size:1.15rem}.login-card p,.login-card small{color:#56675d;line-height:1.45}.login-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#174b37;color:white;font-weight:700}
+  .login-card label{display:grid;gap:7px;font-weight:600}.login-card input{font:inherit;padding:12px;border:1px solid #9cab9f;border-radius:8px;min-width:0}.login-card button{font:inherit;font-weight:700;padding:13px;border:0;border-radius:8px;color:white;background:#174b37;cursor:pointer}.login-card button:disabled{opacity:.6}.login-card .login-error{color:#a22}
+</style>

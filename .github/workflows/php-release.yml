@@ -1,10 +1,14 @@
-name: Build PHP single-file release (manual)
+name: Build PHP single-file release
 
 on:
   workflow_dispatch:
+  push:
+    tags: ['v*']
+  schedule:
+    - cron: '17 4 * * 1'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-php-release:
@@ -31,10 +35,18 @@ jobs:
           php -l dist/hausstand.php
           php -l server-php/backend.php
           node server-php/smoke.mjs
-      - name: Download a single PHP file
+      - name: Upload PHP artifact
         uses: actions/upload-artifact@v4
         with:
           name: hausstand-php-manual
           path: hausstand-svelte/dist/hausstand.php
           if-no-files-found: error
           retention-days: 30
+      - name: Publish latest PHP release
+        if: github.event_name == 'schedule' || github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('php-{0}', github.run_number) }}
+          name: Hausstandsliste PHP ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build {0}', github.run_number) }}
+          files: hausstand-svelte/dist/hausstand.php
+          make_latest: true

@@ -7,24 +7,57 @@ declare(strict_types=1);
  * Keine Konfiguration/kein Workspace-Schlüssel wird an den Browser ausgegeben.
  *
  * data_dir: privater Ordner außerhalb des öffentlich erreichbaren Webverzeichnisses.
- * allow_create: true = Besucher dieser Installation dürfen neue Projekte anlegen.
- *   ACHTUNG: Ohne vorgeschaltete Zugangsbeschränkung kann jede Person mit der URL
- *   Projekte anlegen und Serverspeicher verbrauchen. Sicherer Standard: false.
  * backup_email / mail_from: optional, verschlüsselte vollständige Projektdateien per PHP mail().
  *
  * Alternativ sind die gleichnamigen HAUSSTAND_* Umgebungsvariablen nutzbar.
  */
 $HAUSSTAND_CONFIG = [
     'data_dir' => __DIR__ . '/../hausstand-private-data',
-    'allow_create' => false,
     'backup_email' => '',
     'mail_from' => '',
+    // Configure only on the server, never in a committed build artifact.
+    'admin_token' => '',
 ];
+// Optional private config kept beside the deployed script, excluded from releases.
+$privateConfig = (string) (getenv('HAUSSTAND_CONFIG_FILE') ?: (__DIR__ . '/../hausstand-config.php'));
+if (is_file($privateConfig)) {
+    $privateValues = require $privateConfig;
+    if (is_array($privateValues)) $HAUSSTAND_CONFIG = array_merge($HAUSSTAND_CONFIG, $privateValues);
+}
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('Cache-Control: no-store');
 header('X-Frame-Options: DENY');
 $api = (string) ($_GET['api'] ?? '');
+if ($api === 'update') {
+    header('Content-Type: application/json; charset=utf-8');
+    $token = (string) (getenv('HAUSSTAND_ADMIN_TOKEN') ?: ($HAUSSTAND_CONFIG['admin_token'] ?? ''));
+    $provided = (string) ($_SERVER['HTTP_X_HAUSSTAND_ADMIN'] ?? '');
+    if ($token === '' || !hash_equals($token, $provided)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'Admin-Autorisierung fehlgeschlagen.']); exit; }
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['ok'=>false,'error'=>'POST erforderlich.']); exit; }
+    if (!function_exists('curl_init')) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'PHP-cURL ist nicht verfügbar.']); exit; }
+    $releaseUrl = 'https://api.github.com/repos/Uli-Z/hausstandsliste/releases/latest';
+    $ch = curl_init($releaseUrl);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_FOLLOWLOCATION=>false, CURLOPT_TIMEOUT=>30, CURLOPT_USERAGENT=>'Hausstandsliste-Updater']);
+    $releaseRaw = curl_exec($ch); $releaseCode = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE); curl_close($ch);
+    $release = is_string($releaseRaw) ? json_decode($releaseRaw, true) : null;
+    $assetId = 0;
+    foreach (($release['assets'] ?? []) as $asset) if (($asset['name'] ?? '') === 'hausstand.php') $assetId = (int) ($asset['id'] ?? 0);
+    if ($releaseCode !== 200 || $assetId < 1) { http_response_code(502); echo json_encode(['ok'=>false,'error'=>'Kein gültiges PHP-Artefakt im neuesten Release.']); exit; }
+    $download = curl_init('https://api.github.com/repos/Uli-Z/hausstandsliste/releases/assets/' . $assetId);
+    curl_setopt_array($download, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_FOLLOWLOCATION=>true, CURLOPT_MAXREDIRS=>3, CURLOPT_TIMEOUT=>60, CURLOPT_USERAGENT=>'Hausstandsliste-Updater', CURLOPT_HTTPHEADER=>['Accept: application/octet-stream']]);
+    $php = curl_exec($download); $downloadCode = (int) curl_getinfo($download, CURLINFO_RESPONSE_CODE); curl_close($download);
+    if ($downloadCode !== 200 || !is_string($php) || strlen($php) < 10000 || !str_starts_with($php, '<?php') || !str_contains($php, 'Hausstandsliste')) { http_response_code(502); echo json_encode(['ok'=>false,'error'=>'Release-Datei ist ungültig.']); exit; }
+    // Validate the new PHP before replacing the live file. The private config is a
+    // separate file outside the web root, so the atomic code swap cannot overwrite it.
+    $checkFile = __FILE__ . '.validate-' . bin2hex(random_bytes(6));
+    if (file_put_contents($checkFile, $php, LOCK_EX) === false) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'Updateprüfung fehlgeschlagen.']); exit; }
+    $lint = []; $lintCode = 1; exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($checkFile) . ' 2>&1', $lint, $lintCode); @unlink($checkFile);
+    if ($lintCode !== 0) { http_response_code(502); echo json_encode(['ok'=>false,'error'=>'Release enthält ungültigen PHP-Code.']); exit; }
+    $tmp = __FILE__ . '.update-' . bin2hex(random_bytes(6));
+    if (file_put_contents($tmp, $php, LOCK_EX) === false || !rename($tmp, __FILE__)) { @unlink($tmp); http_response_code(500); echo json_encode(['ok'=>false,'error'=>'Update konnte nicht atomar installiert werden.']); exit; }
+    echo json_encode(['ok'=>true,'version'=>(string)($release['tag_name'] ?? '')]); exit;
+}
 if ($api !== '') {
     function fail(int $code, string $message, string $errorCode): never {
         http_response_code($code);
@@ -179,10 +212,6 @@ if ($api !== '') {
         fail(503, 'Privates Serverdatenverzeichnis kann nicht angelegt werden.', 'createDirectory');
     $root = realpath($rootEnv);
     if (!$root || !is_dir($root) || !is_writable($root)) fail(503, 'Serverdatenverzeichnis fehlt oder ist nicht beschreibbar.', 'unwritableDirectory');
-    $allowCreateEnv = getenv('HAUSSTAND_ALLOW_CREATE');
-    $allowCreate = $allowCreateEnv === false
-        ? (bool) ($HAUSSTAND_CONFIG['allow_create'] ?? false)
-        : filter_var($allowCreateEnv, FILTER_VALIDATE_BOOLEAN);
     $webroot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__FILE__)));
     if ($webroot && ($root === $webroot || str_starts_with($root, $webroot . DIRECTORY_SEPARATOR)))
         fail(503, 'Serverdaten dürfen nicht im öffentlichen Webverzeichnis liegen.', 'publicDirectory');
@@ -190,31 +219,43 @@ if ($api !== '') {
     $lockHandle = fopen($root . '/.mutex', 'c');
     if (!$lockHandle || !flock($lockHandle, LOCK_EX)) fail(503, 'Server-Sperre nicht verfügbar.', 'lockUnavailable');
     $method = $_SERVER['REQUEST_METHOD'];
-    $readActions = ['config', 'files', 'read'];
+    // One installation has one project. Its identifier is fixed by the server,
+    // never selected by a visitor.
+    $singleId = 'hausstand-hauptdatei';
+    $readActions = ['config', 'read', 'session'];
     if (in_array($api, $readActions, true)) {
         if ($method !== 'GET') fail(405, 'GET erforderlich.', 'getRequired');
-        if ($api === 'config') reply(['canCreate' => $allowCreate]);
-        if ($api === 'files') {
-            $files = [];
-            foreach (glob($root . '/files/*/meta.json') ?: [] as $path) {
-                $m = readJson($path);
-                $files[] = ['id' => $m['id'], 'name' => $m['name'], 'revision' => $m['revision'],
-                    'updatedAt' => $m['updatedAt'], 'lockedUntil' => ((int) ($m['leaseExpires'] ?? 0) > time() ? $m['leaseExpires'] : null)];
-            }
-            usort($files, fn($a, $b) => strcmp($a['name'], $b['name']));
-            reply(['files' => $files]);
+        if ($api === 'config') reply(['initialized' => is_file($root . '/files/' . $singleId . '/meta.json')]);
+        if ($api === 'session') {
+            ini_set('session.gc_maxlifetime', '2592000');
+            session_set_cookie_params(['lifetime' => 2592000, 'path' => rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/')), '/') . '/', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'httponly' => true, 'samesite' => 'Strict']);
+            session_start();
+            reply(['authenticated' => ($_SESSION['hausstand_authenticated'] ?? false) === true]);
         }
         $id = requireId($_GET['id'] ?? '');
+        if ($id !== $singleId) fail(404, 'Datei nicht gefunden.', 'notFound');
         [$dir, $meta] = checkedFile($root, $id);
         reply(['revision' => $meta['revision'], 'envelope' => readJson(currentPath($dir, $meta))]);
     }
-    if (!in_array($api, ['create', 'checkout', 'renew', 'checkin', 'save'], true))
+    if (!in_array($api, ['create', 'login', 'logout', 'checkout', 'renew', 'checkin', 'save'], true))
         fail(404, 'Unbekannte API-Aktion.', 'unknownAction');
     if ($method !== 'POST') fail(405, 'POST erforderlich.', 'postRequired');
     $body = submitted();
     $id = requireId($body['id'] ?? '');
+    if ($id !== $singleId) fail(404, 'Datei nicht gefunden.', 'notFound');
+    if ($api === 'logout') {
+        ini_set('session.gc_maxlifetime', '2592000');
+        session_set_cookie_params(['lifetime' => 2592000, 'path' => rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/')), '/') . '/', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'httponly' => true, 'samesite' => 'Strict']);
+        session_start();
+        $_SESSION = [];
+        session_destroy();
+        setcookie(session_name(), '', ['expires' => 1, 'path' => rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/')), '/') . '/', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'httponly' => true, 'samesite' => 'Strict']);
+        reply(['loggedOut' => true]);
+    }
     if ($api === 'create') {
-        if (!$allowCreate) fail(403, 'Das Anlegen neuer Projekte wurde vom Serverbetreiber deaktiviert.', 'creationDisabled');
+        $admin = (string) (getenv('HAUSSTAND_ADMIN_TOKEN') ?: ($HAUSSTAND_CONFIG['admin_token'] ?? ''));
+        $provided = (string) ($_SERVER['HTTP_X_HAUSSTAND_ADMIN'] ?? '');
+        if ($admin === '' || !hash_equals($admin, $provided)) fail(403, 'Administrationsschlüssel ungültig.', 'notAuthorized');
         $name = trim((string) ($body['name'] ?? ''));
         if ($name === '' || strlen($name) > 240) fail(400, 'Dateiname ungültig.', 'invalidName');
         $envelope = requireEnvelope($body['envelope'] ?? null);
@@ -236,6 +277,14 @@ if ($api !== '') {
     }
     [$dir, $meta] = checkedFile($root, $id);
     authorize($meta);
+    if ($api === 'login') {
+        ini_set('session.gc_maxlifetime', '2592000');
+        session_set_cookie_params(['lifetime' => 2592000, 'path' => rtrim(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/')), '/') . '/', 'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off', 'httponly' => true, 'samesite' => 'Strict']);
+        session_start();
+        session_regenerate_id(true);
+        $_SESSION['hausstand_authenticated'] = true;
+        reply(['authenticated' => true]);
+    }
     if ($api === 'checkout') {
         assertRevision($meta, $body);
         if (($meta['leaseExpires'] ?? 0) > time()) fail(423, 'Diese Datei ist bereits ausgecheckt.', 'alreadyCheckedOut');

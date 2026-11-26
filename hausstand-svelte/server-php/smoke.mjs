@@ -12,7 +12,7 @@ const port = 18743;
 const url = 'http://127.0.0.1:' + port + '/hausstand.php';
 const server = spawn('php', ['-S', '127.0.0.1:' + port, '-t', 'dist'], {
   cwd: process.cwd(),
-  env: { ...process.env, HAUSSTAND_DATA_DIR: root, HAUSSTAND_ALLOW_CREATE: 'true' },
+  env: { ...process.env, HAUSSTAND_DATA_DIR: root, HAUSSTAND_ADMIN_TOKEN: 'integration-admin-token' },
   stdio: ['ignore', 'pipe', 'pipe']
 });
 let log = '';
@@ -33,25 +33,27 @@ try {
   let ready = false;
   for (let i = 0; i < 80; i++) {
     if (server.exitCode !== null) break;
-    try { const r = await call('files'); ready = r.status === 200; if (ready) break; }
+    try { const r = await call('config'); ready = r.status === 200; if (ready) break; }
     catch { /* server starting */ }
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   if (!ready) throw new Error('PHP server not ready: ' + log);
   const config = await call('config');
   assert.equal(config.status, 200);
-  assert.equal(config.canCreate, true);
+  assert.equal(config.initialized, false);
   assert.equal('data_dir' in config, false);
-  const id = 'cafecafe-1234-4567-8888-aabbccddeeff';
+  const id = 'hausstand-hauptdatei';
   const token = randomSecret();
   const project = { ...emptyProject(), community: { name: 'Test' } };
   const firstSaved = await createPortableSave(project, null, '2026-11-23T08:00:00Z');
   const envelope = await encryptProject(firstSaved, 'integration-password', token);
   let r = await call('create', { id, name: 'Integrationstest', envelope, tokenHash: await hashSecret(token) });
+  assert.equal(r.status, 403);
+  r = await call('create', { id, name: 'Integrationstest', envelope, tokenHash: await hashSecret(token) }, {}, { 'X-Hausstand-Admin': 'integration-admin-token' });
   assert.equal(r.status, 200, JSON.stringify(r));
   assert.equal(r.revision, 1);
-  r = await call('files');
-  assert.equal(r.files.length, 1);
+  assert.equal((await call('config')).initialized, true);
+  assert.equal((await call('files')).status, 404);
   r = await call('read', null, { id });
   assert.equal(r.revision, 1);
   assert.equal(r.envelope.format, 'hausstand-aesgcm-v1');

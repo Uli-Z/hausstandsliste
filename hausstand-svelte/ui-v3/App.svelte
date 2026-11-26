@@ -18,6 +18,7 @@
   import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   import StorageView from './StorageView.svelte';
+  import ServerSession from './ServerSession.svelte';
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   const autoLanguage = resolveLocale('auto', typeof navigator === 'undefined' ? [] : (navigator.languages?.length ? navigator.languages : [navigator.language]));
 
@@ -33,6 +34,10 @@
   let showDanger = false;
   let mobileMoreOpen = false;
   let storageView;
+  let serverSession;
+  let serverAuthenticated = false;
+  let serverEditing = false;
+  let serverFeedback = '';
   let onlineEditing = false;
   let onlineProjectOpen = false;
   let storageBusy = false;
@@ -41,6 +46,21 @@
   let feedbackTimer;
   let timeTravelControl;
   let dateToggleButton;
+  let adminToken = '';
+  let updateBusy = false;
+  let updateStatus = '';
+  async function runServerUpdate() {
+    if (!adminToken.trim() || updateBusy) return;
+    updateBusy = true; updateStatus = '';
+    try {
+      const response = await fetch(`${location.pathname}?api=update`, { method: 'POST', headers: { 'X-Hausstand-Admin': adminToken, 'X-Requested-With': 'Hausstandsliste' } });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Update fehlgeschlagen.');
+      updateStatus = `Update auf ${data.version || 'aktuelle Version'} installiert. Seite wird neu geladen.`;
+      setTimeout(() => location.reload(), 1200);
+    } catch (error) { updateStatus = error.message || 'Update fehlgeschlagen.'; }
+    finally { updateBusy = false; }
+  }
   function dismissFeedback() {
     if (feedbackTimer) window.clearTimeout(feedbackTimer);
     feedbackTimer = undefined;
@@ -52,6 +72,10 @@
     saveMessageError = isError;
     // Success is a brief, non-blocking notification. Errors remain until dismissed.
     if (!isError) feedbackTimer = window.setTimeout(() => { saveMessage = ''; feedbackTimer = undefined; }, 4500);
+  }
+  $: if (serverFeedback) {
+    showFeedback(serverFeedback, /fehlgeschlagen|schreibgeschützt/i.test(serverFeedback));
+    serverFeedback = '';
   }
 
   onMount(() => {
@@ -164,6 +188,7 @@
   }
   async function saveNow() {
     if (storageBusy) return;
+    if (SERVER_MODE) { await serverSession?.save(); return; }
     const result = await storageView?.saveFromHeader?.();
     if (result?.handled) {
       if (result.message) showFeedback(result.message, result.ok === false);
@@ -181,6 +206,10 @@
 
 <svelte:window on:keydown={handleKeydown} on:pointerdown={handleOutsidePointer} on:beforeunload={warnUnsavedBeforeLeaving} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
 
+{#if SERVER_MODE}
+  <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:busy={storageBusy} bind:feedback={serverFeedback}/>
+{/if}
+{#if !SERVER_MODE || serverAuthenticated}
 <div class="app-shell">
   <aside class="sidebar" aria-label={$translate('nav.primary')}>
     <div class="brand">
@@ -196,7 +225,7 @@
       {/each}
     </nav>
     <div class="sidebar-bottom">
-      <button class:nav-active={route.page === 'dashboard' && activeSection === 'save'} on:click={() => navigate('save')} aria-current={route.page === 'dashboard' && activeSection === 'save' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⇩</span> {$translate("nav.save")}</button>
+      {#if !SERVER_MODE}<button class:nav-active={route.page === 'dashboard' && activeSection === 'save'} on:click={() => navigate('save')} aria-current={route.page === 'dashboard' && activeSection === 'save' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⇩</span> {$translate("nav.save")}</button>{/if}
       <button class:nav-active={route.page === 'dashboard' && activeSection === 'settings'} on:click={() => navigate('settings')} aria-current={route.page === 'dashboard' && activeSection === 'settings' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⚙</span> {$translate("nav.settings")}</button>
       
     </div>
@@ -262,11 +291,11 @@
         </span>
         {#if !(route.page === 'dashboard' && activeSection === 'save')}
           <button class="header-save" disabled={storageBusy} on:click={saveNow}
-            aria-label={$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
-            title={$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
-            <ActionIcon name={onlineEditing ? 'check' : 'download'} size={17}/>
-            <span class="header-save-long">{$translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span>
-            <span class="header-save-short">{$translate(onlineProjectOpen ? (onlineEditing ? 'storage.shortOnline' : 'storage.shortEditing') : 'storage.shortDownload')}</span>
+            aria-label={SERVER_MODE ? (serverEditing ? 'Auf dem Server speichern' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
+            title={SERVER_MODE ? (serverEditing ? 'Auf dem Server speichern' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
+            <ActionIcon name={SERVER_MODE || onlineEditing ? 'check' : 'download'} size={17}/>
+            <span class="header-save-long">{SERVER_MODE ? (serverEditing ? 'Auf dem Server speichern' : 'Bearbeitung starten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}</span>
+            <span class="header-save-short">{SERVER_MODE ? (serverEditing ? 'Speichern' : 'Bearbeiten') : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.shortOnline' : 'storage.shortEditing') : 'storage.shortDownload')}</span>
           </button>
         {/if}
       </div>
@@ -318,7 +347,7 @@
               <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><span class="task-icon"><ActionIcon name="box" size={22}/></span><strong>{$translate("app.addSomething")}</strong><small>{$translate("app.recordItem")}</small></button>
               <button on:click={() => appState.startRedistribution()}><span class="task-icon"><ActionIcon name="arrows" size={22}/></span><strong>{$translate("app.transfer")}</strong><small>{$translate("app.split")}</small></button>
               <button on:click={() => appState.setDialog({ type: 'personAdd' })}><span class="task-icon"><ActionIcon name="person-add" size={22}/></span><strong>{$translate("app.personAdd")}</strong><small>{$translate("app.join")}</small></button>
-              <button on:click={() => navigate('save')}><span class="task-icon"><ActionIcon name="download" size={22}/></span><strong>{$translate("app.backup")}</strong><small>{$translate("app.share")}</small></button>
+              <button on:click={() => navigate(SERVER_MODE ? 'settings' : 'save')}><span class="task-icon"><ActionIcon name="download" size={22}/></span><strong>{$translate("app.backup")}</strong><small>{SERVER_MODE ? 'Sicherung verwalten' : $translate("app.share")}</small></button>
             </div>
           </section>
           <section class="ux-panel financial-overview">
@@ -394,6 +423,22 @@
             <option value="de">Deutsch</option>
           </select>
         </section>
+        {#if SERVER_MODE}
+          <section class="ux-panel setting-panel">
+            <h2>Datensicherung</h2>
+            <p>Eine verschlüsselte Sicherung herunterladen oder eine Sicherung wiederherstellen.</p>
+            <button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.downloadBackup()}>Sicherung herunterladen</button>
+            <label>Sicherung hochladen und Serverdatei ersetzen<input type="file" accept="application/json,.json" disabled={storageBusy} on:change={event => serverSession?.restoreBackup(event)} /></label>
+          </section>
+          <section class="ux-panel setting-panel">
+            <h2>Server aktualisieren</h2>
+            <label for="server-admin-token">Administrationsschlüssel</label>
+            <input id="server-admin-token" type="password" autocomplete="current-password" bind:value={adminToken} />
+            <button class="outline-action" disabled={updateBusy || !adminToken.trim()} on:click={runServerUpdate}>{updateBusy ? 'Prüfe GitHub-Releases …' : 'Neueste Version installieren'}</button>
+            {#if updateStatus}<p role="status">{updateStatus}</p>{/if}
+          </section>
+          <section class="ux-panel setting-panel"><h2>Anmeldung</h2><button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.logout()}>Auf diesem Gerät abmelden</button></section>
+        {/if}
         <details class="ux-panel setting-panel settings-advanced">
           <summary>{$translate('settings.advanced')}</summary>
           <div class="settings-advanced-body">
@@ -402,20 +447,20 @@
               <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? $translate('app.technicalClose') : $translate('app.technicalOpen')}</button>
               {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
             </section>
-            <section class="setting-advanced-block dangerous-settings">
+            {#if !SERVER_MODE}<section class="setting-advanced-block dangerous-settings">
               <div class="section-header"><h2>{$translate("app.newProject")}</h2></div>
               <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? $translate("ui.cancel-cl4zc9") : $translate('app.reset')}</button>
               {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" disabled={storageBusy} on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
-            </section>
+            </section>{/if}
           </div>
         </details>
       {/if}
       {/key}
       <!-- Keep the collaborative-storage component mounted: the server lease, edit token,
            selected remote file and password must survive tab/detail navigation. -->
-      <div class:storage-not-visible={route.page !== 'dashboard' || activeSection !== 'save'}>
+      {#if !SERVER_MODE}<div class:storage-not-visible={route.page !== 'dashboard' || activeSection !== 'save'}>
         <StorageView bind:this={storageView} bind:onlineEditing bind:onlineProjectOpen bind:busy={storageBusy} onProjectLoaded={() => navigate('overview')}/>
-      </div>
+      </div>{/if}
     </main>
   </div>
 </div>
@@ -432,7 +477,7 @@
     {#if mobileMoreOpen}
       <div class="mobile-more-menu" id="mobile-more-menu">
         <button type="button" class:nav-active={activeSection === 'activity'} on:click={() => navigate('activity')}><ActionIcon name="list" size={20}/> {$translate("nav.activity")}</button>
-        <button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><ActionIcon name="download" size={20}/> {$translate("nav.save")}</button>
+        {#if !SERVER_MODE}<button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><ActionIcon name="download" size={20}/> {$translate("nav.save")}</button>{/if}
         <button type="button" class:nav-active={activeSection === 'settings'} on:click={() => navigate('settings')}><ActionIcon name="settings" size={20}/> {$translate("nav.settings")}</button>
       </div>
     {/if}
@@ -449,3 +494,4 @@
 {#key $appState.activeDialog ? $appState.dialogRevision : null}
   <DialogRouter dialog={$appState.activeDialog} project={$appState.project} projection={$projection} asOfDate={$appState.asOfDate}/>
 {/key}
+{/if}
