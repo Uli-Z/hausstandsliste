@@ -1,4 +1,6 @@
 <script>
+  import CompactNames from './CompactNames.svelte';
+  import { nameEntries, rankedItems, eventPeople } from '../src/lib/overviewNames.js';
   import { onMount, tick } from 'svelte';
   import { locale, languagePreference, setLanguage, resolveLocale, translate, pluralMessage, formatDate } from '../src/lib/i18n.js';
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
@@ -342,8 +344,8 @@
 
         <div class="metric-grid">
           <div class="metric"><span>{$translate("app.totalValue")}</span><strong>{money($projection.totalValue)}</strong><small>{$translate("app.activeItems")}</small></div>
-          <div class="metric"><span>{$translate("nav.items")}</span><strong>{$projection.activeItems.length}</strong><small>{$translate("app.inInventory")}</small></div>
-          <div class="metric"><span>{$translate("nav.people")}</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>{$translate("app.participants")}</small></div>
+          <div class="metric"><button class="metric-link" on:click={() => navigate("items")}><span>{$translate("nav.items")}</span><strong>{$projection.activeItems.length}</strong><small>{$translate("app.inInventory")}</small></button><CompactNames entries={rankedItems($projection.activeItems, $locale)} onMore={() => navigate("items")}/></div>
+          <div class="metric"><button class="metric-link" on:click={() => navigate("people")}><span>{$translate("nav.people")}</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>{$translate("app.participants")}</small></button><CompactNames entries={nameEntries($projection.people.filter(p=>p.active), $locale)} onMore={() => navigate("people")}/></div>
           <div class="metric"><span>{$translate("app.outstanding")}</span><strong>{money(outstandingCents / 100)}</strong><small>{$translate("app.sharedBalance")}</small></div>
         </div>
 
@@ -388,6 +390,7 @@
                         <OwnershipHistorySummary {event} project={$appState.project} compact={true}/>
                       {:else}
                         <strong>{eventName(event)}</strong>
+                        {#if event.type === "item-added" || event.type === "item-ended"}<CompactNames entries={eventPeople($appState.project, event, $locale)}/>{/if}
                       {/if}
                       <small>{formatDate(event.date,$locale)}</small>
                     </div>

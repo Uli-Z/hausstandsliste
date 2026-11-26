@@ -1,4 +1,7 @@
 <script>
+  import CompactNames from './CompactNames.svelte';
+  import { locale } from '../src/lib/i18n.js';
+  import { itemPeople } from '../src/lib/overviewNames.js';
   import { translate } from '../src/lib/i18n.js';
   import { appState, ledger } from '../src/stores/projectStore.js';
   import { money, pct } from '../src/lib/domain.js';
@@ -35,6 +38,7 @@
           <div class="mini-card"><div class="muted">{$translate("ui.value-opx6hb")}</div><strong>{money(item.value)}</strong></div>
           <div class="mini-card"><div class="muted">{$translate("ui.owners-1df2egp")}</div><strong>{item.shareRows.length}</strong></div>
         </div>
+        <CompactNames entries={itemPeople(item, fundingEvents, $appState.project.people, $locale)}/>
         <div class="valuation-detail">
           <strong>{$translate("ui.valuation-13jfos6")}:</strong> {valuationLabel(item.runtime.valuation)}
         </div>

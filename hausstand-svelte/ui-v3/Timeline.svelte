@@ -1,4 +1,7 @@
 <script>
+  import CompactNames from './CompactNames.svelte';
+  import { locale } from '../src/lib/i18n.js';
+  import { eventPeople } from '../src/lib/overviewNames.js';
   import { translate, localizeGermanText, pluralMessage } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE } from '../src/lib/util.js';
@@ -178,6 +181,7 @@
                 {summary(event)}
               {/if}
             </div>
+            {#if event.type === "item-added" || event.type === "item-ended"}<CompactNames entries={eventPeople(project, event, $locale)}/>{/if}
             {#if interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' && expandedEventId === event.id}
               <div class="event-readonly-details" role="region" aria-label={$translate('timeline.viewDetails')}>
                 <p>{summary(event)}</p>
@@ -224,6 +228,7 @@
               {summary(event)}
             {/if}
           </div>
+          {#if event.type === "item-added" || event.type === "item-ended"}<CompactNames entries={eventPeople(project, event, $locale)}/>{/if}
           {#if interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' && expandedEventId === event.id}
             <div class="event-readonly-details" role="region" aria-label={$translate('timeline.viewDetails')}>
               <p>{summary(event)}</p>

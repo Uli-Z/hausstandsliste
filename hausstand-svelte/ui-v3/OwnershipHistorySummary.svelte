@@ -1,4 +1,6 @@
 <script>
+  import CompactNames from './CompactNames.svelte';
+  import { nameEntries } from '../src/lib/overviewNames.js';
   import { translate, locale, pluralMessage } from '../src/lib/i18n.js';
   import { eventUnitChangeRows } from '../src/lib/redistribution.js';
 
@@ -39,15 +41,10 @@
         {/if}
         <span> · </span>
       {/if}
-      {#each row.people as person,index (person.personId)}
-        {#if index > 0}<span> · </span>{/if}
-        {#if openPerson}
-          <button type="button" class="entity-link" on:click={() => openPerson(person.personId)}>{people.get(person.personId) || person.personId}</button>
-        {:else}
-          <span>{people.get(person.personId) || person.personId}</span>
-        {/if}
-        <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
-      {/each}
+      <CompactNames entries={nameEntries(row.people.map(person => ({
+        id:person.personId, name:people.get(person.personId) || person.personId,
+        detail:(person.unitsDelta > 0 ? '+' : '') + person.unitsDelta + ' ' + $translate('ui.units-1xtsz9u')
+      })), $locale)} onName={openPerson}/>
     </div>
   {/each}
   {#if !rows.length}<div class="muted">{$translate('timeline.noUnitChanges')}</div>{/if}

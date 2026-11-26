@@ -1,4 +1,6 @@
 <script>
+  import CompactNames from './CompactNames.svelte';
+  import { ownerNames } from '../src/lib/overviewNames.js';
   import { appState } from '../src/stores/projectStore.js';
   import { locale, translate, pluralMessage } from '../src/lib/i18n.js';
   import { money } from '../src/lib/domain.js';
@@ -29,7 +31,8 @@
           <h2>{item.name}</h2>
           {#if item.note}<p class="item-note">{item.note}</p>{/if}
           {#if item.tags?.length}<p class="item-categories">{item.tags.join(', ')}</p>{/if}
-          <div class="item-facts"><span>{pluralMessage('items.ownerCount', item.shareRows.length)}</span></div>
+          <div class="item-facts"><span>{pluralMessage('items.ownerCount', item.shareRows.length, $locale)}</span></div>
+          <CompactNames entries={ownerNames(item, $locale)}/>
           <button class="tile-open" on:click={() => appState.setRoute({page:'item',id:item.id})}>{$translate("items.details")} <span aria-hidden="true">→</span></button>
         </article>
       {/each}

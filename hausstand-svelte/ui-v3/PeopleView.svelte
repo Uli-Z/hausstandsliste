@@ -1,4 +1,6 @@
 <script>
+  import CompactNames from './CompactNames.svelte';
+  import { rankedItems } from '../src/lib/overviewNames.js';
   import { appState } from '../src/stores/projectStore.js';
   import { locale, translate, pluralMessage } from '../src/lib/i18n.js';
   import { money } from '../src/lib/domain.js';
@@ -40,6 +42,7 @@
               <strong>{money(Math.abs(cents) / 100)}</strong>
             </div>
           {/if}
+          <CompactNames entries={rankedItems((person.holdings || []).map(h => h.item), $locale)}/>
           <div class="person-bottom"><span>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</span><button on:click={() => appState.setRoute({page:'person',id:person.id})}>{$translate("people.profile")}</button></div>
         </article>
       {/each}

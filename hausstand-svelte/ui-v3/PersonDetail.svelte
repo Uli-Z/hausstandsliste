@@ -1,4 +1,7 @@
 <script>
+  import CompactNames from './CompactNames.svelte';
+  import { locale } from '../src/lib/i18n.js';
+  import { rankedItems } from '../src/lib/overviewNames.js';
   import { translate, pluralMessage } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { money } from '../src/lib/domain.js';
@@ -74,6 +77,7 @@
         <div class="mini-card"><div class="muted">{balanceCents > 0 ? $translate("people.toReceive") : balanceCents < 0 ? $translate("people.toSettle") : $translate('balance.zero')}</div><strong>{money(Math.abs(balanceCents) / 100)}</strong></div>
         <div class="mini-card"><div class="muted">{$translate("ui.total-value-1bsjxfe")}</div><strong>{money(person.totalValue || 0)}</strong><small>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</small></div>
       </div>
+      <CompactNames entries={rankedItems((person.holdings || []).map(h => h.item), $locale)}/>
     </div>
     <div class="secondary-actions" role="group" aria-label={$translate("ui.moreActions")}>
       <div class="action-grid">
