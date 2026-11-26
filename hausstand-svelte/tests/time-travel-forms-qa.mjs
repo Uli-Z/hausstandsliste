@@ -94,7 +94,10 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await page.locator('.page-heading button').first().click();
     assert.equal(await dateField.inputValue(),'2026-01-01');
     await dateField.fill('2031-01-15');
-    await dialog.locator('.form-grid input').first().fill('Zeitreise-Lampe');
+    await dialog.locator('.item-primary-fields input').first().fill('Zeitreise-Lampe');
+    await dialog.locator('.item-primary-fields input[type="number"]').fill('100');
+    await dialog.locator('.item-financing-field select').last().selectOption('anna');
+    assert.equal(await dialog.locator('.modal-footer .primary').isEnabled(), true, 'Q19: complete purchase financing enables creation');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
     const lamp = (await snapshot()).events.find(e=>e.name==='Zeitreise-Lampe');
@@ -200,14 +203,47 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.equal((await snapshot()).drafts.find(d=>d.data?.name==='Geplanter Gegenstand')?.data?.effectiveDate,'2027-07-07');
     await cutoff('2033-01-01');
     await nav('Überblick').click();
-    await page.locator('.draft-row').filter({hasText:'Geplanter Gegenstand'}).getByRole('button',{name:'Weiter'}).click();
+    await page.locator('.draft-row').filter({hasText:'Geplanter Gegenstand'}).getByRole('button',{name:'Weiter',exact:true}).click();
     assert.equal(await dateField.inputValue(),'2027-07-07');
     await dialog.locator('.modal-header > button.ghost').click();
 
+    assert.deepEqual(failures,[]);
+    console.log('Q14/Q15/Q19 time-travel form and chronological UI acceptance passed');
+  } finally {
+    await context.close();
+  }
+}
+
+export async function guidedArchiveAcceptance(browser,url) {
+  const context=await browser.newContext({locale:'de-DE',viewport:{width:1280,height:820}});
+  try {
+    const page=await context.newPage();
+    const failures=[];
+    page.on('pageerror',error=>failures.push(error.message));
+    page.on('dialog',dialog=>dialog.accept());
+    await page.goto(url);
+    await page.evaluate(({key,project})=>localStorage.setItem(key,JSON.stringify({
+      project,savedProject:project,fileName:'time-travel.json',dirty:false
+    })),{key,project});
+    await page.reload();
+    await page.getByText('Zeitreise-Formulare').first().waitFor();
+    const nav=name=>page.locator('.sidebar-links').getByRole('button',{name});
+    const snapshot=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)).project,key);
+    async function cutoff(date) {
+      if (!await page.locator('#time-travel-panel').count()) {
+        await page.locator('.time-travel-toggle').click();
+      }
+      await page.locator('#state-date').fill(date);
+    }
+    const dialog=page.locator('[role="dialog"]');
+    const dateField=page.locator('#event-effective-date');
+
     // Q27 guided archive: every step returns to the original date; no implicit payment.
+    await cutoff('2033-01-01');
     await nav('Personen').click();
     await page.locator('.person-tile').filter({hasText:'Anna'}).locator('.person-bottom button').click();
-    await openPersonActions();
+    const personActions = page.locator('.detail-hero .secondary-actions');
+    await personActions.locator('summary').click();
     await personActions.getByRole('button',{name:'Person archivieren'}).click();
     await dateField.fill('2033-02-01');
     assert.equal(await dialog.locator('.modal-footer .primary').isDisabled(),true);
@@ -238,8 +274,8 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await dialog.waitFor({state:'hidden'});
     assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId==='anna')?.date,'2033-02-01');
 
-        assert.deepEqual(failures,[]);
-    console.log('Q14/Q15/Q19 time-travel form and chronological UI acceptance passed');
+    assert.deepEqual(failures,[]);
+    console.log('Q27 guided archive: transfers, explicit settlements, original effective date, final archive passed');
   } finally {
     await context.close();
   }
