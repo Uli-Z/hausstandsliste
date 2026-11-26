@@ -50,13 +50,22 @@ export function claimsFromDeltas(deltas, meta) {
   return result;
 }
 
-// Preview and historical replay share exactly the same cent allocation.
-export function purchaseClaims(amountCents, shares, contributions, meta = {}) {
+// One cent-exact explanation for the preview, historical detail and claims.
+export function purchaseBreakdown(amountCents, shares, contributions) {
   if (contributionProblem(amountCents, contributions, new Set(Object.keys(contributions || {})))) return [];
   const ownership = allocateCents(amountCents, shares);
   if (!Object.keys(ownership).length) return [];
-  const deltas = new Map([...new Set([...Object.keys(ownership), ...Object.keys(contributions)])]
-    .map(id => [id, (ownership[id] || 0) - (contributions[id] || 0)]));
+  return [...new Set([...Object.keys(ownership), ...Object.keys(contributions)])]
+    .sort((a,b) => a.localeCompare(b)).map(personId => {
+      const ownershipCents = ownership[personId] ?? 0;
+      const fundedCents = contributions[personId] ?? 0;
+      return { personId, ownershipCents, fundedCents, balanceCents: fundedCents - ownershipCents };
+    });
+}
+
+export function purchaseClaims(amountCents, shares, contributions, meta = {}) {
+  const deltas = new Map(purchaseBreakdown(amountCents, shares, contributions)
+    .map(row => [row.personId, -row.balanceCents]));
   return claimsFromDeltas(deltas, meta);
 }
 

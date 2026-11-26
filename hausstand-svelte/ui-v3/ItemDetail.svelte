@@ -5,6 +5,8 @@
   import { label as valuationLabel } from '../src/lib/valuation.js';
   import { dateDE } from '../src/lib/util.js';
   import { recordedContributions } from '../src/lib/purchaseFinancing.js';
+  import { purchaseBreakdown } from '../src/lib/ledger.js';
+  import PurchaseBreakdown from './PurchaseBreakdown.svelte';
   import Timeline from './Timeline.svelte';
   import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
@@ -13,7 +15,10 @@
   $: fundingEvents = ($appState.project.events || []).filter(event =>
     event.type === 'item-added' && event.itemId === item.id && event.date <= $appState.asOfDate &&
     event.financialMode === 'derived' && recordedContributions(event));
-  const personName = id => $appState.project.people.find(p => p.id === id)?.name || id;
+  $: purchaseIds = new Set(fundingEvents.map(event => event.id));
+  $: transferClaims = itemClaims.filter(claim => !purchaseIds.has(claim.sourceEventId));
+  $: names = new Map($appState.project.people.map(p => [p.id,p.name]));
+  $: personName = id => names.get(id) || id;
 </script>
 
 <section class="panel">
@@ -85,27 +90,33 @@
   <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.financing-amp-settlement-gbf737")}</h2><HelpTip label={$translate("ui.how-are-these-amounts-calculated-1c65kpc")}>{$translate("ui.this-shows-who-originally-financed--1psxqs5")}</HelpTip></div></div>
   <div class="panel-body stack">
     {#each fundingEvents as event (event.id)}
-      <div class="funding-fact">
-        <strong>{$translate("ui.contributed-at-purchase-rw2le5")}</strong>
-        {#each Object.entries(recordedContributions(event)) as [id,cents]}
-          <span>{personName(id)} · {money(cents/100)} · {dateDE(event.date)}</span>
-        {/each}
+      <div class="stack">
+        <strong>{$translate('purchase.original')} · {dateDE(event.date)} · {money(event.initialValue)}</strong>
+        <PurchaseBreakdown rows={purchaseBreakdown(Math.round(event.initialValue*100), event.shares, recordedContributions(event))} {personName}/>
+        {#if itemClaims.some(claim => claim.sourceEventId === event.id)}
+          <strong>{$translate('purchase.purchaseHistory')}</strong>
+          {#each itemClaims.filter(claim => claim.sourceEventId === event.id) as claim}
+            <span>{$translate('items.purchaseClaimRow',{debtor:personName(claim.debtorPersonId),creditor:personName(claim.creditorPersonId),amount:money(claim.amountCents/100)})}</span>
+          {/each}
+        {/if}
       </div>
     {/each}
-    {#if itemClaims.length}
+    <strong>{$translate('purchase.later')}</strong>
+    {#if transferClaims.length}
       <div style="overflow-x:auto">
         <table class="tight">
           <thead><tr><th>{$translate("ui.date-o4j91o")}</th><th>{$translate("ui.value-given-up-by-1bmqwa8")}</th><th>{$translate("ui.value-received-by-1h70mou")}</th><th class="money">{$translate("ui.value-opx6hb")}</th></tr></thead>
           <tbody>
-            {#each itemClaims as claim, index (claim.sourceEventId + ':' + index)}
+            {#each transferClaims as claim, index (claim.sourceEventId + ':' + index)}
               <tr><td>{dateDE(claim.date)}</td><td>{personName(claim.creditorPersonId)}</td><td>{personName(claim.debtorPersonId)}</td><td class="money">{money(claim.amountCents / 100)}</td></tr>
             {/each}
           </tbody>
         </table>
       </div>
     {:else}
-      <div class="muted">{$translate("ui.no-financial-settlement-for-this-it-3rpwkf")}</div>
+      <div class="muted">{$translate('purchase.noLater')}</div>
     {/if}
+    <p class="muted">{$translate('purchase.historyNote')}</p>
   </div>
 </section>
 
@@ -121,7 +132,5 @@
   .secondary-actions .action-grid{padding:8px 0;display:grid;gap:8px}
   .ownership-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .ownership-header .outline-action{display:inline-flex;gap:8px;align-items:center}
-  .funding-fact{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border)}
-  .funding-fact span{color:var(--muted)}
   .item-categories,.item-description{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
 </style>

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { emptyProject } from '../src/lib/domain.js';
 import { addItem } from '../src/lib/itemMutations.js';
 import { editEvent } from '../src/lib/eventMutations.js';
-import { ledgerAt } from '../src/lib/ledger.js';
+import { ledgerAt, purchaseBreakdown, purchaseClaims, personBalances } from '../src/lib/ledger.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
 const date='2026-01-01';
 function fixture() {
@@ -61,4 +61,31 @@ test('Q31 partial and overpayments remain independent of the new purchase',()=>{
   for(const id of Object.keys(before)) assert.equal(after[id],before[id]);
   const copy=JSON.parse(JSON.stringify(p));
   assert.deepEqual(Object.fromEntries(ledgerAt(copy,date).balances),after);
+});
+
+test('Q34 unequal but proportionally funded ownership is balanced; different funding is not',()=>{
+  const p=fixture(), shares={a:2,b:1};
+  const balanced={a:20000,b:10000};
+  const {event}=addItem(p,{...payload,initialValue:300,shares,purchaseContributionsCents:balanced});
+  assert.deepEqual(purchaseBreakdown(30000,shares,balanced),[
+    {personId:'a',ownershipCents:20000,fundedCents:20000,balanceCents:0},
+    {personId:'b',ownershipCents:10000,fundedCents:10000,balanceCents:0}
+  ]);
+  assert.equal(ledgerAt(p,date).claims.length,0);
+  editEvent(p,event.id,{purchaseContributionsCents:{a:15000,b:15000}});
+  const historical=ledgerAt(p,date);
+  assert.deepEqual([...historical.balances].sort(),[['a',-5000],['b',5000]]);
+  assert.equal(historical.claims[0].sourceEventId,event.id);
+  assert.deepEqual(ledgerAt(p,'2025-12-31').claims,[]);
+  assert.deepEqual(purchaseClaims(30000,shares,{a:15000,b:15000}),historical.claims.map(({sourceEventId,childEventId,itemId,date,...claim})=>claim));
+});
+test('Q34 exact cent explanation includes zero owners and non-owner funders',()=>{
+  const shares={a:1,b:1,c:1}, contributions={a:0,b:333,c:333,d:334};
+  const rows=purchaseBreakdown(1000,shares,contributions);
+  assert.equal(rows.reduce((sum,r)=>sum+r.ownershipCents,0),1000);
+  assert.equal(rows.reduce((sum,r)=>sum+r.balanceCents,0),0);
+  assert.deepEqual(rows.find(r=>r.personId==='d'),{personId:'d',ownershipCents:0,fundedCents:334,balanceCents:334});
+  const balances=personBalances(purchaseClaims(1000,shares,contributions));
+  for(const row of rows) assert.equal(balances.get(row.personId)??0,row.balanceCents);
+  assert.deepEqual(purchaseBreakdown(1000,shares,{a:1}),[]);
 });

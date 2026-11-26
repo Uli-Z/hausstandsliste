@@ -1006,10 +1006,10 @@ async function purchaseFinancingAcceptance(browser, url) {
       await financing.getByLabel('Clara',{exact:true}).fill('0');
       assert.equal(await submit.isEnabled(), true);
       assert.equal(await optIn.isChecked(), false, 'confirmation must be opt-in');
-      const preview = await dialog.locator('.item-purchase-preview').innerText();
-      assert.match(preview, /Anna:.*50,00/);
-      assert.match(preview, /Ben:.*50,00/);
-      assert.match(preview, /Clara:.*100,00/);
+      const preview = dialog.locator('.item-purchase-preview .purchase-breakdown');
+      for(const [id,expected] of [['anna',/\+.*50,00/],['ben',/\+.*50,00/],['clara',/-.*100,00/]]) {
+        assert.match(await preview.locator(`tr[data-person="${id}"] td`).last().innerText(),expected);
+      }
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth+2));
     }
 
@@ -1020,6 +1020,23 @@ async function purchaseFinancingAcceptance(browser, url) {
     await dialog.getByRole('button',{name:'Abbrechen',exact:true}).click();
     await dialog.waitFor({state:'hidden'});
     assert.deepEqual((await snapshot()).events, original.events);
+
+    // Q34: genuinely unequal ownership with proportional actual contributions.
+    await prepare('Q34 proportional');
+    await financing.locator('.purchase-units').nth(0).fill('2');
+    await financing.locator('.purchase-units').nth(1).fill('1');
+    await financing.locator('.purchase-units').nth(2).fill('0');
+    await financing.getByLabel('Anna',{exact:true}).fill('200');
+    await financing.getByLabel('Ben',{exact:true}).fill('100');
+    assert.equal(await dialog.locator('.item-purchase-preview .purchase-balanced').count(),1);
+    assert.equal(await optIn.count(),0);
+    await submit.click();
+    await dialog.waitFor({state:'hidden'});
+    const proportional = await snapshot();
+    const proportionalEvent = proportional.events.find(e=>e.name==='Q34 proportional');
+    assert.deepEqual(ledgerAt(proportional,date).claims.filter(c=>c.sourceEventId===proportionalEvent.id),[]);
+    await page.getByRole('button',{name:/Rückgängig \(Strg\+Z\)/}).click();
+    assert.deepEqual((await snapshot()).events,original.events);
 
     // With the checkbox off, outstanding purchase balances remain.
     await prepare('Q31 without settlement');

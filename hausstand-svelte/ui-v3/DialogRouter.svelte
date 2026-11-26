@@ -7,7 +7,8 @@
   import { validCalendarDate } from '../src/lib/timeTravel.js';
   import { validShareMap } from '../src/lib/shareUnits.js';
   import { normShares, money } from '../src/lib/domain.js';
-  import { purchaseClaims as derivePurchaseClaims, personBalances } from '../src/lib/ledger.js';
+  import { purchaseClaims as derivePurchaseClaims, purchaseBreakdown } from '../src/lib/ledger.js';
+  import PurchaseBreakdown from './PurchaseBreakdown.svelte';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
   import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus, previewPersonStatus } from '../src/lib/personMutations.js';
   import { addItem as applyItemAdd, continueItem as applyItemContinue, updateItemMetadata, setItemShares, endItem as applyItemEnd, validMoney } from '../src/lib/itemMutations.js';
@@ -131,7 +132,8 @@
   $: purchaseShares = normShares(shares);
   $: purchaseClaims = dialog?.type === 'itemAdd' && itemCostValid && ownersValid && financingValid
     ? derivePurchaseClaims(itemCostCents,purchaseShares,purchaseContributionsCents) : [];
-  $: purchaseBalances = [...personBalances(purchaseClaims)];
+  $: purchaseRows = dialog?.type === 'itemAdd' && itemCostValid && ownersValid && financingValid
+    ? purchaseBreakdown(itemCostCents,purchaseShares,purchaseContributionsCents) : [];
   function changeEffectiveDate(event) {
     const nextDate = event.currentTarget.value;
     if (validCalendarDate(nextDate)) {
@@ -512,12 +514,8 @@
               {#if itemCostValid && ownersValid && financingValid}
                 <section class="item-purchase-preview" aria-live="polite">
                   <strong>{$translate('items.purchasePreview')}</strong>
+                  <PurchaseBreakdown rows={purchaseRows} personName={id=>entryProjection.peopleById.get(id)?.name || id}/>
                   {#if purchaseClaims.length}
-                    <ul>
-                      {#each purchaseBalances as [id,cents]}
-                        <li>{entryProjection.peopleById.get(id)?.name || id}: {cents>0?'+':''}{money(cents/100)}</li>
-                      {/each}
-                    </ul>
                     <label class="purchase-settled"><input type="checkbox" bind:checked={alreadySettled}> {$translate('purchase.alreadySettled')}</label>
                     {#if alreadySettled}
                       <label>{$translate('purchase.paymentDate')} <input type="date" bind:value={paymentDate}></label>
