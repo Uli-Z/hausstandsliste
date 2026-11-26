@@ -16,3 +16,11 @@ export function splitHistoryAt(events, asOfDate) {
     past: sorted.filter(event => event.date <= asOfDate)
   };
 }
+
+// The dashboard is the first page of the exact same as-of history, not a
+// separately sorted list. A grouped redistribution occupies one event slot.
+export const RECENT_HISTORY_LIMIT = 5;
+export function recentHistoryAt(events, asOfDate) {
+  const history = splitHistoryAt(events, asOfDate);
+  return { ...history, recent: history.past.slice(0, RECENT_HISTORY_LIMIT) };
+}

@@ -9,6 +9,8 @@
   import { requireShareEventFormat } from '../src/lib/shareUnits.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
+  import OwnershipHistorySummary from './OwnershipHistorySummary.svelte';
+  import { recentHistoryAt } from '../src/lib/eventHistory.js';
   import PersonDetail from './PersonDetail.svelte';
   import ItemDetail from './ItemDetail.svelte';
   import DialogRouter from './DialogRouter.svelte';
@@ -118,8 +120,9 @@
   $: lastDate = dates[dates.length - 1] || null;
   $: today = todayISO();
   $: dateMode = $appState.asOfDate > today ? 'future' : $appState.asOfDate < today ? 'past' : 'today';
-  $: latestEvents = [...($appState.project.events || [])].filter(e => e.date && e.date <= $appState.asOfDate).sort((a,b)=>String(b.date).localeCompare(String(a.date)) || (b.order || 0) - (a.order || 0)).slice(0,5);
-  $: futureEventCount = ($appState.project.events || []).filter(e => e.date > $appState.asOfDate).length;
+  $: recentHistory = recentHistoryAt($appState.project.events, $appState.asOfDate);
+  $: latestEvents = recentHistory.recent;
+  $: futureEventCount = recentHistory.future.length;
   $: balances = $ledger.simplified || [];
   $: outstandingCents = balances.reduce((sum, transfer) => sum + transfer.amountCents, 0);
 
@@ -131,8 +134,6 @@
     if (e.type === 'person-added') return $translate("ui.person-added-1bh7i23") + " " + (e.name || personName(e.personId));
     if (e.type === 'person-deactivated') return $translate("ui.person-left-1bmnpom") + " " + personName(e.personId);
     if (e.type === 'person-reactivated') return $translate("ui.person-rejoined-1rgz8oi") + " " + personName(e.personId);
-    if (e.type === 'redistribution-executed') return $translate("ui.shares-changed-fw5fph") + " " + (e.title || $translate('timeline.genericTransfer'));
-    if (e.type === 'shares-set') return $translate("ui.shares-changed-fw5fph") + " " + itemName(e.itemId);
     if (e.type === 'claim-settlement-recorded') return $translate('timeline.summaryPayment', { kind: $translate(e.settlementKind === 'paid' ? 'timeline.payment' : e.settlementKind === 'external' ? 'timeline.external' : 'timeline.waiver'), from: personName(e.debtorPersonId), to: personName(e.creditorPersonId), amount: money(e.amountCents / 100) });
     return e.title || e.note || $translate('timeline.genericChange');
   }
@@ -377,15 +378,26 @@
         <div class="overview-layout second-row" class:only-recent={!drafts.length}>
           <section class="ux-panel">
             <div class="section-header"><div><h2>{$translate("app.recent")}</h2></div><button class="text-action" on:click={() => navigate('activity')}>{$translate("app.viewActivity")}</button></div>
+            <p class="recent-range">{$translate('app.recentRange', {shown:latestEvents.length,total:recentHistory.past.length,date:formatDate($appState.asOfDate,$locale)})}</p>
             {#if latestEvents.length}
               <div class="recent-list">
                 {#each latestEvents as event (event.id)}
-                  <div class="recent-row"><div><strong>{eventName(event)}</strong><small>{dateDE(event.date)}</small></div></div>
+                  <div class="recent-row" data-event-id={event.id}>
+                    <div>
+                      {#if event.type === 'redistribution-executed' || event.type === 'shares-set'}
+                        <OwnershipHistorySummary {event} project={$appState.project} compact={true}/>
+                      {:else}
+                        <strong>{eventName(event)}</strong>
+                      {/if}
+                      <small>{formatDate(event.date,$locale)}</small>
+                    </div>
+                  </div>
                 {/each}
               </div>
             {:else}
               <div class="gentle-empty"><p>{$translate("app.none")}</p></div>
             {/if}
+            {#if futureEventCount}<p class="recent-range">{pluralMessage('app.futureEvents',futureEventCount,$locale)}</p>{/if}
           </section>
           {#if drafts.length}
           <section class="ux-panel">

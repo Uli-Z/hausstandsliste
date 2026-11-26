@@ -1228,6 +1228,80 @@ async function unitMovementDisplayAcceptance(browser,url) {
   }
 }
 
+async function recentHistoryAcceptance(browser,url) {
+  for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
+    const context=await browser.newContext({locale,viewport:{width,height:820}});
+    try {
+      const page=await context.newPage();
+      const errors=[];page.on('pageerror',e=>errors.push(e.message));
+      page.on('dialog',d=>d.accept());
+      const copy=structuredClone(fixture);
+      copy.items.push({id:'chair',name:'Q39 chair',tags:[]});
+      copy.events.push({...copy.events.find(e=>e.type==='item-added'),id:'q39-buy-chair',itemId:'chair',name:'Q39 chair',order:2});
+      // Five tied events already occupy the old dashboard's limit. The later
+      // grouped event must come first, once, with both actual child movements.
+      for(let i=0;i<5;i++) copy.events.push({id:'q39-single-'+i,type:'shares-set',date:'2025-03-01',order:1,
+        itemId:'fridge',shareUnitDeltas:{anna:1},financialMode:i%2?'none':'derived',note:'Q39 single '+i});
+      copy.events.push({id:'q39-group',type:'redistribution-executed',date:'2025-03-01',order:1,
+        title:'Q39 group',financialMode:'derived',events:[
+          {id:'q39-child1',type:'shares-set',itemId:'fridge',shareUnitDeltas:{ben:1}},
+          {id:'q39-child2',type:'shares-set',itemId:'chair',shareUnitDeltas:{clara:1}}]});
+      copy.events.push({id:'q39-future',type:'shares-set',date:'2099-01-01',order:1,itemId:'chair',shareUnitDeltas:{anna:1},financialMode:'none'});
+      copy.events.push({id:'q39-backdated',type:'shares-set',date:'2025-02-01',order:1,itemId:'chair',shareUnitDeltas:{ben:1},financialMode:'none'});
+      await page.goto(url);
+      await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(copy)});
+      await page.reload();
+      await page.getByText('Browser-Abnahme').first().waitFor();
+      const goHome=()=>page.locator(width<600?'.mobile-bottom-nav > button':'.sidebar-links > button').first().click();
+      const cutoff=async date=>{
+        await page.locator('.time-travel-toggle').click();
+        await page.locator('#state-date').fill(date);
+        await page.keyboard.press('Escape');
+      };
+      const rowIds=locator=>locator.evaluateAll(rows=>rows.map(r=>r.dataset.eventId));
+      const compare=async expected=>{
+        await page.locator('.recent-range').first().waitFor();
+        const preview=await rowIds(page.locator('.recent-list .recent-row'));
+        assert.deepEqual(preview,expected);
+        assert.equal(new Set(preview).size,preview.length);
+        await page.locator('.overview-layout.second-row .section-header button').first().click();
+        const history=await rowIds(page.locator('.timeline-event-card:not(.future-event)'));
+        assert.deepEqual(history.slice(0,5),preview);
+      };
+      await cutoff('2025-03-01');
+      const grouped=page.locator('.recent-row[data-event-id="q39-group"]');
+      assert.equal(await grouped.locator('.event-unit-change').count(),2);
+      assert.match(await grouped.innerText(),/Ben.*\+1/s);
+      assert.match(await grouped.innerText(),/Clara.*\+1/s);
+      assert.match(await page.locator('.recent-range').first().innerText(),/5/);
+      await compare(['q39-group','q39-single-4','q39-single-3','q39-single-2','q39-single-1']);
+      assert.equal(await page.locator('[data-event-id="q39-group"]').count(),1);
+      assert.equal(await page.locator('[data-event-id="q39-group"] .event-unit-change').count(),2);
+      // Delete latest group and verify both views update; undo and redo restore
+      // the same boundary. Underlying event order remains untouched.
+      await page.locator('[data-event-id="q39-group"] .event-open-overlay').click();
+      await page.locator('.modal-footer .danger').click();
+      await page.locator('.modal-backdrop').waitFor({state:'hidden'});
+      await goHome();
+      await compare(['q39-single-4','q39-single-3','q39-single-2','q39-single-1','q39-single-0']);
+      await page.locator('.session-history-actions button').first().click();
+      await goHome();
+      await compare(['q39-group','q39-single-4','q39-single-3','q39-single-2','q39-single-1']);
+      await page.locator('.session-history-actions button').nth(1).click();
+      await goHome();
+      await compare(['q39-single-4','q39-single-3','q39-single-2','q39-single-1','q39-single-0']);
+      await page.locator('.session-history-actions button').first().click();
+      await goHome();
+      await cutoff('2025-02-01');
+      await compare(['q39-backdated','q39-buy-chair','purchase','join-clara','join-ben']);
+      await goHome();
+      await cutoff('2099-01-01');
+      await compare(['q39-future','q39-group','q39-single-4','q39-single-3','q39-single-2']);
+      assert.deepEqual(errors,[]);
+    } finally {await context.close();}
+  }
+}
+
 async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768, 1280], engine = 'Chromium') {
   for (const width of checks) {
     const context = await browser.newContext({
@@ -1691,6 +1765,7 @@ try {
   await acceptance('Chromium Q06 PHP online', () => phpOnline(browser));
   await acceptance('Chromium Q30 signed share changes', () => shareDeltaAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q36 unit movement display', () => unitMovementDisplayAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q39 recent history', () => recentHistoryAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
@@ -1703,6 +1778,7 @@ try {
       await acceptance(name + ' Q32/Q33 long list', () => itemEntryLongListAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' Q33 other form drafts', () => formStateAcceptance(additional, offlineServer.url, name));
       await acceptance(name + ' Q36 unit movement display', () => unitMovementDisplayAcceptance(additional, offlineServer.url));
+      await acceptance(name + ' Q39 recent history', () => recentHistoryAcceptance(additional, offlineServer.url));
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
     });

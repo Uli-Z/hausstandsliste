@@ -567,3 +567,7 @@ tr.clickable-row:hover td{background:#eef7f8}
   .header-save-long{display:none}
   .header-save-short{display:inline}
 }
+
+.recent-range{font-size:12px;color:var(--muted);margin:4px 0 8px;line-height:1.4}
+.recent-row>div{min-width:0;overflow-wrap:anywhere}
+.recent-row .ownership-history-summary{font-size:12px}

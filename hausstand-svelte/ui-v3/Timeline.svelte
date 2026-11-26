@@ -5,6 +5,7 @@
   import { splitHistoryAt } from '../src/lib/eventHistory.js';
   import { money } from '../src/lib/domain.js';
   import { eventUnitChangeRows } from '../src/lib/redistribution.js';
+  import OwnershipHistorySummary from './OwnershipHistorySummary.svelte';
   import { projectBeforeEvent, shareDeltasForChange } from '../src/lib/projector.js';
   import { FINANCIAL_EVENT_NOTE, ITEM_FUNDING_NOTE } from '../src/lib/financialLabels.js';
   import HelpTip from '../src/components/HelpTip.svelte';
@@ -76,7 +77,10 @@
   }
 
   $: events = allEvents.filter(e => {
-    if (itemId) return e.type !== 'claim-settlement-recorded' && (e.itemId === itemId || (e.events || []).some(c => c.itemId === itemId));
+    if (itemId) {
+      if (e.type === 'redistribution-executed') return eventUnitChangeRows(e).some(row => row.itemId === itemId);
+      return e.type !== 'claim-settlement-recorded' && e.itemId === itemId;
+    }
     if (personId) return eventAffectsPerson(e);
     return true;
   });
@@ -118,11 +122,6 @@
     return event.note || event.name || event.reason || event.type;
   }
 
-  function visibleUnitRows(event, focusedItemId) {
-    const rows = eventUnitChangeRows(event);
-    return focusedItemId ? rows.filter(row => row.itemId === focusedItemId) : rows;
-  }
-
   function openEdit(event) {
     appState.setDialog({
       type: event.type === 'claim-settlement-recorded' ? 'settlementEdit' : event.type === 'redistribution-executed' ? 'executedRedistributionEdit' : 'eventEdit',
@@ -149,7 +148,7 @@
       </button>
       {#if showFuture}
         {#each future as event}
-          <div class="event-card timeline-event-card" class:future-event={event.date > asOfDate}>
+          <div class="event-card timeline-event-card" data-event-id={event.id} class:future-event={event.date > asOfDate}>
             <button
               type="button"
               class="event-open-overlay"
@@ -162,29 +161,8 @@
               <span class="date">{dateDE(event.date)}</span>
             </div>
             <div class="event-summary">
-              {#if event.type === 'redistribution-executed'}
-                {@const rows = visibleUnitRows(event, itemId)}
-                <span>{event.title || localizeGermanText('Umverteilung')} · {pluralMessage('timeline.changeCount', rows.length)}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
-                {#each rows as row}
-                  <div class="event-unit-change">
-                    <button class="entity-link" on:click={() => openItem(row.itemId)}>{itemName(row.itemId)}</button>
-                    {#each row.people as person, index}
-                      <span>{index === 0 ? ' · ' : ', '}</span><button class="entity-link" on:click={() => openPerson(person.personId)}>{personName(person.personId)}</button>
-                      <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
-                    {/each}
-                  </div>
-                {/each}
-              {:else if event.type === 'shares-set'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
-                <span> · {event.note || $translate("ui.shares-1y9v96b")}</span>
-                {#each visibleUnitRows(event, itemId) as row}
-                  <div class="event-unit-change">
-                    {#each row.people as person, index}
-                      {#if index > 0}<span> · </span>{/if}<button class="entity-link" on:click={() => openPerson(person.personId)}>{personName(person.personId)}</button>
-                      <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
-                    {/each}
-                  </div>
-                {/each}
+              {#if event.type === 'redistribution-executed' || event.type === 'shares-set'}
+                <OwnershipHistorySummary {event} {project} {itemId} {openItem} {openPerson}/>
                 <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
               {:else if event.type === 'person-added'}
                 <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
@@ -216,7 +194,7 @@
 
     {#if visiblePast.length}
       {#each visiblePast as event}
-        <div class="event-card timeline-event-card" class:future-event={event.date > asOfDate}>
+        <div class="event-card timeline-event-card" data-event-id={event.id} class:future-event={event.date > asOfDate}>
             <button
               type="button"
               class="event-open-overlay"
@@ -229,29 +207,8 @@
             <span class="date">{dateDE(event.date)}</span>
           </div>
           <div class="event-summary">
-            {#if event.type === 'redistribution-executed'}
-              {@const rows = visibleUnitRows(event, itemId)}
-                <span>{event.title || localizeGermanText('Umverteilung')} · {pluralMessage('timeline.changeCount', rows.length)}</span><HelpTip label={localizeGermanText('Finanzielle Wirkung')}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
-                {#each rows as row}
-                  <div class="event-unit-change">
-                    <button class="entity-link" on:click={() => openItem(row.itemId)}>{itemName(row.itemId)}</button>
-                    {#each row.people as person, index}
-                      <span>{index === 0 ? ' · ' : ', '}</span><button class="entity-link" on:click={() => openPerson(person.personId)}>{personName(person.personId)}</button>
-                      <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
-                    {/each}
-                  </div>
-                {/each}
-              {:else if event.type === 'shares-set'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button>
-                <span> · {event.note || $translate("ui.shares-1y9v96b")}</span>
-                {#each visibleUnitRows(event, itemId) as row}
-                  <div class="event-unit-change">
-                    {#each row.people as person, index}
-                      {#if index > 0}<span> · </span>{/if}<button class="entity-link" on:click={() => openPerson(person.personId)}>{personName(person.personId)}</button>
-                      <span> {person.unitsDelta > 0 ? '+' : ''}{person.unitsDelta} {$translate('ui.units-1xtsz9u')}</span>
-                    {/each}
-                  </div>
-                {/each}
+            {#if event.type === 'redistribution-executed' || event.type === 'shares-set'}
+                <OwnershipHistorySummary {event} {project} {itemId} {openItem} {openPerson}/>
                 <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
               {:else if event.type === 'person-added'}
               <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
@@ -342,7 +299,6 @@
     color: var(--text);
     line-height: 1.3;
   }
-  .event-unit-change { margin-top: 4px; overflow-wrap: anywhere; }
   .event-summary :global(.help-wrap),
   .event-summary .entity-link {
     position: relative;
