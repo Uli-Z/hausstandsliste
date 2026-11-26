@@ -47,7 +47,7 @@
   {:else}
     <div class="gentle-empty"><strong>{visiblePeople.length ? $translate('people.noMatches') : $translate(showArchived ? 'people.noneArchived' : 'people.noneActive')}</strong>
       {#if visiblePeople.length}<p>{$translate('people.try')}</p>
-      {:else if !showArchived}<button class="solid-action" disabled={$appState.readOnly} on:click={() => appState.setDialog({type:'personAdd'})}>{$translate("app.personAdd")}</button>{/if}
+      {:else if !showArchived}<button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>{$translate("app.personAdd")}</button>{/if}
     </div>
   {/if}
 </section>
