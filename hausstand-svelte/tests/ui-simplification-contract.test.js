@@ -149,3 +149,18 @@ test('Q28: no Markdown detail exports in the supported browser UI; project savin
   assert.ok(storage.includes('exportEncrypted'));
   assert.ok(storage.includes('saveFromHeader'));
 });
+
+
+test('Q09/Q25: standalone build finance checks accept compound class attributes, not substrings', () => {
+  const ledger = source('ui-v3/LedgerView.svelte');
+  const build = source('scripts/inline-ui-v3.mjs');
+  assert.ok(build.includes('ledgerClasses.has(className)'));
+  assert.ok(!build.includes(`ledgerSource.includes('class="'+className+'"')`));
+  const classes = new Set([...ledger.matchAll(/\bclass="([^"]*)"/g)]
+    .flatMap(([,value]) => value.split(/\s+/).filter(Boolean)));
+  for (const name of ['transfer-row', 'transfer-amount', 'person-balance-row', 'audit-row']) {
+    assert.ok(classes.has(name), name);
+  }
+  assert.ok(classes.has('action-card'));
+  assert.ok(!classes.has('transfer'));
+});

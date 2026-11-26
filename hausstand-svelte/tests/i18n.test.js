@@ -86,7 +86,7 @@ test('Q13: transfer report language and amounts without changing user names', ()
 test('Q13: PHP session controls, messages and new generated labels use the active language', () => {
   assert.equal(message('session.signIn','en'),'Sign in');
   assert.equal(message('session.finish','de'),'Speichern und Bearbeitung beenden');
-  assert.equal(message('session.checkoutFailed','en',{reason:serverErrorMessage('alreadyCheckedOut',423,'en')}),'Could not start editing: This file is already checked out.');
+  assert.equal(message('session.checkoutFailed','en',{reason:serverErrorMessage('alreadyCheckedOut',423,'en')}),'Could not start editing: This file is already checked out. (HTTP 423)');
   assert.equal(message('forms.itemDraftTitle','en'),'New item (draft)');
   for (const path of ['App.svelte','ServerSession.svelte','ExecutedRedistributionEditDialog.svelte']) {
     const component=readFileSync(new URL('../ui-v3/'+path,import.meta.url),'utf8');

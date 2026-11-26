@@ -19,8 +19,11 @@ assert.match(html,/safe-area-inset-bottom/,'Mobile safe-area CSS missing');
 // The current V3 finance screen uses responsive cards, not the old table
 // with data-label="Betrag" cells. Verify its real mobile layout instead.
 const ledgerSource = await readFile(path.join(root,'ui-v3','LedgerView.svelte'),'utf8');
+// Check class tokens, not the entire attribute: a card can have multiple classes.
+const ledgerClasses = new Set([...ledgerSource.matchAll(/\bclass="([^"]*)"/g)]
+ .flatMap(([,value]) => value.split(/\s+/).filter(Boolean)));
 for (const className of ['transfer-row', 'transfer-amount', 'person-balance-row', 'audit-row']) {
- assert.ok(ledgerSource.includes('class="'+className+'"'), 'Finance screen markup missing: '+className);
+ assert.ok(ledgerClasses.has(className), 'Finance screen markup missing: '+className);
  assert.ok(html.includes(className), 'Finance screen missing from compiled bundle: '+className);
 }
 assert.match(ledgerSource,/@media\(max-width:620px\)/,'Finance screen mobile breakpoint missing');
