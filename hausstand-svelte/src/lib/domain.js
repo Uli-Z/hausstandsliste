@@ -1,3 +1,4 @@
+import { requireShareEventFormat } from './shareUnits.js';
 import { purchaseEventFieldsValid } from './purchaseFinancing.js';
 import { nowISO, todayISO } from './util.js';
 import { formatMoney, formatPercent } from './i18n.js';
@@ -55,5 +56,5 @@ export const requireProjectFile = value => {
       (!successors.has(e.itemId) && !Object.hasOwn(e,'purchaseContributionsCents'))))) {
     throw new Error('Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.');
   }
-  return value;
+  return requireShareEventFormat(value);
 };

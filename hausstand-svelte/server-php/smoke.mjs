@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
+import { emptyProject } from '../src/lib/domain.js';
 import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
 
 const root = await mkdtemp(join(tmpdir(), 'hausstand-test-'));
@@ -43,7 +44,7 @@ try {
   assert.equal('data_dir' in config, false);
   const id = 'cafecafe-1234-4567-8888-aabbccddeeff';
   const token = randomSecret();
-  const project = { community: { name: 'Test' }, people: [], items: [], events: [], drafts: [] };
+  const project = { ...emptyProject(), community: { name: 'Test' } };
   const firstSaved = await createPortableSave(project, null, '2026-11-23T08:00:00Z');
   const envelope = await encryptProject(firstSaved, 'integration-password', token);
   let r = await call('create', { id, name: 'Integrationstest', envelope, tokenHash: await hashSecret(token) });

@@ -6,6 +6,7 @@
   import { loadWorkingCopy, exportProject } from '../src/lib/persistence.js';
   import { historyShortcut } from '../src/lib/sessionUndo.js';
   import { money } from '../src/lib/domain.js';
+  import { requireShareEventFormat } from '../src/lib/shareUnits.js';
   import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
   import PersonDetail from './PersonDetail.svelte';
@@ -58,9 +59,15 @@
       document.documentElement.lang = language;
       document.title = 'Hausstandsliste – Shared Ownership Tracker';
     });
-    const copy = loadWorkingCopy();
-    if (copy && copy.project) {
-      appState.restoreWorkingCopy(copy); // The view always opens at today, never at a stale historical date.
+    try {
+      const copy = loadWorkingCopy();
+      if (copy && copy.project) {
+        requireShareEventFormat(copy.project);
+        if (copy.savedProject) requireShareEventFormat(copy.savedProject);
+        appState.restoreWorkingCopy(copy); // The view always opens at today, never at a stale historical date.
+      }
+    } catch {
+      alert($translate('errors.incompatibleWorkingCopy'));
     }
     const refreshDay = () => appState.syncToday(todayISO());
     // Background timers can be throttled: also refresh after tab focus.

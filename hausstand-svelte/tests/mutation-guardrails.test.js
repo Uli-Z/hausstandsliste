@@ -140,11 +140,13 @@ test('shared frontend transaction guard rejects ownerless changes and preserves 
   const p = fixture();
   const ownerless = { ...p, events: [...p.events, {
     id: 'ownerless', type: 'shares-set', itemId: 'table', date: '2026-03-01',
-    order: 2, shares: {}, financialMode: 'none'
+    order: 2, shareUnitDeltas: {anna:-1,ben:-1}, financialMode: 'none'
   }] };
-  assert.deepEqual(projectMutationProblem(p, ownerless), {
-    key: 'errors.ownerless', params: { name: 'Table', date: '2026-03-01' }
-  });
+  const ownerlessProblem=projectMutationProblem(p,ownerless);
+  assert.equal(ownerlessProblem.key,'errors.ownerless');
+  assert.equal(ownerlessProblem.params.name,'Table');
+  assert.equal(ownerlessProblem.params.date,'2026-03-01');
+  assert.equal(ownerlessProblem.params.eventId,'ownerless');
   assert.deepEqual(projectMutationProblem(p, { ...p, events: [...p.events, payment({amountCents: 0})] }),
     { key: 'errors.invalidPayment' });
   assert.equal(projectMutationProblem(p, { ...p, events: [...p.events, payment()] }), null);

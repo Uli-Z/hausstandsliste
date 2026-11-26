@@ -1,5 +1,6 @@
 import { byDateOrder } from './util.js';
 import { normShares, shareTotal } from './domain.js';
+import { resolveShareEvent, ShareUnitError } from './shareUnits.js';
 import { valueAt } from './valuation.js';
 import { CLAIM_SETTLEMENT_TYPE, claimSettlementErrors } from './claimSettlement.js';
 
@@ -20,11 +21,36 @@ const init = project => ({
   peopleById: new Map((project.people || []).map(p => [p.id, { ...p, active: true }])),
   itemsById: new Map((project.items || []).map(i => [i.id, { ...i }])),
   runtime: new Map(),
-  warnings: []
+  warnings: [],
+  shareProblems: []
 });
 
 export const applyEvent = (state, event, beforeApply = null, parent = null) => {
   if (!event) return;
+  // Resolve exactly once before notifying consumers (ledger, archive validation).
+  // Invalid transitions are reported, never clamped or partially applied.
+  if (event.type === 'shares-set') {
+    const rt = state.runtime.get(event.itemId);
+    try {
+      if (rt?.status !== 'active') throw new ShareUnitError('ITEM_NOT_ACTIVE');
+      const afterShares = resolveShareEvent(rt.shares,event);
+      for (const id of Object.keys(event.shareUnitDeltas)) {
+        if (!state.peopleById.has(id)) throw new ShareUnitError('UNKNOWN_PERSON',id);
+      }
+      if (beforeApply) beforeApply(state,event,parent,afterShares);
+      rt.shares = afterShares;
+    } catch (error) {
+      if (!(error instanceof ShareUnitError)) throw error;
+      const problem = {
+        code:error.code, personId:error.personId, beforeUnits:error.beforeUnits, deltaUnits:error.deltaUnits,
+        itemId:event.itemId, date:event.date, sourceEventId:parent?.id || event.id,
+        childEventId:parent ? event.id : null
+      };
+      state.shareProblems.push(problem);
+      state.warnings.push(`${problem.code}: ${problem.itemId} (${problem.date}, ${problem.sourceEventId})`);
+    }
+    return;
+  }
   if (beforeApply) beforeApply(state, event, parent);
   if (event.type === 'person-added') {
     const person = ensurePerson(state, event.personId, event.name);
@@ -56,8 +82,6 @@ export const applyEvent = (state, event, beforeApply = null, parent = null) => {
     rt.status = event.statusAfter || 'ended';
     rt.endedAt = event.date;
     rt.endReason = event.reason || '';
-  } else if (event.type === 'shares-set') {
-    runtime(state, event.itemId).shares = normShares(event.shares);
   } else if (event.type === 'redistribution-executed') {
     for (const child of event.events || []) {
       applyEvent(state, { ...child, date: event.date, order: event.order }, beforeApply, event);
@@ -152,7 +176,7 @@ export const shareDeltasForChange = (baseProjection, change) => {
   const item = baseProjection.items.find(x => x.id === change.itemId);
   if (!item) return [];
   const beforeShares = item.shares || {};
-  const afterShares = normShares(change.shares);
+  const afterShares = change.type === 'shares-set' ? resolveShareEvent(beforeShares,change) : normShares(change.shares);
   const beforeTotal = shareTotal(beforeShares);
   const afterTotal = shareTotal(afterShares);
   const ids = [...new Set([...Object.keys(beforeShares), ...Object.keys(afterShares)])];

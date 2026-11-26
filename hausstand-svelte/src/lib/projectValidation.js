@@ -1,3 +1,4 @@
+import { validStoredShareEvent } from './shareUnits.js';
 import { requireProjectFile } from './domain.js';
 import { projectMutationProblem } from './mutationValidation.js';
 import { validShareMap, checkedValuation } from './itemMutations.js';
@@ -26,6 +27,7 @@ export function storedProjectProblem(project) {
   const people = rows.get('people'), items = rows.get('items'), eventIds = rows.get('events');
   const sharesValid = shares => validShareMap(shares) &&
     Object.entries(shares).every(([personId, units]) => units === 0 || people.has(personId));
+  const changeValid = event => validStoredShareEvent(event) && Object.keys(event.shareUnitDeltas).every(personId=>people.has(personId));
   const modeValid = v => v === undefined || ['none','derived'].includes(v);
   for (const event of project.events) {
     if (!Object.hasOwn(editableEventFields, event.type)) return 'UNKNOWN_EVENT_TYPE';
@@ -33,7 +35,7 @@ export function storedProjectProblem(project) {
     if (event.type.startsWith('person-') && !people.has(event.personId)) return 'UNKNOWN_PERSON';
     if (['item-added','item-ended','shares-set'].includes(event.type) && !items.has(event.itemId)) return 'UNKNOWN_ITEM';
     if (['item-added','shares-set','redistribution-executed'].includes(event.type) && !modeValid(event.financialMode)) return 'INVALID_FINANCIAL_MODE';
-    if (['item-added','shares-set'].includes(event.type) && !sharesValid(event.shares)) return 'INVALID_SHARES';
+    if (event.type === 'item-added' && !sharesValid(event.shares) || event.type === 'shares-set' && !changeValid(event)) return 'INVALID_SHARES';
     if (event.type === 'item-added') {
       try { checkedValuation(event.valuation); } catch { return 'INVALID_VALUATION'; }
     }
@@ -44,7 +46,7 @@ export function storedProjectProblem(project) {
       const changed = new Set();
       for (const child of event.events) {
         if (!object(child) || !id(child.id) || eventIds.has(child.id) || child.type !== 'shares-set' ||
-            !items.has(child.itemId) || changed.has(child.itemId) || !sharesValid(child.shares)) return 'INVALID_REDISTRIBUTION_CHILD';
+            !items.has(child.itemId) || changed.has(child.itemId) || !changeValid(child)) return 'INVALID_REDISTRIBUTION_CHILD';
         eventIds.add(child.id);
         changed.add(child.itemId);
       }

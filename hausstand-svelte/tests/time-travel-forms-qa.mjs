@@ -14,11 +14,11 @@ const project = {
      initialValue:100,valuation:{type:'fixed',minimumValue:0},shares:{anna:1,ben:1},
      financialMode:'derived',purchaseContributionsCents:{anna:10000}},
     {id:'future1',type:'shares-set',date:'2029-06-01',order:1,itemId:'chair',
-     shares:{anna:1,ben:1},financialMode:'none',note:'First future entry'},
+     shareUnitDeltas:{},financialMode:'none',note:'First future entry'},
     {id:'future2',type:'shares-set',date:'2029-06-01',order:2,itemId:'chair',
-     shares:{anna:2,ben:1},financialMode:'none',note:'Second future entry'},
+     shareUnitDeltas:{anna:1},financialMode:'none',note:'Second future entry'},
     {id:'future3',type:'shares-set',date:'2030-01-01',order:1,itemId:'chair',
-     shares:{anna:2,ben:1},financialMode:'none',note:'Latest future entry'}
+     shareUnitDeltas:{},financialMode:'none',note:'Latest future entry'}
   ],
   drafts:[],lastSavedAt:'2025-01-02T09:00:00.000Z',versionHistory:{format:'portable-v1',entries:[]}
 };

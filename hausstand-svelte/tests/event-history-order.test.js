@@ -30,7 +30,7 @@ test('Q14: future settlement and ownership events remain outside historical calc
  valuation:{type:'fixed',minimumValue:0},shares:{a:1,b:1},financialMode:'derived',purchaseContributionsCents:{a:10000}},
  {id:'payment',type:'claim-settlement-recorded',date:'2029-01-01',order:1,amountCents:5000,
  debtorPersonId:'b',creditorPersonId:'a',settlementKind:'paid'},
- {id:'transfer',type:'shares-set',itemId:'item',date:'2030-01-01',order:1,shares:{b:1},financialMode:'none'}
+ {id:'transfer',type:'shares-set',itemId:'item',date:'2030-01-01',order:1,shareUnitDeltas:{a:-1},financialMode:'none'}
  ]};
  assert.deepEqual(projectAt(p,'2026-12-31').activeItems[0].shares,{a:1,b:1});
  assert.equal(ledgerAt(p,'2026-12-31').counterclaims.length,0);

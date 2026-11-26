@@ -104,7 +104,7 @@ test('transferred shares are explained separately from initial ownership and cas
   buy(p, 'fridge', 100, { anna: 1 }, 'anna');
   p.events.push({
     id: 'share-transfer', type: 'shares-set', date: '2026-04-01',
-    order: 1, itemId: 'fridge', shares: { ben: 1 }, financialMode: 'derived'
+    order: 1, itemId: 'fridge', shareUnitDeltas: { anna: -1, ben: 1 }, financialMode: 'derived'
   });
   const l = balance(p);
   const anna = l.details.get('anna');
@@ -135,7 +135,7 @@ test('every personal breakdown reconciles to the same single ledger, including h
   buy(p, 'fridge', 300.01, { anna: 1, ben: 1, clara: 1 }, 'anna');
   p.events.push({
     id: 'share-transfer', type: 'shares-set', date: '2026-03-01',
-    order: 1, itemId: 'fridge', shares: { anna: 2, clara: 1 }, financialMode: 'derived'
+    order: 1, itemId: 'fridge', shareUnitDeltas: { anna: 1, ben: -1 }, financialMode: 'derived'
   });
   pay(p, 'ben', 'clara', 1700, '2026-04-01');
   for (const day of ['2026-01-01', '2026-02-02', '2026-03-01', '2026-04-01']) {

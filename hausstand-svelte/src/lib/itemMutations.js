@@ -21,7 +21,7 @@ function activeItem(view,id) {
 }
 // Existing inactive owners may retain or adjust their shares. New owners must
 // be active at the event date, exactly as in the shared browser share editor.
-import { validShareMap } from './shareUnits.js';
+import { validShareMap, shareUnitDeltas } from './shareUnits.js';
 export { validShareMap } from './shareUnits.js';
 export function checkedShares(view,shares,previous={}) {
   if (!validShareMap(shares) ||
@@ -87,7 +87,7 @@ export function updateItemMetadata(project,{itemId,...payload}) {
 export function setItemShares(project,{itemId,date,shares,financialMode,note=''}) {
   const view=at(project,date), item=activeItem(view,itemId);
   if (!validMode(financialMode) || !text(note)) reject('INVALID_SHARE_CHANGE');
-  const event=createEvent('shares-set',date,{itemId,shares:checkedShares(view,shares,item.shares),financialMode,note},project);
+  const event=createEvent('shares-set',date,{itemId,shareUnitDeltas:shareUnitDeltas(item.shares,checkedShares(view,shares,item.shares)),financialMode,note},project);
   project.events.push(event);
   return {event};
 }
@@ -117,7 +117,7 @@ export function executeRedistribution(project,{effectiveDate,title='',financialM
     if (!change || ids.has(change.itemId)) reject('INVALID_REDISTRIBUTION');
     const item=activeItem(view,change.itemId);
     ids.add(change.itemId);
-    return {id:uid('event_child'),type:'shares-set',itemId:item.id,shares:checkedShares(view,change.shares,item.shares),note:title};
+    return {id:uid('event_child'),type:'shares-set',itemId:item.id,shareUnitDeltas:shareUnitDeltas(item.shares,checkedShares(view,change.shares,item.shares)),note:title};
   });
   const event=createEvent('redistribution-executed',effectiveDate,{title,financialMode,events},project);
   project.events.push(event);

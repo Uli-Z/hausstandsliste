@@ -1,5 +1,7 @@
 // Portable project history. The current project stays readable at the JSON root;
 // only previously saved complete states are compressed into the trailing archive.
+import { requireProjectFile } from './domain.js';
+
 const FORMAT = 'portable-v1';
 const MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024;
 const textEncoder = new TextEncoder();
@@ -138,5 +140,18 @@ export async function readPortableVersion(project, versionId) {
     throw new Error('Ungültiger oder rekursiver Versionsdatensatz.');
   }
   // The archive belongs to the current project and must survive an older restore.
-  return { ...snapshot, versionHistory: copy(project.versionHistory), lastSavedAt: project.lastSavedAt };
+  return requireProjectFile({ ...snapshot, versionHistory: copy(project.versionHistory), lastSavedAt: project.lastSavedAt });
+}
+
+// Check every embedded snapshot before accepting a file. Do not silently
+// carry incompatible historical snapshots into the new storage format.
+export async function verifyPortableHistory(project, validate = () => {}) {
+  const ids=new Set();
+  for(const entry of getVersionEntries(project)) {
+    if(typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id))
+      throw new Error('Unbekanntes oder beschädigtes Versionsarchiv. Die Datei wurde nicht verändert.');
+    ids.add(entry.id);
+    const snapshot=await readPortableVersion(project,entry.id);
+    await validate(snapshot);
+  }
 }

@@ -46,7 +46,7 @@ test('A03: former owner cannot be deleted even when all shares were transferred 
   });
   project.events.push({
     id: 'transfer', type: 'shares-set', date: '2026-02-01', order: 1,
-    itemId: 'desk', shares: { ben: 1 }, financialMode: 'derived'
+    itemId: 'desk', shareUnitDeltas: { anna:-1,ben:1 }, financialMode: 'derived'
   });
   assert.equal(projectAt(project, '2026-03-01').people.find(p => p.id === 'anna').holdings.length, 0);
   const beforeClaims = ledgerAt(project, '2026-03-01').claims;
@@ -88,7 +88,7 @@ test('A03: nested historical and future shares-set references prohibit deletion'
     project.events.push({
       id: 'redistribution', type: 'redistribution-executed', date, order: 2,
       financialMode: 'derived', events: [
-        { id: 'child', type: 'shares-set', itemId: 'desk', shares: { anna: 1 } }
+        { id: 'child', type: 'shares-set', itemId: 'desk', shareUnitDeltas: { anna: 1 } }
       ]
     });
     assertBlockedWithoutMutation(project);

@@ -64,7 +64,7 @@ export function purchaseClaims(amountCents, shares, contributions, meta = {}) {
 // written to the project JSON. Editing an event automatically recalculates them.
 export function deriveClaims(project, asOfDate) {
   const claims = [];
-  walkEvents(project, asOfDate, (state, event, parent) => {
+  walkEvents(project, asOfDate, (state, event, parent, resolvedShares) => {
     const financialMode = event.financialMode ?? parent?.financialMode;
     if (financialMode !== 'derived') return;
     const sourceEventId = parent?.id || event.id;
@@ -74,7 +74,7 @@ export function deriveClaims(project, asOfDate) {
       const item = state.runtime.get(event.itemId);
       if (!item || item.status !== 'active') return;
       const beforeShares = normShares(item.shares);
-      const afterShares = normShares(event.shares);
+      const afterShares = resolvedShares;
       if (!Object.keys(beforeShares).length || !Object.keys(afterShares).length) return;
       const valueCents = Math.round(valueAt(item.valuation, item.initialValue, item.date, event.date) * 100);
       if (!Number.isSafeInteger(valueCents) || valueCents <= 0) return;
