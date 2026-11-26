@@ -34,6 +34,7 @@
   }
 
   function startDissolve() {
+    if (!appState.requireEditing()) return;
     const blocked = soleOwnedItems(projection,person.id);
     if (blocked.length) {
       alert($translate('dialog.lastOwners',{items:blocked.map(item=>item.name).join(', ')}));
@@ -44,6 +45,7 @@
   }
 
   function startTransfer() {
+    if (!appState.requireEditing()) return;
     if (!activeTargets.length) {
       alert($translate("ui.no-active-recipient-available-1ybrt33"));
       return;
@@ -57,6 +59,7 @@
   }
 
   function confirmTransferTarget() {
+    if (!appState.requireEditing()) return;
     const target = activeTargets.find(p => String(p.id) === String(transferTargetId));
     if (!target) return;
     transferDialogOpen = false;
@@ -75,10 +78,10 @@
     <details class="secondary-actions">
       <summary>{$translate("ui.moreActions")}</summary>
       <div class="action-grid">
-        <button disabled={$appState.readOnly} on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-person-jstaod")}</button>
-        {#if person.active}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'deactivate'})} disabled={$appState.readOnly}><ActionIcon name="archive" size={17}/>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'reactivate'})} disabled={$appState.readOnly}><ActionIcon name="person-add" size={17}/>{$translate("ui.reactivate-iggdm2")}</button>{/if}
-        <button disabled={$appState.readOnly || !person.active || !person.holdings?.length} on:click={startTransfer}><ActionIcon name="arrows" size={17}/>{$translate("app.transfer")}</button>
-        <button disabled={$appState.readOnly || !person.active || !person.holdings?.length} on:click={startDissolve}><ActionIcon name="archive" size={17}/>{$translate("ui.remove-shares-5g2njo")}</button>
+        <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-person-jstaod")}</button>
+        {#if person.active}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'deactivate'})}><ActionIcon name="archive" size={17}/>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'reactivate'})}><ActionIcon name="person-add" size={17}/>{$translate("ui.reactivate-iggdm2")}</button>{/if}
+        <button disabled={!person.active || !person.holdings?.length} on:click={startTransfer}><ActionIcon name="arrows" size={17}/>{$translate("app.transfer")}</button>
+        <button disabled={!person.active || !person.holdings?.length} on:click={startDissolve}><ActionIcon name="archive" size={17}/>{$translate("ui.remove-shares-5g2njo")}</button>
       </div>
     </details>
   </div>
@@ -91,7 +94,7 @@
       {#each transfersForPerson as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
         <div class="split">
           <span>{nameOf(transfer.fromPersonId)} an {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
-          <button on:click={() => appState.setDialog({ type: 'settlementAdd', payerPersonId: transfer.fromPersonId, recipientPersonId: transfer.toPersonId, amountCents: transfer.amountCents })} disabled={$appState.readOnly}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
+          <button on:click={() => appState.setDialog({ type: 'settlementAdd', payerPersonId: transfer.fromPersonId, recipientPersonId: transfer.toPersonId, amountCents: transfer.amountCents })}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
         </div>
       {/each}
     </div>
@@ -120,6 +123,7 @@
         <button class="ghost" on:click={() => transferDialogOpen = false}>✕</button>
       </div>
       <div class="modal-body stack">
+        {#if $appState.readOnly}<p role="alert" class="notice warn">{$translate('errors.readOnly')} {$appState.readOnlyReason}</p>{/if}
         <div>{$translate("ui.who-should-receive-all-shares-from-127tl3u")} <strong>{person.name}</strong> {$translate("ui.-1w10f1b")}</div>
         <label>{$translate("ui.recipient-1e4y0g0")}
           <select bind:value={transferTargetId}>
@@ -132,7 +136,7 @@
       </div>
       <div class="modal-footer">
         <button on:click={() => transferDialogOpen = false}>{$translate("ui.cancel-cl4zc9")}</button>
-        <button class="primary" on:click={confirmTransferTarget} disabled={!transferTargetId}>{$translate("ui.continue-bcvyff")}</button>
+        <button class="primary" on:click={confirmTransferTarget} disabled={!transferTargetId || $appState.readOnly}>{$translate("ui.continue-bcvyff")}</button>
       </div>
     </div>
   </div>
