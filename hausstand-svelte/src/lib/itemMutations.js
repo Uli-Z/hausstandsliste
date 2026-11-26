@@ -21,9 +21,8 @@ function activeItem(view,id) {
 }
 // Existing inactive owners may retain or adjust their shares. New owners must
 // be active at the event date, exactly as in the shared browser share editor.
-export const validShareMap = shares => !!shares && typeof shares==='object' && !Array.isArray(shares) &&
-  Object.values(shares).every(units=>typeof units==='number' && Number.isFinite(units) && units>=0) &&
-  Number.isFinite(Object.values(shares).reduce((sum,n)=>sum+n,0));
+import { validShareMap } from './shareUnits.js';
+export { validShareMap } from './shareUnits.js';
 export function checkedShares(view,shares,previous={}) {
   if (!validShareMap(shares) ||
       Object.entries(shares).some(([id,units])=>units>0 && (!view.peopleById.has(id) || (!view.peopleById.get(id).active && !(previous[id]>0)))))
