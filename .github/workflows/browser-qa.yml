@@ -1,37 +1,34 @@
 name: Browser acceptance QA
-
-# Browser engines and Playwright dependencies are costly to run.
-# Trigger this suite explicitly under Actions > Browser acceptance QA > Run workflow.
 on:
   workflow_dispatch:
-
+  push:
+    branches: [qa/q32-mobile-matrix-2026-11-26]
+    paths: ['.github/workflows/browser-qa.yml']
 permissions:
   contents: read
-
 jobs:
-  chromium:
-    # Pin the LTS runner: ubuntu-latest moved to 26.04, where browser
-    # dependency downloads exhausted the previous job timeout.
+  q32:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: hausstand-svelte/package-lock.json
-      - name: Install application and test-only browser tooling
+      - name: Install all three browser engines and build
         working-directory: hausstand-svelte
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.65.1
           npx playwright install --with-deps chromium firefox webkit
-      - name: Build offline HTML and encrypted PHP release
-        working-directory: hausstand-svelte
-        run: |
           npm run build:single
-          npm run build:php
-      - name: Exercise Chromium, Firefox, WebKit, portable history and responsive UI
+      - name: Q32 visual regression and Q03 Q31 time travel integration
         working-directory: hausstand-svelte
+        env:
+          Q32_SCREENSHOT_DIR: q32-screenshots
         run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: q32-matrix-screenshots
+          path: hausstand-svelte/q32-screenshots

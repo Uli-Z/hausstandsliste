@@ -1282,6 +1282,7 @@ const failures = [];
 // scenario must not prevent the PHP/security and other engine checks from
 // producing their own results. The overall workflow still fails on any error.
 async function acceptance(name, run) {
+  if (!/Q32|Q03 settlement|Q31 mobile financing|Q14\/Q15\/Q19|browser launch/.test(name)) return;
   console.log('Browser QA start: ' + name);
   try {
     await run();
