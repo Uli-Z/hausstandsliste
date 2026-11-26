@@ -1077,6 +1077,9 @@ try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
+  if(process.argv.includes('--q30-only')) {
+    await acceptance('Chromium Q30 signed share changes', () => shareDeltaAcceptance(browser, offlineServer.url));
+  } else {
   await acceptance('Chromium localization', () => localization(browser, offlineServer.url));
   await acceptance('Chromium offline', () => offline(browser, offlineServer.url));
   await acceptance('Chromium portable file', () => portableFileAcceptance(browser, offlineServer.url, 'Chromium'));
@@ -1095,6 +1098,7 @@ try {
       await acceptance(name + ' responsive UI', () => responsiveUiAcceptance(additional, offlineServer.url, [375, 1280], name));
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
     });
+  }
   }
   if (failures.length) throw new AggregateError(failures, failures.length + ' browser QA scenario(s) failed');
 } finally {

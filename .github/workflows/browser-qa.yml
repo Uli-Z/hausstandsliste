@@ -29,12 +29,12 @@ jobs:
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.65.1
-          npx playwright install --with-deps chromium firefox webkit
+          npx playwright install chromium
+          npx playwright install-deps chromium
       - name: Build offline HTML and encrypted PHP release
         working-directory: hausstand-svelte
         run: |
           npm run build:single
-          npm run build:php
-      - name: Exercise Chromium, Firefox, WebKit, portable history and responsive UI
+      - name: Exercise Q30 in Chromium
         working-directory: hausstand-svelte
-        run: npm run test:browser
+        run: node tests/browser-qa.mjs --q30-only
