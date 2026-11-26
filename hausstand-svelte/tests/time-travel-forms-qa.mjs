@@ -204,7 +204,41 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.equal(await dateField.inputValue(),'2027-07-07');
     await dialog.locator('.modal-header > button.ghost').click();
 
-    assert.deepEqual(failures,[]);
+    // Q27 guided archive: every step returns to the original date; no implicit payment.
+    await nav('Personen').click();
+    await page.locator('.person-tile').filter({hasText:'Anna'}).locator('.person-bottom button').click();
+    await openPersonActions();
+    await personActions.getByRole('button',{name:'Person archivieren'}).click();
+    await dateField.fill('2033-02-01');
+    assert.equal(await dialog.locator('.modal-footer .primary').isDisabled(),true);
+    await dialog.getByLabel('Empfänger aller verbleibenden Anteile').selectOption('ben');
+    await dialog.getByRole('button',{name:'Alle verbleibenden Anteile übertragen',exact:true}).click();
+    assert.equal(await page.locator('#redistribution-effective-date').inputValue(),'2033-02-01');
+    await dialog.locator('.modal-header > button.ghost').click();
+    assert.equal(await dateField.inputValue(),'2033-02-01');
+    await dialog.getByLabel('Empfänger aller verbleibenden Anteile').selectOption('ben');
+    await dialog.getByRole('button',{name:'Alle verbleibenden Anteile übertragen',exact:true}).click();
+    await dialog.getByRole('button',{name:'Eigentumsanteile jetzt ändern',exact:true}).click();
+    assert.equal(await dateField.inputValue(),'2033-02-01');
+    assert.equal(await dialog.locator('.modal-footer .primary').isDisabled(),true);
+    const paymentCount=(await snapshot()).events.filter(e=>e.type==='claim-settlement-recorded').length;
+    assert.equal((await snapshot()).events.some(e=>e.type==='person-deactivated'&&e.personId==='anna'),false);
+    let paid=0;
+    while (await dialog.getByRole('button',{name:'Tatsächlichen Ausgleich erfassen'}).count()) {
+      assert.ok(paid++<5,'settlement steps must converge');
+      await dialog.getByRole('button',{name:'Tatsächlichen Ausgleich erfassen'}).first().click();
+      assert.equal(await dialog.getByLabel('Zahlungsdatum').inputValue(),'2033-02-01');
+      await dialog.getByRole('button',{name:'Zahlung als erfolgt erfassen'}).click();
+      assert.equal(await dateField.inputValue(),'2033-02-01');
+    }
+    assert.ok(paid>0);
+    assert.equal((await snapshot()).events.filter(e=>e.type==='claim-settlement-recorded').length,paymentCount+paid);
+    assert.equal(await dialog.locator('.modal-footer .primary').isEnabled(),true);
+    await dialog.locator('.modal-footer .primary').click();
+    await dialog.waitFor({state:'hidden'});
+    assert.equal((await snapshot()).events.find(e=>e.type==='person-deactivated'&&e.personId==='anna')?.date,'2033-02-01');
+
+        assert.deepEqual(failures,[]);
     console.log('Q14/Q15/Q19 time-travel form and chronological UI acceptance passed');
   } finally {
     await context.close();

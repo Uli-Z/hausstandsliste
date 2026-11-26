@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { archiveHistoryProblems } from '../src/lib/personArchiveValidation.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
 import { projectAt } from '../src/lib/projector.js';
-import { previewPersonStatus } from '../src/lib/personMutations.js';
+import { previewPersonStatus, changePersonStatus } from '../src/lib/personMutations.js';
+import { executeRedistribution } from '../src/lib/itemMutations.js';
+import { createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
+import { createSessionUndo } from '../src/lib/sessionUndo.js';
+import { createPortableSave, readPortableVersion } from '../src/lib/versionHistory.js';
+import { ledgerAt } from '../src/lib/ledger.js';
+import { storedProjectProblem } from '../src/lib/projectValidation.js';
 import { buildRemovePersonChanges, soleOwnedItems } from '../src/lib/redistribution.js';
 
 const event = (id,type,date,fields={},order=1) => ({id,type,date,order,...fields});
@@ -100,4 +106,46 @@ test('Q27: relinquishment retains remaining relative ownership and identifies so
   const projection=projectAt(p,'2026-02-01');
   assert.deepEqual(buildRemovePersonChanges(projection,'a'),[{itemId:'i',shares:{b:3,c:1}}]);
   assert.deepEqual(soleOwnedItems(projection,'a').map(i=>i.id),['sole']);
+});
+
+test('Q27: guided paid transfer, actual payment, archive and reactivation survive undo and file history', async()=>{
+  const date='2026-02-01', personId='a', kind='deactivate';
+  const before={schemaVersion:1,currency:'EUR',community:{name:'Archive test'},...extend(fixture(),
+    purchase('2026-01-02',{a:1},10,{a:1000}))};
+  let p=structuredClone(before);
+  const history=createSessionUndo();
+  const change=mutate=>{
+    const next=structuredClone(p);
+    mutate(next);
+    assert.equal(projectMutationProblem(p,next),null);
+    assert.equal(history.record(p,next),true);
+    p=next;
+  };
+  assert.equal(previewPersonStatus(p,{personId,date,kind}).problem.key,'errors.archiveHoldings');
+  change(q=>executeRedistribution(q,{title:'Paid transfer',effectiveDate:date,financialMode:'derived',
+    changes:[{itemId:'i',shares:{b:1}}]}));
+  const pending=previewPersonStatus(p,{personId,date,kind});
+  assert.equal(pending.holdings.length,0);
+  assert.equal(pending.balanceCents,1000);
+  assert.deepEqual(pending.transfers,[{fromPersonId:'b',toPersonId:'a',amountCents:1000}]);
+  assert.equal(p.events.filter(e=>e.type==='claim-settlement-recorded').length,0);
+  change(q=>q.events.push(createClaimSettlementEvent(q,{date,
+    debtorPersonId:'b',creditorPersonId:'a',amountCents:1000,settlementKind:'paid'})));
+  assert.equal(previewPersonStatus(p,{personId,date,kind}).problem,null);
+  change(q=>changePersonStatus(q,{personId,date,kind}));
+  assert.equal(projectAt(p,date).peopleById.get(personId).active,false);
+  const archived=structuredClone(p);
+  p=history.undo(p);
+  assert.equal(projectAt(p,date).peopleById.get(personId).active,true);
+  p=history.redo(p);
+  assert.deepEqual(p,archived);
+  const previous=await createPortableSave(before,null,'2026-02-01T10:00:00Z');
+  const saved=await createPortableSave(p,previous,'2026-02-01T11:00:00Z');
+  const loaded=JSON.parse(JSON.stringify(saved));
+  assert.equal(storedProjectProblem(loaded),null);
+  assert.equal(projectAt(loaded,date).peopleById.get(personId).active,false);
+  assert.equal(ledgerAt(loaded,date).balances.get(personId)||0,0);
+  assert.deepEqual((await readPortableVersion(loaded,loaded.versionHistory.entries[0].id)).events,before.events);
+  change(q=>changePersonStatus(q,{personId,date:'2026-03-01',kind:'reactivate'}));
+  assert.equal(projectAt(p,'2026-03-01').peopleById.get(personId).active,true);
 });
