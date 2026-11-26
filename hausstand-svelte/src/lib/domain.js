@@ -1,3 +1,4 @@
+import { validStoredShareEvent } from './shareUnits.js';
 import { purchaseEventFieldsValid } from './purchaseFinancing.js';
 import { nowISO, todayISO } from './util.js';
 import { formatMoney, formatPercent } from './i18n.js';
@@ -53,6 +54,10 @@ export const requireProjectFile = value => {
   const successors = new Set(value.items.filter(i=>i.predecessorItemId).map(i=>i.id));
   if (value.events.some(e=>e.type==='item-added' && (!purchaseEventFieldsValid(e) ||
       (!successors.has(e.itemId) && !Object.hasOwn(e,'purchaseContributionsCents'))))) {
+    throw new Error('Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.');
+  }
+  if (value.events.some(e=>e.type==='shares-set' && !validStoredShareEvent(e) ||
+      e.type==='redistribution-executed' && (!Array.isArray(e.events) || e.events.some(child=>!validStoredShareEvent(child))))) {
     throw new Error('Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.');
   }
   return value;

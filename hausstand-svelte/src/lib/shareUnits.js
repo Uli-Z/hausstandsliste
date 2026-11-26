@@ -82,3 +82,12 @@ export function applyShareUnitDeltas(before,deltas) {
   if (!validShareMap(result)) throw new ShareUnitError('SHARE_PRECISION');
   return result;
 }
+
+// The persisted shares-set event always contains signed unit changes.
+// Draft and purchase share maps remain absolute allocations.
+export const validStoredShareEvent = event => !!event && event.type === 'shares-set' &&
+  !Object.hasOwn(event,'shares') && validShareUnitDeltas(event.shareUnitDeltas);
+export function resolveShareEvent(before,event) {
+  if (!validStoredShareEvent(event)) throw new ShareUnitError('INVALID_SHARES');
+  return applyShareUnitDeltas(before,event.shareUnitDeltas);
+}

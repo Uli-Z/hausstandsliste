@@ -1,7 +1,7 @@
 import { claimSettlementErrors, validISODate } from './claimSettlement.js';
 import { purchaseEventProblem } from './purchaseFinancing.js';
 import { validMoney } from './util.js';
-import { unownedActiveTransitions } from './ownershipValidation.js';
+import { ownershipHistoryProblems } from './ownershipValidation.js';
 import { personDeletionEligibility } from './personDeletion.js';
 import { archiveHistoryProblems } from './personArchiveValidation.js';
 
@@ -75,15 +75,18 @@ export function projectMutationProblem(before, after) {
   }
   const eventProblem = mutationProblem(before, after);
   if (eventProblem) return eventProblem;
+  // Check every future ownership transition before evaluating financial or archival consequences.
+  const first = ownershipHistoryProblems(after)[0];
+  if (first) {
+    const name = (after.items || []).find(item => item.id === first.itemId)?.name || first.itemId;
+    const person = (after.people || []).find(p=>p.id===first.personId)?.name || first.personId || '—';
+    const params = { name, date:first.date, person, eventId:first.sourceEventId, childEventId:first.childEventId || '', before:first.beforeUnits ?? '—', delta:first.deltaUnits ?? '—', reason:first.code };
+    return {key:first.code==='OWNERLESS_ITEM'?'errors.ownerless':'errors.shareHistoryConflict',params};
+  }
   // Check the complete future history too. Existing invalid records may be
   // explicitly repaired, but no new archival conflicts may be introduced.
   const priorArchiveProblems = new Set(archiveHistoryProblems(before || {}).map(p => p.identity));
   const archiveProblem = archiveHistoryProblems(after).find(p => !priorArchiveProblems.has(p.identity));
   if (archiveProblem) return { key: archiveProblem.key, params: archiveProblem.params };
-  const first = unownedActiveTransitions(after)[0];
-  if (first) {
-    const name = (after.items || []).find(item => item.id === first.itemId)?.name || first.itemId;
-    return { key: 'errors.ownerless', params: { name, date: first.date } };
-  }
   return null;
 }

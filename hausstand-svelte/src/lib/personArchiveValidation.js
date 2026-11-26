@@ -17,7 +17,7 @@ export function archiveHistoryProblems(project) {
     problems.push({ key, params: { name: names.get(personId) || personId, date: source.date,
       eventId: source.id, ...extra }, identity: JSON.stringify([key, personId, source.id, parent ? event.id : null, source.date]) });
   };
-  walkEvents(project, '9999-12-31', (state, event, parent) => {
+  walkEvents(project, '9999-12-31', (state, event, parent, resolvedShares) => {
     const archived = id => !!state.peopleById.get(id)?.inactiveFrom;
     const id = event.personId;
     if (event.type === 'person-deactivated') {
@@ -48,7 +48,7 @@ export function archiveHistoryProblems(project) {
     }
     const involved = new Set();
     if (event.type === 'item-added' || event.type === 'shares-set') {
-      for (const [personId, units] of Object.entries(event.shares || {}))
+      for (const [personId, units] of Object.entries((event.type === 'shares-set' ? resolvedShares : event.shares) || {}))
         if (Number(units) > 0) involved.add(personId);
     }
     if (event.type === 'item-added') {
