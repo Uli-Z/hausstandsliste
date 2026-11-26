@@ -1021,6 +1021,14 @@ async function purchaseFinancingAcceptance(browser, url) {
     await dialog.waitFor({state:'hidden'});
     assert.deepEqual((await snapshot()).events, original.events);
 
+    async function openPurchaseDetail(name) {
+      await page.locator('.mobile-bottom-nav > button').nth(1).click();
+      await page.locator('.item-tile').filter({hasText:name}).locator('.tile-open').click();
+      await page.getByRole('heading',{name:'Finanzierung & Wertausgleich'}).waitFor();
+    }
+    async function returnToOverview() {
+      await page.locator('.mobile-bottom-nav > button').first().click();
+    }
     // Q34: genuinely unequal ownership with proportional actual contributions.
     await prepare('Q34 proportional');
     await financing.locator('.purchase-units').nth(0).fill('2');
@@ -1030,16 +1038,23 @@ async function purchaseFinancingAcceptance(browser, url) {
     await financing.getByLabel('Ben',{exact:true}).fill('100');
     assert.equal(await dialog.locator('.item-purchase-preview .purchase-balanced').count(),1);
     assert.equal(await optIn.count(),0);
+    const proportionalRows = await dialog.locator('.purchase-breakdown tbody tr').allTextContents();
     await submit.click();
     await dialog.waitFor({state:'hidden'});
     const proportional = await snapshot();
     const proportionalEvent = proportional.events.find(e=>e.name==='Q34 proportional');
     assert.deepEqual(ledgerAt(proportional,date).claims.filter(c=>c.sourceEventId===proportionalEvent.id),[]);
+    await openPurchaseDetail('Q34 proportional');
+    assert.deepEqual(await page.locator('.purchase-breakdown tbody tr').allTextContents(),proportionalRows);
+    assert.equal(await page.locator('.purchase-balanced').count(),1);
+    assert.equal(await page.getByText('Beim Kauf entstandene Forderungen (vor Zahlungen)',{exact:true}).count(),0);
+    await returnToOverview();
     await page.getByRole('button',{name:/Rückgängig \(Strg\+Z\)/}).click();
     assert.deepEqual((await snapshot()).events,original.events);
 
     // With the checkbox off, outstanding purchase balances remain.
     await prepare('Q31 without settlement');
+    const unpaidRows = await dialog.locator('.purchase-breakdown tbody tr').allTextContents();
     await submit.click();
     await dialog.waitFor({state:'hidden'});
     const unpaid = await snapshot();
@@ -1049,6 +1064,11 @@ async function purchaseFinancingAcceptance(browser, url) {
     assert.equal(ledgerAt(unpaid,date).balances.get('anna'),originalBalances.get('anna')+5000);
     assert.equal(ledgerAt(unpaid,date).balances.get('ben'),originalBalances.get('ben')+5000);
     assert.equal(ledgerAt(unpaid,date).balances.get('clara'),originalBalances.get('clara')-10000);
+    await openPurchaseDetail('Q31 without settlement');
+    assert.deepEqual(await page.locator('.purchase-breakdown tbody tr').allTextContents(),unpaidRows);
+    await page.getByText('Beim Kauf entstandene Forderungen (vor Zahlungen)',{exact:true}).waitFor();
+    assert.equal(await page.locator('.purchase-balanced').count(),0);
+    await returnToOverview();
     const undo = page.getByRole('button',{name:/Rückgängig \(Strg\+Z\)/});
     const redo = page.getByRole('button',{name:/Wiederholen \(Strg\+Y\)/});
     await undo.click();

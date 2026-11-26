@@ -52,7 +52,10 @@ test('item detail has one back control, prominent ownership and collapsible adva
   assert.ok(item.includes('class="panel-header ownership-header"'));
   assert.ok(item.includes("type: 'shareSet', itemId: item.id"));
   assert.ok(item.includes("type: 'itemContinue', itemId: item.id"));
-  assert.ok(item.includes('itemClaims.length'));
+  assert.ok(item.includes('transferClaims.length'));
+  assert.ok(item.includes('purchaseBreakdown('));
+  assert.ok(item.includes('purchase.purchaseHistory'));
+  assert.ok(item.includes('purchase.historyNote'));
   assert.ok(item.includes('<Timeline project='));
 });
 
