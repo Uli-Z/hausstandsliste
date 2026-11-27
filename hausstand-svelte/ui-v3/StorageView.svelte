@@ -5,6 +5,7 @@
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   import { appState } from '../src/stores/projectStore.js';
+  import { notifications } from '../src/lib/notifications.js';
   import { exportProject, downloadProject } from '../src/lib/persistence.js';
   import { requireProjectFile } from '../src/lib/domain.js';
   import { createPortableSave, readPortableVersion, verifyPortableHistory } from '../src/lib/versionHistory.js';
@@ -40,7 +41,13 @@
   async function run(job) {
     if (busy) return;
     busy = true; error = ''; message = '';
-    try { await job(); } catch (e) { report(e); }
+    try {
+      await job();
+      if (message) notifications.notify(message, {kind:'success'});
+    } catch (e) {
+      report(e);
+      notifications.notify($translate('toast.operationFailed'), {kind:'error'});
+    }
     finally { busy = false; }
   }
   function download(payload, filename) {
@@ -61,9 +68,9 @@
     activePassword = ''; remotePassword = ''; remoteCreatePassword = ''; selectedPortableVersion = ''; backupName = '';
   }
   export function prepareToReplace() {
-    if (busy) { alert($translate('storage.busy')); return false; }
+    if (busy) { notifications.notify($translate('storage.busy'), {kind:'warning'}); return false; }
     try { requireLeaseReleased(); clearOnlineLink(); pendingEncrypted = null; pendingFileName = ''; openPassword = ''; return true; }
-    catch (e) { alert(localizeDiagnostic(e.message)); return false; }
+    catch (e) { notifications.notify($translate('storage.endEditingFirst'), {kind:'error'}); return false; }
   }
   async function exportPlain() {
     if ($appState.secure || openedId) throw new Error($translate('storage.plainExportUnavailable'));
@@ -143,9 +150,11 @@
       clearOnlineLink(); pendingEncrypted = null; pendingFileName = ''; openPassword = '';
       appState.importProject(verified);
       error = ''; message = $translate('storage.importedWorkingCopy');
+      notifications.notify(message, {kind:'success'});
       onProjectLoaded();
     } catch (e) {
       report(new Error($translate('storage.importFailed') + ': ' + localizeDiagnostic(e?.message || String(e))));
+      notifications.notify($translate('storage.importFailed'), {kind:'error'});
     }
     finally { input.value = ''; busy = false; }
   }
@@ -263,7 +272,8 @@
     if ($appState.secure && !activePassword && !openedId) {
       message = $translate('storage.protectedSessionUnavailable'); return;
     }
-    await saveFromHeader();
+    const result = await saveFromHeader();
+    if (result.message) notifications.notify(result.ok ? result.message : $translate('toast.operationFailed'), {kind:result.ok ? 'success' : 'error', source:'storage'});
   }
   async function restorePortable() {
     if ($appState.readOnly) throw new Error($translate("ui.enable-editing-before-restoring-1xm00bb"));
