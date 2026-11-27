@@ -1,4 +1,6 @@
 <script>
+  import { notifications } from '../src/lib/notifications.js';
+  const notifyError = message => notifications.notify(message, {kind:'error'});
   import { translate, parseDecimal, localizeDiagnostic } from '../src/lib/i18n.js';
   import { appState, createEvent, createRedistribution } from '../src/stores/projectStore.js';
   import { uid, parseTags } from '../src/lib/util.js';
@@ -215,12 +217,12 @@
   function deletePersonCompletely() {
     if (!person) return;
     if ($appState.readOnly) {
-      alert($translate("ui.online-file-is-read-only-check-out--1kdczcr"));
+      notifyError($translate("ui.online-file-is-read-only-check-out--1kdczcr"));
       return;
     }
     const eligibility = personDeletionEligibility(project, person.id);
     if (!eligibility.allowed) {
-      alert($translate('dialog.deleteFailure', { reason: localizeDiagnostic(eligibility.reason) }));
+      notifyError($translate('dialog.deleteFailure', { reason: localizeDiagnostic(eligibility.reason) }));
       return;
     }
     if (!confirm($translate("dialog.confirmRemovePerson", {name:person.name}))) return;
@@ -230,7 +232,7 @@
       deleted = deleteUnusedPerson(p, person.id).allowed;
     });
     if (!deleted) {
-      alert($translate('dialog.deleteLinked'));
+      notifyError($translate('dialog.deleteLinked'));
       return;
     }
     close();
@@ -277,7 +279,7 @@
         (initialValue != null && !validMoney(Number(initialValue))) ||
         (purchaseContributionsCents && !Object.values(purchaseContributionsCents).every(c=>Number.isSafeInteger(c)&&c>=0)) ||
         (alreadySettled && !validCalendarDate(paymentDate))) {
-      alert($translate('forms.invalidDraft'));
+      notifyError($translate('forms.invalidDraft'));
       return;
     }
     const draftId = dialog.id;
@@ -305,7 +307,7 @@
       });
       if (appState.upsertDraft(draft)) close();
     } catch {
-      alert($translate('errors.changeFailed'));
+      notifyError($translate('errors.changeFailed'));
     }
   }
 
