@@ -1,6 +1,5 @@
 <script>
   import NumericDraftInput from './NumericDraftInput.svelte';
-  import ShareEditor from './ShareEditor.svelte';
   import PurchaseOwners from './PurchaseOwners.svelte';
   import { translate, parseDecimal } from '../src/lib/i18n.js';
   import { money } from '../src/lib/domain.js';
@@ -66,27 +65,13 @@
     {/if}
     </div>
   {/if}
-  {#if !editing}
-    <PurchaseOwners people={tablePeople} bind:shares individual={mode === 'individual'} keepFunding={individualDraft !== null}>
-      <svelte:fragment slot="amount" let:personId let:personName>
-        <NumericDraftInput inputClass="purchase-contribution" label={personName} description={$translate('purchase.paidColumn')}
-          value={individualDraft && Object.hasOwn(individualDraft,personId) ? individualDraft[personId] : 0}
-          display={displayContribution} parse={parseContribution} onValue={cents=>change(personId,cents)} />
-      </svelte:fragment>
-    </PurchaseOwners>
-  {:else}
-  <ShareEditor people={tablePeople} bind:shares allPeople={true} showAmounts={true} allowEqualize={!editing}>
+  <PurchaseOwners people={tablePeople} bind:shares individual={mode === 'individual'} keepFunding={editing || individualDraft !== null} {editing}>
     <svelte:fragment slot="amount" let:personId let:personName>
       <NumericDraftInput inputClass="purchase-contribution" label={personName} description={$translate('purchase.paidColumn')}
-        hidden={mode !== 'individual'} disabled={mode !== 'individual'}
         value={individualDraft && Object.hasOwn(individualDraft,personId) ? individualDraft[personId] : 0}
         display={displayContribution} parse={parseContribution} onValue={cents=>change(personId,cents)} />
-      {#if mode !== 'individual'}
-        <span class="purchase-paid-text">{money((contributions?.[personId] ?? 0)/100)}</span>
-      {/if}
     </svelte:fragment>
-  </ShareEditor>
-  {/if}
+  </PurchaseOwners>
   {#if mode === 'individual' && !contributions}<p class="notice warn">{$translate('purchase.unknown')}</p>{/if}
   {#if Number.isFinite(total)}<p class="financing-total">{$translate('purchase.total',{paid:money(total/100),price:money(amountCents/100)})}</p>{/if}
   {#if !valid}
@@ -104,8 +89,7 @@
   .purchase-payment-mode label{min-width:0}
   .purchase-payment-mode select{min-width:0}
   :global(.purchase-contribution){min-width:0;width:100%;padding:5px}
-  .purchase-paid-text{text-align:right;font-size:12px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-  @media(max-width:540px){.purchase-payment-mode{grid-template-columns:minmax(0,1fr)}:global(.purchase-contribution){font-size:13px}.purchase-paid-text{font-size:11px}}
+  @media(max-width:540px){.purchase-payment-mode{grid-template-columns:minmax(0,1fr)}:global(.purchase-contribution){font-size:13px}}
   .financing-total,.item-financing-field .notice{margin:0;font-size:13px}
   .item-financing-field .notice{padding:7px 9px}
 </style>

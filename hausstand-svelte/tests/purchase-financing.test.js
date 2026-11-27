@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyProject } from '../src/lib/domain.js';
-import { addItem } from '../src/lib/itemMutations.js';
+import { addItem, setItemShares } from '../src/lib/itemMutations.js';
 import { editEvent } from '../src/lib/eventMutations.js';
 import { ledgerAt, purchaseBreakdown, purchaseClaims, personBalances } from '../src/lib/ledger.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
@@ -101,4 +101,33 @@ test('Q66 independent ownership and payment columns persist and produce correct 
   assert.equal(ledgerAt(p,date).balances.get('b'),-20000);
   editEvent(p,event.id,{purchaseContributionsCents:{a:10000,c:20000}});
   assert.deepEqual(p.events.find(e=>e.id===event.id).shares,{b:2,c:1});
+});
+
+test('Q67 remove or zero an original owner without changing actual contributions or payments',()=>{
+  const p=fixture();
+  const {event,payments}=addItem(p,{...payload,initialValue:300,shares:{a:1,b:1},purchaseContributionsCents:{a:30000},settledPaymentDate:'2026-01-02'});
+  const originalPayments=structuredClone(payments);
+  for(const shares of [{b:1},{a:0,b:1}]){
+    const edited=editEvent(p,event.id,{shares});
+    assert.deepEqual(edited.shares,{b:1});
+    assert.deepEqual(edited.purchaseContributionsCents,{a:30000});
+    assert.deepEqual(Object.fromEntries(ledgerAt(p,date).balances),{a:30000,b:-30000});
+    assert.deepEqual(p.events.filter(e=>e.type==='claim-settlement-recorded'),originalPayments);
+  }
+  const snapshot=structuredClone(p);
+  assert.throws(()=>editEvent(p,event.id,{shares:{b:0}}),/INVALID_SHARES/);
+  assert.throws(()=>editEvent(p,event.id,{shares:{b:1},purchaseContributionsCents:{a:29999}}),/CONTRIBUTION_SUM_MISMATCH/);
+  assert.deepEqual(p,snapshot);
+  editEvent(p,event.id,{shares:{a:1,b:1}});
+  assert.equal(ledgerAt(p,date).balances.get('a'),15000);
+  assert.deepEqual(JSON.parse(JSON.stringify(p)),p);
+});
+test('Q67 historical correction does not rewrite later absolute share deltas',()=>{
+  const p=fixture();
+  const {event,item}=addItem(p,{...payload,initialValue:300,shares:{a:1,b:1},purchaseContributionsCents:{a:30000}});
+  const later=setItemShares(p,{itemId:item.id,date:'2026-01-02',shares:{b:2},financialMode:'derived'}).event;
+  const proposed=structuredClone(p);
+  editEvent(proposed,event.id,{shares:{b:1}});
+  assert.deepEqual(proposed.events.find(e=>e.id===later.id),later);
+  assert.equal(projectMutationProblem(p,proposed).key,'errors.shareHistoryConflict');
 });

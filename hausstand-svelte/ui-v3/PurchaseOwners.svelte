@@ -8,6 +8,7 @@
   export let shares={};
   export let individual=false;
   export let keepFunding=false;
+  export let editing=false;
   $: selected=Object.entries(shares);
   // Keep keyed rows mounted across payment modes, including incomplete input
   // text. The first single-payer view still starts with an empty owner list.
@@ -20,12 +21,12 @@
     event.currentTarget.value='';
   }
 </script>
-<section class="purchase-owner-list" class:individual>
+<section class="purchase-owner-list" class:individual class:editing>
   <div class="owner-heading"><strong>{$translate(individual?'purchase.people':'purchase.ownerTitle')}</strong>
-    {#if Object.keys(normShares(shares)).length>1}<button type="button" class="small" on:click={()=>shares=Object.fromEntries(Object.keys(normShares(shares)).map(id=>[id,1]))}>{$translate('items.equalShares')}</button>{/if}
+    {#if !editing && Object.keys(normShares(shares)).length>1}<button type="button" class="small" on:click={()=>shares=Object.fromEntries(Object.keys(normShares(shares)).map(id=>[id,1]))}>{$translate('items.equalShares')}</button>{/if}
   </div>
   {#if individual || selected.length}
-    <div class="owner-row owner-columns" aria-hidden="true"><span>{$translate('purchase.personColumn')}</span><span>{$translate('purchase.unitsColumn')}</span><span>%</span><span>{individual?$translate('purchase.paidColumn'):''}</span></div>
+    <div class="owner-row owner-columns" aria-hidden="true"><span>{$translate('purchase.personColumn')}</span><span>{$translate('purchase.unitsColumn')}</span><span>%</span><span>{individual?$translate('purchase.paidColumn'):''}</span>{#if editing}<span></span>{/if}</div>
   {/if}
   {#each rows as id (id)}
     {@const person=people.find(p=>p.id===id)}
@@ -33,13 +34,16 @@
     <div class="owner-row purchase-person-row" data-person={id} hidden={!individual&&!Object.hasOwn(shares,id)}>
       <span class="share-person-name">{person?.name||id}{#if !person||person.active===false}<small class="unavailable">{$translate('purchase.ownerUnavailable')}</small>{/if}</span>
       <NumericDraftInput inputClass="purchase-units" label={(person?.name||id)+' – '+$translate('ui.units-1xtsz9u')} value={units} parse={parseShareInput} onValue={value=>change(id,value)}
-        disabled={person?.active===false&&!Object.hasOwn(shares,id)}/>
+        disabled={!editing&&person?.active===false&&!Object.hasOwn(shares,id)}/>
       <small class="share-percent">{formatPercent(total>0?Math.max(0,Number(units)||0)/total:0)}</small>
       {#if keepFunding}
         <div class="owner-payment" hidden={!individual}><slot name="amount" personId={id} personName={person?.name||id}/></div>
       {/if}
-      {#if !individual}
-        <button type="button" class="remove-owner small" aria-label={$translate('purchase.removeOwner',{name:person?.name||id})} on:click={()=>shares=removePurchaseOwner(shares,id)}>×</button>
+      {#if !individual || editing}
+        <button type="button" class="remove-owner small" aria-label={$translate('purchase.removeOwner',{name:person?.name||id})}
+          title={$translate('purchase.removeOwner',{name:person?.name||id})}
+          disabled={editing && !Object.hasOwn(shares,id)}
+          on:click={()=>shares=removePurchaseOwner(shares,id)}>×</button>
       {/if}
     </div>
   {/each}
@@ -67,6 +71,7 @@
   .owner-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
   .owner-row{display:grid;grid-template-columns:minmax(0,1fr) 64px 46px 36px;align-items:center;gap:5px}
   .individual .owner-row{grid-template-columns:minmax(0,1fr) minmax(48px,82px) minmax(38px,58px) minmax(70px,115px)}
+  .individual.editing .owner-row{grid-template-columns:minmax(0,1fr) minmax(48px,82px) minmax(38px,58px) minmax(70px,115px) 32px}
   .owner-row[hidden],.owner-payment[hidden]{display:none}
   .owner-payment{min-width:0}
   .owner-row :global(input){width:100%;min-width:0;padding:5px}
@@ -76,6 +81,6 @@
   .remove-owner{min-height:36px;padding:2px;color:var(--danger)}
   .unavailable{display:block;color:var(--warn)}
   .purchase-owner-list p{margin:0}
-  @media(max-width:540px){.individual .owner-row{grid-template-columns:minmax(0,1fr) 50px 38px 76px;gap:4px}.owner-columns{overflow-wrap:anywhere}.owner-row .share-percent{font-size:10px}}
-  @media(max-width:380px){.owner-row{grid-template-columns:minmax(0,1fr) 48px 40px 32px;gap:4px}.individual .owner-row{grid-template-columns:minmax(0,1fr) 44px 35px 68px}}
+  @media(max-width:540px){.individual .owner-row{grid-template-columns:minmax(0,1fr) 50px 38px 76px;gap:4px}.individual.editing .owner-row{grid-template-columns:minmax(0,1fr) 46px 35px 66px 30px}.owner-columns{overflow-wrap:anywhere}.owner-row .share-percent{font-size:10px}}
+  @media(max-width:380px){.owner-row{grid-template-columns:minmax(0,1fr) 48px 40px 32px;gap:4px}.individual .owner-row{grid-template-columns:minmax(0,1fr) 44px 35px 68px}.individual.editing .owner-row{grid-template-columns:minmax(0,1fr) 40px 30px 60px 28px}}
 </style>

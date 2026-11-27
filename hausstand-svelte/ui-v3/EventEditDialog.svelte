@@ -10,6 +10,8 @@
   import { projectAt } from '../src/lib/projector.js';
   import { recordedContributions } from '../src/lib/purchaseFinancing.js';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
+  import PurchaseBreakdown from './PurchaseBreakdown.svelte';
+  import { purchaseBreakdown } from '../src/lib/ledger.js';
   import ShareEditor from './ShareEditor.svelte';
   import { isEnterForSubmit } from './form-behavior.js';
 
@@ -40,6 +42,9 @@
 
   $: sharesValid = !['item-added','shares-set'].includes(edited?.type) ||
     (validShareMap(edited.shares) && Object.values(edited.shares).some(value=>value>0));
+
+  $: purchaseRows = isPurchase && sharesValid && financingValid
+    ? purchaseBreakdown(Math.round(edited.initialValue*100),normShares(edited.shares),contributions) : [];
 
   function confirmFromInput(event) {
     if (!isEnterForSubmit(event)) return;
@@ -114,6 +119,8 @@
               {#if isPurchase}
                 <PurchaseFinancing people={project.people} ownerPeople={people} bind:shares={edited.shares}
                   amountCents={Math.round(edited.initialValue*100)} bind:contributions bind:valid={financingValid} editing={true} />
+                <p class="muted">{$translate('purchase.editOriginalHint')}</p>
+                {#if purchaseRows.length}<section class="stack purchase-edit-preview" aria-live="polite"><strong>{$translate('items.purchasePreview')}</strong><PurchaseBreakdown rows={purchaseRows} personName={id=>project.people.find(p=>p.id===id)?.name||id}/></section>{/if}
               {:else}
                 <strong>{$translate("ui.original-ownership-shares-sekno0")}</strong>
                 <ShareEditor {people} bind:shares={edited.shares} />

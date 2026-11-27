@@ -589,6 +589,64 @@ async function itemEntryLongListAcceptance(browser,url,engine) {
   }
 }
 
+// Q67: actual purchase correction, zero-owner guard, retained funding and Undo.
+async function removePurchaseOwnerAcceptance(browser,url){
+  for(const [width,locale] of [[375,'de-DE'],[1280,'en-GB']]){
+    const context=await browser.newContext({locale,viewport:{width,height:812}});
+    try{
+      const page=await context.newPage();
+      await bootFixture(page,url);
+      const snapshot=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
+      const original=await snapshot();
+      const modal=page.getByRole('dialog');
+      const open=async()=>{
+        await page.locator('.timeline-preview [data-event-id="purchase"] .event-open-overlay').click();
+        await modal.waitFor();
+      };
+      const row=id=>modal.locator('.purchase-person-row[data-person="'+id+'"]');
+      const units=id=>row(id).locator('.purchase-units');
+      const paid=id=>row(id).locator('.purchase-contribution');
+      const remove=id=>row(id).locator('.remove-owner').click();
+      const submit=modal.locator('.modal-footer .primary');
+      await open();
+      await remove('anna');
+      assert.equal(await units('anna').inputValue(),'0');
+      assert.equal(Number(await paid('anna').inputValue()),300);
+      assert.ok(await submit.isEnabled());
+      await units('clara').fill('0');
+      await remove('ben');
+      assert.ok(await submit.isDisabled(),'last owner cannot be removed and saved');
+      await units('ben').fill('1');
+      assert.equal(Number(await paid('anna').inputValue()),300);
+      assert.ok(await submit.isEnabled());
+      await paid('anna').fill('299');
+      assert.ok(await submit.isDisabled(),'real funding mismatch blocks save');
+      await paid('anna').fill('300');
+      await modal.locator('.purchase-edit-preview .purchase-breakdown').waitFor();
+      assert.ok(await submit.isEnabled());
+      await modal.locator('.modal-header .ghost').click();
+      await modal.waitFor({state:'hidden'});
+      assert.deepEqual(await snapshot(),original);
+      await open();await remove('anna');await units('clara').fill('0');
+      await submit.click();await modal.waitFor({state:'hidden'});
+      const corrected=await snapshot();
+      const purchase=corrected.events.find(e=>e.id==='purchase');
+      assert.deepEqual(purchase.shares,{ben:1});
+      assert.deepEqual(purchase.purchaseContributionsCents,{anna:30000});
+      assert.equal(ledgerAt(corrected,'2025-01-02').balances.get('anna'),30000);
+      await open();
+      assert.equal(await units('anna').inputValue(),'0');
+      assert.equal(Number(await paid('anna').inputValue()),300);
+      await modal.locator('.modal-header .ghost').click();
+      await modal.waitFor({state:'hidden'});
+      await page.locator('.session-history-actions button').first().click();
+      assert.deepEqual((await snapshot()).events,original.events);
+      await page.locator('.session-history-actions button').nth(1).click();
+      assert.deepEqual((await snapshot()).events,corrected.events);
+    }finally{await context.close();}
+  }
+}
+
 // Q33: other dialog families keep their working values across real edits,
 // blur, store notifications and deliberate navigation. Run in each engine.
 async function formStateAcceptance(browser,url,engine) {
@@ -2515,6 +2573,7 @@ try {
   await acceptance('Chromium Q39 recent history', () => recentHistoryAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q55 grouped daily payments', () => groupedPaymentAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q67 remove purchase owners', () => removePurchaseOwnerAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q40 archive discoverability', () => archiveDiscoverabilityAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q14/Q15/Q19 time travel', () => timeTravelFormsAcceptance(browser, offlineServer.url));
