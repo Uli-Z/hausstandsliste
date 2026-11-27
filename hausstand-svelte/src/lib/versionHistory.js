@@ -114,7 +114,7 @@ async function archiveEntry(project, savedAt) {
 // A first save has no previously confirmed version to archive.
 export async function createPortableSave(project, previousSaved, savedAt = new Date().toISOString()) {
   const current = copy(project);
-  await verifyPortableHistory(current);
+  await verifyPortableHistory(current, () => {}, [previousSaved]);
   const merged=collectItemNumbers([previousSaved,current]);
   Object.assign(current,applyItemNumbers(current,merged));
   const entries = [...getVersionEntries(current)];
@@ -157,7 +157,7 @@ export async function readPortableVersion(project, versionId) {
 
 // Check every embedded snapshot before accepting a file. Do not silently
 // carry incompatible historical snapshots into the new storage format.
-export async function verifyPortableHistory(project, validate = () => {}) {
+export async function verifyPortableHistory(project, validate = () => {}, related = []) {
   const ids=new Set(), snapshots=[];
   for(const entry of getVersionEntries(project)) {
     if(typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id))
@@ -165,9 +165,10 @@ export async function verifyPortableHistory(project, validate = () => {}) {
     ids.add(entry.id);
     snapshots.push(await readRawPortableVersion(project,entry.id));
   }
-  // Preserve existing assigned identities, then assign legacy records in
-  // the order of first saved appearance. Keep compressed bytes and hashes.
-  const registry=collectItemNumbers([...snapshots,project]);
+  // Preserve assigned identities, then migrate unnumbered records by the
+  // recorded creation event across history, saved baseline and working copy.
+  // Keep compressed bytes and hashes intact.
+  const registry=collectItemNumbers([...snapshots,...related,project]);
   for (const snapshot of snapshots) await validate(applyItemNumbers(snapshot,registry));
   Object.assign(project,applyItemNumbers(project,registry));
 }

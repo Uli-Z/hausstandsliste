@@ -139,8 +139,12 @@
       if (copy && copy.project) {
         requireShareEventFormat(copy.project);
         if (copy.savedProject) requireShareEventFormat(copy.savedProject);
-        await verifyPortableHistory(copy.project);
-        appState.restoreWorkingCopy(copy); // The view always opens at today, never at a stale historical date.
+        const beforeNumbers = JSON.stringify(copy.project.itemNumberRegistry || []);
+        const needsNumbers = copy.project.items.some(item=>!Number.isSafeInteger(item.number));
+        await verifyPortableHistory(copy.project, () => {}, [copy.savedProject]);
+        const migrated = needsNumbers || beforeNumbers !== JSON.stringify(copy.project.itemNumberRegistry || []) ||
+          (copy.savedProject?.items || []).some(item=>!Number.isSafeInteger(item.number));
+        appState.restoreWorkingCopy(copy, { persistMigration:migrated }); // Open at today; persist assigned numbers without an Undo entry.
       }
     } catch {
       alert($translate('errors.incompatibleWorkingCopy'));

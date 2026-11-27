@@ -62,6 +62,29 @@ async function bootFixture(page, url) {
   await page.reload();
   await page.getByText('Browser-Abnahme').first().waitFor();
 }
+// Q54: migrate an existing browser cache without waiting for an explicit save.
+async function legacyItemNumberAcceptance(browser,url) {
+  const context=await browser.newContext({locale:'de-DE'});
+  try {
+    const page=await context.newPage();
+    await page.goto(url);
+    const legacy=structuredClone(fixture);
+    legacy.items.unshift({id:'late',name:'Später gekauft'});
+    legacy.events.push({...legacy.events.find(e=>e.id==='purchase'),id:'purchase-late',itemId:'late',name:'Später gekauft',date:'2025-03-01'});
+    await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(legacy)});
+    await page.reload();
+    await page.getByText('Browser-Abnahme').first().waitFor();
+    const snapshot=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
+    const migrated=await snapshot();
+    assert.deepEqual(migrated.project.items.map(i=>[i.id,i.number]),[['late',2],['fridge',1]]);
+    assert.deepEqual(migrated.savedProject.items.map(i=>i.number),[2,1]);
+    assert.equal(migrated.dirty,false);
+    assert.deepEqual(migrated.project.events,legacy.events);
+    await page.reload();
+    await page.getByText('Browser-Abnahme').first().waitFor();
+    assert.deepEqual((await snapshot()).project.itemNumberRegistry,migrated.project.itemNumberRegistry);
+  } finally { await context.close(); }
+}
 // Q50: reset must discard the archive and session stack, not just visible records.
 async function resetProjectAcceptance(browser,url) {
   for (const [width,locale] of [[375,'de-DE'],[1280,'en-GB']]) {
@@ -2298,6 +2321,7 @@ try {
   server = offlineServer.server;
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
   await acceptance('Chromium Q37 read-only dialog guard', () => q37ReadOnlyAcceptance(browser));
+  await acceptance('Chromium Q54 legacy browser number migration', () => legacyItemNumberAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q50 destructive local reset', () => resetProjectAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q48 session history', () => sessionLogAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q47 household rename', () => householdRenameAcceptance(browser, offlineServer.url));

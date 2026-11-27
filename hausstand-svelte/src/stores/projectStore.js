@@ -84,7 +84,7 @@ function createStore() {
     }),
     exitTimeTravel: () => update(s => returnToToday(s, todayISO())),
     syncToday: day => update(s => syncCalendarDay(s, day)),
-    restoreWorkingCopy: copy => update(s => {
+    restoreWorkingCopy: (copy, {persistMigration=false} = {}) => update(s => {
       // Saved state has a smaller copy without history; reconstruct its exact
       // prior archive from the persisted entry IDs.
       const savedArchiveEntries = (copy.project?.versionHistory?.entries || [])
@@ -94,10 +94,20 @@ function createStore() {
           ? { versionHistory: { format: 'portable-v1', entries: savedArchiveEntries } }
           : {}) })
         : copy.dirty ? null : normalize(copy.project);
-      return resetUndo({ ...s, project: normalize(copy.project), savedProject: saved,
-        dirty: hasProjectChanges(normalize(copy.project), saved),
+      const project = normalize(copy.project);
+      const restored=resetUndo({ ...s, project, savedProject: saved,
+        dirty: hasProjectChanges(project, saved),
         localCacheWarning: false, secure: false, readOnly: false, readOnlyReason: '',
         asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, route: { page: 'dashboard' }, activeDialog: null });
+      if (!persistMigration) return restored;
+      // Migration is a technical update, not an edit. If quota/storage fails,
+      // retain the original cached data rather than deleting it.
+      try {
+        saveWorkingCopy({project, savedProject:saved?withoutHistory(saved):null,
+          savedHistoryIds:saved?.versionHistory?.entries?.map(v=>v.id)||[],
+          asOfDate:restored.asOfDate, dirty:restored.dirty});
+        return restored;
+      } catch { return {...restored,localCacheWarning:true}; }
     }),
     setRoute: route => update(s => ({ ...dismissDatePicker(s), route })),
     requireEditing: () => requireEditing(get({ subscribe })),

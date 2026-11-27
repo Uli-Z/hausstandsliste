@@ -1,6 +1,6 @@
 // Project-wide immutable identity registry, including removed/undone items.
-// The array order of master records is the original acquisition order, not
-// the business date or the current inventory sort order.
+// Existing unnumbered items are migrated by their dated item-added event.
+// Already assigned numbers never change, including after a backdated purchase.
 const valid = n => Number.isSafeInteger(n) && n > 0;
 const fail = () => { throw new Error('INVALID_ITEM_NUMBER_REGISTRY'); };
 
@@ -23,17 +23,38 @@ export function collectItemNumbers(projects) {
       if (item.number !== undefined) remember(item.id,item.number);
     }
   }
+  const candidates=new Map(), creation=new Map();
+  const candidate=id=>{
+    if (typeof id !== 'string' || !id) fail();
+    if (!candidates.has(id)) candidates.set(id,candidates.size);
+  };
+  const compareText=(a,b)=>a<b?-1:a>b?1:0;
+  const compareCreation=(a,b)=>compareText(a.date,b.date)||a.order-b.order||compareText(a.eventId,b.eventId);
   for (const project of projects) {
-    for (const item of project?.items || []) {
-      if (!ids.has(item.id)) remember(item.id,highest+1);
-    }
-    // An older event may retain an identity even when its master row is gone.
+    for (const item of project?.items || []) candidate(item.id);
+    const dated=new Map();
     for (const event of project?.events || []) {
       for (const row of [event,...(event.events || [])]) {
-        if (row.itemId && !ids.has(row.itemId)) remember(row.itemId,highest+1);
+        if (row.itemId) candidate(row.itemId);
       }
+      if (event.type!=='item-added' || !event.itemId ||
+          typeof event.date!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(event.date) ||
+          !Number.isFinite(Date.parse(event.date))) continue;
+      const key={date:event.date,order:Number.isSafeInteger(event.order)?event.order:0,eventId:String(event.id||'')};
+      if (!dated.has(event.itemId)||compareCreation(key,dated.get(event.itemId))<0) dated.set(event.itemId,key);
     }
+    // Later snapshots/current working copy take precedence for corrected dates.
+    for (const [id,key] of dated) creation.set(id,key);
   }
+  const pending=[...candidates.keys()].filter(id=>!ids.has(id));
+  pending.sort((a,b)=>{
+    const x=creation.get(a),y=creation.get(b);
+    if (x&&y) return compareCreation(x,y)||compareText(a,b);
+    if (x||y) return x?-1:1;
+    // No recorded creation date: retain stable first appearance, never guess.
+    return candidates.get(a)-candidates.get(b)||compareText(a,b);
+  });
+  for (const id of pending) remember(id,highest+1);
   return [...ids].map(([id,number])=>({id,number})).sort((a,b)=>a.number-b.number);
 }
 export function applyItemNumbers(project, registry=collectItemNumbers([project])) {

@@ -61,3 +61,28 @@ test('reject conflicting or reassigned numbers and preserve old unnumbered impor
   const deleted=structuredClone(p); deleted.items=[]; deleted.itemNumberRegistry=[];
   assert.equal(itemNumberMutationProblem(p,deleted),true);
 });
+
+test('legacy items receive numbers by item-added date, same-day order, then stable event ID',()=>{
+  const items=['late','sameB','early','sameA','undated'].map(id=>({id,name:id}));
+  const events=[
+    {id:'e-late',type:'item-added',itemId:'late',date:'2025-04-01',order:1},
+    {id:'e-b',type:'item-added',itemId:'sameB',date:'2025-02-01',order:2},
+    {id:'e-a',type:'item-added',itemId:'sameA',date:'2025-02-01',order:1},
+    {id:'e-early',type:'item-added',itemId:'early',date:'2025-01-01',order:9}
+  ];
+  const legacy={items,events};
+  const migrated=applyItemNumbers(legacy);
+  assert.deepEqual(migrated.itemNumberRegistry.map(r=>r.id),['early','sameA','sameB','late','undated']);
+  assert.deepEqual(applyItemNumbers(JSON.parse(JSON.stringify(migrated))),migrated);
+  const mixed={items:[{id:'late',name:'Late',number:7},...items.filter(i=>i.id!=='late')],events};
+  const assigned=applyItemNumbers(mixed);
+  assert.equal(assigned.items[0].number,7);
+  assert.equal(assigned.items.find(i=>i.id==='early').number,8);
+});
+test('migration includes saved baseline-only records and prefers corrected current dates',()=>{
+  const old={items:[{id:'gone'},{id:'current'}],events:[
+    {id:'g',type:'item-added',itemId:'gone',date:'2025-02-01'},
+    {id:'c',type:'item-added',itemId:'current',date:'2025-03-01'}]};
+  const current={items:[{id:'current'}],events:[{id:'c',type:'item-added',itemId:'current',date:'2025-01-01'}]};
+  assert.deepEqual(collectItemNumbers([old,current]),[{id:'current',number:1},{id:'gone',number:2}]);
+});
