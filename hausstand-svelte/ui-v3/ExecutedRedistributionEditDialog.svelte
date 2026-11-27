@@ -1,4 +1,6 @@
 <script>
+  import { notifications } from '../src/lib/notifications.js';
+  const notifyError = message => notifications.notify(message, {kind:'error'});
   import { translate, locale, formatDate, localizeGermanText } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { replaceEditableEvent, removeEvent, editableEventCopy, redateEditableEvent } from '../src/lib/eventMutations.js';
@@ -55,10 +57,10 @@
   function saveChild() {
     const idx = edited.events.findIndex(e => e.id === editingChildId);
     if (idx >= 0) {
-      if (!validShareMap(editedChildShares)) { alert($translate('forms.invalidShares')); return; }
+      if (!validShareMap(editedChildShares)) { notifyError($translate('forms.invalidShares')); return; }
       const clean = normShares(editedChildShares);
       if (shareTotal(clean) <= 0) {
-        alert($translate("ui.an-active-item-must-have-at-least--1wzqqo1"));
+        notifyError($translate("ui.an-active-item-must-have-at-least--1wzqqo1"));
         return;
       }
       const child = edited.events[idx];
@@ -95,7 +97,7 @@
       edited = redateEditableEvent(project,edited,inputEvent.currentTarget.value);
     } catch {
       inputEvent.currentTarget.value = edited.date;
-      alert($translate('errors.shareDateConflict'));
+      notifyError($translate('errors.shareDateConflict'));
     }
   }
 
