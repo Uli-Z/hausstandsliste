@@ -639,3 +639,6 @@ button.working-indicator:hover{text-decoration:underline}
   .app-header .household-rename{min-height:29px}
   .session-log-dialog{max-height:90dvh}
 }
+
+.server-save-panels{display:grid;gap:14px;max-width:840px;min-width:0}
+.server-save-panels .ux-panel{padding:20px}

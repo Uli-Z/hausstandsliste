@@ -88,3 +88,9 @@ test('only current standalone or encrypted project files are accepted for import
   assert.throws(() => requireProjectFile({ ...saved, versionHistory: undefined }), /Nicht unterstütztes/);
   assert.throws(() => requireProjectFile({ ...saved, redistributions: [], drafts: undefined }), /Nicht unterstütztes/);
 });
+
+test('Q43 preview defaults to the local calendar date of the archive timestamp', async () => {
+  const {todayISO}=await import('../src/lib/util.js');
+  assert.equal(todayISO(new Date(2025,0,2,12,0)), '2025-01-02');
+  assert.equal(todayISO(new Date(2026,10,27,12,0)), '2026-11-27');
+});

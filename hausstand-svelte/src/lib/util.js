@@ -1,6 +1,5 @@
 import { formatDate, formatDateTime } from './i18n.js';
-export const todayISO = () => {
-  const d = new Date();
+export const todayISO = (d = new Date()) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 export const nowISO = () => new Date().toISOString();
