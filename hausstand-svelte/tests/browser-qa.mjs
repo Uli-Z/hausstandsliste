@@ -331,9 +331,9 @@ async function itemEntryAcceptance(browser, url, engine) {
       assert.equal(await finance.locator('.purchase-units').count(),3);
       assert.equal(await finance.locator('.purchase-contribution').count(),3);
       for(const row of await finance.locator('.purchase-person-row:not(.purchase-column-head)').all()){
-        const boxes=await row.locator('.purchase-units, .share-percent, .remove-owner').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y+r.height/2};}));
+        const boxes=await row.locator('.purchase-units, .share-percent, .purchase-contribution').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y+r.height/2};}));
         assert.equal(boxes.length,3);
-        assert.ok(Math.max(...boxes.map(b=>b.y))-Math.min(...boxes.map(b=>b.y))<5,'ownership controls must share a row');
+        assert.ok(Math.max(...boxes.map(b=>b.y))-Math.min(...boxes.map(b=>b.y))<5,'Q66 ownership and payment inputs must share a row');
         assert.ok(boxes[0].x<boxes[1].x && boxes[1].x<boxes[2].x);
       }
       const dateBox = await modal.locator('#event-effective-date').boundingBox();
@@ -1268,6 +1268,38 @@ async function purchaseFinancingAcceptance(browser, url) {
     async function returnToOverview() {
       await page.locator('.mobile-bottom-nav > button').first().click();
     }
+    // Q66: enter individual mode directly, without preselecting any owner.
+    // Anna funds without ownership, Ben owns without funding, Clara does both.
+    await page.locator('[data-overview-action]').first().click();
+    await dialog.locator('.item-primary-fields input').first().fill('Q66 independent ownership');
+    await dialog.locator('.item-primary-fields input[type=number]').fill('300');
+    await financing.locator('.purchase-mode').selectOption('individual');
+    const row=id=>financing.locator('.purchase-person-row[data-person="'+id+'"]');
+    for(const id of ['anna','ben','clara']){
+      assert.equal(await row(id).locator('.purchase-units').inputValue(),'0');
+      assert.equal(await row(id).locator('.purchase-contribution').inputValue(),'0');
+    }
+    await row('anna').locator('.purchase-contribution').fill('200');
+    await row('clara').locator('.purchase-contribution').fill('100');
+    assert.equal(await row('anna').locator('.purchase-units').inputValue(),'0');
+    assert.equal(await row('clara').locator('.purchase-units').inputValue(),'0');
+    assert.equal(await submit.isDisabled(),true,'funding never creates ownership');
+    await row('ben').locator('.purchase-units').fill('1');
+    await row('clara').locator('.purchase-units').fill('2');
+    assert.equal(await row('ben').locator('.purchase-contribution').inputValue(),'0');
+    assert.equal(await row('clara').locator('.purchase-contribution').inputValue(),'100');
+    assert.equal(await submit.isEnabled(),true);
+    await submit.click();await dialog.waitFor({state:'hidden'});
+    const q66=await snapshot();
+    const q66Event=q66.events.find(e=>e.name==='Q66 independent ownership');
+    assert.deepEqual(q66Event.shares,{ben:1,clara:2});
+    assert.deepEqual(q66Event.purchaseContributionsCents,{anna:20000,clara:10000});
+    const q66Rows=ledgerAt(q66,date).claims.filter(c=>c.sourceEventId===q66Event.id);
+    assert.equal(q66Rows.reduce((sum,c)=>sum+c.amountCents,0),20000);
+    await returnToOverview();
+    await page.getByRole('button',{name:/Rückgängig \(Strg\+Z\)/}).click();
+    assert.deepEqual((await snapshot()).events,original.events);
+
     // Q34: genuinely unequal ownership with proportional actual contributions.
     await prepare('Q34 proportional');
     await financing.locator('.purchase-units').nth(0).fill('2');

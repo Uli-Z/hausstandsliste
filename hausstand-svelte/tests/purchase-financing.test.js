@@ -89,3 +89,16 @@ test('Q34 exact cent explanation includes zero owners and non-owner funders',()=
   for(const row of rows) assert.equal(balances.get(row.personId)??0,row.balanceCents);
   assert.deepEqual(purchaseBreakdown(1000,shares,{a:1}),[]);
 });
+
+test('Q66 independent ownership and payment columns persist and produce correct claims',()=>{
+  const p=fixture();
+  const {event}=addItem(p,{...payload,initialValue:300,shares:{b:1,c:2},purchaseContributionsCents:{a:20000,c:10000}});
+  assert.deepEqual(event.shares,{b:1,c:2});
+  assert.deepEqual(event.purchaseContributionsCents,{a:20000,c:10000});
+  assert.deepEqual(Object.fromEntries(ledgerAt(p,date).balances),{a:20000,b:-10000,c:-10000});
+  editEvent(p,event.id,{shares:{b:2,c:1}});
+  assert.deepEqual(p.events.find(e=>e.id===event.id).purchaseContributionsCents,{a:20000,c:10000});
+  assert.equal(ledgerAt(p,date).balances.get('b'),-20000);
+  editEvent(p,event.id,{purchaseContributionsCents:{a:10000,c:20000}});
+  assert.deepEqual(p.events.find(e=>e.id===event.id).shares,{b:2,c:1});
+});
