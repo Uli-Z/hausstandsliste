@@ -1582,11 +1582,16 @@ async function overviewNamesAcceptance(browser,url) {
       await items.locator('.metric-link').click();
       const tile=page.locator('.item-tile').filter({has:page.getByRole('heading',{name:'Q29 Item 11',exact:true})});
       assert.match(await tile.locator('.compact-names').innerText(),/Ben/);
+      assert.equal(await tile.locator('.name-group-label').count(),0);
+      assert.equal(await tile.locator('.name-chip').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
       await tile.locator('.tile-open').click();
       const detail=page.locator('.detail-hero .compact-names');
       assert.match(await detail.innerText(),/Anna/);
       assert.match(await detail.innerText(),/Ben/);
-      assert.match(await detail.innerText(),locale==='de-DE'?/Finanzierung/:/Funder/);
+      assert.match(await detail.innerText(),locale==='de-DE'?/Finanzierung/:/Funding/);
+      assert.equal(await detail.locator('.name-group-label').count(),2);
+      assert.equal(await detail.locator('.name-role').count(),0);
+      assert.equal(await detail.locator('.name-chip').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
       assert.deepEqual(errors,[]);
     } finally {await context.close();}
   }

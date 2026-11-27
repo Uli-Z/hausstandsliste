@@ -45,3 +45,23 @@ export function eventPeople(project,event,locale='en') {
 export function visibleNames(entries, expanded=false) {
   return {visible:expanded?entries:entries.slice(0,NAME_LIMIT),remaining:Math.max(0,entries.length-NAME_LIMIT)};
 }
+
+// Q57: one heading per distinct role, never an ownership badge per name.
+// A person may legitimately appear under both owners and funders. The cap
+// still applies to unique people, and headings remain stable on expansion.
+export function nameRoleGroups(visible, all = visible) {
+  const known = ['overview.owner','overview.formerOwner','overview.funder'];
+  const roles = known.filter(role=>all.some(entry=>entry.roles?.includes(role)));
+  const unlabeled = visible.filter(entry=>!entry.roles?.length);
+  const result = roles.map(role=>({
+    role,
+    label: roles.length>1 || role==='overview.funder' ? {
+      'overview.owner':'overview.ownersGroup',
+      'overview.formerOwner':'overview.formerOwnersGroup',
+      'overview.funder':'overview.fundersGroup'
+    }[role] : null,
+    entries:visible.filter(entry=>entry.roles?.includes(role))
+  })).filter(group=>group.entries.length);
+  if(unlabeled.length) result.unshift({role:null,label:null,entries:unlabeled});
+  return result;
+}

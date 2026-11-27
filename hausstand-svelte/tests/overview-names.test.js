@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { projectAt } from '../src/lib/projector.js';
-import { nameEntries, rankedItems, ownerNames, eventPeople, itemPeople, visibleNames } from '../src/lib/overviewNames.js';
+import { nameEntries, rankedItems, ownerNames, eventPeople, itemPeople, visibleNames, nameRoleGroups } from '../src/lib/overviewNames.js';
 
 test('Q29: cap, stable ordering, no mutation and full list',()=>{
   for(const n of [0,1,10,11,100]){
@@ -30,4 +30,20 @@ test('Q29: ranking uses projected value, active status and dated ownership, hist
  assert.deepEqual(participants.map(p=>[p.id,p.roles]),[['a',['overview.owner']],['b',['overview.owner']],['c',['overview.funder']]]);
  assert.deepEqual(itemPeople(first.activeItems[0],[buy],project.people),participants);
  assert.deepEqual(eventPeople(project,project.events.at(-1)).map(p=>p.id),['a','b']);
+});
+
+test('Q57: simple owner and share-change lists have no role heading; mixed financing is grouped',()=>{
+ const a={id:'a',name:'Anna',roles:['overview.owner','overview.funder']};
+ const b={id:'b',name:'Ben',roles:['overview.owner']};
+ const c={id:'c',name:'Chris',roles:['overview.funder']};
+ assert.deepEqual(nameRoleGroups([b]),[{role:'overview.owner',label:null,entries:[b]}]);
+ assert.deepEqual(nameRoleGroups([a,b,c]).map(g=>[g.label,g.entries.map(e=>e.id)]),[
+   ['overview.ownersGroup',['a','b']],['overview.fundersGroup',['a','c']]
+ ]);
+ assert.equal(nameRoleGroups([b],[b,c])[0].label,'overview.ownersGroup');
+ const delta={id:'a',name:'Anna',detail:'+2 units'};
+ assert.deepEqual(nameRoleGroups([delta]),[{role:null,label:null,entries:[delta]}]);
+ const former={id:'b',name:'Ben',roles:['overview.formerOwner']};
+ assert.equal(nameRoleGroups([former])[0].label,null);
+ assert.equal(nameRoleGroups([c])[0].label,'overview.fundersGroup');
 });
