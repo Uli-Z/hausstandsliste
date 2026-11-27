@@ -25,7 +25,7 @@ function normalized(coefficient, exponent) {
   return [coefficient, exponent];
 }
 
-function decimal(n) {
+export function decimal(n) {
   const [mantissa, exponent = '0'] = String(n).split('e');
   const [whole, fraction = ''] = mantissa.split('.');
   return normalized(BigInt(whole + fraction), Number(exponent) - fraction.length);

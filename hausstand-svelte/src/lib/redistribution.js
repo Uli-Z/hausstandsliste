@@ -172,15 +172,16 @@ export function redistributionPreview(project, redistribution, { beforeEventId =
   
   for (const change of redistribution.changes || []) {
     for (const row of shareDeltasForChange(base, change)) {
-      const existing = deltas.get(row.personId) || { personId: row.personId, personName: row.personName, delta: 0 };
-      existing.delta += row.delta;
+      const existing = deltas.get(row.personId) || { personId: row.personId, personName: row.personName, deltaCents: 0 };
+      existing.deltaCents += row.deltaCents;
       deltas.set(row.personId, existing);
     }
   }
   
   const rows = [...deltas.values()]
-    .filter(row => Math.abs(row.delta) > 0.005)
-    .sort((a, b) => b.delta - a.delta);
+    .filter(row => row.deltaCents !== 0)
+    .sort((a, b) => b.deltaCents - a.deltaCents)
+    .map(({deltaCents, ...row}) => ({...row, delta: deltaCents / 100}));
 
   return {
     base,
@@ -195,31 +196,31 @@ export function redistributionPreview(project, redistribution, { beforeEventId =
  */
 export function settlementRecommendations(deltas) {
   const debtors = deltas
-    .filter(d => d.delta > 0.005)
-    .map(d => ({ ...d, amount: d.delta }));
+    .map(d => ({...d, cents: Math.round(d.delta * 100)}))
+    .filter(d => d.cents > 0);
 
   const creditors = deltas
-    .filter(d => d.delta < -0.005)
-    .map(d => ({ ...d, amount: -d.delta }));
+    .map(d => ({...d, cents: -Math.round(d.delta * 100)}))
+    .filter(d => d.cents > 0);
 
   const payments = [];
   let i = 0, j = 0;
   
   while (i < debtors.length && j < creditors.length) {
-    const amount = Math.min(debtors[i].amount, creditors[j].amount);
-    if (amount > 0.005) {
+    const cents = Math.min(debtors[i].cents, creditors[j].cents);
+    if (cents > 0) {
       payments.push({ 
         fromPersonId: debtors[i].personId, 
         from: debtors[i].personName, 
         toPersonId: creditors[j].personId, 
         to: creditors[j].personName, 
-        amount 
+        amount: cents / 100
       });
     }
-    debtors[i].amount -= amount;
-    creditors[j].amount -= amount;
-    if (debtors[i].amount <= 0.005) i++;
-    if (creditors[j].amount <= 0.005) j++;
+    debtors[i].cents -= cents;
+    creditors[j].cents -= cents;
+    if (debtors[i].cents === 0) i++;
+    if (creditors[j].cents === 0) j++;
   }
   return payments;
 }

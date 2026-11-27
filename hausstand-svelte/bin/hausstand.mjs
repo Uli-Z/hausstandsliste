@@ -217,8 +217,8 @@ const page = (rows,opts) => {
   return {total:filtered.length,offset,limit,rows:filtered.slice(offset,offset+limit)};
 };
 const cents = value => Math.round(value * 100);
-const itemRow = item => ({id:item.id,name:item.name,number:item.number,label:itemDisplayName(item),status:item.status,valueCents:cents(item.value),shares:item.shares});
-const personRow = ({id,name,active,totalValue,entryDate,inactiveFrom}) => ({id,name,active,entryDate:entryDate??null,exitDate:inactiveFrom??null,totalValueCents:cents(totalValue)});
+const itemRow = item => ({id:item.id,name:item.name,number:item.number,label:itemDisplayName(item),status:item.status,valueCents:item.valueCents,shares:item.shares});
+const personRow = ({id,name,active,totalValueCents,entryDate,inactiveFrom}) => ({id,name,active,entryDate:entryDate??null,exitDate:inactiveFrom??null,totalValueCents});
 function find(rows,id) {
   const row = rows.find(r => r.id === id);
   if (!row) fail('NOT_FOUND','No matching ID at the selected date.',5);
@@ -473,7 +473,7 @@ async function main(args) {
     case 'people show': {
       const person = find(view.allPeople,opts['--id']);
       data = {...personRow(person),holdings:person.holdings.map(h => ({
-        itemId:h.item.id, itemNumber:h.item.number, itemLabel:itemDisplayName(h.item), units:h.units, fraction:h.fraction, valueCents:cents(h.value)
+        itemId:h.item.id, itemNumber:h.item.number, itemLabel:itemDisplayName(h.item), units:h.units, fraction:h.fraction, valueCents:h.valueCents
       })).sort((a,b)=>a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0)}; break;
     }
     case 'items list': data = page(view.items.map(itemRow).sort(compareId),opts); break;

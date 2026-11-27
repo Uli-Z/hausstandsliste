@@ -1,28 +1,12 @@
 import { normShares } from './domain.js';
 import { walkEvents } from './projector.js';
-import { valueAt } from './valuation.js';
+import { valueAtCents } from './valuation.js';
 import { recordedContributions, contributionProblem } from './purchaseFinancing.js';
 import { deriveSettlementCounterclaims } from './claimSettlement.js';
 
-// Monetary calculations use integer cents. Largest-remainder allocation preserves
-// the total even for uneven shares (e.g. 10.00 EUR split in thirds).
-export function allocateCents(amountCents, shares) {
-  const entries = Object.entries(normShares(shares))
-    .filter(([, units]) => Number.isFinite(units))
-    .sort(([a], [b]) => a.localeCompare(b));
-  const total = entries.reduce((sum, [, units]) => sum + units, 0);
-  if (total <= 0 || !Number.isSafeInteger(amountCents) || amountCents < 0) return {};
-  const rows = entries.map(([personId, units]) => {
-    const exact = amountCents * units / total;
-    return { personId, cents: Math.floor(exact), remainder: exact - Math.floor(exact) };
-  });
-  let remaining = amountCents - rows.reduce((sum, row) => sum + row.cents, 0);
-  for (const row of [...rows].sort((a, b) => b.remainder - a.remainder || a.personId.localeCompare(b.personId))) {
-    if (remaining-- <= 0) break;
-    row.cents++;
-  }
-  return Object.fromEntries(rows.map(row => [row.personId, row.cents]));
-}
+// Keep the public ledger export; all consumers use one independent allocator.
+import { allocateCents } from './centAllocation.js';
+export { allocateCents };
 
 export function claimsFromDeltas(deltas, meta) {
   const debtors = [...deltas.entries()].filter(([, cents]) => cents > 0)
@@ -85,7 +69,7 @@ export function deriveClaims(project, asOfDate) {
       const beforeShares = normShares(item.shares);
       const afterShares = resolvedShares;
       if (!Object.keys(beforeShares).length || !Object.keys(afterShares).length) return;
-      const valueCents = Math.round(valueAt(item.valuation, item.initialValue, item.date, event.date) * 100);
+      const valueCents = valueAtCents(item.valuation, item.initialValue, item.date, event.date);
       if (!Number.isSafeInteger(valueCents) || valueCents <= 0) return;
       const before = allocateCents(valueCents, beforeShares);
       const after = allocateCents(valueCents, afterShares);

@@ -17,6 +17,9 @@ export const valueAt = (valuation, startValue, startDate, asOfDate) => {
   return Math.max(min, value);
 };
 
+// Preserve the existing valuation rule; round once, before allocation.
+export const valueAtCents = (...args) => Math.round(valueAt(...args) * 100);
+
 export const label = valuation => {
   const t = (key, params) => message(key, getLocale(), params);
   const min = Number(valuation?.minimumValue || 0) > 0 ? t('valuation.minimum', { value: money(valuation.minimumValue) }) : '';

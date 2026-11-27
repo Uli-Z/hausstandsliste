@@ -1,7 +1,8 @@
 import { byDateOrder } from './util.js';
 import { normShares, shareTotal } from './domain.js';
 import { resolveShareEvent, ShareUnitError } from './shareUnits.js';
-import { valueAt } from './valuation.js';
+import { valueAtCents } from './valuation.js';
+import { allocateCents } from './centAllocation.js';
 import { CLAIM_SETTLEMENT_TYPE, claimSettlementErrors } from './claimSettlement.js';
 
 const ensurePerson = (state, id, name = id) => {
@@ -124,14 +125,16 @@ export const projectAt = (project, asOfDate, lifecycleEvents = project.events ||
   for (const [id, rt] of state.runtime.entries()) {
     const base = state.itemsById.get(id) || { id, name: id, tags: [], note: '' };
     const active = rt.status === 'active';
-    const currentValue = active ? valueAt(rt.valuation, rt.initialValue, rt.date, asOfDate) : 0;
+    const valueCents = active ? valueAtCents(rt.valuation, rt.initialValue, rt.date, asOfDate) : 0;
+    const allocated = allocateCents(valueCents, rt.shares);
     const total = shareTotal(rt.shares);
     const shareRows = Object.entries(rt.shares || {}).map(([personId, units]) => {
       const fraction = total > 0 ? units / total : 0;
       const person = state.peopleById.get(personId);
-      return { personId, personName: person?.name || personId, units, fraction, value: currentValue * fraction, active: !!person?.active };
+      const cents = allocated[personId] ?? 0;
+      return { personId, personName: person?.name || personId, units, fraction, valueCents: cents, value: cents / 100, active: !!person?.active };
     });
-    items.push({ ...base, runtime: rt, status: rt.status, value: currentValue, shares: rt.shares, shareRows });
+    items.push({ ...base, runtime: rt, status: rt.status, valueCents, value: valueCents / 100, shares: rt.shares, shareRows });
   }
 
   // A fully depreciated item still exists and can still be owned or transferred.
@@ -140,11 +143,12 @@ export const projectAt = (project, asOfDate, lifecycleEvents = project.events ||
   const archivedItems = items.filter(item => item.status !== 'active');
   const allPeople = [...state.peopleById.values()].map(person => {
     const holdings = activeItems.flatMap(item => item.shareRows.filter(row => row.personId === person.id).map(row => ({ item, ...row })));
-    const totalValue = holdings.reduce((sum, holding) => sum + holding.value, 0);
-    return { ...person, holdings, totalValue };
+    const totalValueCents = holdings.reduce((sum, holding) => sum + holding.valueCents, 0);
+    return { ...person, holdings, totalValueCents, totalValue: totalValueCents / 100 };
   // Historical references and explicit detail views still resolve all identities.
   }).filter(person => !person.synthetic || person.active || person.inactiveFrom || person.reactivatedAt);
 
+  const totalValueCents = activeItems.reduce((sum, item) => sum + item.valueCents, 0);
   return {
     asOfDate,
     people: allPeople.filter(person => person.entered || person.active),
@@ -153,7 +157,8 @@ export const projectAt = (project, asOfDate, lifecycleEvents = project.events ||
     activeItems,
     archivedItems,
     allTags: [...new Set((project.items || []).flatMap(item => item.tags || []))].sort((a, b) => a.localeCompare(b, 'de')),
-    totalValue: activeItems.reduce((sum, item) => sum + item.value, 0),
+    totalValueCents,
+    totalValue: totalValueCents / 100,
     peopleById: state.peopleById,
     itemsById: state.itemsById,
     warnings: state.warnings
@@ -190,19 +195,21 @@ export const shareDeltasForChange = (baseProjection, change) => {
   if (!item) return [];
   const beforeShares = item.shares || {};
   const afterShares = change.type === 'shares-set' ? resolveShareEvent(beforeShares,change) : normShares(change.shares);
-  const beforeTotal = shareTotal(beforeShares);
-  const afterTotal = shareTotal(afterShares);
+  const beforeCents = allocateCents(item.valueCents, beforeShares);
+  const afterCents = allocateCents(item.valueCents, afterShares);
   const ids = [...new Set([...Object.keys(beforeShares), ...Object.keys(afterShares)])];
   return ids.map(personId => {
-    const beforeFraction = beforeTotal > 0 ? (beforeShares[personId] || 0) / beforeTotal : 0;
-    const afterFraction = afterTotal > 0 ? (afterShares[personId] || 0) / afterTotal : 0;
+    const before = beforeCents[personId] ?? 0;
+    const after = afterCents[personId] ?? 0;
+    const deltaCents = after - before;
     return {
       personId,
       personName: baseProjection.peopleById.get(personId)?.name || personId,
-      beforeValue: item.value * beforeFraction,
-      afterValue: item.value * afterFraction,
-      delta: item.value * (afterFraction - beforeFraction)
+      beforeValue: before / 100,
+      afterValue: after / 100,
+      deltaCents,
+      delta: deltaCents / 100
     };
-  }).filter(x => Math.abs(x.delta) > 0.005);
+  }).filter(x => x.deltaCents !== 0);
 };
 

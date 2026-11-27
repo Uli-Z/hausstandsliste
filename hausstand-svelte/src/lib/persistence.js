@@ -34,13 +34,13 @@ export const exportProject = (project, asOfDate) => {
         `Personen mit Anteilen: ${projection.people.length}`,
         `Aktive Gegenstände mit Wert: ${projection.activeItems.length}`
       ],
-      people: projection.people.map(p => ({ name: p.name, active: !!p.active, totalValue: Math.round(p.totalValue * 100) / 100 })),
+      people: projection.people.map(p => ({ name: p.name, active: !!p.active, totalValue: p.totalValue })),
       items: projection.activeItems.map(i => ({
         id: i.id,
         name: i.name,
         number: i.number,
         label: itemDisplayName(i),
-        currentValue: Math.round(i.value * 100) / 100,
+        currentValue: i.value,
         // Keep the same machine-readable rule as the canonical item-added event.
         valuation: { ...i.runtime.valuation },
         // Optional human description; calculations never read this text.
