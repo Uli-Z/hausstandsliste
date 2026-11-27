@@ -1935,6 +1935,94 @@ async function q37ReadOnlyAcceptance(browser) {
   }
 }
 
+async function q42MailAcceptance(browser) {
+  for (const mode of ['accepted','rejected','disabled']) {
+    const root=await mkdtemp(join(tmpdir(),'hausstand-q42-'));
+    const port=await freePort();
+    const url='http://127.0.0.1:'+port+'/hausstand.php';
+    const script=join(root,'sendmail.sh'), rejectFile=join(root,'reject');
+    await writeFile(script,'#!/bin/sh\ncat >/dev/null\nif [ -f "$HAUSSTAND_TEST_REJECT" ]; then exit 1; fi\nexit 0\n',{mode:0o700});
+    if(mode==='rejected') await writeFile(rejectFile,'reject');
+    const php=spawn('php',['-d','sendmail_path='+script,'-S','127.0.0.1:'+port,'-t','dist'],{
+      env:{...process.env,HAUSSTAND_DATA_DIR:root,HAUSSTAND_ADMIN_TOKEN:'q42-test-admin',
+        HAUSSTAND_BACKUP_EMAIL:mode==='disabled'?'':'backup@example.test',
+        HAUSSTAND_MAIL_FROM:mode==='disabled'?'':'sender@example.test',
+        HAUSSTAND_TEST_REJECT:rejectFile},stdio:['ignore','ignore','pipe']
+    });
+    const de=mode!=='accepted';
+    const context=await browser.newContext({locale:de?'de-DE':'en-GB',viewport:{width:de?375:1280,height:812}});
+    try {
+      let ready=false;
+      for(let i=0;i<80;i++){try{ready=(await fetch(url+'?api=config')).ok;if(ready)break;}catch{} await pause(100);}
+      assert.ok(ready);
+      const id='hausstand-hauptdatei', password='q42-browser-password', token=randomSecret();
+      const created=await fetch(url+'?api=create',{method:'POST',headers:{'Content-Type':'application/json','X-Hausstand-Admin':'q42-test-admin'},body:JSON.stringify({
+        id,name:'Q42',envelope:await encryptProject(fixture,password,token),tokenHash:await hashSecret(token)
+      })});
+      assert.equal(created.status,200);
+      const page=await context.newPage();
+      await page.goto(url);
+      await page.getByLabel(de?'Passwort':'Password',{exact:true}).fill(password);
+      await page.getByRole('button',{name:de?'Anmelden':'Sign in',exact:true}).click();
+      await page.locator('.quick-actions').waitFor();
+      await page.getByRole('button',{name:de?'Bearbeitung starten':'Start editing',exact:true}).click();
+      const save=page.getByRole('button',{name:de?'Speichern und Bearbeitung beenden':'Save and finish editing',exact:true});
+      await save.waitFor();
+      await page.locator('.quick-actions .task-grid > button').nth(2).click();
+      const modal=page.locator('.modal-backdrop');
+      await modal.locator('input').first().fill('Q42 '+mode);
+      await modal.locator('.modal-footer .primary').click();
+      await modal.waitFor({state:'hidden'});
+      const saved=page.locator('.notification[data-kind="success"]').filter({hasText:de?'Verschlüsselter Projektstand auf dem Server gespeichert.':'Encrypted project saved on the server.'});
+      if(mode==='disabled'){
+        await page.route('**/hausstand.php?api=save',route=>route.abort());
+        await save.click();
+        await page.locator('.notification[data-kind="error"]').filter({hasText:/Speichern oder Einchecken fehlgeschlagen/}).waitFor();
+        assert.equal(await saved.count(),0);
+        assert.equal(await (await (await fetch(url+'?api=read&id='+id)).json()).revision,1);
+        await page.unroute('**/hausstand.php?api=save');
+      }
+      let release, signal;
+      const gate=new Promise(resolve=>release=resolve);
+      const started=new Promise(resolve=>signal=resolve);
+      let saves=0;
+      await page.route('**/hausstand.php?api=save',async route=>{saves++;signal();await gate;await route.continue();});
+      try {
+        await save.click();
+        await Promise.race([started,pause(10000).then(()=>{throw Error('Q42 save did not start');})]);
+        assert.ok(await save.isDisabled());
+        await page.locator('.server-edit-status').filter({hasText:de?'Speichern und E-Mail-Sicherung prüfen':'Saving and checking email backup'}).waitFor();
+        assert.equal(await saved.count(),0);
+        await save.evaluate(button=>button.click());
+      } finally {release();}
+      await saved.waitFor();
+      assert.equal(saves,1);
+      await page.unroute('**/hausstand.php?api=save');
+      const mailText=mode==='accepted'?'Email backup accepted by the mail service. Delivery is not confirmed.':mode==='rejected'?'E-Mail-Sicherung fehlgeschlagen: Maildienst hat den Versandauftrag abgelehnt.':'E-Mail-Sicherung nicht eingerichtet; keine E-Mail versandt.';
+      await page.locator('.notification').filter({hasText:mailText}).waitFor();
+      await page.getByRole('button',{name:de?'Bearbeitung starten':'Start editing',exact:true}).waitFor();
+      const packet=await (await fetch(url+'?api=read&id='+id)).json();
+      assert.equal(packet.revision,2);
+      assert.ok((await decryptProject(packet.envelope,password)).project.people.some(p=>p.name==='Q42 '+mode));
+      if(mode==='rejected'){
+        const retry=page.getByRole('button',{name:'E-Mail-Sicherung erneut versuchen',exact:true});
+        await retry.waitFor();
+        const metaPath=join(root,'files',id,'meta.json');
+        const meta=JSON.parse(await readFile(metaPath,'utf8'));
+        meta.mailQueue.find(e=>e.revision===2).lastAttempt=0;
+        await writeFile(metaPath,JSON.stringify(meta));
+        await rm(rejectFile);
+        await retry.click();
+        await page.locator('.notification').filter({hasText:'E-Mail-Sicherung vom Maildienst angenommen. Die Zustellung ist nicht bestätigt.'}).waitFor();
+        await retry.waitFor({state:'hidden'});
+        const after=await (await fetch(url+'?api=read&id='+id)).json();
+        assert.equal(after.revision,2);
+        assert.deepEqual(after.envelope,packet.envelope);
+      }
+    } finally { await context.close(); php.kill(); await rm(root,{recursive:true,force:true}); }
+  }
+}
+
 let browser;
 let server;
 const extraBrowsers = [];
@@ -1958,6 +2046,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
+  await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
   await acceptance('Chromium Q37 read-only dialog guard', () => q37ReadOnlyAcceptance(browser));
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium Q32/Q33 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));
