@@ -9,8 +9,8 @@ globalThis.localStorage = {
   setItem: (key, value) => storage.set(key, value),
   removeItem: key => storage.delete(key)
 };
-const alerts = [];
-globalThis.alert = message => alerts.push(String(message));
+import { notifications } from '../src/lib/notifications.js';
+const errors = () => get(notifications).filter(n=>n.kind==='error').map(n=>n.message);
 
 function fixture(shares = { anna: 1 }) {
   return {
@@ -26,7 +26,7 @@ function fixture(shares = { anna: 1 }) {
 }
 
 test('A05 store: rejected ownerless mutation leaves data and unsaved flag untouched', () => {
-  alerts.length = 0;
+  notifications.clear();
   appState.importProject(fixture());
   const original = JSON.stringify(get(appState).project.events);
   const saved = appState.mutateProject(p => {
@@ -38,11 +38,11 @@ test('A05 store: rejected ownerless mutation leaves data and unsaved flag untouc
   assert.equal(saved, false);
   assert.equal(JSON.stringify(get(appState).project.events), original);
   assert.equal(get(appState).dirty, false);
-  assert.match(alerts.at(-1), /keine Eigentümer|no owner/i);
+  assert.match(errors().at(-1), /keine Eigentümer|no owner/i);
 });
 
 test('A05 store: valid transfer is saved and marked dirty', () => {
-  alerts.length = 0;
+  notifications.clear();
   appState.importProject(fixture());
   const saved = appState.mutateProject(p => {
     p.events.push({
@@ -53,7 +53,7 @@ test('A05 store: valid transfer is saved and marked dirty', () => {
   assert.equal(saved, true);
   assert.equal(get(appState).dirty, true);
   assert.equal(get(appState).project.events.at(-1).shareUnitDeltas.ben, 1);
-  assert.equal(alerts.length, 0);
+  assert.equal(errors().length, 0);
 });
 
 test('A05 store: invalid ownerless project can be repaired', () => {
