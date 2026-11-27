@@ -149,6 +149,7 @@ async function readRawPortableVersion(project, versionId) {
 
 // Restore business data, not the current identity allocation state.
 export async function readPortableVersion(project, versionId) {
+  await verifyPortableHistory(project);
   const snapshot=await readRawPortableVersion(project,versionId);
   const registry=collectItemNumbers([project,snapshot]);
   return applyItemNumbers(snapshot,registry);

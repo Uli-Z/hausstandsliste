@@ -1,5 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
-import { collectItemNumbers, applyItemNumbers } from '../lib/itemNumbers.js';
+import { itemDisplayName } from '../lib/itemNames.js';
+import { collectItemNumbers, applyItemNumbers, alignSavedItemNumbers } from '../lib/itemNumbers.js';
 import { emptyProject, normalize } from '../lib/domain.js';
 import { clone, todayISO } from '../lib/util.js';
 import { createRedistribution, upsertDraft, removeDraft } from '../lib/draftMutations.js';
@@ -89,7 +90,7 @@ function createStore() {
       const savedArchiveEntries = (copy.project?.versionHistory?.entries || [])
         .filter(entry => (copy.savedHistoryIds || []).includes(entry.id));
       const saved = copy.savedProject
-        ? normalize({ ...applyItemNumbers(copy.savedProject,collectItemNumbers([copy.project,copy.savedProject])), ...(copy.savedHistoryIds?.length
+        ? normalize({ ...alignSavedItemNumbers(copy.savedProject,copy.project), ...(copy.savedHistoryIds?.length
           ? { versionHistory: { format: 'portable-v1', entries: savedArchiveEntries } }
           : {}) })
         : copy.dirty ? null : normalize(copy.project);
@@ -147,7 +148,8 @@ function createStore() {
         if (next !== s) {
           const key = s.activeDialog?.type === 'personAdd' ? 'toast.personAdded'
             : s.activeDialog?.type === 'itemAdd' ? 'toast.itemAdded' : 'toast.changeRecorded';
-          notifications.notify(message(key, getLocale()), {kind:'success'});
+          const created = project.items.find(item=>!s.project.items.some(old=>old.id===item.id));
+          notifications.notify(message(key, getLocale()) + (created ? ' · ' + itemDisplayName(created) : ''), {kind:'success'});
         }
         return next;
       });

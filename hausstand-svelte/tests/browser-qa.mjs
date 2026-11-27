@@ -349,7 +349,11 @@ async function itemEntryAcceptance(browser, url, engine) {
       assert.ok(await submit.isEnabled(),'Q53 duplicate must not disable save');
       await submit.click();
       await modal.waitFor({state:'hidden'});
-      assert.equal((await snapshot()).items.filter(i=>i.name==='Kühlschrank').length,2);
+      const duplicates=(await snapshot()).items.filter(i=>i.name==='Kühlschrank');
+      assert.equal(duplicates.length,2);
+      assert.equal(duplicates[0].number,1);
+      assert.ok(duplicates[1].number>duplicates[0].number);
+      assert.equal(new Set((await snapshot()).items.map(i=>i.number)).size,(await snapshot()).items.length);
       assert.deepEqual(errors,[]);
     } finally { await context.close(); }
     console.log('Q32 '+engine+' '+width+' '+locale+' passed');

@@ -38,6 +38,7 @@
     { id: 'money', icon: 'arrows' },
     { id: 'activity', icon: 'list' }
   ];
+  let localReady = false;
   let activeSection = 'overview';
   let showJson = false;
   let resetOpen = false;
@@ -143,7 +144,7 @@
       }
     } catch {
       alert($translate('errors.incompatibleWorkingCopy'));
-    }
+    } finally { localReady = true; }
     }
     if (!SERVER_MODE) void restoreLocalCopy();
     const refreshDay = () => appState.syncToday(todayISO());
@@ -269,7 +270,7 @@
 {#if SERVER_MODE}
   <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:saving={serverSaving} bind:mailRetryRevision={mailRetryRevision} bind:busy={storageBusy}/>
 {/if}
-{#if !SERVER_MODE || serverAuthenticated}
+{#if (SERVER_MODE && serverAuthenticated) || (!SERVER_MODE && localReady)}
 <div class="app-shell">
   <aside class="sidebar" aria-label={$translate('nav.primary')}>
     <div class="brand">

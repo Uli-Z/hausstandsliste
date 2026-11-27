@@ -16,7 +16,12 @@ export function collectItemNumbers(projects) {
     if (!project) continue;
     if (project.itemNumberRegistry !== undefined && !Array.isArray(project.itemNumberRegistry)) fail();
     for (const row of project.itemNumberRegistry || []) remember(row?.id,row?.number);
-    for (const item of project.items || []) if (item.number !== undefined) remember(item.id,item.number);
+    const itemIds=new Set();
+    for (const item of project.items || []) {
+      if (typeof item?.id !== 'string' || !item.id || itemIds.has(item.id)) fail();
+      itemIds.add(item.id);
+      if (item.number !== undefined) remember(item.id,item.number);
+    }
   }
   for (const project of projects) {
     for (const item of project?.items || []) {
@@ -43,6 +48,16 @@ export function nextItemNumber(project,id) {
   const number=(rows.at(-1)?.number || 0)+1;
   if (!valid(number)) fail();
   return [...rows,{id,number}];
+}
+// Saved baseline must not inherit numbers from later unsaved allocations.
+export function alignSavedItemNumbers(saved, current) {
+  if (!saved) return saved;
+  const ids=new Set(collectItemNumbers([saved]).map(row=>row.id));
+  const rows=collectItemNumbers([current]).filter(row=>ids.has(row.id));
+  // Only legacy unnumbered identities need alignment; numbered snapshots
+  // retain their own complete registry, including previously removed IDs.
+  if (saved.itemNumberRegistry) return applyItemNumbers(saved);
+  return applyItemNumbers(saved,rows);
 }
 export function itemNumberMutationProblem(before,after) {
   try {

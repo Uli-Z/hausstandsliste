@@ -12,8 +12,8 @@ export function duplicateItemNames(project, name, exceptId = null) {
     item.id !== exceptId && normalizedItemName(item.name) === key);
 }
 
-// Q54 will assign immutable item.number in the shared domain. Until then,
-// show the original name; never invent a number from a list position.
+// Shared presentation label. Unnumbered low-level fixtures use the raw name;
+// all loaded projects receive persistent numbers before display.
 export function itemDisplayName(item) {
   return Number.isSafeInteger(item?.number) && item.number > 0
     ? '#' + item.number + ' ' + item.name

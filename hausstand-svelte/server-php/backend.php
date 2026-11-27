@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 // The release workflow embeds the exact tag in the single-file artifact.
 define('HAUSSTAND_RELEASE_TAG', 'development');
-define('HAUSSTAND_UPDATE_CONTRACT', 'portable-v1-reset-1');
+define('HAUSSTAND_UPDATE_CONTRACT', 'portable-v1-item-numbers-1');
 
 /**
  * Hausstand: Diese PHP-Datei ist die vollständige Server-App inklusive Oberfläche.
