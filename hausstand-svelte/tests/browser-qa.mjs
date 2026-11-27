@@ -982,8 +982,8 @@ async function settlementEndToEnd(browser, url) {
     await purchase.locator('input[type=number][step="0.01"]').first().fill('300');
     await purchase.locator('select').filter({ has: page.locator('option[value="fixed"]') })
       .first().selectOption('fixed');
-    await purchase.locator('select').filter({ has: page.locator('option[value="anna"]') })
-      .last().selectOption('anna');
+    for(const id of ['anna','ben','clara']) await purchase.locator('.purchase-owner-select').selectOption(id);
+    await purchase.locator('.purchase-payer').selectOption('anna');
     await purchase.locator('.modal-footer button.primary').click();
     await closeDialog();
     const afterPurchase = await readProject();
