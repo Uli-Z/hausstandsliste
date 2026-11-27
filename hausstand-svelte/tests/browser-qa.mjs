@@ -1116,9 +1116,8 @@ async function shareDeltaAcceptance(browser,url) {
   const context=await browser.newContext({locale:'de-DE',viewport:{width:1280,height:820},acceptDownloads:true});
   try {
     const page=await context.newPage();
-    const failures=[], alerts=[];
+    const failures=[];
     page.on('pageerror',e=>failures.push(e.message));
-    page.on('dialog',async d=>{alerts.push(d.message()); await d.accept();});
     const original=structuredClone(fixture);
     original.events.find(e=>e.type==='item-added').shares={anna:6,ben:4,clara:1};
     original.events.push({id:'q30-payment',type:'claim-settlement-recorded',date:'2025-01-03',order:1,
@@ -1146,7 +1145,9 @@ async function shareDeltaAcceptance(browser,url) {
       if(accepted) await dialog.waitFor({state:'hidden'});
       else {
         await page.waitForFunction(()=>document.querySelector('[role="dialog"]')!==null);
-        assert.ok(alerts.some(s=>s.includes('Anteile')&&s.includes('2025-03-01')),alerts.join(' | '));
+        const error = page.locator('.notification[data-kind="error"]').filter({hasText:/Anteile.*2025-03-01/s});
+        await error.waitFor();
+        await error.getByRole('button').click();
         await dialog.getByRole('button',{name:'Abbrechen',exact:true}).click();
       }
     }
@@ -1649,9 +1650,8 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       const savedUndo = await undo.boundingBox();
       assert.ok(Math.abs(beforeUndo.x - savedUndo.x) <= 1,
         'Q04 ' + width + 'px Undo shifted after saving');
-      // Navigating away must remove a success message, not leave it on every page.
+      // Notifications are independent of navigation and expire on their own.
       await section('people');
-      assert.equal(await page.locator('.save-feedback').count(), 0);
       await noOverflow('people');
 
       // Person editor must stay within viewport and Enter must confirm.
@@ -1665,6 +1665,11 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       await personInput.press('Enter');
       await page.locator('[role="dialog"]').waitFor({ state: 'hidden' });
       assert.equal(await page.getByText('Änne Über').count() > 0, true);
+      const addedToast = page.locator('.notification[data-kind="success"]').filter({hasText:'Person wurde hinzugefügt.'});
+      await addedToast.waitFor();
+      await addedToast.getByRole('button',{name:'Schließen'}).click();
+      await addedToast.waitFor({state:'hidden'});
+      await page.locator('.save-feedback').waitFor({state:'hidden',timeout:7000});
       await noOverflow('person added');
 
       await section('activity');
@@ -1847,14 +1852,10 @@ async function q37ReadOnlyAcceptance(browser) {
     const editor = await login('de-DE',1280);
     const reader = await login('en-GB',375);
     const rejected = async (page,control,expected,keyboard=false) => {
-      const alert = page.waitForEvent('dialog');
-      // Handle the browser alert before waiting for completion of the click.
-      const interaction = keyboard ? control.press('Enter') : control.click();
-      const popup = await alert;
-      assert.equal(popup.type(),'alert');
-      assert.match(popup.message(),expected);
-      await popup.accept();
-      await interaction;
+      if (keyboard) await control.press('Enter'); else await control.click();
+      const toast = page.locator('.notification[data-kind="error"]').filter({hasText:expected});
+      await toast.waitFor();
+      await toast.getByRole('button').click();
       assert.equal(await page.locator('.modal-backdrop').count(),0,'no editing dialog in read-only mode');
     };
     for (const [page,pattern] of [[editor,/schreibgeschützt.*oben rechts/s],[reader,/read-only.*top right/s]]) {
@@ -1911,12 +1912,11 @@ async function q37ReadOnlyAcceptance(browser) {
     const meta = JSON.parse(await readFile(metaPath,'utf8'));
     meta.leaseExpires = 1;
     await writeFile(metaPath, JSON.stringify(meta));
-    const lost = reader.waitForEvent('dialog');
     const renewResponse = reader.waitForResponse(response=>response.url().includes('api=renew') && response.status()===409);
     await reader.evaluate(()=>window.dispatchEvent(new Event('focus')));
-    const lostPopup = await lost;
-    assert.match(lostPopup.message(),/read-only.*top right.*expired/s);
-    await lostPopup.accept();
+    const lostToast = reader.locator('.notification[data-kind="error"]').filter({hasText:/read-only.*top right.*expired/s});
+    await lostToast.waitFor();
+    await lostToast.getByRole('button').click();
     assert.equal((await renewResponse).status(),409);
     await reader.getByRole('button',{name:'Start editing',exact:true}).waitFor();
     assert.equal(await readerModal.isVisible(),true);
