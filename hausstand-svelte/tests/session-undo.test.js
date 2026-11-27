@@ -213,3 +213,47 @@ test('Q47: rename changes only household metadata, respects permissions and supp
   appState.markSaved(get(appState).project);
   assert.equal(get(appState).dirty,false);
 });
+
+test('Q48: atomic multi-step jumps, saved state, redo branch, limit and invalid destination', () => {
+  const h=createSessionUndo(3);
+  let current=project('A');
+  for (const name of ['B','C','D','E']) {
+    const next=project(name);
+    h.record(current,next,[{key:'rename',params:{name}}]); current=next;
+  }
+  const saved=project('C');
+  assert.deepEqual(h.view(current,saved).entries.map(e=>e[0].params.name),['C','D','E']);
+  assert.equal(h.view(current,saved).savedIndex,1);
+  assert.equal(h.jump(current,0,p=>p.community.name!=='C'),null);
+  assert.equal(h.view(current,saved).cursor,3);
+  current=h.jump(current,1,()=>true);
+  assert.equal(current.community.name,'C');
+  assert.deepEqual(h.counts(),{undoCount:1,redoCount:2});
+  current=h.jump(current,3,()=>true);
+  assert.equal(current.community.name,'E');
+  current=h.jump(current,0);
+  assert.equal(current.community.name,'B');
+  h.record(current,project('X'),[{key:'new'}]);
+  assert.equal(h.view(project('X'),saved).savedOutside,true);
+  assert.deepEqual(h.counts(),{undoCount:1,redoCount:0});
+});
+test('Q48: session log survives save, not project reload, and jump respects read-only',()=>{
+  appState.importProject(project('A'));
+  appState.renameHousehold('B'); appState.renameHousehold('C');
+  assert.equal(appState.sessionLog().entries[0][0].key,'sessionLog.rename');
+  appState.markSaved(get(appState).project);
+  appState.setAsOfDate('2020-01-01');
+  assert.equal(appState.sessionLog().savedIndex,2);
+  assert.equal(appState.jumpHistory(0),true);
+  assert.equal(get(appState).project.community.name,'A');
+  assert.equal(get(appState).dirty,true);
+  assert.equal(get(appState).asOfDate,'2020-01-01');
+  appState.setReadOnly(true);
+  try { assert.equal(appState.jumpHistory(2),false); }
+  finally { appState.setReadOnly(false); }
+  assert.equal(appState.jumpHistory(2),true);
+  assert.equal(get(appState).dirty,false);
+  assert.equal(JSON.parse(values.get('hausstand_svelte_v07_working_copy')).sessionLog,undefined);
+  appState.importProject(get(appState).project);
+  assert.equal(appState.sessionLog().entries.length,0);
+});

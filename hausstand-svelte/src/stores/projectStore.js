@@ -8,6 +8,7 @@ import { ownershipHistoryProblems } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
 import { createSessionUndo } from '../lib/sessionUndo.js';
+import { describeSessionChange } from '../lib/sessionLog.js';
 import { projectMutationProblem } from '../lib/mutationValidation.js';
 import { message, getLocale } from '../lib/i18n.js';
 import { notifications } from '../lib/notifications.js';
@@ -44,7 +45,7 @@ function createStore() {
   };
   const resetUndo = state => ({ ...state, history: sessionUndo.reset() });
   const changedProject = (state, nextProject) => {
-    if (!sessionUndo.record(state.project, nextProject)) return state;
+    if (!sessionUndo.record(state.project, nextProject, describeSessionChange(state.project,nextProject))) return state;
     return persist({ ...state, project: nextProject,
       dirty: hasProjectChanges(nextProject, state.savedProject),
       history: sessionUndo.counts() });
@@ -72,6 +73,7 @@ function createStore() {
   };
   const api = {
     subscribe,
+    sessionLog: () => { const s=get({subscribe}); return sessionUndo.view(s.project,s.savedProject); },
     openDatePicker: () => update(s => openDatePicker(s)),
     dismissDatePicker: () => update(s => dismissDatePicker(s)),
     setAsOfDate: asOfDate => update(s => {
@@ -190,6 +192,17 @@ function createStore() {
         applied = true;
         return persist({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
           history: sessionUndo.counts() });
+      });
+      return applied;
+    },
+    jumpHistory: index => {
+      let applied=false;
+      update(s=>{
+        if(s.activeDialog || !requireEditing(s)) return s;
+        const project=sessionUndo.jump(s.project,index,p=>!ownershipHistoryProblems(p).length);
+        if(!project) return s;
+        applied=true;
+        return persist({...s,project,dirty:hasProjectChanges(project,s.savedProject),history:sessionUndo.counts()});
       });
       return applied;
     },

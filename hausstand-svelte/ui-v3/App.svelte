@@ -7,6 +7,8 @@
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, exportProject } from '../src/lib/persistence.js';
   import { historyShortcut } from '../src/lib/sessionUndo.js';
+  import { sessionChangeText } from '../src/lib/sessionLog.js';
+  import SessionHistoryDialog from './SessionHistoryDialog.svelte';
   import { money } from '../src/lib/domain.js';
   import { requireShareEventFormat } from '../src/lib/shareUnits.js';
   import { addDays, eventDates, todayISO } from '../src/lib/util.js';
@@ -50,6 +52,23 @@
   let storageBusy = false;
   let timeTravelControl;
   let dateToggleButton;
+  let historyOpen=false;
+  let historyTrigger;
+  $: sessionLog = ($appState, appState.sessionLog());
+  $: undoDescription = sessionChangeText(sessionLog.entries[sessionLog.cursor-1],$locale);
+  $: redoDescription = sessionChangeText(sessionLog.entries[sessionLog.cursor],$locale);
+  function openHistory(event) {
+    historyTrigger=event.currentTarget;
+    appState.dismissDatePicker();
+    historyOpen=true;
+  }
+  function closeHistory() {
+    historyOpen=false;
+    tick().then(()=>historyTrigger?.focus());
+  }
+  function jumpHistory(index) {
+    if (!appState.jumpHistory(index)) notifications.notify($translate('sessionLog.jumpFailed'),{kind:'error'});
+  }
   let adminToken = '';
   let updateBusy = false;
   let updateStatus = '';
@@ -159,7 +178,7 @@
     tick().then(() => dateToggleButton?.focus());
   }
   function handleKeydown(e) {
-    const shortcut = historyShortcut(e, !!$appState.activeDialog);
+    const shortcut = historyShortcut(e, !!$appState.activeDialog || historyOpen);
     if (shortcut) {
       const changed = shortcut === 'undo' ? appState.undo() : appState.redo();
       if (changed) e.preventDefault();
@@ -222,6 +241,7 @@
         <button type="button" class="household-rename" title={$translate('household.rename')} aria-label={$translate('household.rename') + ': ' + ($appState.project.community?.name || $translate('app.household'))} aria-haspopup="dialog" on:click={() => appState.setDialog({type:'householdRename'})}>
           <strong>{$appState.project.community?.name || $translate('app.household')}</strong><ActionIcon name="edit" size={16}/>
         </button>
+        <button type="button" class="mobile-session-log" aria-label={$translate($appState.dirty?'app.dirty':'app.clean')+' · '+$translate('sessionLog.title')} aria-haspopup="dialog" disabled={!!$appState.activeDialog || storageBusy} on:click={openHistory}><span class="status-dot" class:needs-save={$appState.dirty}></span>{$translate('sessionLog.short')}</button>
       </div>
       <div class="header-actions">
         <div class="time-travel-control" bind:this={timeTravelControl}>
@@ -268,13 +288,13 @@
           {/if}
         </div>
         <div class="session-history-actions" role="group" aria-label={$translate('app.undo')}>
-          <button type="button" class="session-history-button" aria-label={$translate('app.undo')} title={$translate("app.undo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}><ActionIcon name="undo" size={20}/></button>
-          <button type="button" class="session-history-button" aria-label={$translate('app.redo')} title={$translate("app.redo")} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}><ActionIcon name="redo" size={20}/></button>
+          <button type="button" class="session-history-button" aria-label={$translate('app.undo')+(undoDescription?': '+undoDescription:'')} title={$translate('app.undo')+(undoDescription?': '+undoDescription:'')} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.undoCount} on:click={() => appState.undo()}><ActionIcon name="undo" size={20}/></button>
+          <button type="button" class="session-history-button" aria-label={$translate('app.redo')+(redoDescription?': '+redoDescription:'')} title={$translate('app.redo')+(redoDescription?': '+redoDescription:'')} disabled={$appState.readOnly || !!$appState.activeDialog || !$appState.history.redoCount} on:click={() => appState.redo()}><ActionIcon name="redo" size={20}/></button>
         </div>
-        <span class="working-indicator" title={$translate($appState.secure ? 'app.protectedTooltip' : 'app.localTooltip')}>
+        <button type="button" class="working-indicator" aria-haspopup="dialog" title={$translate('sessionLog.title')} disabled={!!$appState.activeDialog || storageBusy} on:click={openHistory}>
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
-        </span>
+        </button>
         {#if !(route.page === 'dashboard' && activeSection === 'save')}
           <button class="header-save" disabled={storageBusy} aria-busy={storageBusy} on:click={saveNow}
             aria-label={SERVER_MODE ? (serverEditing ? $translate('session.finish') : $translate('storage.startEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
@@ -486,6 +506,7 @@
     </button>
   </div>
 </nav>
+{#if historyOpen}<SessionHistoryDialog log={sessionLog} locked={$appState.readOnly || storageBusy || !!$appState.activeDialog} jump={jumpHistory} close={closeHistory}/>{/if}
 <!-- A primitive session key changes only on intentional dialog transitions. -->
 {#key $appState.activeDialog ? $appState.dialogRevision : null}
   <DialogRouter dialog={$appState.activeDialog} project={$appState.project} projection={$projection} asOfDate={$appState.asOfDate}/>

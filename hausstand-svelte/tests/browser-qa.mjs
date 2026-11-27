@@ -99,6 +99,40 @@ async function householdRenameAcceptance(browser, url) {
     } finally { await context.close(); }
   }
 }
+// Q48: choose working states directly, including redo, and use keyboard access.
+async function sessionLogAcceptance(browser,url) {
+  for(const [width,locale] of [[320,'de-DE'],[1280,'en-GB']]) {
+    const context=await browser.newContext({locale,viewport:{width,height:812}});
+    try {
+      const page=await context.newPage();
+      await bootFixture(page,url);
+      for(const name of ['First WG','Second WG']) {
+        await page.locator('.household-rename').click();
+        const input=page.getByRole('dialog').locator('input');
+        await input.fill(name); await input.press('Enter');
+        await page.getByRole('dialog').waitFor({state:'hidden'});
+      }
+      const undo=page.locator('.session-history-actions button').first();
+      assert.match(await undo.getAttribute('title'),/Second WG/);
+      const trigger=page.locator(width<780?'.mobile-session-log':'button.working-indicator');
+      await trigger.focus(); await page.keyboard.press('Enter');
+      const dialog=page.locator('.session-log-dialog');
+      await dialog.waitFor();
+      const rows=dialog.locator('.session-log-list button');
+      assert.equal(await rows.count(),3);
+      assert.match(await rows.nth(2).innerText(),/Second WG/);
+      assert.equal(await rows.nth(2).getAttribute('aria-current'),'step');
+      await rows.nth(0).click();
+      assert.match(await page.locator('.household-rename').innerText(),/Browser-Abnahme/);
+      assert.equal(await rows.nth(0).getAttribute('aria-current'),'step');
+      await rows.nth(2).click();
+      assert.match(await page.locator('.household-rename').innerText(),/Second WG/);
+      await page.keyboard.press('Escape');
+      await dialog.waitFor({state:'hidden'});
+      assert.equal(await trigger.evaluate(el=>el===document.activeElement),true);
+    } finally {await context.close();}
+  }
+}
 // Q32: exercise intermediate values and DOM identity, not just the final submit.
 async function itemEntryAcceptance(browser, url, engine) {
   for (const [width, locale] of [[320,'de-DE'], [375,'de-DE'], [390,'en-GB'], [1280,'en-GB']]) {
@@ -2120,6 +2154,7 @@ try {
   server = offlineServer.server;
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
   await acceptance('Chromium Q37 read-only dialog guard', () => q37ReadOnlyAcceptance(browser));
+  await acceptance('Chromium Q48 session history', () => sessionLogAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q47 household rename', () => householdRenameAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium Q32/Q33 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));
