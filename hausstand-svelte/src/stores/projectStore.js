@@ -34,7 +34,8 @@ function createStore() {
   // Central UI entry guard; the mutation guard remains the second layer.
   const requireEditing = state => {
     if (!state.readOnly) return true;
-    alert([message('errors.readOnly', getLocale()), state.readOnlyReason].filter(Boolean).join('\n\n'));
+    notifications.dismissSource('read-only');
+    notifications.notify([message('errors.readOnly', getLocale()), state.readOnlyReason].filter(Boolean).join('\n\n'), {kind:'error', source:'read-only'});
     return false;
   };
   const openDialog = (state, dialog) => {
@@ -108,6 +109,7 @@ function createStore() {
         dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
     }),
     setReadOnly: (readOnly, reason = '') => update(s => {
+      if (!readOnly) notifications.dismissSource('read-only');
       const next = { ...s, readOnly, readOnlyReason: readOnly ? reason : '' };
       // Do not remount or discard an already-open form when the lease is lost.
       if (readOnly && !s.readOnly && s.activeDialog && s.activeDialog.type !== 'options') requireEditing(next);
@@ -120,10 +122,10 @@ function createStore() {
         if (!requireEditing(s)) return s;
         const project = clone(s.project);
         try { mutator(project); }
-        catch { alert(message('errors.changeFailed', getLocale())); return s; }
+        catch { notifications.notify(message('errors.changeFailed', getLocale()), {kind:'error'}); return s; }
         const problem = projectMutationProblem(s.project, project);
         if (problem) {
-          alert(message(problem.key, getLocale(), problem.params || {}));
+          notifications.notify(message(problem.key, getLocale(), problem.params || {}), {kind:'error'});
           return s;
         }
         saved = true;
@@ -150,7 +152,7 @@ function createStore() {
         if (!requireEditing(s)) return s;
         const project = clone(s.project);
         try { upsertDraft(project,draft); }
-        catch { alert(message('errors.changeFailed', getLocale())); return s; }
+        catch { notifications.notify(message('errors.changeFailed', getLocale()), {kind:'error'}); return s; }
         accepted = true;
         return changedProject(s, project);
       });
