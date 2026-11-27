@@ -4,6 +4,9 @@ import { get } from 'svelte/store';
 import { appState } from '../src/stores/projectStore.js';
 import { routeHash, routeFromHash, availableRoute, connectRouteHistory } from '../src/lib/navigation.js';
 
+const cache=new Map();
+globalThis.localStorage={setItem:(k,v)=>cache.set(k,v),getItem:k=>cache.get(k)||null,removeItem:k=>cache.delete(k)};
+
 const project={schemaVersion:1,currency:'EUR',community:{name:'Routing'},people:[{id:'a / ü',name:'Anna'}],items:[],events:[],drafts:[]};
 function mockBrowser(initialHash='') {
   const listeners=new Map();
