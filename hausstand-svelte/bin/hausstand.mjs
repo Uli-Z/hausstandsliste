@@ -73,7 +73,7 @@ const help = key => [
   '  --json              Versioned JSON on stdout (also the default).',
   '  --payload <file|->  Payment JSON: date, amountCents, debtorPersonId (payer),',
   '                     creditorPersonId (recipient), settlementKind (paid/external/waived), optional note.',
-  '  --payload <file|->  Person JSON: name (people add), or personId and name (people rename).',
+  '  --payload <file|->  Person JSON: name, optional date (people add), or personId and name (people rename).',
   '                     For deactivate/reactivate: personId, date, optional reason; delete: personId.',
   '  --payload <file|->  Item add/continue: name,date,initialValueCents,valuation,shares; optional tags,note.',
   '                     valuation: type (fixed/linear/degressive), minimumValueCents, durationYears or annualRate.',
@@ -263,7 +263,7 @@ async function writeCommand(key, p, opts, protection) {
     const payload = await readJSON(opts['--payload']);
     const fields = key === 'people add' ? ['name'] : key === 'people rename' ? ['personId','name']
       : statusWrites.has(key) ? ['personId','date'] : ['personId'];
-    const optional = statusWrites.has(key) ? ['reason'] : [];
+    const optional = key === 'people add' ? ['date'] : statusWrites.has(key) ? ['reason'] : [];
     if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
         Object.keys(payload).some(k => ![...fields,...optional].includes(k) || typeof payload[k] !== 'string') ||
         !fields.every(k => Object.hasOwn(payload,k) && typeof payload[k] === 'string'))
@@ -282,6 +282,7 @@ async function writeCommand(key, p, opts, protection) {
           : changePersonStatus(working,{...payload,kind:key === 'people deactivate' ? 'deactivate' : 'reactivate'}));
       } catch (error) {
         if (error.message === 'PERSON_NOT_FOUND') fail('NOT_FOUND','No matching person ID.',5);
+        if (error.message === 'INVALID_PERSON_DATE') fail('INVALID_PERSON_DATE','Choose a valid calendar date for the creation record.',4);
         if (statusWrites.has(key)) fail('INVALID_PERSON_STATUS','Choose a real date and a valid archive or reactivation transition.',4);
         fail('INVALID_PERSON','Use a unique nonempty name.',4);
       }

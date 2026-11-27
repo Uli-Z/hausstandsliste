@@ -100,7 +100,7 @@
   let replacementEdited = false;
   $: dateValid = validCalendarDate(effectiveDate);
   $: entryProjection = dateValid ? projectAt(project, effectiveDate) : projection;
-  $: hasEventDate = ['personStatus', 'itemAdd', 'itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
+  $: hasEventDate = ['personAdd', 'personStatus', 'itemAdd', 'itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
   $: needsActiveItem = ['itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
   $: itemAvailable = !needsActiveItem || !!entryProjection.activeItems.find(item => item.id === dialog.itemId);
   $: itemNeedsOwners = ['itemAdd', 'itemContinue'].includes(dialog?.type);
@@ -210,8 +210,8 @@
     if (appState.renameHousehold(name)) close();
   }
   function addPerson() {
-    if (!canSavePersonName) return;
-    const saved = appState.mutateProject(p => { applyPersonAdd(p, { name }); });
+    if (!canSavePersonName || !dateValid) return;
+    const saved = appState.mutateProject(p => { applyPersonAdd(p, { name, date: effectiveDate }); });
     if (saved) close();
   }
   function savePersonMeta() {
@@ -387,9 +387,10 @@
       </div>
       <div class="modal-body stack">
         {#if hasEventDate}
-          {#if !itemNeedsOwners}<label class="event-effective-date">{$translate('timeTravel.effectiveDate')}
+          {#if !itemNeedsOwners}<label class="event-effective-date">{$translate(dialog.type === 'personAdd' ? 'people.creationDate' : 'timeTravel.effectiveDate')}
             <input id="event-effective-date" type="date" value={effectiveDate} on:change={changeEffectiveDate} />
           </label>{/if}
+          {#if dialog.type === 'personAdd'}<p class="muted">{$translate('people.creationDateHint')}</p>{/if}
           {#if !dateValid}<p role="alert" class="notice warn">{$translate('timeTravel.invalidDate')}</p>{/if}
           {#if dateValid && !itemAvailable}<p role="alert" class="notice warn">{$translate('timeTravel.itemUnavailable')}</p>{/if}
           {#if dateValid && !peopleAvailable}<p role="alert" class="notice warn">{$translate('timeTravel.peopleUnavailable')}</p>{/if}
@@ -579,7 +580,7 @@
       <div class="modal-footer"><button on:click={close}>{$translate("ui.cancel-cl4zc9")}</button>
         <div style="flex:1"></div>
         {#if dialog.type === 'householdRename'}<button class="primary" on:click={saveHouseholdName} disabled={!name.trim() || $appState.readOnly}>{$translate("ui.save-sq2189")}</button>{/if}
-        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName || $appState.readOnly}>{$translate("ui.create-zqi05d")}</button>{/if}
+        {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName || !dateValid || $appState.readOnly}>{$translate("ui.create-zqi05d")}</button>{/if}
         {#if dialog.type === 'personStatus'}<button class="primary" on:click={savePersonStatus} disabled={!canSubmitDated || $appState.readOnly}>{$translate(dialog.kind === 'deactivate' ? 'ui.mark-as-moved-out-11arjl' : 'ui.reactivate-iggdm2')}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName || $appState.readOnly}>{$translate("ui.save-sq2189")}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="danger" on:click={deletePersonCompletely} disabled={!deleteEligibility.allowed || $appState.readOnly}>{$translate("ui.delete-person-permanently-e06bgl")}</button>{/if}

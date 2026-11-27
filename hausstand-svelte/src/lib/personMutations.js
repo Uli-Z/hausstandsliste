@@ -19,10 +19,11 @@ function checkedName(project, name, exceptId = null) {
     throw new Error('INVALID_PERSON_NAME');
   return name;
 }
-export function addPerson(project, { name }) {
+export function addPerson(project, { name, date = todayISO() }) {
   const checked = checkedName(project, name);
-  // The creation event is an audit record, never a membership start date.
-  const date = todayISO();
+  // The chosen creation date is an audit record, never a membership start date.
+  // Only a new creation without an explicit date defaults to today.
+  if (!validISODate(date)) throw new Error('INVALID_PERSON_DATE');
   const person = { id: uid('person'), name: checked };
   const event = createEvent('person-added', date, { personId: person.id, name: checked }, project);
   project.people.push(person);

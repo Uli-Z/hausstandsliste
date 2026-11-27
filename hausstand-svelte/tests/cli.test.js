@@ -136,17 +136,19 @@ test('CLI shared person add and rename retain historical event and archive', asy
   try {
     const input = join(dir,'project.json'), payload = join(dir,'payload.json'), added = join(dir,'added.json'), renamed = join(dir,'renamed.json');
     writeFileSync(input,JSON.stringify(p));
-    writeFileSync(payload,JSON.stringify({name:'Clara'}));
+    writeFileSync(payload,JSON.stringify({name:'Clara',date:'2025-09-17'}));
     const args = ['people','add','--input',input,'--payload',payload];
     const preview=run([...args,'--dry-run']);
     assert.equal(preview.status,0,preview.stderr);
     assert.equal(JSON.parse(preview.stdout).data.event.type,'person-added');
+    assert.equal(JSON.parse(preview.stdout).data.event.date,'2025-09-17');
     assert.equal(existsSync(added),false);
     const result=run([...args,'--output',added]);
     assert.equal(result.status,0,result.stderr);
     const next=JSON.parse(readFileSync(added,'utf8'));
     const person=next.people.at(-1);
     assert.equal(person.name,'Clara');
+    assert.equal(next.events.at(-1).date,'2025-09-17');
     assert.equal(projectAt(next,'1900-01-01').peopleById.get(person.id)?.active,true);
     assert.equal(projectAt(next,'2028-01-01').peopleById.get(person.id).active,true);
     assert.deepEqual((await readPortableVersion(next,next.versionHistory.entries[0].id)).events,p.events);
@@ -164,8 +166,8 @@ test('CLI shared person add and rename retain historical event and archive', asy
       assert.equal(rejected.status,4,rejected.stderr);
       assert.equal(JSON.parse(rejected.stderr).error.code,'INVALID_PERSON');
     }
-    writeFileSync(payload,JSON.stringify({name:'D',date:'2028-01-01'}));
-    assert.equal(JSON.parse(run([...args,'--dry-run']).stderr).error.code,'INVALID_PAYLOAD');
+    writeFileSync(payload,JSON.stringify({name:'D',date:'2028-02-30'}));
+    assert.equal(JSON.parse(run([...args,'--dry-run']).stderr).error.code,'INVALID_PERSON_DATE');
     writeFileSync(payload,JSON.stringify({personId:'missing',name:'Other'}));
     assert.equal(run(['people','rename','--input',added,'--payload',payload,'--dry-run']).status,5);
   } finally { rmSync(dir,{recursive:true,force:true}); }

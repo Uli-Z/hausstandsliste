@@ -39,8 +39,8 @@ Dry runs return `source: "working", data.saved: false`; a preview event's genera
 
 ## Add and rename people (Q23)
 
-`people add` accepts `{"name":"Clara"}`; `people rename` accepts `{"personId":"PERSON_ID","name":"Clara New"}`.
-Both accept `--input` and `--payload` (one may be stdin), and exactly one of `--dry-run` or `--output <new-file>`. They return the person, and for add the automatically dated creation audit record. It does not determine the person's business eligibility; the person is active at every historical date unless archived. A rename changes master data only, preserving existing events and history. Names must be nonempty and unique under the same trimmed case-insensitive comparison as the UI. Both use `src/lib/personMutations.js` and the common transaction guard and portable save path. No payment confirmation flag is needed for these operations.
+`people add` accepts `{"name":"Clara"}` with optional `"date":"2025-09-17"`; `people rename` accepts `{"personId":"PERSON_ID","name":"Clara New"}`.
+Both accept `--input` and `--payload` (one may be stdin), and exactly one of `--dry-run` or `--output <new-file>`. They return the person, and for add the creation audit record using the supplied date (today only if omitted). It does not determine the person's business eligibility; the person is active at every historical date unless archived. A rename changes master data only, preserving existing events and history. Names must be nonempty and unique under the same trimmed case-insensitive comparison as the UI. Both use `src/lib/personMutations.js` and the common transaction guard and portable save path. No payment confirmation flag is needed for these operations.
 
 ## Archive, reactivate and remove unused people
 

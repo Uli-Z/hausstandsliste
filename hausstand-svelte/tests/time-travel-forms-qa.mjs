@@ -130,12 +130,14 @@ export async function timeTravelFormsAcceptance(browser,url) {
 
     await nav('Personen').click();
     await page.locator('.page-heading button').first().click();
-    assert.equal(await dateField.count(),0,'person creation is not a dated membership event');
+    assert.equal(await dateField.inputValue(),'2031-03-01','creation record defaults to the viewing date');
+    await dateField.fill('2030-09-17');
     await dialog.locator('.person-name-field input').fill('Carla');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});
     const carla = (await snapshot()).events.find(e=>e.name==='Carla');
     assert.ok(carla?.personId);
+    assert.equal(carla.date,'2030-09-17');
     assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /01\.03\.2031/);
 
     await page.locator('.person-tile').filter({hasText:'Carla'}).locator('.person-bottom button').click();

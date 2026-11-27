@@ -19,8 +19,8 @@ test('new dated forms use the selected effective date; saved item drafts retain 
   }
   assert.ok(router.includes('personStatusProblem(project,'));
   assert.ok(router.includes('changePersonStatus(p, { personId: person.id, date: effectiveDate'));
-  assert.ok(router.includes('applyPersonAdd(p, { name }'));
-  assert.ok(!router.match(/hasEventDate\s*=\s*\[[^\]]*'personAdd'/));
+  assert.ok(router.includes('applyPersonAdd(p, { name, date: effectiveDate }'));
+  assert.ok(router.match(/hasEventDate\s*=\s*\[[^\]]*'personAdd'/));
   assert.ok(router.includes('effectiveDate = draft?.data?.effectiveDate || asOfDate'));
   assert.ok(router.includes('value={effectiveDate} on:change={changeEffectiveDate}'));
   assert.ok(router.includes('id="event-effective-date"'));
