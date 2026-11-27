@@ -3,6 +3,7 @@
   import { translate, serverErrorMessage, localizeDiagnostic } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { notifications } from '../src/lib/notifications.js';
+  import { mailFeedback, confirmedSave } from '../src/lib/saveFeedback.js';
   import { exportProject } from '../src/lib/persistence.js';
   import { emptyProject, requireProjectFile } from '../src/lib/domain.js';
   import { createPortableSave, verifyPortableHistory } from '../src/lib/versionHistory.js';
@@ -13,6 +14,8 @@
   export let authenticated = false;
   export let editing = false;
   export let busy = false;
+  export let saving = false;
+  export let mailRetryRevision = null;
   export let feedback = '';
   export let feedbackError = false;
   let initialized = null, pass = '', repeat = '', admin = '', error = '';
@@ -108,6 +111,7 @@
       await verifyPortableHistory(project);
       editToken = decrypted.editToken;
       revision = current.revision;
+      if (mailRetryRevision !== revision) mailRetryRevision = null;
       const result = await api('checkout', {expectedRevision:revision});
       leaseToken = result.leaseToken; leaseExpires = result.expiresAt;
       sessionStorage.setItem(deviceKey + ':lease', leaseToken);
@@ -169,7 +173,9 @@
         const token = randomSecret();
         const saved = await createPortableSave(emptyProject(), null);
         const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), pass, token);
-        await api('create', {name:'Hausstandsliste', envelope, tokenHash:await hashSecret(token)}, {'X-Hausstand-Admin':admin});
+        const result = await api('create', {name:'Hausstandsliste', envelope, tokenHash:await hashSecret(token)}, {'X-Hausstand-Admin':admin});
+        if (!confirmedSave(result)) throw new Error($translate('session.saveUnconfirmed'));
+        reportConfirmedSave(result);
         initialized = true;
       }
       const chosen = pass;
@@ -184,23 +190,51 @@
     }
     finally { busy = false; }
   }
+  function reportMail(result) {
+    const outcome = mailFeedback(result);
+    notifications.dismissSource('mail');
+    notifications.notify($translate(outcome.key), {kind:outcome.kind, duration:outcome.kind==='warning' ? 0 : 5000, source:'mail'});
+    mailRetryRevision = outcome.retryable ? result.revision : null;
+  }
+  function reportConfirmedSave(result) {
+    notifications.notify($translate('session.serverSaved'), {kind:'success', source:'server-save'});
+    reportMail(result);
+  }
+  export async function retryMail() {
+    if (busy || mailRetryRevision === null) return;
+    busy = true;
+    try {
+      const result = await api('retryMail', {expectedRevision:mailRetryRevision});
+      reportMail(result);
+    } catch(e) {
+      notifications.dismissSource('mail');
+      notifications.notify($translate('mail.retryFailed', {reason:localizeDiagnostic(e.message)}), {kind:'error', source:'mail'});
+    } finally { busy = false; }
+  }
   export async function save() {
     if (busy) return;
     busy = true; feedback = ''; feedbackError = false;
+    let committed = false;
     try {
       if (!editing) { await checkout(); return; }
+      saving = true;
       if ($appState.dirty) {
         const saved = await createPortableSave($appState.project, $appState.savedProject);
         const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
         const result = await api('save', {expectedRevision:revision, envelope});
+        if (!confirmedSave(result)) throw new Error($translate('session.saveUnconfirmed'));
         revision = result.revision; leaseExpires = result.expiresAt; appState.markSaved(saved);
+        committed = true;
+        reportConfirmedSave(result);
       }
       await api('checkin', {});
       leaseToken = ''; leaseExpires = 0; sessionStorage.removeItem(deviceKey + ':lease');
       editing = false; appState.setReadOnly(true);
-      feedback = $translate('session.checkinOk');
-    } catch (e) { feedbackError = true; feedback = $translate('session.checkinFailed', {reason:localizeDiagnostic(e.message)}); }
-    finally { busy = false; }
+      if (!committed) feedback = $translate('session.finishOnly');
+    } catch (e) {
+      feedbackError = true;
+      feedback = $translate(committed ? 'session.finishFailed' : 'session.checkinFailed', {reason:localizeDiagnostic(e.message)});
+    } finally { busy = false; saving = false; }
   }
   export async function downloadBackup() {
     if (busy) return;
@@ -228,8 +262,9 @@
       const saved = await createPortableSave(project, $appState.savedProject);
       const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
       const result = await api('save', {expectedRevision:revision, envelope});
+      if (!confirmedSave(result)) throw new Error($translate('session.saveUnconfirmed'));
       revision = result.revision; leaseExpires = result.expiresAt; appState.importProject(saved, {secure:true, readOnly:false});
-      feedback = $translate('session.restoreOk');
+      reportConfirmedSave(result);
     } catch(e) { feedbackError = true; feedback = $translate('session.restoreFailed', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
   }
@@ -241,6 +276,7 @@
       await api('logout', {});
       await deviceStore('delete'); sessionStorage.removeItem(deviceKey + ':lease');
       leaseToken = ''; leaseExpires = 0; editToken = ''; activePassword = ''; editing = false; authenticated = false;
+      mailRetryRevision = null; notifications.dismissSource('mail');
     } catch(e) { feedbackError = true; feedback = $translate('session.logoutFailed', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
   }
