@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createPortableSave, readPortableVersion, getVersionEntries, hasProjectChanges
+  createPortableSave, readPortableVersion, getVersionEntries, hasProjectChanges, prepareServerReplacement
 } from '../src/lib/versionHistory.js';
 import { encryptProject, decryptProject } from '../src/lib/crypto.js';
 import { requireProjectFile } from '../src/lib/domain.js';
@@ -93,4 +93,41 @@ test('Q43 preview defaults to the local calendar date of the archive timestamp',
   const {todayISO}=await import('../src/lib/util.js');
   assert.equal(todayISO(new Date(2025,0,2,12,0)), '2025-01-02');
   assert.equal(todayISO(new Date(2026,10,27,12,0)), '2026-11-27');
+});
+
+test('Q68 plain older file replaces server contents while retaining both valid histories', async () => {
+  const a=await createPortableSave(project('A'),null,'2026-11-23T08:00:00Z');
+  const b=await createPortableSave({...a,community:{name:'B'}},a,'2026-11-23T09:00:00Z');
+  const incoming=await createPortableSave({...a,community:{name:'Offline'}},a,'2026-11-24T08:00:00Z');
+  const before=structuredClone(b), original=structuredClone(incoming);
+  const {saved,replacesHistory}=await prepareServerReplacement(incoming,b,'2026-11-27T09:00:00Z');
+  assert.equal(replacesHistory,false);
+  assert.equal(saved.community.name,'Offline');
+  assert.ok(b.versionHistory.entries.every(e=>saved.versionHistory.entries.some(v=>v.id===e.id)));
+  assert.ok(incoming.versionHistory.entries.every(e=>saved.versionHistory.entries.some(v=>v.id===e.id)));
+  assert.equal((await readPortableVersion(saved,saved.versionHistory.entries.at(-1).id)).community.name,'B');
+  assert.deepEqual(b,before);
+  assert.deepEqual(incoming,original);
+  const old=await prepareServerReplacement(a,b);
+  assert.equal(old.replacesHistory,false);
+  assert.equal(old.saved.versionHistory.entries.length,2);
+});
+test('Q68 unrelated numbered projects require separate explicit replacement of history', async () => {
+  const first=await createPortableSave({...project('Server'),items:[{id:'server-item',name:'Server item',number:1}]},null);
+  const server=await createPortableSave({...first,community:{name:'Server newer'}},first);
+  const source=await createPortableSave({...project('Other'),items:[{id:'offline-item',name:'Offline item',number:1}]},null);
+  const result=await prepareServerReplacement(source,server);
+  assert.equal(result.replacesHistory,true);
+  assert.equal(result.saved.community.name,'Other');
+  assert.deepEqual(result.saved.items,source.items);
+  assert.deepEqual(result.saved.versionHistory,source.versionHistory);
+  assert.equal(server.versionHistory.entries.length,1);
+});
+test('Q68 invalid schema or damaged source history is never treated as a replacement option', async () => {
+  const a=await createPortableSave(project('A'),null);
+  const b=await createPortableSave({...a,community:{name:'B'}},a);
+  await assert.rejects(()=>prepareServerReplacement({...a,schemaVersion:0},b),/Nicht unterstütztes/);
+  const corrupt=structuredClone(b);
+  corrupt.versionHistory.entries[0].sha256='0'.repeat(64);
+  await assert.rejects(()=>prepareServerReplacement(corrupt,b),/Prüfsumme/);
 });

@@ -6,8 +6,8 @@
   import { mailFeedback, confirmedSave } from '../src/lib/saveFeedback.js';
   import { exportProject } from '../src/lib/persistence.js';
   import { emptyProject, requireProjectFile } from '../src/lib/domain.js';
-  import { createPortableSave, verifyPortableHistory } from '../src/lib/versionHistory.js';
-  import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
+  import { createPortableSave, verifyPortableHistory, prepareServerReplacement } from '../src/lib/versionHistory.js';
+  import { encryptProject, decryptProject, hashSecret, randomSecret, isEncryptedEnvelope } from '../src/lib/crypto.js';
 
   const id = 'hausstand-hauptdatei';
   const deviceKey = `hausstand-session:${location.pathname}`;
@@ -268,37 +268,62 @@
       return false;
     } finally { busy = false; saving = false; }
   }
+  async function downloadEncryptedBackup(project, filename) {
+    const envelope = await encryptProject(exportProject(project, $appState.asOfDate), activePassword, randomSecret());
+    const url = URL.createObjectURL(new Blob([JSON.stringify(envelope)], {type:'application/json'}));
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   export async function downloadBackup() {
     if (busy) return;
     busy = true;
     try {
       const saved = await createPortableSave($appState.project, $appState.savedProject);
-      const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, randomSecret());
-      const url = URL.createObjectURL(new Blob([JSON.stringify(envelope)], {type:'application/json'}));
-      const a = document.createElement('a'); a.href = url; a.download = 'hausstand-sicherung.enc.json'; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await downloadEncryptedBackup(saved, 'hausstand-sicherung.enc.json');
       sessionNotice('session.backupOk');
     } catch (e) { sessionNotice('session.backupFailed', 'error', {reason:localizeDiagnostic(e.message)}); } finally { busy = false; }
   }
   export async function restoreBackup(event) {
     const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
     if (!file || busy) return;
-    if (!confirm($translate('session.restoreConfirm'))) return;
-    const backupPassword = prompt($translate('session.backupPassword'));
-    if (!backupPassword) return;
+    if (!authenticated || !editing || !leaseToken || $appState.readOnly) {
+      sessionNotice('session.restoreReadOnly', 'error'); return;
+    }
+    if ($appState.dirty) { sessionNotice('session.saveFirst', 'error'); return; }
     busy = true;
+    // Freeze domain writes throughout the import, including during file parsing
+    // and encryption. Explicit server lease failure keeps the UI read-only.
+    appState.setReadOnly(true);
     try {
-      if (!editing) throw new Error($translate('session.restoreReadOnly'));
-      const decrypted = await decryptProject(JSON.parse(await file.text()), backupPassword);
-      const project = requireProjectFile(decrypted.project); await verifyPortableHistory(project);
-      const saved = await createPortableSave(project, $appState.savedProject);
+      let data;
+      try { data = JSON.parse(await file.text()); }
+      catch { throw new Error($translate('storage.invalidJson')); }
+      if (isEncryptedEnvelope(data)) {
+        const backupPassword = prompt($translate('session.backupPassword'));
+        if (!backupPassword) return;
+        data = (await decryptProject(data, backupPassword)).project;
+      }
+      const project = requireProjectFile(data);
+      const previous = $appState.savedProject;
+      const {saved,replacesHistory} = await prepareServerReplacement(project,previous);
+      if (!confirm($translate('session.importConfirm',{name:project.community.name,file:file.name}))) return;
+      if (replacesHistory) {
+        if (!confirm($translate('session.importHistoryConflict'))) return;
+        await downloadEncryptedBackup(previous, 'hausstand-vor-import.enc.json');
+        if (!confirm($translate('session.importBackupConfirm'))) return;
+      }
+      saving = true;
       const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, editToken);
       const result = await api('save', {expectedRevision:revision, envelope});
       if (!confirmedSave(result)) throw new Error($translate('session.saveUnconfirmed'));
-      revision = result.revision; leaseExpires = result.expiresAt; appState.importProject(saved, {secure:true, readOnly:false});
+      revision = result.revision; leaseExpires = result.expiresAt;
+      appState.importProject(saved, {secure:true, readOnly:false});
       reportConfirmedSave(result);
     } catch(e) { sessionNotice('session.restoreFailed', 'error', {reason:localizeDiagnostic(e.message)}); }
-    finally { busy = false; }
+    finally {
+      if (authenticated && editing && leaseToken) appState.setReadOnly(false);
+      busy = false; saving = false;
+    }
   }
   export async function logout() {
     if (busy || ($appState.dirty && !confirm($translate('session.logoutConfirm')))) return;

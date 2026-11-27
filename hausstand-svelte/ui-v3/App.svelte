@@ -516,7 +516,9 @@
             <h2>{$translate('session.backup')}</h2>
             <p>{$translate('session.backupHint')}</p>
             <button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.downloadBackup()}>{$translate('session.backupDownload')}</button>
-            <label>{$translate('session.backupUpload')}<input type="file" accept="application/json,.json" disabled={storageBusy} on:change={event => serverSession?.restoreBackup(event)} /></label>
+            <label>{$translate('session.backupUpload')}<input class="server-project-import" type="file" accept="application/json,.json" disabled={storageBusy || !serverEditing || $appState.readOnly || $appState.dirty} on:change={event => serverSession?.restoreBackup(event)} /></label>
+            {#if !serverEditing || $appState.readOnly}<p class="muted">{$translate('session.restoreReadOnly')}</p>
+            {:else if $appState.dirty}<p class="muted">{$translate('session.saveFirst')}</p>{/if}
           </section>
           <PortableVersions busy={storageBusy}/>
           </div>

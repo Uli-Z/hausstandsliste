@@ -131,6 +131,39 @@ export async function createPortableSave(project, previousSaved, savedAt = new D
   return { ...root, lastSavedAt: savedAt, versionHistory: { format: FORMAT, entries } };
 }
 
+// An explicit server-file import is not an ordinary edit: the imported file
+// may be an older copy or a completely different household. Validate each
+// archive independently before attempting to preserve both histories.
+export async function prepareServerReplacement(imported, previousSaved, savedAt = new Date().toISOString()) {
+  const source = copy(requireProjectFile(imported));
+  const previous = copy(requireProjectFile(previousSaved));
+  await verifyPortableHistory(source);
+  await verifyPortableHistory(previous);
+  const entries = new Map(getVersionEntries(previous).map(entry=>[entry.id,entry]));
+  let incompatible = false;
+  for (const entry of getVersionEntries(source)) {
+    const existing = entries.get(entry.id);
+    if (existing && ['sha256','data','encoding','savedAt'].some(key=>existing[key]!==entry[key])) {
+      incompatible = true;
+      break;
+    }
+    entries.set(entry.id,existing || entry);
+  }
+  if (!incompatible) {
+    const merged = {...source,versionHistory:{format:FORMAT,entries:[...entries.values()]
+      .sort((a,b)=>String(a.savedAt).localeCompare(String(b.savedAt)))}};
+    try {
+      return {saved:await createPortableSave(merged,previous,savedAt), replacesHistory:false};
+    } catch (error) {
+      if (error?.message !== 'INVALID_ITEM_NUMBER_REGISTRY') throw error;
+    }
+  }
+  // Separate projects can have conflicting permanent item numbers. Never
+  // renumber either archive, or silently discard the server's saved history.
+  // The caller MUST explicitly confirm this result and protect the old file.
+  return {saved:await createPortableSave(source,null,savedAt), replacesHistory:true};
+}
+
 async function readRawPortableVersion(project, versionId) {
   const entry = getVersionEntries(project).find(v => v.id === versionId);
   if (!entry) throw new Error('Diese Projektversion wurde nicht gefunden.');

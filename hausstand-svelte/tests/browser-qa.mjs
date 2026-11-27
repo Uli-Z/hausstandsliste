@@ -2371,6 +2371,61 @@ async function q37ReadOnlyAcceptance(browser) {
   }
 }
 
+// Q68: import plain JSON via the real encrypted PHP save route.
+async function q68ServerImportAcceptance(browser) {
+  const root=await mkdtemp(join(tmpdir(),'hausstand-q68-'));
+  const port=await freePort(), url='http://127.0.0.1:'+port+'/hausstand.php';
+  const php=spawn('php',['-S','127.0.0.1:'+port,'-t','dist'],{env:{...process.env,HAUSSTAND_DATA_DIR:root,HAUSSTAND_ADMIN_TOKEN:'q68-admin'},stdio:['ignore','ignore','pipe']});
+  const context=await browser.newContext({locale:'de-DE',viewport:{width:375,height:812}});
+  try {
+    let ready=false;
+    for(let i=0;i<80;i++){try{ready=(await fetch(url+'?api=config')).ok;if(ready)break;}catch{}await pause(100);}
+    assert.ok(ready);
+    const id='hausstand-hauptdatei', password='q68-password', token=randomSecret();
+    const prior=await createPortableSave({...fixture,community:{name:'Server before import'}},fixture);
+    const created=await fetch(url+'?api=create',{method:'POST',headers:{'Content-Type':'application/json','X-Hausstand-Admin':'q68-admin'},body:JSON.stringify({id,name:'Q68',envelope:await encryptProject(prior,password,token),tokenHash:await hashSecret(token)})});
+    assert.equal(created.status,200);
+    const page=await context.newPage();
+    let approve=false;
+    page.on('dialog',d=>approve?d.accept():d.dismiss());
+    await page.goto(url);
+    await page.getByLabel('Passwort',{exact:true}).fill(password);
+    await page.getByRole('button',{name:'Anmelden',exact:true}).click();
+    await page.locator('.overview-directory-grid').waitFor();
+    await page.evaluate(()=>location.hash='#/save');
+    const input=page.locator('.server-project-import');
+    await input.waitFor();
+    assert.ok(await input.isDisabled());
+    await page.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
+    await page.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).waitFor();
+    assert.ok(await input.isEnabled());
+    const imported=await createPortableSave({...fixture,community:{name:'Offline import'}},null);
+    const file={name:'plain.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(imported))};
+    const read=async()=>await(await fetch(url+'?api=read&id='+id)).json();
+    const before=await read();
+    await input.setInputFiles(file);
+    await page.waitForFunction(()=>!document.querySelector('.server-project-import')?.disabled);
+    assert.equal((await read()).revision,before.revision,'cancel does not save');
+    approve=true;
+    await input.setInputFiles({...file,buffer:Buffer.from('invalid JSON')});
+    await page.locator('.notification[data-kind="error"]').waitFor();
+    assert.equal((await read()).revision,before.revision,'bad JSON does not save');
+    await input.setInputFiles(file);
+    await page.waitForResponse(r=>r.url().includes('api=save')&&r.status()===200);
+    await page.getByText('Offline import',{exact:true}).first().waitFor();
+    const packet=await read();
+    assert.equal(packet.revision,before.revision+1);
+    assert.equal(packet.envelope.format,'hausstand-aesgcm-v1');
+    assert.ok(!JSON.stringify(packet).includes('Offline import'));
+    const decoded=await decryptProject(packet.envelope,password);
+    assert.equal(decoded.editToken,token);
+    assert.equal(decoded.project.community.name,'Offline import');
+    assert.ok(prior.versionHistory.entries.every(e=>decoded.project.versionHistory.entries.some(v=>v.id===e.id)));
+    assert.equal((await readPortableVersion(decoded.project,decoded.project.versionHistory.entries.at(-1).id)).community.name,'Server before import');
+    assert.equal(await page.evaluate(k=>localStorage.getItem(k),key),null);
+  } finally {await context.close();php.kill();await rm(root,{recursive:true,force:true});}
+}
+
 async function q42MailAcceptance(browser) {
   for (const mode of ['accepted','rejected','disabled','missing','checkin-failed']) {
     const root=await mkdtemp(join(tmpdir(),'hausstand-q42-'));
@@ -2550,6 +2605,7 @@ try {
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
+  await acceptance('Chromium Q68 plain server file import', () => q68ServerImportAcceptance(browser));
   await acceptance('Chromium Q37 read-only dialog guard', () => q37ReadOnlyAcceptance(browser));
   await acceptance('Chromium Q54 legacy browser number migration', () => legacyItemNumberAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q50 destructive local reset', () => resetProjectAcceptance(browser, offlineServer.url));
