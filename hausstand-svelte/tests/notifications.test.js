@@ -15,13 +15,17 @@ test('notifications stack, expire independently and can be dismissed', () => {
   };
   const unsubscribe = center.subscribe(items => { seen = items; });
   const first = center.notify('Person added', {kind:'success'});
-  advance(2000);
+  advance(1200);
   const second = center.notify('Item added', {kind:'success'});
   const error = center.notify('Could not save', {kind:'error'});
   assert.deepEqual(seen.map(n => n.id), [first, second, error]);
-  advance(3000);
+  advance(1799);
+  assert.deepEqual(seen.map(n => n.id), [first, second, error]);
+  advance(1);
   assert.deepEqual(seen.map(n => n.id), [second, error]);
-  advance(2000);
+  advance(1199);
+  assert.deepEqual(seen.map(n => n.id), [second, error]);
+  advance(1);
   assert.deepEqual(seen.map(n => n.id), [error]);
   center.dismiss(error);
   assert.deepEqual(seen, []);
@@ -37,6 +41,32 @@ test('source dismissal does not clear unrelated feedback', () => {
   const id = center.notify('Added', {kind:'success'});
   center.dismissSource('storage');
   assert.deepEqual(seen.map(n => n.id), [id]);
+  center.clear();
+  assert.deepEqual(seen, []);
+  stop();
+});
+
+test('ordinary info/warning expire after three seconds; critical mail warnings persist and manual dismissal cancels timers', () => {
+  const timers = new Map();
+  let next = 0, seen = [];
+  const center = createNotificationCenter({
+    schedule: (fn, delay) => { const id = ++next; timers.set(id, {fn, delay}); return id; },
+    cancel: id => timers.delete(id)
+  });
+  let stop = center.subscribe(items => { seen = items; });
+  const info = center.notify('Mail disabled', {kind:'info', source:'mail'});
+  const warning = center.notify('Temporary warning', {kind:'warning'});
+  const critical = center.notify('Mail failed', {kind:'warning', source:'mail', duration:0});
+  assert.deepEqual([...timers.values()].map(t => t.delay), [3000, 3000]);
+  center.dismiss(warning);
+  assert.equal(timers.size, 1);
+  stop();
+  // Subscription changes must neither restart nor cancel the outstanding timer.
+  stop = center.subscribe(items => { seen = items; });
+  assert.deepEqual(seen.map(n => n.id), [info, critical]);
+  [...timers.values()][0].fn();
+  assert.deepEqual(seen.map(n => n.id), [critical]);
+  assert.equal(timers.size, 0);
   center.clear();
   assert.deepEqual(seen, []);
   stop();

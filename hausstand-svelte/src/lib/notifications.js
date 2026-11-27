@@ -1,5 +1,7 @@
 // Ephemeral UI feedback; never persisted in the project or version history.
-export function createNotificationCenter({ schedule = setTimeout, cancel = clearTimeout } = {}) {
+export const TOAST_DURATION_MS = 3000;
+// Invoke browser timers with their owning global; injected timers keep tests deterministic.
+export function createNotificationCenter({ schedule = (fn, delay) => globalThis.setTimeout(fn, delay), cancel = timer => globalThis.clearTimeout(timer) } = {}) {
   let nextId = 0;
   let entries = [];
   const subscribers = new Set();
@@ -11,7 +13,7 @@ export function createNotificationCenter({ schedule = setTimeout, cancel = clear
     entries = entries.filter(entry => entry.id !== id);
     publish();
   }
-  function notify(message, { kind = 'info', duration = kind === 'error' ? 0 : 5000, source = '' } = {}) {
+  function notify(message, { kind = 'info', duration = kind === 'error' ? 0 : TOAST_DURATION_MS, source = '' } = {}) {
     if (typeof message !== 'string' || !message.trim()) return null;
     if (!['success', 'error', 'warning', 'info'].includes(kind)) throw new TypeError('Invalid notification kind');
     const id = ++nextId;

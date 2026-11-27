@@ -1745,11 +1745,18 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       await wait;
       await page.locator('.save-feedback[role="status"]').waitFor();
       if (width === 375 && engine === 'Chromium') {
-        await page.locator('.save-feedback').waitFor({ state: 'hidden', timeout: 7000 });
+        // Q51: two staggered toasts retain independent deadlines and leave the DOM.
+        const feedback = page.locator('.save-feedback[role="status"]');
+        const firstToast = await feedback.elementHandle();
+        await page.waitForTimeout(1300);
         const secondDownload = page.waitForEvent('download');
         await page.getByRole('button', { name: 'Projektdatei herunterladen', exact: true }).first().click();
         await secondDownload;
-        await page.locator('.save-feedback[role="status"]').waitFor();
+        await feedback.nth(1).waitFor();
+        const secondToast = await feedback.nth(1).elementHandle();
+        await firstToast.waitForElementState('hidden', {timeout: 3200});
+        assert.equal(await firstToast.evaluate(el => el.isConnected), false, 'Q51 first toast removed');
+        assert.ok(await secondToast.isVisible(), 'Q51 later toast remains after first expires');
       }
       const savedUndo = await undo.boundingBox();
       assert.ok(Math.abs(beforeUndo.x - savedUndo.x) <= 1,
@@ -1773,7 +1780,7 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       await addedToast.waitFor();
       await addedToast.getByRole('button',{name:'Schließen'}).click();
       await addedToast.waitFor({state:'hidden'});
-      await page.locator('.save-feedback').waitFor({state:'hidden',timeout:7000});
+      await page.locator('.save-feedback').waitFor({state:'detached',timeout:4500});
       await noOverflow('person added');
 
       await section('activity');
@@ -2082,6 +2089,9 @@ async function q42MailAcceptance(browser) {
       const cleanText=de?'Bearbeitung beendet. Keine Änderungen gespeichert, daher keine neue E-Mail-Sicherung versandt.':'Editing finished. No changes were saved, so no new email backup was sent.';
       await page.locator('.notification').filter({hasText:cleanText}).waitFor();
       assert.equal(await page.getByText(cleanText,{exact:true}).count(),1);
+      if (mode==='accepted') {
+        await page.locator('.notification').filter({hasText:cleanText}).waitFor({state:'detached',timeout:4500});
+      }
       assert.equal(await (await (await fetch(url+'?api=read&id='+id)).json()).revision,1);
       await page.getByRole('button',{name:de?'Bearbeitung starten':'Start editing',exact:true}).click();
       await save.waitFor();
@@ -2138,6 +2148,12 @@ async function q42MailAcceptance(browser) {
       const packet=await (await fetch(url+'?api=read&id='+id)).json();
       assert.equal(packet.revision,2);
       assert.ok((await decryptProject(packet.envelope,password)).project.people.some(p=>p.name==='Q42 '+mode));
+      if (mode==='accepted' || mode==='disabled') {
+        await page.locator('.notification').filter({hasText:mailText}).waitFor({state:'detached',timeout:4500});
+      } else if (mode==='rejected' || mode==='missing') {
+        await page.locator('.notification').filter({hasText:de?'Bearbeitung beendet. Die Datei ist wieder freigegeben.':'Editing finished. The file is available again.'}).waitFor({state:'detached',timeout:4500});
+        assert.ok(await page.locator('.notification').filter({hasText:mailText}).isVisible(), 'Q51 critical mail warning persists');
+      }
       if(mode==='accepted'){
         // Q43: online version preview is available while read-only and does not modify the server.
         await page.locator('.sidebar').getByRole('button',{name:'Save & open',exact:true}).click();

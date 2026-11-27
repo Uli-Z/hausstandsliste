@@ -195,7 +195,7 @@
   function reportMail(result) {
     const outcome = mailFeedback(result);
     notifications.dismissSource('mail');
-    notifications.notify($translate(outcome.key), {kind:outcome.kind, duration:outcome.kind==='warning' ? 0 : 15000, source:'mail'});
+    notifications.notify($translate(outcome.key), {kind:outcome.kind, ...(outcome.kind==='warning' ? {duration:0} : {}), source:'mail'});
     mailRetryRevision = outcome.retryable ? result.revision : null;
   }
   function reportConfirmedSave(result) {

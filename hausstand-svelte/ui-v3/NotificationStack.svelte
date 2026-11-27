@@ -1,6 +1,8 @@
 <script>
+  import { fade } from 'svelte/transition';
   import { notifications } from '../src/lib/notifications.js';
   import { translate } from '../src/lib/i18n.js';
+  const exitDuration = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 0 : 180;
   const symbols = { success: '✓', error: '!', warning: '!', info: 'i' };
 </script>
 
@@ -8,7 +10,7 @@
 <div class="notification-stack" aria-label={$translate('toast.region')}>
   <div class="notification-lane" aria-live="polite" aria-relevant="additions">
     {#each $notifications.filter(entry => entry.kind !== 'error') as entry (entry.id)}
-      <div class="notification" class:save-feedback={entry.source === 'storage'} data-kind={entry.kind} role="status">
+      <div class="notification" out:fade={{duration:exitDuration()}} class:save-feedback={entry.source === 'storage'} data-kind={entry.kind} role="status">
         <span class="notification-symbol" aria-hidden="true">{symbols[entry.kind]}</span>
         <div class="notification-body"><strong>{$translate('toast.' + entry.kind)}</strong><span>{entry.message}</span></div>
         <button type="button" on:click={() => notifications.dismiss(entry.id)} aria-label={$translate('ui.close-1qnddid')}>×</button>
@@ -17,7 +19,7 @@
   </div>
   <div class="notification-lane" aria-live="assertive" aria-relevant="additions">
     {#each $notifications.filter(entry => entry.kind === 'error') as entry (entry.id)}
-      <div class="notification" class:save-feedback={entry.source === 'storage'} data-kind="error" role="alert">
+      <div class="notification" out:fade={{duration:exitDuration()}} class:save-feedback={entry.source === 'storage'} data-kind="error" role="alert">
         <span class="notification-symbol" aria-hidden="true">!</span>
         <div class="notification-body"><strong>{$translate('toast.error')}</strong><span>{entry.message}</span></div>
         <button type="button" on:click={() => notifications.dismiss(entry.id)} aria-label={$translate('ui.close-1qnddid')}>×</button>
