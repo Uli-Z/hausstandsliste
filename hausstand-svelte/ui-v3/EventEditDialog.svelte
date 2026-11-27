@@ -1,4 +1,6 @@
 <script>
+  import { notifications } from '../src/lib/notifications.js';
+  const notifyError = message => notifications.notify(message, {kind:'error'});
   import { translate, parseDecimal } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { replaceEditableEvent, removeEvent, editableEventCopy, redateEditableEvent } from '../src/lib/eventMutations.js';
@@ -51,7 +53,7 @@
       edited = redateEditableEvent(project,edited,inputEvent.currentTarget.value);
     } catch {
       inputEvent.currentTarget.value = edited.date;
-      alert($translate('errors.shareDateConflict'));
+      notifyError($translate('errors.shareDateConflict'));
     }
   }
 
