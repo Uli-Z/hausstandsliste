@@ -1345,7 +1345,7 @@ async function shareDeltaAcceptance(browser,url) {
     assert.deepEqual(retro.events.slice(0,original.events.length),original.events);
     assert.deepEqual(ledgerAt(retro,'2025-03-02').counterclaims,ledgerAt(original,'2025-03-02').counterclaims);
     await cutoff('2025-03-02');
-    await page.locator('.timeline-event-card').filter({hasText:'01.03.2025'}).locator('.event-open-overlay').click();
+    await page.locator('.timeline-event-card[data-event-id="'+late.id+'"]').locator('.event-open-overlay').click();
     const actual={};
     for(const name of ['Anna','Ben','Clara'])
       actual[name]=Number(await dialog.locator('.share-row').filter({hasText:name}).locator('input[inputmode=decimal]').inputValue());
@@ -1650,6 +1650,14 @@ async function recentHistoryAcceptance(browser,url) {
       };
       await cutoff('2025-03-01');
       const grouped=page.locator('.timeline-preview [data-event-id="q39-group"]');
+      assert.equal(await page.locator('.timeline-preview time[datetime="2025-03-01"]').count(),1);
+      const buy=page.locator('.timeline-preview [data-event-id="purchase"]');
+      assert.match(await buy.locator('.event-summary').innerText(),/3 Eigentümer|3 owners/);
+      assert.equal(await buy.locator('.compact-names').count(),0);
+      const dateBox=await page.locator('.timeline-preview time[datetime="2025-03-01"]').boundingBox();
+      const groupBox=await grouped.boundingBox();
+      assert.ok(dateBox.x < groupBox.x);
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
       assert.equal(await grouped.locator('.event-unit-change').count(),2);
       assert.match(await grouped.innerText(),/Ben.*\+1/s);
       assert.match(await grouped.innerText(),/Clara.*\+1/s);

@@ -7,7 +7,7 @@
   import { translate, localizeGermanText, pluralMessage } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE } from '../src/lib/util.js';
-  import { splitHistoryAt, groupedHistoryAt, RECENT_HISTORY_LIMIT } from '../src/lib/eventHistory.js';
+  import { splitHistoryAt, groupedHistoryAt, RECENT_HISTORY_LIMIT, dateAnchoredRows, purchaseOwnerCount } from '../src/lib/eventHistory.js';
   import { money } from '../src/lib/domain.js';
   import { eventUnitChangeRows } from '../src/lib/redistribution.js';
   import OwnershipHistorySummary from './OwnershipHistorySummary.svelte';
@@ -116,11 +116,11 @@
   $: visibleFuture = preview ? [] : full ? future.slice(0, futureLimit) : showFuture ? future : [];
   // A single keyed sequence keeps existing cards mounted during pagination and
   // when the selected date moves an event across the marker.
-  $: rows = [
+  $: rows = dateAnchoredRows([
     ...visibleFuture.map(group => ({key:group.key, group})),
     ...(!preview ? [{key:'cutoff'}] : []),
     ...visiblePast.map(group => ({key:group.key, group}))
-  ];
+  ]);
   function loadPast() { pastLimit += PAGE_SIZE; }
   function loadFuture() { futureLimit += PAGE_SIZE; }
   // The same actual button is the keyboard/manual fallback. Re-observe after
@@ -191,7 +191,7 @@
 
 <section class:panel={!preview} class="timeline-panel" class:timeline-preview={preview}>
   {#if !preview}<div class="panel-header"><h2>{localizeGermanText(title)}</h2></div>{/if}
-  <div class="panel-body stack">
+  <div class="panel-body timeline-body">
     {#if !preview && !full && future.length}
       <button class="timeline-more" on:click={() => showFuture = !showFuture}>
         {pluralMessage('timeline.future', future.length)} {localizeGermanText(showFuture ? 'ausblenden' : 'anzeigen')}
@@ -200,12 +200,13 @@
     {#each rows as row (row.key)}
       {#if row.group}
         {@const group=row.group}
-        <div class="timeline-group" class:future-event={group.date > asOfDate} data-group-key={group.key} data-group-count={group.count}>
+        <div class="timeline-day-row" class:day-start={row.dayStart} class:future-event={group.date > asOfDate} data-day={group.date}>
+          <div class="timeline-day-date">{#if row.dayStart}<time datetime={group.date}>{dateDE(group.date)}</time>{/if}</div>
+          <div class="timeline-group" data-group-key={group.key} data-group-count={group.count}>
           {#if group.count>1}
             <button class="timeline-group-toggle" type="button" aria-expanded={expandedGroups.has(group.key)} on:click={()=>toggleGroup(group.key)}>
               <span class="group-icon"><ActionIcon name={iconForTimelineEvent(group.type)} size={17}/></span>
               <span class="group-text"><strong>{groupLabel(group)}</strong>{#if group.totalCents!==null}<small>{groupAmount(group)}</small>{/if}</span>
-              <span class="date">{dateDE(group.date)}</span>
               <span class="group-chevron" aria-hidden="true">{expandedGroups.has(group.key)?'▾':'▸'}</span>
             </button>
           {/if}
@@ -221,7 +222,6 @@
             ></button>
           <div class="event-meta">
             <span class="event-kind"><span class="event-icon" aria-hidden="true"><ActionIcon name={iconForTimelineEvent(event.type)} size={17}/></span><span class="label">{eventLabel(event.type)}</span></span>
-            <span class="date">{dateDE(event.date)}</span>
           </div>
           <div class="event-summary">
             {#if event.type === 'redistribution-executed' || event.type === 'shares-set'}
@@ -234,18 +234,28 @@
             {:else if event.type === 'person-reactivated'}
               <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || $translate("ui.return-lfxhdv")}</span>
             {:else if event.type === 'item-added'}
-              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · {localizeGermanText('Startwert')} {money(event.initialValue)}</span>
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · {money(event.initialValue)} · {pluralMessage('timeline.purchaseOwners',purchaseOwnerCount(event),$locale)}</span>
             {:else if event.type === 'item-ended'}
               <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || localizeGermanText('Beendet')}</span>
             {:else}
               {summary(event)}
             {/if}
           </div>
-          {#if event.type === "item-added" || event.type === "item-ended"}<CompactNames entries={eventPeople(project, event, $locale)}/>{/if}
+          {#if event.type === "item-ended"}<CompactNames entries={eventPeople(project, event, $locale)}/>{/if}
           {#if interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' && expandedEventId === event.id}
             <div class="event-readonly-details" role="region" aria-label={$translate('timeline.viewDetails')}>
               <p>{summary(event)}</p>
-              {#if event.type === "item-added"}<p>{localizeGermanText(ITEM_FUNDING_NOTE(event))}</p>{/if}
+              {#if event.type === "item-added"}
+                <p>{localizeGermanText(ITEM_FUNDING_NOTE(event))}</p>
+                <div class="purchase-event-people">
+                  <strong>{$translate('overview.ownersGroup')}</strong>
+                  <CompactNames entries={eventPeople(project,event,$locale).filter(p=>p.roles.includes('overview.owner')).map(p=>({id:p.id,name:p.name}))} onName={openPerson}/>
+                  {#if eventPeople(project,event,$locale).some(p=>p.roles.includes('overview.funder'))}
+                    <strong>{$translate('overview.fundersGroup')}</strong>
+                    <CompactNames entries={eventPeople(project,event,$locale).filter(p=>p.roles.includes('overview.funder')).map(p=>({id:p.id,name:p.name}))} onName={openPerson}/>
+                  {/if}
+                </div>
+              {/if}
               {#if event.note}<p>{event.note}</p>{/if}
               <p class="muted">{$translate($appState.readOnly ? 'errors.readOnly' : 'timeline.viewOnly')}</p>
               {#if $appState.readOnly && interactionForTimelineEvent(event.type,false)==='edit'}
@@ -255,6 +265,7 @@
           {/if}
         </div>
             {/each}
+          </div>
           </div>
         </div>
       {:else}
@@ -276,132 +287,48 @@
 </section>
 
 <style>
-  .timeline-panel {
-    font-size: 0.9rem;
-  }
-  .timeline-preview .panel-body { padding: 0; }
-  .timeline-group{min-width:0;display:grid;gap:5px}
-  .timeline-group.future-event{border-left:0}
-  .timeline-group-toggle{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:8px;text-align:left;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--panel);min-height:54px;width:100%;overflow-wrap:anywhere}
-  .timeline-group-toggle:hover,.timeline-group-toggle:focus-visible{border-color:var(--accent)}
-  .future-event>.timeline-group-toggle{border-left:3px solid var(--accent)}
+  .timeline-panel{font-size:.9rem;min-width:0}
+  .timeline-preview .panel-body{padding:0}
+  .timeline-body{display:grid;gap:3px;min-width:0}
+  .timeline-day-row{display:grid;grid-template-columns:minmax(0,100px) minmax(0,1fr);gap:14px;align-items:start;min-width:0}
+  .timeline-day-row.day-start:not(:first-child){margin-top:14px}
+  .timeline-day-date{padding:8px 0;color:var(--text);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;line-height:1.35}
+  .timeline-day-row.future-event .timeline-day-date{color:var(--accent)}
+  .timeline-group{min-width:0;display:grid;gap:3px}
+  .timeline-group-toggle{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;text-align:left;border:0;border-radius:5px;padding:8px 4px;background:transparent;min-height:44px;width:100%;overflow-wrap:anywhere}
+  .timeline-group-toggle:hover,.timeline-group-toggle:focus-visible{background:var(--soft)}
   .group-icon,.group-chevron{color:var(--muted)}
-  .group-text{display:grid;gap:3px;min-width:0}
+  .group-text{display:grid;gap:2px;min-width:0}
   .group-text small{color:var(--muted)}
-  .timeline-group-members{display:grid;gap:5px;min-width:0}
+  .timeline-group-members{display:grid;gap:3px;min-width:0}
   .timeline-group-members[hidden]{display:none}
-  .timeline-group-members.group-expanded{margin-left:9px;border-left:2px solid var(--border);padding-left:7px}
-  .timeline-group-members.group-expanded .timeline-event-card{min-height:0;padding:9px 10px}
-  @media(max-width:380px){.timeline-group-toggle{gap:5px;padding:9px 7px}.timeline-group-members.group-expanded{margin-left:4px;padding-left:4px}}
-  .timeline-event-card {
-    min-width: 0;
-    overflow-wrap: anywhere;
-    position: relative;
-    padding: 12px 14px;
-    min-height: 66px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    display: grid;
-    gap: 6px;
-  }
-  .timeline-event-card:hover { border-color: var(--accent); background: var(--soft); }
-  .timeline-event-card:focus-within { border-color: var(--accent); }
-  .future-event { border-left: 3px solid var(--accent); }
-  .event-open-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: inherit;
-    background: transparent;
-    cursor: pointer;
-  }
-  .event-open-overlay:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 2px;
-  }
-  .event-kind { display: inline-flex; align-items: center; gap: 8px; }
-  .event-icon { display: inline-flex; color: var(--muted); }
-  .event-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-  }
-  .label {
-    font-weight: 600;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--accent);
-  }
-  .date {
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-  .event-summary {
-    color: var(--text);
-    line-height: 1.3;
-  }
-  .event-summary .entity-link {
-    position: relative;
-    z-index: 2;
-  }
-  .event-readonly-details {
-    position: relative;
-    z-index: 2;
-    border-top: 1px solid var(--border);
-    padding-top: 8px;
-    line-height: 1.4;
-  }
-  .event-readonly-details p { margin: 0 0 6px; }
-  .event-readonly-details .muted { color: var(--muted); }
-  .entity-link {
-    border: 1px solid transparent;
-    background: var(--accent-soft);
-    color: #1f4db6;
-    padding: 1px 8px;
-    border-radius: 999px;
-    text-decoration: none;
-    cursor: pointer;
-    display: inline;
-    font: inherit;
-    font-size: 0.85rem;
-    line-height: 1.35;
-    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
-    margin: 0 2px;
-    vertical-align: baseline;
-  }
-  .entity-link:hover {
-    background: #dbe8ff;
-    border-color: #b6cbff;
-    color: #163a8a;
-  }
-  .entity-link:active {
-    transform: translateY(1px);
-  }
-  .entity-link:focus-visible {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(47, 111, 237, 0.22);
-  }
-  .timeline-marker {
-    font-size: 0.8rem;
-    padding: 8px 0;
-    text-align: center;
-    color: var(--accent);
-    font-weight: 600;
-    border-top: 2px dashed var(--accent-soft);
-    border-bottom: 2px dashed var(--accent-soft);
-    margin: 8px 0;
-  }
-  .timeline-more {
-    font-size: 0.8rem;
-    padding: 6px;
+  .timeline-group-members.group-expanded{padding-left:12px}
+  .timeline-event-card{min-width:0;overflow-wrap:anywhere;position:relative;padding:7px 4px;min-height:44px;border:0;border-radius:5px;background:transparent;display:grid;gap:2px}
+  .timeline-event-card:hover{background:var(--soft)}
+  .event-open-overlay{position:absolute;inset:0;z-index:1;width:100%;height:100%;margin:0;padding:0;border:0;border-radius:inherit;background:transparent;cursor:pointer}
+  .event-open-overlay:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .event-kind{display:inline-flex;align-items:center;gap:5px}
+  .event-icon{display:inline-flex;color:var(--muted)}
+  .event-meta{display:flex;align-items:center}
+  .label{font-weight:600;font-size:11px;color:var(--muted);line-height:1.35}
+  .event-summary{color:var(--text);line-height:1.45}
+  .event-summary .entity-link{position:relative;z-index:2}
+  .event-readonly-details{position:relative;z-index:2;padding:9px 0;line-height:1.4}
+  .event-readonly-details p{margin:0 0 6px}
+  .event-readonly-details .muted{color:var(--muted)}
+  .purchase-event-people{display:grid;gap:4px;margin:8px 0}
+  .purchase-event-people>strong{font-size:12px;color:var(--muted)}
+  .entity-link{border:0;background:transparent;color:var(--accent);padding:0;max-width:100%;overflow-wrap:anywhere;white-space:normal;text-align:left;display:inline;font:inherit;font-weight:600;cursor:pointer}
+  .entity-link:hover{text-decoration:underline}
+  .entity-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .timeline-marker{font-size:12px;padding:6px 0;margin:10px 0;text-align:left;color:var(--accent);font-weight:600;border:0}
+  .timeline-marker:before{display:none}
+  .timeline-marker:after{opacity:.45}
+  .timeline-more{font-size:12px;padding:8px;min-height:44px}
+  @media(max-width:540px){
+    .timeline-day-row{grid-template-columns:minmax(0,75px) minmax(0,1fr);gap:7px}
+    .timeline-day-date{font-size:11px}
+    .timeline-event-card,.timeline-group-toggle{padding:7px 2px}
+    .timeline-group-members.group-expanded{padding-left:7px}
   }
 </style>

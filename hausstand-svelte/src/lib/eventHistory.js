@@ -58,3 +58,18 @@ export function groupedHistoryAt(events,asOfDate) {
   const future=groupHistoryEvents(history.future),past=groupHistoryEvents(history.past);
   return {future,past,recent:past.slice(0,RECENT_HISTORY_LIMIT),futureEventCount:history.future.length,pastEventCount:history.past.length};
 }
+
+// Q63: preserve the already sorted/paginated group sequence and stable keys.
+// A new day (or a cutoff boundary) receives exactly one visible date label.
+export function dateAnchoredRows(rows) {
+  let previousDate=null;
+  return rows.map(row=>{
+    if(!row.group){previousDate=null;return row;}
+    const dayStart=row.group.date!==previousDate;
+    previousDate=row.group.date;
+    return {...row,dayStart};
+  });
+}
+export function purchaseOwnerCount(event) {
+  return Object.values(event.shares||{}).filter(units=>Number(units)>0).length;
+}

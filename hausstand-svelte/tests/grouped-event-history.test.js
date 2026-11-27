@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { groupHistoryEvents, groupedHistoryAt } from '../src/lib/eventHistory.js';
+import { groupHistoryEvents, groupedHistoryAt, dateAnchoredRows, purchaseOwnerCount } from '../src/lib/eventHistory.js';
 const paid=(i,date='2025-01-02',kind='paid')=>({id:'p'+i,date,order:i,type:'claim-settlement-recorded',settlementKind:kind,amountCents:8500});
 test('group by effective date and kind across interleaved events, not net balance',()=>{
   const events=Array.from({length:10},(_,i)=>paid(i));
@@ -31,4 +31,19 @@ test('purchase group sums acquisition amounts and invalid monetary rows are not 
   const groups=groupHistoryEvents([{id:'a',date:'2025-01-01',type:'item-added',initialValue:12.48},{id:'b',date:'2025-01-01',type:'item-added',initialValue:3.02}]);
   assert.equal(groups[0].totalCents,1550);
   assert.equal(groupHistoryEvents([{...paid(1),amountCents:undefined}])[0].totalCents,null);
+});
+
+test('Q63: dates anchor each contiguous day without changing keys or member order',()=>{
+ const events=[paid(1,'2025-01-03'),paid(2,'2025-01-03','external'),paid(3,'2025-01-02'),paid(4,'2025-01-01')];
+ const h=groupedHistoryAt(events,'2025-01-02');
+ const rows=[...h.future.map(group=>({key:group.key,group})),{key:'cutoff'},...h.past.map(group=>({key:group.key,group}))];
+ const anchored=dateAnchoredRows(rows);
+ assert.deepEqual(anchored.map(r=>r.key),rows.map(r=>r.key));
+ assert.deepEqual(anchored.map(r=>r.dayStart),[true,false,undefined,true,true]);
+ assert.deepEqual(anchored.filter(r=>r.dayStart).map(r=>r.group.date),['2025-01-03','2025-01-02','2025-01-01']);
+});
+test('Q63: purchase owner count is from original positive units, not funders or current holdings',()=>{
+ assert.equal(purchaseOwnerCount({shares:{a:1,b:.5,c:0},purchaseContributionsCents:{d:5000}}),2);
+ assert.equal(purchaseOwnerCount({shares:{a:1}}),1);
+ assert.equal(purchaseOwnerCount({}),0);
 });

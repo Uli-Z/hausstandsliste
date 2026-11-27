@@ -57,7 +57,7 @@
   .ownership-event-heading{font-weight:600}
   .ownership-event-heading strong{display:inline}
   .event-unit-change{margin-top:4px;line-height:1.4}
-  .entity-link{position:relative;z-index:2;border:1px solid transparent;background:var(--accent-soft);color:#1f4db6;padding:1px 8px;border-radius:999px;display:inline;font:inherit;font-size:.85rem;line-height:1.35;margin:0 2px;vertical-align:baseline}
-  .entity-link:hover{background:#dbe8ff;border-color:#b6cbff}
+  .entity-link{position:relative;z-index:2;border:0;background:transparent;color:var(--accent);padding:0;max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left;display:inline;font:inherit;font-weight:600}
+  .entity-link:hover{text-decoration:underline}
   .entity-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </style>
