@@ -117,7 +117,18 @@ function createStore() {
       if (readOnly && !s.readOnly && s.activeDialog && s.activeDialog.type !== 'options') requireEditing(next);
       return next;
     }),
-    newProject: name => update(s => persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, secure: false, readOnly: false, readOnlyReason: '', asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard' }, activeDialog: null }))),
+    // Intentional destructive replacement, never an undoable domain mutation.
+    newProject: name => {
+      let replaced = false;
+      update(s => {
+        if (!requireEditing(s)) return s;
+        // Remove the previous working copy before publishing the blank one.
+        clearWorkingCopy();
+        replaced = true;
+        return persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, secure: false, readOnly: false, readOnlyReason: '', asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard' }, activeDialog: null }));
+      });
+      return replaced;
+    },
     mutateProject: mutator => {
       let saved = false;
       update(s => {

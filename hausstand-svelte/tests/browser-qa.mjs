@@ -10,7 +10,7 @@ import { chromium, firefox, webkit } from 'playwright';
 import { decryptProject, encryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { projectAt } from '../src/lib/projector.js';
-import { readPortableVersion } from '../src/lib/versionHistory.js';
+import { readPortableVersion, createPortableSave } from '../src/lib/versionHistory.js';
 import { portableFileAcceptance } from './portable-file-qa.mjs';
 import { invalidInputAcceptance } from './invalid-input-qa.mjs';
 import { timeTravelFormsAcceptance, guidedArchiveAcceptance } from './time-travel-forms-qa.mjs';
@@ -61,6 +61,54 @@ async function bootFixture(page, url) {
   });
   await page.reload();
   await page.getByText('Browser-Abnahme').first().waitFor();
+}
+// Q50: reset must discard the archive and session stack, not just visible records.
+async function resetProjectAcceptance(browser,url) {
+  for (const [width,locale] of [[375,'de-DE'],[1280,'en-GB']]) {
+    const de=locale==='de-DE';
+    const context=await browser.newContext({locale,viewport:{width,height:812}});
+    try {
+      const page=await context.newPage();
+      await bootFixture(page,url);
+      const withHistory=await createPortableSave({...fixture,community:{name:'Q50 test'}},fixture);
+      await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(withHistory)});
+      await page.reload();
+      const snapshot=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
+      const rename=page.locator('.household-rename');
+      await rename.click();
+      await page.getByRole('dialog').locator('input').fill('Q50 changed');
+      await page.getByRole('dialog').locator('input').press('Enter');
+      await page.getByRole('dialog').waitFor({state:'hidden'});
+      const before=await snapshot();
+      assert.equal(before.project.versionHistory.entries.length,1);
+      if(width<600) {
+        await page.locator('.mobile-more-slot > button').click();
+        await page.locator('.mobile-more-menu').getByRole('button',{name:de?'Einstellungen':'Settings',exact:true}).click();
+      } else await page.locator('.sidebar').getByRole('button',{name:de?'Einstellungen':'Settings',exact:true}).click();
+      const start=page.getByRole('button',{name:de?'Projekt vollständig zurücksetzen …':'Reset project completely…',exact:true});
+      await start.click();
+      const dialog=page.locator('.reset-project-dialog');
+      const confirm=dialog.locator('button[type="submit"]');
+      await dialog.locator('input').fill('wrong');
+      assert.ok(await confirm.isDisabled());
+      await dialog.locator('button[type="button"]').click();
+      await dialog.waitFor({state:'detached'});
+      assert.deepEqual(await snapshot(),before);
+      await start.click();
+      await dialog.locator('input').fill(de?'LÖSCHEN':'RESET');
+      await confirm.click();
+      await dialog.waitFor({state:'detached'});
+      const after=await snapshot();
+      for(const k of ['people','items','events','drafts']) assert.deepEqual(after.project[k],[]);
+      assert.equal(after.savedProject,null);
+      assert.equal(after.project.versionHistory,undefined);
+      await page.keyboard.press('Control+z');
+      assert.deepEqual((await snapshot()).project.people,[]);
+      await page.reload();
+      assert.deepEqual((await snapshot()).project.events,[]);
+      assert.equal(await page.locator('.household-rename').innerText(),'Hausgemeinschaft');
+    } finally { await context.close(); }
+  }
 }
 // Q47: direct name editing, cancellation, validation and session history.
 async function householdRenameAcceptance(browser, url) {
@@ -2226,6 +2274,7 @@ try {
   server = offlineServer.server;
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
   await acceptance('Chromium Q37 read-only dialog guard', () => q37ReadOnlyAcceptance(browser));
+  await acceptance('Chromium Q50 destructive local reset', () => resetProjectAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q48 session history', () => sessionLogAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q47 household rename', () => householdRenameAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));

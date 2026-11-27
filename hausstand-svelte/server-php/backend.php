@@ -400,8 +400,18 @@ if ($api !== '') {
         if ($rotateHash !== null) $meta['tokenHash'] = $rotateHash;
         $meta['updatedAt'] = gmdate('c');
         $meta['leaseExpires'] = time() + 7200;
+        // A destructive test reset must not send old queued backups later.
+        // Change the queue pointer together with the current encrypted file;
+        // never remove pending copies before the authoritative commit succeeds.
+        $reset = ($body['resetProject'] ?? false) === true;
+        if ($reset) $meta['mailQueue'] = [];
         $mail = stageMailCopy($dir, $meta, $next, $envelope);
         atomicJson($dir . '/meta.json', $meta);
+        if ($reset) {
+            foreach (glob($dir . '/mail-queue/*.json') ?: [] as $queued) {
+                if (preg_match('/^([0-9]+)\.json$/D', basename($queued), $match) && (int) $match[1] < $next) @unlink($queued);
+            }
+        }
         mailPending($dir, $meta);
         if ($previousCurrent && $previousCurrent !== $nextCurrent) {
             @unlink($dir . '/' . $previousCurrent); // after successful meta commit only

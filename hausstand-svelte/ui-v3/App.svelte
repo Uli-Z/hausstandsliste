@@ -9,6 +9,7 @@
   import { historyShortcut } from '../src/lib/sessionUndo.js';
   import { sessionChangeText } from '../src/lib/sessionLog.js';
   import SessionHistoryDialog from './SessionHistoryDialog.svelte';
+  import ResetProjectDialog from './ResetProjectDialog.svelte';
   import { money } from '../src/lib/domain.js';
   import { requireShareEventFormat } from '../src/lib/shareUnits.js';
   import { addDays, eventDates, todayISO } from '../src/lib/util.js';
@@ -38,7 +39,8 @@
   ];
   let activeSection = 'overview';
   let showJson = false;
-  let showDanger = false;
+  let resetOpen = false;
+  let resetTrigger;
   let mobileMoreOpen = false;
   let storageView;
   let serverSession;
@@ -173,7 +175,7 @@
     tick().then(() => dateToggleButton?.focus());
   }
   function handleKeydown(e) {
-    const shortcut = historyShortcut(e, !!$appState.activeDialog || historyOpen);
+    const shortcut = historyShortcut(e, !!$appState.activeDialog || historyOpen || resetOpen);
     if (shortcut) {
       const changed = shortcut === 'undo' ? appState.undo() : appState.redo();
       if (changed) e.preventDefault();
@@ -192,11 +194,29 @@
     }
     navigate('save');
   }
-  function newProject() {
-    if (!confirm($translate("ui.start-a-new-project-the-current-wo-1m8g44d"))) return;
-    if (storageView?.prepareToReplace?.() === false) return;
-    appState.newProject();
+  function openReset(event) {
+    if (storageBusy || !appState.requireEditing()) return;
+    resetTrigger = event.currentTarget;
+    appState.dismissDatePicker();
+    resetOpen = true;
+  }
+  function closeReset() {
+    resetOpen = false;
+    tick().then(() => resetTrigger?.focus());
+  }
+  async function resetProject() {
+    if (storageBusy || !appState.requireEditing()) return false;
+    if (SERVER_MODE) {
+      if (!(await serverSession?.resetProject())) return false;
+    } else {
+      if (storageView?.prepareToReplace?.() === false) return false;
+      try { if (!appState.newProject()) return false; }
+      catch { notifications.notify($translate('reset.failed'), {kind:'error'}); return false; }
+      notifications.notify($translate('reset.success'), {kind:'success'});
+    }
+    resetOpen = false; historyOpen = false; showJson = false;
     navigate('overview');
+    return true;
   }
 </script>
 
@@ -463,11 +483,10 @@
               <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? $translate('app.technicalClose') : $translate('app.technicalOpen')}</button>
               {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
             </section>
-            {#if !SERVER_MODE}<section class="setting-advanced-block dangerous-settings">
-              <div class="section-header"><h2>{$translate("app.newProject")}</h2></div>
-              <button class="outline-action" aria-expanded={showDanger} on:click={() => showDanger = !showDanger}>{showDanger ? $translate("ui.cancel-cl4zc9") : $translate('app.reset')}</button>
-              {#if showDanger}<div class="inline-info warning"><strong>{$translate("ui.the-current-state-may-be-lost-1b4b05v")}</strong> {$translate("ui.you-can-only-restore-it-from-a-pre-yyoqfw")}</div><button class="dangerous-button" disabled={storageBusy} on:click={newProject}>{$translate("ui.yes-start-a-new-project-wbff79")}</button>{/if}
-            </section>{/if}
+            <section class="setting-advanced-block dangerous-settings">
+              <div class="section-header"><h2>{$translate('reset.testOnly')}</h2></div>
+              <button type="button" class="dangerous-button" disabled={storageBusy} on:click={openReset}>{$translate('reset.action')}</button>
+            </section>
           </div>
         </section>
       {/if}
@@ -506,6 +525,7 @@
     </button>
   </div>
 </nav>
+{#if resetOpen}<ResetProjectDialog server={SERVER_MODE} reset={resetProject} close={closeReset}/>{/if}
 {#if historyOpen}<SessionHistoryDialog log={sessionLog} locked={$appState.readOnly || storageBusy || !!$appState.activeDialog} jump={jumpHistory} close={closeHistory}/>{/if}
 <!-- A primitive session key changes only on intentional dialog transitions. -->
 {#key $appState.activeDialog ? $appState.dialogRevision : null}

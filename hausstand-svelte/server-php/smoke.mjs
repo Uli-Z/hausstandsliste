@@ -90,14 +90,32 @@ try {
   assert.equal((await call('renew', { id }, {}, saving)).status, 403);
   const saving2 = { ...saving, 'X-File-Token': token2 };
   assert.equal((await call('checkin', { id }, {}, saving2)).status, 200);
-  assert.equal((await call('checkout', { id, expectedRevision: 3 }, {}, { 'X-File-Token': token2 })).status, 200);
+  const checkout2 = await call('checkout', { id, expectedRevision: 3 }, {}, { 'X-File-Token': token2 });
+  assert.equal(checkout2.status, 200);
   await access(join(root, 'files', id, 'current-3.json'));
   await assert.rejects(access(join(root, 'files', id, 'current-2.json')));
 
   const meta = JSON.parse(await readFile(join(root, 'files', id, 'meta.json'), 'utf8'));
   assert.equal(meta.currentFile, 'current-3.json');
   assert.equal(Object.hasOwn(meta, 'versions'), false);
-  process.stdout.write('PHP API portable-history smoke test passed\n');
+  // Q50: reset uses the existing authenticated revision/lease guard, no archive carry-over.
+  const resetAuth = {'X-File-Token':token2, 'X-Lease-Token':checkout2.leaseToken};
+  const blank = await createPortableSave(emptyProject(), null);
+  const resetEnvelope = await encryptProject(blank, 'replacement-password', token2);
+  const resetBody = {id, expectedRevision:3, envelope:resetEnvelope, resetProject:true};
+  assert.equal((await call('save', resetBody, {}, {'X-File-Token':token2})).status, 423);
+  assert.equal((await call('save', {...resetBody, expectedRevision:2}, {}, resetAuth)).status,409);
+  assert.equal((await call('read',null,{id})).revision,3);
+  r = await call('save', resetBody, {}, resetAuth);
+  assert.equal(r.status,200,JSON.stringify(r));
+  assert.equal(r.revision,4);
+  const resetPacket = await call('read',null,{id});
+  const resetProject = (await decryptProject(resetPacket.envelope,'replacement-password')).project;
+  for (const key of ['people','items','events','drafts']) assert.deepEqual(resetProject[key],[]);
+  assert.deepEqual(resetProject.versionHistory.entries,[]);
+  await assert.rejects(access(join(root,'files',id,'current-3.json')));
+  assert.equal((await call('renew',{id},{},resetAuth)).status,200);
+  process.stdout.write('PHP API portable-history and project reset smoke test passed\n');
 } finally {
   server.kill();
   await rm(root, { recursive: true, force: true });

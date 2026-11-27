@@ -245,6 +245,29 @@
       busy = false; saving = false;
     }
   }
+  // Reset is a deliberate first save, not a restore/archive of the old project.
+  export async function resetProject() {
+    if (busy || !authenticated || !editing || !leaseToken || $appState.readOnly) {
+      sessionNotice('reset.readOnly', 'error');
+      return false;
+    }
+    busy = true; saving = true;
+    try {
+      const saved = await createPortableSave(emptyProject(), null);
+      const envelope = await encryptProject(exportProject(saved, saved.humanReadableSnapshot.asOfDate), activePassword, editToken);
+      const result = await api('save', {expectedRevision:revision, envelope, resetProject:true});
+      if (!confirmedSave(result)) throw new Error($translate('session.saveUnconfirmed'));
+      revision = result.revision; leaseExpires = result.expiresAt;
+      appState.importProject(saved, {secure:true, readOnly:false});
+      notifications.dismissSource('server-save');
+      sessionNotice('reset.success');
+      reportMail(result);
+      return true;
+    } catch (e) {
+      sessionNotice('reset.serverFailed', 'error', {reason:localizeDiagnostic(e.message)});
+      return false;
+    } finally { busy = false; saving = false; }
+  }
   export async function downloadBackup() {
     if (busy) return;
     busy = true;
