@@ -43,6 +43,8 @@
   let serverSession;
   let serverAuthenticated = false;
   let serverEditing = false;
+  let serverSaving = false;
+  let mailRetryRevision = null;
   let serverFeedback = '';
   let serverFeedbackError = false;
   let onlineEditing = false;
@@ -210,7 +212,7 @@
 <NotificationStack/>
 
 {#if SERVER_MODE}
-  <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:busy={storageBusy} bind:feedback={serverFeedback} bind:feedbackError={serverFeedbackError}/>
+  <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:saving={serverSaving} bind:mailRetryRevision={mailRetryRevision} bind:busy={storageBusy} bind:feedback={serverFeedback} bind:feedbackError={serverFeedbackError}/>
 {/if}
 {#if !SERVER_MODE || serverAuthenticated}
 <div class="app-shell">
@@ -293,7 +295,7 @@
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </span>
         {#if !(route.page === 'dashboard' && activeSection === 'save')}
-          <button class="header-save" disabled={storageBusy} on:click={saveNow}
+          <button class="header-save" disabled={storageBusy} aria-busy={storageBusy} on:click={saveNow}
             aria-label={SERVER_MODE ? (serverEditing ? $translate('session.finish') : $translate('storage.startEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
             title={SERVER_MODE ? (serverEditing ? $translate('session.finish') : $translate('storage.startEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
             <ActionIcon name={SERVER_MODE || onlineEditing ? 'check' : 'download'} size={17}/>
@@ -306,8 +308,9 @@
 
     {#if SERVER_MODE}
       <div class="server-edit-status" role="status">
-        {serverEditing ? ($appState.dirty ? $translate('session.editingDirty') : $translate('session.editing')) : $translate('session.readOnly')}
+        {serverSaving ? $translate('session.saving') : storageBusy ? $translate('session.working') : serverEditing ? ($appState.dirty ? $translate('session.editingDirty') : $translate('session.editing')) : $translate('session.readOnly')}
       </div>
+      {#if mailRetryRevision !== null}<div class="server-edit-status"><button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.retryMail()}>{$translate('mail.retry')}</button></div>{/if}
     {/if}
 
     <main class="work-content">
