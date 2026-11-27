@@ -1,5 +1,4 @@
 <script>
-  import CompactNames from './CompactNames.svelte';
   import { nameEntries, rankedItems } from '../src/lib/overviewNames.js';
   import { onMount, tick } from 'svelte';
   import { locale, languagePreference, setLanguage, resolveLocale, translate, pluralMessage, formatDate } from '../src/lib/i18n.js';
@@ -179,7 +178,8 @@
   $: latestEvents = recentHistory.recent;
   $: futureEventCount = recentHistory.futureEventCount;
   $: balances = $ledger.simplified || [];
-  $: outstandingCents = balances.reduce((sum, transfer) => sum + transfer.amountCents, 0);
+  $: overviewItems = rankedItems($projection.activeItems, $locale).slice(0,20);
+  $: overviewPeople = nameEntries($projection.people.filter(p=>p.active), $locale);
 
   function personName(id) { return $appState.project.people.find(p => p.id === id)?.name || $translate('ui.unknown-1qdpc2x'); }
   function navigate(id) {
@@ -391,48 +391,56 @@
           <div><h1>{$translate("nav.overview")}</h1></div>
         </section>
 
-        {#if $appState.project.people.length === 0 && $appState.project.items.length === 0}
-          <section class="getting-started">
-            <div><h2>{$translate("app.intro")}</h2></div>
-            <button class="solid-action" on:click={() => appState.setDialog({ type: 'personAdd' })}>{$translate("app.firstPerson")}</button>
-          </section>
-        {/if}
+        <section class="ux-panel overview-total" data-metric="value">
+          <span>{$translate("app.totalValue")}</span>
+          <strong>{money($projection.totalValue)}</strong>
+        </section>
 
-        <div class="metric-grid">
-          <div class="metric action-card" data-metric="value">
-            <button class="metric-link card-primary" type="button" on:click={() => navigate("items")}><span>{$translate("app.totalValue")}</span><strong>{money($projection.totalValue)}</strong><small>{$translate("app.activeItems")}</small></button>
-          </div>
-          <div class="metric action-card" data-metric="balance">
-            <button class="metric-link card-primary" type="button" on:click={() => navigate("money")}><span>{$translate("app.outstanding")}</span><strong>{money(outstandingCents / 100)}</strong><small>{$translate("app.sharedBalance")}</small></button>
-          </div>
-          <div class="metric action-card metric-names" data-metric="items">
-            <button class="metric-link card-primary" type="button" on:click={() => navigate("items")}><span class="metric-list-title">{$translate("nav.items")}</span><ActionIcon name="chevron-right" size={16}/></button>
-            {#if $projection.activeItems.length}
-              <CompactNames plain={true} entries={rankedItems($projection.activeItems, $locale)} onMore={() => navigate("items")}/>
-            {:else}
-              <span class="metric-empty">{$translate('overview.noItems')}</span>
-            {/if}
-          </div>
-          <div class="metric action-card metric-names" data-metric="people">
-            <button class="metric-link card-primary" type="button" on:click={() => navigate("people")}><span class="metric-list-title">{$translate("nav.people")}</span><ActionIcon name="chevron-right" size={16}/></button>
-            {#if $projection.people.some(p=>p.active)}
-              <CompactNames plain={true} entries={nameEntries($projection.people.filter(p=>p.active), $locale)} onMore={() => navigate("people")}/>
-            {:else}
-              <span class="metric-empty">{$translate('overview.noPeople')}</span>
-            {/if}
-          </div>
-        </div>
-
-        <div class="overview-layout">
-          <section class="ux-panel quick-actions">
-            <div class="section-header"><div><h2>{$translate("app.tasks")}</h2></div></div>
-            <div class="task-grid">
-              <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><span class="task-icon"><ActionIcon name="box" size={22}/></span><strong>{$translate("app.addSomething")}</strong><small>{$translate("app.recordItem")}</small></button>
-              <button on:click={() => appState.startRedistribution()}><span class="task-icon"><ActionIcon name="arrows" size={22}/></span><strong>{$translate("app.transfer")}</strong><small>{$translate("app.split")}</small></button>
-              <button on:click={() => appState.setDialog({ type: 'personAdd' })}><span class="task-icon"><ActionIcon name="person-add" size={22}/></span><strong>{$translate("app.personAdd")}</strong><small>{$translate("app.join")}</small></button>
-              <button on:click={() => navigate('save')}><span class="task-icon"><ActionIcon name="download" size={22}/></span><strong>{$translate("app.backup")}</strong><small>{$translate("app.share")}</small></button>
+        <div class="overview-directory-grid">
+          <section class="ux-panel overview-directory" data-metric="items">
+            <div class="section-header">
+              <h2>{$translate("nav.items")}</h2>
+              <button class="text-action metric-link" type="button" on:click={() => navigate("items")}>{$translate("overview.allItems")} <ActionIcon name="chevron-right" size={16}/></button>
             </div>
+            <div class="overview-directory-actions">
+              <button class="outline-action" data-overview-action="itemAdd" type="button" on:click={() => appState.setDialog({ type: 'itemAdd' })}><ActionIcon name="plus" size={16}/>{$translate("app.itemAdd")}</button>
+              <button class="outline-action" data-overview-action="transfer" type="button" on:click={() => appState.startRedistribution()}><ActionIcon name="arrows" size={16}/>{$translate("app.transfer")}</button>
+            </div>
+            {#if overviewItems.length}
+              <ul class="overview-entry-list">
+                {#each overviewItems as item (item.id)}
+                  <li><button class="overview-entry" data-overview-item={item.id} type="button" on:click={() => appState.setRoute({page:'item',id:item.id})}>
+                    <span class="overview-entry-name">{item.name}</span><strong>{money(item.value)}</strong>
+                  </button></li>
+                {/each}
+              </ul>
+              {#if $projection.activeItems.length > 20}
+                <button class="text-action overview-more" type="button" on:click={() => navigate("items")}>{$translate('overview.more',{count:$projection.activeItems.length-20})}</button>
+              {/if}
+            {:else}
+              <p class="metric-empty">{$translate('overview.noItems')}</p>
+            {/if}
           </section>
+          <section class="ux-panel overview-directory" data-metric="people">
+            <div class="section-header">
+              <h2>{$translate("nav.people")}</h2>
+              <button class="text-action metric-link" type="button" on:click={() => navigate("people")}>{$translate("overview.allPeople")} <ActionIcon name="chevron-right" size={16}/></button>
+            </div>
+            <div class="overview-directory-actions">
+              <button class="outline-action" data-overview-action="personAdd" type="button" on:click={() => appState.setDialog({ type: 'personAdd' })}><ActionIcon name="person-add" size={16}/>{$translate("app.personAdd")}</button>
+            </div>
+            {#if overviewPeople.length}
+              <ul class="overview-entry-list">
+                {#each overviewPeople as person (person.id)}
+                  <li><button class="overview-entry" data-overview-person={person.id} type="button" on:click={() => appState.setRoute({page:'person',id:person.id})}><span class="overview-entry-name">{person.name}</span><ActionIcon name="chevron-right" size={16}/></button></li>
+                {/each}
+              </ul>
+            {:else}
+              <p class="metric-empty">{$translate('overview.noPeople')}</p>
+            {/if}
+          </section>
+        </div>
+        <div class="overview-settlement">
           <section class="ux-panel financial-overview">
             <div class="section-header"><div class="help-heading"><h2>{$translate("app.suggestions")}</h2></div><button class="text-action" on:click={() => navigate('money')}>{$translate("app.viewAll")}</button></div>
             {#if balances.length}

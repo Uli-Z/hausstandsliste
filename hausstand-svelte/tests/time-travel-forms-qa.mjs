@@ -168,7 +168,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await cutoff('2032-05-05');
     assert.equal(await page.locator('.person-row').filter({hasText:'Carla'}).count(),1);
     await nav('Überblick').click();
-    await page.locator('.quick-actions .task-grid > button').nth(1).click();
+    await page.locator('[data-overview-action]').nth(1).click();
     assert.equal(await page.locator('#redistribution-effective-date').inputValue(),'2032-05-05');
     await page.locator('#redistribution-effective-date').fill('2024-01-01');
     assert.equal(await dialog.locator('.redistribution-item-card').count(),0);
@@ -215,7 +215,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     // at a different viewing date. Draft saving must not create an event.
     const eventsBeforeDraft = (await snapshot()).events;
     await cutoff('2033-01-01');
-    await page.locator('.quick-actions .task-grid > button').nth(1).press('Enter');
+    await page.locator('[data-overview-action]').nth(1).press('Enter');
     assert.equal(await page.locator('#time-travel-panel').count(),0);
     const redistributionDate=page.locator('#redistribution-effective-date');
     assert.equal(await redistributionDate.inputValue(),'2033-01-01');

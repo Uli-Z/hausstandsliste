@@ -4,28 +4,33 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 const source = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('Q45: overview retains two financial metrics, two content cards and quick actions', () => {
+test('Q59: overview keeps only inventory value and links individual items and all active people', () => {
   const app = source('ui-v3/App.svelte');
   const overview = app.slice(app.indexOf("{:else if activeSection === 'overview'}"), app.indexOf("{:else if activeSection === 'items'}"));
-  assert.equal((overview.match(/<div class="metric action-card(?: metric-names)?"/g) || []).length, 4);
-  assert.equal((overview.match(/<CompactNames plain={true}/g) || []).length, 2);
-  assert.ok(!overview.includes('<strong>{$projection.activeItems.length}</strong>'));
-  assert.ok(!overview.includes('<strong>{$projection.people.filter(p=>p.active).length}</strong>'));
-  assert.ok(overview.includes('overview.noItems'));
-  assert.ok(overview.includes('overview.noPeople'));
+  assert.equal((overview.match(/data-metric=/g)||[]).length,3);
   assert.ok(overview.includes('money($projection.totalValue)'));
-  assert.ok(overview.includes('money(outstandingCents / 100)'));
-  assert.equal((overview.match(/<span class="task-icon">/g) || []).length, 4);
-  assert.ok(overview.includes('rankedItems($projection.activeItems, $locale)'));
-  assert.ok(overview.includes('nameEntries($projection.people.filter(p=>p.active), $locale)'));
-  assert.ok(overview.includes('app.suggestions'));
+  assert.ok(!overview.includes('outstandingCents'));
+  assert.ok(!overview.includes('data-metric="balance"'));
+  assert.ok(!overview.includes('quick-actions'));
+  assert.ok(!overview.includes('app.backup'));
+  assert.ok(!overview.includes('CompactNames'));
+  assert.ok(app.includes('rankedItems($projection.activeItems, $locale).slice(0,20)'));
+  assert.ok(app.includes('nameEntries($projection.people.filter(p=>p.active), $locale)'));
+  assert.ok(overview.includes('data-overview-item={item.id}'));
+  assert.ok(overview.includes('data-overview-person={person.id}'));
+  assert.ok(overview.includes("page:'item',id:item.id"));
+  assert.ok(overview.includes("page:'person',id:person.id"));
+  assert.equal((overview.match(/data-overview-action=/g)||[]).length,3);
+  assert.ok(overview.includes('$projection.activeItems.length > 20'));
+  assert.ok(overview.includes('overview.noItems') && overview.includes('overview.noPeople'));
+  assert.ok(overview.indexOf('data-metric="people"') < overview.indexOf('app.suggestions'));
   assert.ok(overview.includes('app.recent'));
   assert.ok(overview.includes('balances.slice(0,5)'));
-  assert.ok(!overview.includes('class="solid-action" on:click={() => appState.setDialog({ type: \'itemAdd\' })}'));
   assert.ok(overview.includes('class:only-recent={!drafts.length}'));
   assert.ok(overview.includes('{#if drafts.length}'));
   assert.ok(!overview.includes('app.noDrafts'));
-  const css = source('ui-v3/design.css');
+  const css=source('ui-v3/design.css');
+  assert.ok(css.includes('.overview-directory-grid'));
   assert.ok(css.includes('.overview-layout.second-row.only-recent{grid-template-columns:minmax(0,1fr)}'));
 });
 
@@ -139,7 +144,7 @@ test('Q25: cards extend native primary buttons without nesting secondary control
   assert.match(css,/\.action-card \.card-primary::after\{[^}]*inset:0/);
   assert.match(css,/\.card-primary:focus-visible::after/);
   assert.match(css,/\.card-secondary\{position:relative;z-index:2/);
-  for(const [path,kind] of [['InventoryView','item-tile'],['PeopleView','person-row'],['App','metric'],['LedgerView','transfer-row']]){
+  for(const [path,kind] of [['InventoryView','item-tile'],['PeopleView','person-row'],['LedgerView','transfer-row']]){
     const s=source('ui-v3/'+path+'.svelte');
     assert.ok(s.includes('class="'+kind+' action-card"'),path);
     assert.ok(s.includes('card-primary'),path);

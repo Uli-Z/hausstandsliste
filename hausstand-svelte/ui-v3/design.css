@@ -642,3 +642,28 @@ button.working-indicator:hover{text-decoration:underline}
 
 .server-save-panels{display:grid;gap:14px;max-width:840px;min-width:0}
 .server-save-panels .ux-panel{padding:20px}
+
+
+/* Q59: one inventory metric, contextual directory actions and plain entries. */
+.overview-total{margin-bottom:18px;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+.overview-total>span{font-size:14px;color:var(--muted);font-weight:600}
+.overview-total>strong{font-size:clamp(24px,4vw,36px);font-variant-numeric:tabular-nums;letter-spacing:-.035em;overflow-wrap:anywhere;min-width:0}
+.overview-directory-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start;margin-bottom:18px}
+.overview-directory{min-width:0}
+.overview-directory .section-header{align-items:center;gap:8px;margin-bottom:8px}
+.overview-directory .section-header h2{margin:0;font-size:17px}
+.overview-directory .metric-link{display:inline-flex;align-items:center;gap:4px;min-height:40px;white-space:normal;font-size:12px}
+.overview-directory-actions{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 10px}
+.overview-directory-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;white-space:normal;text-align:left;max-width:100%}
+.overview-entry-list{list-style:none;padding:0;margin:0;min-width:0}
+.overview-entry-list li+li{border-top:1px solid #edf0f2}
+.overview-entry{display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px;border:0;border-radius:6px;background:transparent;padding:9px 3px;min-height:44px;text-align:left;font-size:14px}
+.overview-entry:hover,.overview-entry:focus-visible{background:var(--accent-soft);color:var(--accent)}
+.overview-entry:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.overview-entry-name{min-width:0;overflow-wrap:anywhere}
+.overview-entry strong{font-size:13px;font-variant-numeric:tabular-nums;max-width:50%;overflow-wrap:anywhere;text-align:right}
+.overview-entry .action-icon{flex:none;color:var(--muted)}
+.overview-more{min-height:44px}
+.overview-directory .metric-empty{font-size:13px;color:var(--muted)}
+.overview-settlement{margin-bottom:18px}
+@media(max-width:900px){.overview-directory-grid{grid-template-columns:minmax(0,1fr);gap:12px}}

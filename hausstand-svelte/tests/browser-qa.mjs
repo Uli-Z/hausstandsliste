@@ -215,7 +215,7 @@ async function itemEntryAcceptance(browser, url, engine) {
       await bootFixture(page,url);
       const snapshot = () => page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
       const original = await snapshot();
-      const open = () => page.locator('.quick-actions .task-grid > button').first().click();
+      const open = () => page.locator('[data-overview-action]').first().click();
       const modal = page.getByRole('dialog');
       const name = modal.locator('.item-primary-fields input:not([type=date]):not([type=number])');
       const cost = modal.locator('.item-primary-fields input[type=number]');
@@ -416,7 +416,7 @@ async function itemEntryLongListAcceptance(browser,url,engine) {
       await page.getByText('Browser-Abnahme').first().waitFor();
       const snapshot=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
       const modal=page.getByRole('dialog');
-      const open=()=>page.locator('.quick-actions .task-grid > button').first().click();
+      const open=()=>page.locator('[data-overview-action]').first().click();
       const name=modal.locator('.item-primary-fields input:not([type=date]):not([type=number])');
       const cost=modal.locator('.item-primary-fields input[type=number]');
       const method=modal.locator('.item-valuation-fields select');
@@ -540,7 +540,7 @@ async function formStateAcceptance(browser,url,engine) {
       const snapshot=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
       const original=await snapshot();
       const modal=page.getByRole('dialog');
-      const quick=page.locator('.quick-actions .task-grid > button');
+      const quick=page.locator('[data-overview-action]');
       const refresh=()=>page.evaluate(()=>window.dispatchEvent(new Event('focus')));
       const close=async()=>{await modal.locator('.modal-header > button.ghost').click();await modal.waitFor({state:'hidden'});};
       async function section(id){
@@ -976,7 +976,7 @@ async function settlementEndToEnd(browser, url) {
     await page.reload();
     await page.getByText('Q03 Browser-Wertausgleich').first().waitFor();
     await setDate('2025-01-02');
-    await page.locator('.quick-actions .task-grid > button').first().click();
+    await page.locator('[data-overview-action]').first().click();
     const purchase = page.locator('[role="dialog"]');
     await purchase.locator('.form-grid > label').first().locator('input').fill('Q03 Kühlschrank');
     await purchase.locator('input[type=number][step="0.01"]').first().fill('300');
@@ -1164,7 +1164,7 @@ async function purchaseFinancingAcceptance(browser, url) {
     const financing = dialog.locator('.item-financing-field');
     const optIn = dialog.getByLabel('Ausgleichszahlungen bereits erfolgt – mitbuchen');
     async function prepare(name) {
-      await page.locator('.quick-actions .task-grid > button').first().click();
+      await page.locator('[data-overview-action]').first().click();
       assert.equal(await dialog.locator('#event-effective-date').inputValue(), date);
       await dialog.locator('.item-primary-fields input').first().fill(name);
       await dialog.locator('.item-primary-fields input[type=number]').fill('300');
@@ -1377,7 +1377,7 @@ async function unitMovementDisplayAcceptance(browser,url) {
       const page=await context.newPage();
       const errors=[]; page.on('pageerror',e=>errors.push(e.message));
       await bootFixture(page,url);
-      await page.locator('.quick-actions .task-grid > button').nth(1).click();
+      await page.locator('[data-overview-action]').nth(1).click();
       const main=page.locator('.large-modal');
       const item=main.locator('.redistribution-item-card').first();
       await item.click();
@@ -1426,14 +1426,21 @@ async function wholeCardAcceptance(browser,url) {
       await bootFixture(page,url);
       const goHome=()=>page.locator(width<600?'.mobile-bottom-nav > button':'.sidebar-links > button').first().click();
       const title=page.locator('.detail-title h2');
-      const metric=kind=>page.locator('.metric-grid [data-metric="'+kind+'"]');
-      // Non-button content and padding must activate the same primary action.
-      await metric('items').locator('.name-chip').first().click({force:true});
+      const metric=kind=>page.locator('[data-metric="'+kind+'"]');
+      // Q59: individual dashboard entries open their own detail directly.
+      await metric('items').locator('[data-overview-item="fridge"]').click();
+      await title.filter({hasText:'Kühlschrank'}).waitFor();
+      await goHome();
+      await metric('items').locator('.metric-link').click();
       const item=page.locator('.item-tile').filter({hasText:'Kühlschrank'});
       await item.locator('h2').click({force:true});
       await title.filter({hasText:'Kühlschrank'}).waitFor();
       await goHome();
-      await metric('people').click({position:{x:3,y:3}});
+      await metric('people').locator('[data-overview-person="anna"]').focus();
+      await page.keyboard.press('Enter');
+      await title.filter({hasText:'Anna'}).waitFor();
+      await goHome();
+      await metric('people').locator('.metric-link').click();
       const anna=page.locator('.person-row[data-person-id="anna"]');
       assert.equal(await anna.locator('.person-count strong').innerText(),'1');
       assert.equal(await anna.locator('.person-balance strong').count(),1);
@@ -1485,7 +1492,7 @@ async function archiveDiscoverabilityAcceptance(browser,url) {
       await page.locator('.time-travel-toggle').click();
       await page.locator('#state-date').fill('2033-01-01');
       await page.keyboard.press('Escape');
-      await page.locator('.metric-grid [data-metric="people"] .metric-link').click();
+      await page.locator('[data-metric="people"] .metric-link').click();
       const tile=name=>page.locator('.person-row').filter({has:page.getByRole('button',{name,exact:true})});
       const dialog=page.getByRole('dialog');
       const submit=dialog.locator('.modal-footer .primary');
@@ -1531,46 +1538,42 @@ async function overviewNamesAcceptance(browser,url) {
       const page=await context.newPage();
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
       const copy=structuredClone(fixture);
-      for(let i=0;i<10;i++) copy.people.push({id:'q29-person-'+i,name:'Person '+String(i).padStart(2,'0')+(i===0?' SehrLangerZusammengesetzterPersonenname':'')});
+      for(let i=0;i<22;i++) copy.people.push({id:'q29-person-'+i,name:'Person '+String(i).padStart(2,'0')+(i===0?' SehrLangerZusammengesetzterPersonenname':'')});
       const purchase=copy.events.find(e=>e.id==='purchase');
-      for(let i=0;i<12;i++){
+      for(let i=0;i<22;i++){
         const id='q29-item-'+i,name='Q29 Item '+String(i).padStart(2,'0');
         copy.items.push({id,name,tags:[]});
         copy.events.push({...purchase,id:'q29-buy-'+i,itemId:id,name,initialValue:400+i,
           purchaseContributionsCents:{anna:(400+i)*100},shares:{ben:1},order:i+2});
       }
       // A formerly expensive item falls below other items in a later projection.
-      copy.events.find(e=>e.id==='q29-buy-11').valuation={type:'linear',durationYears:1,minimumValue:0};
+      copy.events.find(e=>e.id==='q29-buy-21').valuation={type:'linear',durationYears:1,minimumValue:0};
       await page.goto(url);
       await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(copy)});
       await page.reload();
       await page.getByText('Browser-Abnahme').first().waitFor();
-      const metric=kind=>page.locator('.metric-grid [data-metric="'+kind+'"]');
+      const metric=kind=>page.locator('[data-metric="'+kind+'"]');
       const items=metric('items'), people=metric('people');
-      const names=loc=>loc.locator('.name-chip').allTextContents();
-      for(const card of [items,people]) {
-        assert.equal(await card.locator('.metric-link strong, .metric-link small').count(),0);
-        assert.equal(await card.locator('.plain-names').count(),1);
-        assert.equal(await card.locator('.name-chip').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
-      }
+      const names=loc=>loc.locator('.overview-entry-name').allTextContents();
       assert.equal(await metric('value').locator('strong').count(),1);
-      assert.equal(await metric('balance').locator('strong').count(),1);
+      assert.equal(await metric('balance').count(),0);
+      assert.equal(await page.locator('[data-overview-action]').count(),3);
+      assert.equal(await page.locator('.quick-actions').count(),0);
       if(width<=540){
         const a=await items.boundingBox(), b=await people.boundingBox();
         assert.ok(Math.abs(a.x-b.x)<2 && Math.abs(a.width-b.width)<2 && b.y>=a.y+a.height);
       }
-      assert.equal((await names(people)).length,10);
-      assert.match(await people.locator('.name-more').innerText(),/3/);
-      assert.deepEqual((await names(items)).map(s=>s.trim()),Array.from({length:10},(_,i)=>'Q29 Item '+String(10-i).padStart(2,'0')));
-      assert.match(await items.locator('.name-more').innerText(),/3/);
-      const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
-      assert.equal(overflow,false);
+      assert.equal((await names(people)).length,25);
+      assert.equal((await names(items)).length,20);
+      assert.deepEqual(await items.locator('[data-overview-item]').evaluateAll(els=>els.map(el=>el.dataset.overviewItem)),Array.from({length:20},(_,i)=>'q29-item-'+(20-i)));
+      assert.match(await items.locator('.overview-more').innerText(),/3/);
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
       if(process.env.Q45_SCREENSHOT_DIR){
         await mkdir(process.env.Q45_SCREENSHOT_DIR,{recursive:true});
-        await page.locator('.metric-grid').screenshot({path:join(process.env.Q45_SCREENSHOT_DIR,browser.browserType().name()+'-'+width+'-many.png')});
+        await page.locator('.overview-directory-grid').screenshot({path:join(process.env.Q45_SCREENSHOT_DIR,browser.browserType().name()+'-'+width+'-many.png')});
       }
-      await people.locator('.name-more').click();
-      assert.equal(await page.locator('.person-row').count(),13);
+      await people.locator('.metric-link').click();
+      assert.equal(await page.locator('.person-row').count(),25);
       assert.equal(await page.getByRole('table',{name:locale==='de-DE'?'Personen':'People',exact:true}).count(),1);
       assert.equal(await page.locator('.person-row .compact-names').count(),0);
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
@@ -1579,14 +1582,14 @@ async function overviewNamesAcceptance(browser,url) {
       await page.locator('.time-travel-toggle').click();
       await page.locator('#state-date').fill('2024-12-31');
       await page.keyboard.press('Escape');
-      assert.equal(await items.locator('.name-chip').count(),0);
+      assert.equal(await items.locator('.overview-entry').count(),0);
       assert.equal(await items.locator('.metric-empty').count(),1);
       await page.locator('.time-travel-toggle').click();
       await page.locator('#state-date').fill('2025-01-02');
       await page.keyboard.press('Escape');
-      assert.equal((await names(items))[0].trim(),'Q29 Item 11');
+      assert.equal(await items.locator('[data-overview-item]').first().getAttribute('data-overview-item'),'q29-item-21');
       await items.locator('.metric-link').click();
-      const tile=page.locator('.item-tile').filter({has:page.getByRole('heading',{name:'Q29 Item 11',exact:true})});
+      const tile=page.locator('.item-tile').filter({has:page.getByRole('heading',{name:/Q29 Item 21$/})});
       assert.match(await tile.locator('.compact-names').innerText(),/Ben/);
       assert.equal(await tile.locator('.name-group-label').count(),0);
       assert.equal(await tile.locator('.name-chip').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
@@ -1812,7 +1815,7 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
 
       await section('items');
       await section('overview');
-      await page.locator('.quick-actions .task-grid > button').nth(1).click();
+      await page.locator('[data-overview-action]').nth(1).click();
       const transferDialog = page.locator('[role="dialog"]');
       await noOverflow('transfer dialog');
       const transferFooter = await transferDialog.locator('.modal-footer').first().boundingBox();
@@ -2112,7 +2115,7 @@ async function q37ReadOnlyAcceptance(browser) {
       await page.goto(url);
       await page.getByLabel(locale==='de-DE'?'Passwort':'Password',{exact:true}).fill(password);
       await page.getByRole('button',{name:locale==='de-DE'?'Anmelden':'Sign in',exact:true}).click();
-      await page.locator('.quick-actions').waitFor();
+      await page.locator('.overview-directory-grid').waitFor();
       return page;
     };
     const editor = await login('de-DE',1280);
@@ -2125,7 +2128,7 @@ async function q37ReadOnlyAcceptance(browser) {
       assert.equal(await page.locator('.modal-backdrop').count(),0,'no editing dialog in read-only mode');
     };
     for (const [page,pattern] of [[editor,/schreibgeschützt.*oben rechts/s],[reader,/read-only.*top right/s]]) {
-      const actions = page.locator('.quick-actions .task-grid > button');
+      const actions = page.locator('[data-overview-action]');
       for (let i=0;i<3;i++) await rejected(page,actions.nth(i),pattern,i===1);
       // Navigation and the financial overview remain readable.
       assert.ok(await page.locator('.financial-overview').isVisible());
@@ -2148,7 +2151,7 @@ async function q37ReadOnlyAcceptance(browser) {
     await editor.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
     await editor.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).waitFor();
     await assertDate(editor, '2025-01-03');
-    const firstAction = editor.locator('.quick-actions .task-grid > button').nth(2);
+    const firstAction = editor.locator('[data-overview-action]').nth(2);
     await firstAction.click();
     const modal = editor.locator('.modal-backdrop');
     await modal.locator('input').first().fill('Q37 Person');
@@ -2157,7 +2160,7 @@ async function q37ReadOnlyAcceptance(browser) {
     await reader.getByRole('button',{name:'Start editing',exact:true}).click();
     await reader.getByText(/Could not start editing:.*already checked out/i).waitFor();
     await assertDate(reader, '2099-12-01');
-    await rejected(reader,reader.locator('.quick-actions .task-grid > button').first(),/read-only.*top right/s);
+    await rejected(reader,reader.locator('[data-overview-action]').first(),/read-only.*top right/s);
     await editor.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).click();
     await editor.getByRole('button',{name:'Bearbeitung starten',exact:true}).waitFor();
     await assertDate(editor, '2025-01-03');
@@ -2166,7 +2169,7 @@ async function q37ReadOnlyAcceptance(browser) {
     await reader.getByRole('button',{name:'Start editing',exact:true}).click();
     await reader.getByRole('button',{name:'Save and finish editing',exact:true}).waitFor();
     await assertDate(reader, '2099-12-01');
-    await reader.locator('.quick-actions .task-grid > button').first().click();
+    await reader.locator('[data-overview-action]').first().click();
     await reader.locator('.modal-backdrop').waitFor();
     assert.equal(await reader.locator('#event-effective-date').inputValue(), '2099-12-01', 'Q38: new purchase uses the selected date after checkout');
     // Simulate server-side expiry in the private test directory (not an API
@@ -2191,7 +2194,7 @@ async function q37ReadOnlyAcceptance(browser) {
     assert.equal(await reader.locator('#event-effective-date').inputValue(),'2099-12-01');
     await readerModal.locator('.modal-header button.ghost').click();
     await readerModal.waitFor({state:'hidden'});
-    await rejected(reader,reader.locator('.quick-actions .task-grid > button').first(),/read-only.*expired/s);
+    await rejected(reader,reader.locator('[data-overview-action]').first(),/read-only.*expired/s);
     const afterExpiry = JSON.parse(await readFile(metaPath,'utf8'));
     assert.equal(afterExpiry.revision,meta.revision,'rejected lease must not change server revision');
   } finally {
@@ -2230,7 +2233,7 @@ async function q42MailAcceptance(browser) {
       await page.goto(url);
       await page.getByLabel(de?'Passwort':'Password',{exact:true}).fill(password);
       await page.getByRole('button',{name:de?'Anmelden':'Sign in',exact:true}).click();
-      await page.locator('.quick-actions').waitFor();
+      await page.locator('.overview-directory-grid').waitFor();
       await page.getByRole('button',{name:de?'Bearbeitung starten':'Start editing',exact:true}).click();
       const save=page.getByRole('button',{name:de?'Speichern und Bearbeitung beenden':'Save and finish editing',exact:true});
       await save.waitFor();
@@ -2250,7 +2253,7 @@ async function q42MailAcceptance(browser) {
       assert.equal(await (await (await fetch(url+'?api=read&id='+id)).json()).revision,1);
       await page.getByRole('button',{name:de?'Bearbeitung starten':'Start editing',exact:true}).click();
       await save.waitFor();
-      await page.locator('.quick-actions .task-grid > button').nth(2).click();
+      await page.locator('[data-overview-action]').nth(2).click();
       const modal=page.locator('.modal-backdrop');
       await modal.locator('input').first().fill('Q42 '+mode);
       await modal.locator('.modal-footer .primary').click();
