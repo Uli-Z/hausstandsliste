@@ -166,7 +166,7 @@
   });
 
   $: route = $appState.route;
-  $: personEntry = route.page === 'person' ? ($projection.people.find(p => p.id === route.id) || $projection.peopleById.get(route.id)) : null;
+  $: personEntry = route.page === 'person' ? ($projection.allPeople.find(p => p.id === route.id) || $projection.peopleById.get(route.id)) : null;
   $: person = personEntry ? { holdings: [], totalValue: 0, ...personEntry } : null;
   $: item = route.page === 'item' ? $projection.items.find(i => i.id === route.id) : null;
   $: drafts = $appState.project.drafts || [];

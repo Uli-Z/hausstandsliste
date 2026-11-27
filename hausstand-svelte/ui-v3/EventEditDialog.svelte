@@ -71,7 +71,7 @@
   }
 
   // Date edits see people participating on that event date, not the current view date.
-  $: people = edited?.date ? projectAt(project, edited.date).people : projection.people;
+  $: people = edited?.date ? projectAt(project, edited.date).allPeople : projection.allPeople;
   $: items = projection.items;
 </script>
 

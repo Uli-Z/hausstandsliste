@@ -38,8 +38,8 @@ test('Q60: explicit creation dates survive file, cache, archive and encrypted tr
     if(oldStorage) Object.defineProperty(globalThis,'localStorage',oldStorage);
     else delete globalThis.localStorage;
   }
-  // Q27 remains intentional: audit dates do not change membership.
-  assert.equal(projectAt(restored,'1900-01-01').peopleById.get(created[0].person.id).active,true);
+  // Q60: entry date controls membership visibility, not ownership.
+  assert.equal(projectAt(restored,'1900-01-01').peopleById.get(created[0].person.id).active,false);
 });
 
 test('Q60: today is only a creation default; invalid dates do not mutate the project',()=>{

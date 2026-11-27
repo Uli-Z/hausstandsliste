@@ -17,13 +17,23 @@ const runtime = (state, id) => {
   return state.runtime.get(id);
 };
 
-const init = project => ({
-  peopleById: new Map((project.people || []).map(p => [p.id, { ...p, active: true }])),
+const init = (project, lifecycleEvents = project.events || []) => {
+  const entries = new Map();
+  for (const event of lifecycleEvents) {
+    if (event.type !== 'person-added' || !event.date) continue;
+    const previous = entries.get(event.personId);
+    if (!previous || event.date < previous) entries.set(event.personId, event.date);
+  }
+  return ({
+  // Keep every identity resolvable, including before entry and after exit.
+  // Undated master records have no known boundary; never invent one.
+  peopleById: new Map((project.people || []).map(p => [p.id, { ...p, entryDate: entries.get(p.id) || null, entered: !entries.has(p.id), active: !entries.has(p.id) }])),
   itemsById: new Map((project.items || []).map(i => [i.id, { ...i }])),
   runtime: new Map(),
   warnings: [],
   shareProblems: []
-});
+  });
+};
 
 export const applyEvent = (state, event, beforeApply = null, parent = null) => {
   if (!event) return;
@@ -56,8 +66,11 @@ export const applyEvent = (state, event, beforeApply = null, parent = null) => {
     const person = ensurePerson(state, event.personId, event.name);
     // Stammdaten haben Vorrang. Event-Name nur als Fallback verwenden.
     if (!person.name && event.name) person.name = event.name;
-    // Master records exist at every business date. Creation is audit-only;
-    // in particular, it must not undo an earlier dated archive.
+    if (!person.entered) {
+      person.entered = true;
+      person.entryDate = person.entryDate || event.date;
+      person.active = !person.inactiveFrom;
+    }
   } else if (event.type === 'person-deactivated') {
     const person = ensurePerson(state, event.personId);
     person.active = false;
@@ -65,7 +78,7 @@ export const applyEvent = (state, event, beforeApply = null, parent = null) => {
     person.inactiveReason = event.reason || '';
   } else if (event.type === 'person-reactivated') {
     const person = ensurePerson(state, event.personId);
-    person.active = true;
+    person.active = !!person.entered;
     person.reactivatedAt = event.date;
     person.inactiveFrom = null;
   } else if (event.type === 'item-added') {
@@ -98,15 +111,15 @@ export const applyEvent = (state, event, beforeApply = null, parent = null) => {
 };
 
 // Both ownership and financial projections walk the same, ordered history.
-export const walkEvents = (project, asOfDate, beforeApply = null) => {
-  const state = init(project);
+export const walkEvents = (project, asOfDate, beforeApply = null, lifecycleEvents = project.events || []) => {
+  const state = init(project, lifecycleEvents);
   const events = (project.events || []).filter(e => e?.date && e.date <= asOfDate).sort(byDateOrder);
   for (const event of events) applyEvent(state, event, beforeApply);
   return state;
 };
 
-export const projectAt = (project, asOfDate) => {
-  const state = walkEvents(project, asOfDate);
+export const projectAt = (project, asOfDate, lifecycleEvents = project.events || []) => {
+  const state = walkEvents(project, asOfDate, null, lifecycleEvents);
   const items = [];
   for (const [id, rt] of state.runtime.entries()) {
     const base = state.itemsById.get(id) || { id, name: id, tags: [], note: '' };
@@ -125,17 +138,17 @@ export const projectAt = (project, asOfDate) => {
   // Only its monetary value, not its presence in the inventory, is zero.
   const activeItems = items.filter(item => item.status === 'active');
   const archivedItems = items.filter(item => item.status !== 'active');
-  const people = [...state.peopleById.values()].map(person => {
+  const allPeople = [...state.peopleById.values()].map(person => {
     const holdings = activeItems.flatMap(item => item.shareRows.filter(row => row.personId === person.id).map(row => ({ item, ...row })));
     const totalValue = holdings.reduce((sum, holding) => sum + holding.value, 0);
     return { ...person, holdings, totalValue };
-  // Every real person is visible in the directory; the active flag alone
-  // controls participation. Archived people retain their historical identity.
+  // Historical references and explicit detail views still resolve all identities.
   }).filter(person => !person.synthetic || person.active || person.inactiveFrom || person.reactivatedAt);
 
   return {
     asOfDate,
-    people,
+    people: allPeople.filter(person => person.entered || person.active),
+    allPeople,
     items,
     activeItems,
     archivedItems,
@@ -169,7 +182,7 @@ export const projectBeforeEvent = (project, eventId, date = null, order = null) 
     const relative = byDateOrder(event, position);
     return relative < 0 || (relative === 0 && eventIndex < index);
   });
-  return projectAt({ ...project, events }, effectiveDate);
+  return projectAt({ ...project, events }, effectiveDate, all);
 };
 
 export const shareDeltasForChange = (baseProjection, change) => {

@@ -23,10 +23,10 @@
   // Independent mode state. The active contribution map is a projection; it
   // never becomes the source of the other mode's manually edited amounts.
   $: contributions = mode === 'individual' ? individualDraft :
-    (payer && eligible.some(p => p.id === payer) && Number.isSafeInteger(amountCents) && amountCents >= 0
+    (payer && people.some(p => p.id === payer) && Number.isSafeInteger(amountCents) && amountCents >= 0
       ? {[payer]:amountCents} : null);
   $: total = contributionTotal(contributions);
-  $: valid = !contributionProblem(amountCents, contributions, new Set(eligible.map(p=>p.id)));
+  $: valid = !contributionProblem(amountCents, contributions, new Set(people.map(p=>p.id)));
   function selectMode(next) {
     if (next === mode) return;
     if (next === 'individual' && individualDraft === null) {
@@ -59,7 +59,7 @@
     <label>{$translate('purchase.payer')}
       <select class="purchase-payer" bind:value={payer}>
         <option value="">{$translate('purchase.choose')}</option>
-        {#if payer && !eligible.some(p=>p.id===payer)}<option value={payer} disabled>{people.find(p=>p.id===payer)?.name || payer}</option>{/if}
+        {#if payer && !eligible.some(p=>p.id===payer)}<option value={payer}>{people.find(p=>p.id===payer)?.name || payer}</option>{/if}
         {#each eligible as person (person.id)}<option value={person.id}>{person.name}</option>{/each}
       </select>
     </label>

@@ -64,7 +64,7 @@ test('calendar dates and the active-person view behave at historical and future 
     {id:'a-out',type:'person-deactivated',personId:'a',date:'2032-01-01',order:1}
   ]};
   const active=at=>projectAt(project,at).people.filter(p=>p.active).map(p=>p.id);
-  assert.deepEqual(active('2025-01-01'),['a','b']);
+  assert.deepEqual(active('2025-01-01'),['a']);
   assert.deepEqual(active('2030-01-01'),['a','b']);
   assert.deepEqual(active('2033-01-01'),['b']);
 });

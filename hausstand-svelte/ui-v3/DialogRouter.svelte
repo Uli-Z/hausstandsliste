@@ -104,7 +104,7 @@
   $: needsActiveItem = ['itemContinue', 'shareSet', 'itemEnd'].includes(dialog?.type);
   $: itemAvailable = !needsActiveItem || !!entryProjection.activeItems.find(item => item.id === dialog.itemId);
   $: itemNeedsOwners = ['itemAdd', 'itemContinue'].includes(dialog?.type);
-  $: peopleAvailable = !itemNeedsOwners || entryProjection.people.some(person => person.active);
+  $: peopleAvailable = !itemNeedsOwners || (entryProjection.people.some(person => person.active) || Object.keys(normShares(shares)).some(id=>entryProjection.peopleById.has(id)));
   $: statusTargetValid = dialog?.type !== 'personStatus' ||
     !personStatusProblem(project, { personId: dialog.personId, date: effectiveDate, kind: dialog.kind });
   $: statusPreview = dialog?.type === 'personStatus' && dateValid && statusTargetValid
@@ -118,7 +118,7 @@
   $: itemCostCents = Math.round(itemCost * 100);
   $: itemCostValid = !itemNeedsOwners || validMoney(itemCost);
   $: ownersValid = (!itemNeedsOwners && dialog?.type !== 'shareSet') || (validShareMap(shares) && Object.keys(normShares(shares)).length > 0 &&
-    (dialog?.type !== 'itemAdd' || Object.keys(normShares(shares)).every(id=>entryProjection.peopleById.get(id)?.active)));
+    (dialog?.type !== 'itemAdd' || Object.keys(normShares(shares)).every(id=>entryProjection.peopleById.has(id))));
   $: itemNameValid = !itemNeedsOwners || !!String(itemName || '').trim();
   $: duplicateItems = ['itemAdd','itemContinue','itemMeta'].includes(dialog?.type)
     ? duplicateItemNames(project,itemName,dialog.type === 'itemMeta' ? dialog.itemId : null) : [];
@@ -467,7 +467,7 @@
           {/if}
           {#if statusPreview?.problem}
             <p role="alert" class="notice warn">{$translate(statusPreview.problem.key,statusPreview.problem.params)}</p>
-          {:else if statusPreview && dialog.kind === 'deactivate'}
+          {:else if statusPreview && dialog.kind === 'deactivate' && !statusPreview.holdings.length && statusPreview.balanceCents === 0}
             <p role="status" class="notice">{$translate('archive.ready')}</p>
           {/if}
           <label>{$translate("ui.reason-1rj1mxt")} <input bind:value={reason} placeholder={dialog.kind === 'deactivate' ? $translate('timeTravel.moveOut') : $translate('timeTravel.rejoin')} /></label>
@@ -518,7 +518,7 @@
                   amountCents={itemCostCents} bind:contributions={purchaseContributionsCents} bind:valid={financingValid} />
               {:else}
                 <div class="item-flow-heading"><strong>{$translate("ui.who-owns-this-item-nnrc3g")}</strong></div>
-                <ShareEditor people={entryProjection.people.filter(p=>p.active || Object.hasOwn(shares,p.id))} bind:shares allowEqualize={true} allPeople={true} />
+                <ShareEditor people={entryProjection.allPeople.filter(p=>p.active || Object.hasOwn(shares,p.id))} bind:shares allowEqualize={true} allPeople={true} />
               {/if}
               {#if !ownersValid}<p role="alert" class="notice warn">{$translate(dialog.type === 'itemAdd' && !Object.keys(normShares(shares)).length ? 'purchase.ownerRequired' : 'forms.invalidShares')}</p>{/if}
             </section>

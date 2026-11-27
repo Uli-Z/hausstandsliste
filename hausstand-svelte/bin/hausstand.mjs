@@ -26,9 +26,9 @@ const commands = {
   'project create': 'Create an empty project with a community name.',
   'project show': 'Return the stored project, including its embedded version history.',
   'people list': 'List people visible at the selected date.',
-  'people add': 'Add a person without a membership start date.',
+  'people add': 'Add a person with an optional entry date (defaults to today).',
   'people rename': 'Change a person’s name without rewriting historical events.',
-  'people deactivate': 'Archive a person at a date, only after all shares and the communal balance are cleared.',
+  'people deactivate': 'Archive a person at a date without changing ownership or balances.',
   'people reactivate': 'Reactivate an archived person at a date.',
   'people delete': 'Remove an unused person only; saving requires --confirm.',
   'people show': 'Show a person and holdings by stable ID.',
@@ -218,7 +218,7 @@ const page = (rows,opts) => {
 };
 const cents = value => Math.round(value * 100);
 const itemRow = item => ({id:item.id,name:item.name,number:item.number,label:itemDisplayName(item),status:item.status,valueCents:cents(item.value),shares:item.shares});
-const personRow = ({id,name,active,totalValue}) => ({id,name,active,totalValueCents:cents(totalValue)});
+const personRow = ({id,name,active,totalValue,entryDate,inactiveFrom}) => ({id,name,active,entryDate:entryDate??null,exitDate:inactiveFrom??null,totalValueCents:cents(totalValue)});
 function find(rows,id) {
   const row = rows.find(r => r.id === id);
   if (!row) fail('NOT_FOUND','No matching ID at the selected date.',5);
@@ -469,9 +469,9 @@ async function main(args) {
       data = { valid:true, scope:'file-and-archive', businessValidated:true, schemaVersion:p.schemaVersion, encrypted:!!protection }; break;
     }
     case 'project show': data = p; break;
-    case 'people list': data = page(view.people.map(personRow).sort(compareId),opts); break;
+    case 'people list': data = page(view.people.filter(p=>p.active).map(personRow).sort(compareId),opts); break;
     case 'people show': {
-      const person = find(view.people,opts['--id']);
+      const person = find(view.allPeople,opts['--id']);
       data = {...personRow(person),holdings:person.holdings.map(h => ({
         itemId:h.item.id, itemNumber:h.item.number, itemLabel:itemDisplayName(h.item), units:h.units, fraction:h.fraction, valueCents:cents(h.value)
       })).sort((a,b)=>a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0)}; break;

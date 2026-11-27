@@ -149,7 +149,7 @@ test('CLI shared person add and rename retain historical event and archive', asy
     const person=next.people.at(-1);
     assert.equal(person.name,'Clara');
     assert.equal(next.events.at(-1).date,'2025-09-17');
-    assert.equal(projectAt(next,'1900-01-01').peopleById.get(person.id)?.active,true);
+    assert.equal(projectAt(next,'1900-01-01').peopleById.get(person.id)?.active,false);
     assert.equal(projectAt(next,'2028-01-01').peopleById.get(person.id).active,true);
     assert.deepEqual((await readPortableVersion(next,next.versionHistory.entries[0].id)).events,p.events);
     writeFileSync(payload,JSON.stringify({personId:person.id,name:'Clara New'}));
@@ -186,10 +186,10 @@ test('CLI membership changes preserve ownership, financial history and effective
     writeFileSync(input,JSON.stringify(p));
     const cmd=(kind,source,mode)=>run(['people',kind,'--input',source,'--payload',payload,...mode]);
     writeFileSync(payload,JSON.stringify({personId:'a',date:'2025-12-31'}));
-    assert.equal(cmd('deactivate',input,['--dry-run']).status,4,'backdated archive conflicts with later ownership and payments');
+    assert.equal(cmd('deactivate',input,['--dry-run']).status,4,'archive before entry is not a valid lifecycle transition');
     writeFileSync(payload,JSON.stringify({personId:'a',date:'2028-02-01',reason:'Moved'}));
     assert.equal(cmd('reactivate',input,['--dry-run']).status,4);
-    assert.equal(cmd('deactivate',input,['--dry-run']).status,4,'cannot archive an owner with an open balance');
+    assert.equal(cmd('deactivate',input,['--dry-run']).status,0,'ownership and open balances do not block archive');
     writeFileSync(input,JSON.stringify(clean));
     const dry=cmd('deactivate',input,['--dry-run']);
     assert.equal(dry.status,0,dry.stderr);

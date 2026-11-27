@@ -26,48 +26,24 @@ const purchase = (date,shares={b:1},value=10,contributions={a:1000}) =>
     financialMode:'derived',purchaseContributionsCents:contributions});
 const extend = (p,...events) => ({...p,events:[...p.events,...events]});
 
-test('Q27: archive rejects even zero-value holdings and an independent outstanding balance',()=>{
+test('Q60: archive preserves holdings, balances and later references',()=>{
   const p=fixture();
   const owned=extend(p,purchase('2026-01-02',{a:1},0,{a:0}),archive());
-  assert.equal(projectMutationProblem(p,owned).key,'errors.archiveHoldings');
+  assert.equal(projectMutationProblem(p,owned),null);
+  assert.equal(projectAt(owned,'2026-02-01').peopleById.get('a').active,false);
+  assert.deepEqual(projectAt(owned,'2026-02-01').activeItems[0].shares,{a:1});
   const debt=extend(p,purchase('2026-01-02'),archive());
-  assert.equal(projectMutationProblem(p,debt).key,'errors.archiveBalance');
-});
-
-test('Q27: same-day sequence matters; later payment cannot clear an earlier archive',()=>{
-  const p=fixture(), buy=purchase('2026-01-02');
-  const good=extend(p,buy,payment('2026-02-01',1),archive('2026-02-01',2));
-  assert.equal(projectMutationProblem(p,good),null);
-  assert.equal(projectAt(good,'2026-02-01').peopleById.get('a').active,false);
-  const bad=extend(p,buy,archive('2026-02-01',1),payment('2026-02-01',2));
-  assert.ok(archiveHistoryProblems(bad).some(x=>x.key==='errors.archiveBalance'));
-  assert.ok(archiveHistoryProblems(bad).some(x=>x.key==='errors.archivedPersonInvolvement'));
-  const removed={...good,events:good.events.filter(e=>e.id!=='pay')};
-  assert.equal(projectMutationProblem(good,removed).key,'errors.archiveBalance');
-});
-
-test('Q27: backdating archive or removing reactivation cannot strand later involvement',()=>{
-  const p=fixture();
-  const bought=purchase('2026-04-01');
-  const good=extend(p,archive(),reactivate(),bought);
-  assert.equal(projectMutationProblem(p,good),null);
-  const removed={...good,events:good.events.filter(e=>e.id!=='return')};
-  const problem=projectMutationProblem(good,removed);
-  assert.equal(problem.key,'errors.archivedPersonInvolvement');
-  assert.equal(problem.params.eventId,'buy');
-  const moved={...good,events:good.events.map(e=>e.id==='return'?{...e,date:'2026-05-01'}:e)};
-  assert.equal(projectMutationProblem(good,moved).key,'errors.archivedPersonInvolvement');
-});
-
-test('Q27: nested redistribution and actual payments cannot involve an archived person',()=>{
-  const p=fixture();
-  const before=extend(p,purchase('2026-01-02',{b:1},10,{b:1000}),archive());
-  const batch=event('batch','redistribution-executed','2026-02-02',{
-    financialMode:'none',events:[{id:'child',type:'shares-set',itemId:'i',shareUnitDeltas:{a:1}}]});
-  const problem=projectMutationProblem(before,extend(before,batch));
-  assert.equal(problem.key,'errors.archivedPersonInvolvement');
-  assert.equal(problem.params.eventId,'batch');
-  assert.equal(projectMutationProblem(before,extend(before,payment('2026-02-02'))).key,'errors.archivedPersonInvolvement');
+  assert.equal(projectMutationProblem(p,debt),null);
+  assert.equal(ledgerAt(debt,'2026-02-01').balances.get('a'),1000);
+  const later=extend(debt,payment('2026-02-02'));
+  assert.equal(projectMutationProblem(debt,later),null);
+  assert.equal(ledgerAt(later,'2026-02-02').balances.get('a')||0,0);
+  assert.deepEqual(archiveHistoryProblems(later),[]);
+  const early=extend(p,purchase('2025-01-01'));
+  assert.equal(projectMutationProblem(p,early),null);
+  assert.deepEqual(projectAt(early,'2025-01-01').people,[]);
+  assert.equal(projectAt(early,'2025-01-01').activeItems[0].shareRows[0].personName,'B');
+  assert.equal(ledgerAt(early,'2025-01-01').balances.get('a'),1000);
 });
 
 test('Q27: repeated archive/reactivate allowed; orphan or duplicate status events rejected',()=>{
@@ -81,20 +57,20 @@ test('Q27: repeated archive/reactivate allowed; orphan or duplicate status event
   assert.equal(projectMutationProblem(good,orphan).key,'errors.archiveStatus');
 });
 
-test('Q27: archive preview exposes remaining zero-value holdings, balance and future conflicts without mutation',()=>{
+test('Q27: archive preview exposes optional preparation without blocking or mutation',()=>{
   const p=extend(fixture(),purchase('2026-01-02',{a:1},0,{a:0}));
   const before=structuredClone(p);
   const preview=previewPersonStatus(p,{personId:'a',date:'2026-02-01',kind:'deactivate'});
   assert.equal(preview.holdings.length,1);
   assert.equal(preview.balanceCents,0);
-  assert.equal(preview.problem.key,'errors.archiveHoldings');
+  assert.equal(preview.problem,null);
   assert.deepEqual(p,before);
   const debt=extend(fixture(),purchase('2026-01-02'));
   const owed=previewPersonStatus(debt,{personId:'a',date:'2026-02-01',kind:'deactivate'});
   assert.equal(owed.balanceCents,1000);
-  assert.equal(owed.problem.key,'errors.archiveBalance');
+  assert.equal(owed.problem,null);
   const future=extend(fixture(),purchase('2026-04-01'));
-  assert.equal(previewPersonStatus(future,{personId:'a',date:'2026-02-01',kind:'deactivate'}).problem.key,'errors.archivedPersonInvolvement');
+  assert.equal(previewPersonStatus(future,{personId:'a',date:'2026-02-01',kind:'deactivate'}).problem,null);
   assert.equal(previewPersonStatus(fixture(),{personId:'a',date:'2026-02-01',kind:'deactivate'}).problem,null);
 });
 test('Q27: relinquishment retains remaining relative ownership and identifies sole ownership separately',()=>{
@@ -121,7 +97,7 @@ test('Q27: guided paid transfer, actual payment, archive and reactivation surviv
     assert.equal(history.record(p,next),true);
     p=next;
   };
-  assert.equal(previewPersonStatus(p,{personId,date,kind}).problem.key,'errors.archiveHoldings');
+  assert.equal(previewPersonStatus(p,{personId,date,kind}).problem,null);
   change(q=>executeRedistribution(q,{title:'Paid transfer',effectiveDate:date,financialMode:'derived',
     changes:[{itemId:'i',shares:{b:1}}]}));
   const pending=previewPersonStatus(p,{personId,date,kind});

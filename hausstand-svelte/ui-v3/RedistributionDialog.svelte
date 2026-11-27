@@ -34,7 +34,7 @@
   
   $: preview = redistribution ? redistributionPreview(project, redistribution) : { base: null, rows: [], payments: [] };
   
-  $: people = preview.base?.people || projection.people;
+  $: people = preview.base?.allPeople || projection.allPeople;
   $: dateValid = validCalendarDate(redistribution?.effectiveDate);
   // Existing draft changes must still refer to owned items at the chosen date.
   $: invalidItems = (redistribution?.changes || []).filter(change =>

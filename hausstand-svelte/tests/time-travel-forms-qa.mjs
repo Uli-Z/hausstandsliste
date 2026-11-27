@@ -130,7 +130,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
 
     await nav('Personen').click();
     await page.locator('.page-heading button').first().click();
-    assert.equal(await dateField.inputValue(),'2031-03-01','creation record defaults to the viewing date');
+    assert.equal(await dateField.inputValue(),'2031-03-01','entry date defaults to the viewing date');
     await dateField.fill('2030-09-17');
     await dialog.locator('.person-name-field input').fill('Carla');
     await dialog.locator('.modal-footer .primary').click();
@@ -277,7 +277,7 @@ export async function guidedArchiveAcceptance(browser,url) {
     assert.equal(await personActions.getByRole('button',{name:'Person archivieren'}).isVisible(),true);
     await personActions.getByRole('button',{name:'Person archivieren'}).click();
     await dateField.fill('2033-02-01');
-    assert.equal(await dialog.locator('.modal-footer .primary').isDisabled(),true);
+    assert.equal(await dialog.locator('.modal-footer .primary').isEnabled(),true);
     await dialog.getByLabel('Empfänger aller verbleibenden Anteile').selectOption('ben');
     await dialog.getByRole('button',{name:'Alle verbleibenden Anteile übertragen',exact:true}).click();
     assert.equal(await page.locator('#redistribution-effective-date').inputValue(),'2033-02-01');
@@ -287,7 +287,7 @@ export async function guidedArchiveAcceptance(browser,url) {
     await dialog.getByRole('button',{name:'Alle verbleibenden Anteile übertragen',exact:true}).click();
     await dialog.getByRole('button',{name:'Eigentumsanteile jetzt ändern',exact:true}).click();
     assert.equal(await dateField.inputValue(),'2033-02-01');
-    assert.equal(await dialog.locator('.modal-footer .primary').isDisabled(),true);
+    assert.equal(await dialog.locator('.modal-footer .primary').isEnabled(),true);
     const paymentCount=(await snapshot()).events.filter(e=>e.type==='claim-settlement-recorded').length;
     assert.equal((await snapshot()).events.some(e=>e.type==='person-deactivated'&&e.personId==='anna'),false);
     let paid=0;

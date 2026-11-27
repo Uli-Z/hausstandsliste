@@ -20,13 +20,12 @@ function activeItem(view,id) {
   if (!item) reject('ITEM_NOT_ACTIVE');
   return item;
 }
-// Existing inactive owners may retain or adjust their shares. New owners must
-// be active at the event date, exactly as in the shared browser share editor.
+// Membership dates govern directory visibility, not historical ownership.
 import { validShareMap, shareUnitDeltas } from './shareUnits.js';
 export { validShareMap } from './shareUnits.js';
 export function checkedShares(view,shares,previous={}) {
   if (!validShareMap(shares) ||
-      Object.entries(shares).some(([id,units])=>units>0 && (!view.peopleById.has(id) || (!view.peopleById.get(id).active && !(previous[id]>0)))))
+      Object.entries(shares).some(([id,units])=>units>0 && !view.peopleById.has(id)))
     reject('INVALID_SHARES');
   const clean=normShares(shares);
   if (!Object.keys(clean).length) reject('INVALID_SHARES');
@@ -55,7 +54,7 @@ function purchase(project,payload,predecessor=null) {
   if (predecessor ? explicit : !explicit) reject('INVALID_CONTRIBUTIONS');
   if (explicit) {
     const problem = contributionProblem(Math.round(initialValue * 100), purchaseContributionsCents,
-      new Set(view.people.filter(p => p.active).map(p => p.id)));
+      new Set((project.people || []).map(p => p.id)));
     if (problem) reject(problem);
   }
   if (settledPaymentDate !== undefined && (!explicit || !validISODate(settledPaymentDate))) reject('INVALID_PAYMENT');

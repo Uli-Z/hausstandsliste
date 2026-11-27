@@ -3,7 +3,7 @@
   import CompactNames from './CompactNames.svelte';
   import { locale } from '../src/lib/i18n.js';
   import { rankedItems } from '../src/lib/overviewNames.js';
-  import { translate, pluralMessage } from '../src/lib/i18n.js';
+  import { translate, pluralMessage, formatDate } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { money } from '../src/lib/domain.js';
   import { buildTransferChanges, buildRemovePersonChanges, soleOwnedItems } from '../src/lib/redistribution.js';
@@ -73,6 +73,7 @@
   <div class="detail-hero">
     <div class="stack">
       <div class="detail-title"><h2>{person.name}</h2>{#if !person.active}<span class="person-inactive">{person.inactiveFrom ? $translate("people.moved") : $translate("people.inactive")}</span>{/if}</div>
+      <div class="muted">{#if person.entryDate}{$translate('people.creationDate')}: {formatDate(person.entryDate, $locale)}{/if}{#if person.inactiveFrom} · {$translate('people.exitDate')}: {formatDate(person.inactiveFrom, $locale)}{/if}</div>
       <div class="grid-2 person-core-facts">
         <div class="mini-card"><div class="muted">{balanceCents > 0 ? $translate("people.toReceive") : balanceCents < 0 ? $translate("people.toSettle") : $translate('balance.zero')}</div><strong>{money(Math.abs(balanceCents) / 100)}</strong></div>
         <div class="mini-card"><div class="muted">{$translate("ui.total-value-1bsjxfe")}</div><strong>{money(person.totalValue || 0)}</strong><small>{pluralMessage('people.itemCount', person.holdings?.length || 0)}</small></div>
@@ -81,7 +82,7 @@
     </div>
     <div class="secondary-actions" role="group" aria-label={$translate("ui.moreActions")}>
       <div class="action-grid">
-        {#if person.active}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'deactivate'})}><ActionIcon name="archive" size={17}/>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'reactivate'})}><ActionIcon name="person-add" size={17}/>{$translate("ui.reactivate-iggdm2")}</button>{/if}
+        {#if person.active}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'deactivate'})}><ActionIcon name="archive" size={17}/>{$translate("ui.mark-as-moved-out-11arjl")}</button>{:else if person.inactiveFrom}<button on:click={() => appState.setDialog({type:'personStatus', personId:person.id, kind:'reactivate'})}><ActionIcon name="person-add" size={17}/>{$translate("ui.reactivate-iggdm2")}</button>{/if}
         <button on:click={() => appState.setDialog({ type: 'personMeta', personId: person.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-person-jstaod")}</button>
         <button disabled={!person.active || !person.holdings?.length} on:click={startTransfer}><ActionIcon name="arrows" size={17}/>{$translate("app.transfer")}</button>
         <button disabled={!person.active || !person.holdings?.length} on:click={startDissolve}><ActionIcon name="archive" size={17}/>{$translate("ui.remove-shares-5g2njo")}</button>

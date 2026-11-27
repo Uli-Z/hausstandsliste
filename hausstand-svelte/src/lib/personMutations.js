@@ -21,7 +21,7 @@ function checkedName(project, name, exceptId = null) {
 }
 export function addPerson(project, { name, date = todayISO() }) {
   const checked = checkedName(project, name);
-  // The chosen creation date is an audit record, never a membership start date.
+  // Entry date controls visibility only; it never invalidates references.
   // Only a new creation without an explicit date defaults to today.
   if (!validISODate(date)) throw new Error('INVALID_PERSON_DATE');
   const person = { id: uid('person'), name: checked };
@@ -42,8 +42,8 @@ export function personStatusProblem(project, { personId, date, kind }) {
   if (!(project.people || []).some(person => person.id === personId)) return 'PERSON_NOT_FOUND';
   if (!validISODate(date)) return 'INVALID_PERSON_DATE';
   if (kind !== 'deactivate' && kind !== 'reactivate') return 'INVALID_PERSON_STATUS';
-  const active = !!projectAt(project,date).peopleById.get(personId)?.active;
-  if (active !== (kind === 'deactivate')) return 'INVALID_PERSON_STATUS';
+  const person = projectAt(project,date).peopleById.get(personId);
+  if (!person?.entered || (kind === 'deactivate' ? !person.active : !person.inactiveFrom)) return 'INVALID_PERSON_STATUS';
   return null;
 }
 
