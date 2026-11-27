@@ -11,6 +11,8 @@
   import { normShares, money } from '../src/lib/domain.js';
   import { purchaseClaims as derivePurchaseClaims, purchaseBreakdown } from '../src/lib/ledger.js';
   import PurchaseBreakdown from './PurchaseBreakdown.svelte';
+  import ItemDuplicateWarning from './ItemDuplicateWarning.svelte';
+  import { duplicateItemNames } from '../src/lib/itemNames.js';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
   import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus, previewPersonStatus } from '../src/lib/personMutations.js';
   import { addItem as applyItemAdd, continueItem as applyItemContinue, updateItemMetadata, setItemShares, endItem as applyItemEnd, validMoney } from '../src/lib/itemMutations.js';
@@ -121,6 +123,8 @@
   $: ownersValid = (!itemNeedsOwners && dialog?.type !== 'shareSet') || (validShareMap(shares) && Object.keys(normShares(shares)).length > 0 &&
     (dialog?.type !== 'itemAdd' || Object.keys(normShares(shares)).every(id=>entryProjection.peopleById.get(id)?.active)));
   $: itemNameValid = !itemNeedsOwners || !!String(itemName || '').trim();
+  $: duplicateItems = ['itemAdd','itemContinue','itemMeta'].includes(dialog?.type)
+    ? duplicateItemNames(project,itemName,dialog.type === 'itemMeta' ? dialog.itemId : null) : [];
   // Keep the raw minimum-value text while typing: a German decimal comma must
   // neither collapse the details panel nor silently be stored as zero.
   $: minimumValueAmount = String(minimumValue ?? '').trim() === '' ? 0 : parseDecimal(minimumValue);
@@ -473,7 +477,8 @@
           <div class="item-entry-flow">
             <div class="form-grid item-primary-fields">
               <label class="item-name-field">{$translate("ui.name-4el6o6")}
-                <input bind:value={itemName} enterkeyhint="done" autocomplete="off">
+                <input bind:value={itemName} enterkeyhint="done" autocomplete="off" aria-describedby={duplicateItems.length ? 'item-duplicate-warning' : undefined}>
+                <ItemDuplicateWarning matches={duplicateItems} projection={entryProjection}/>
               </label>
               <label>{$translate("ui.purchase-price-in-euros-1858jaw")}
                 <input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={initialValue}>
@@ -555,7 +560,7 @@
             </section>
           </div>
         {:else if dialog.type === 'itemMeta'}
-          <div class="form-grid"><label>{$translate("ui.name-4el6o6")} <input bind:value={itemName} enterkeyhint="done"></label><label>{$translate("ui.categories-2lwhku")} <input bind:value={tags}></label><label class="wide">{$translate("ui.note-86vuh")} <textarea bind:value={note}></textarea></label></div>
+          <div class="form-grid"><label class="item-name-field">{$translate("ui.name-4el6o6")} <input bind:value={itemName} enterkeyhint="done" aria-describedby={duplicateItems.length ? 'item-duplicate-warning' : undefined}><ItemDuplicateWarning matches={duplicateItems} projection={entryProjection}/></label><label>{$translate("ui.categories-2lwhku")} <input bind:value={tags}></label><label class="wide">{$translate("ui.note-86vuh")} <textarea bind:value={note}></textarea></label></div>
         {:else if dialog.type === 'shareSet'}
           <ShareEditor people={entryProjection.people} bind:shares />
           {#if !ownersValid}<p role="alert" class="notice warn">{$translate('forms.invalidShares')}</p>{/if}

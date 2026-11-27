@@ -211,6 +211,14 @@ async function itemEntryAcceptance(browser, url, engine) {
       await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
       assert.equal(await name.inputValue(),itemName,'name survives unrelated store notification');
       await cost.fill('300');
+      // Q53: live duplicate warning must not reset other fields or forbid saving.
+      const warning=modal.locator('.item-duplicate-warning');
+      await name.fill('  KÜHLSCHRANK  ');
+      await warning.locator('.duplicate-item-match').waitFor();
+      assert.match(await warning.innerText(),/Kühlschrank/);
+      assert.equal(await cost.inputValue(),'300');
+      await name.fill(itemName);
+      assert.equal(await warning.locator('.duplicate-item-match').count(),0);
       await cost.press('Tab');
       assert.equal(await name.inputValue(),itemName);
       assert.equal(await cost.inputValue(),'300');
@@ -313,6 +321,7 @@ async function itemEntryAcceptance(browser, url, engine) {
         await page.screenshot({path:join(process.env.Q32_SCREENSHOT_DIR,engine+'-'+width+'-bottom.png')});
       }
       const effectiveDate=await modal.locator('#event-effective-date').inputValue();
+      // Existing unique-name assertions continue to cover the full purchase data.
       await submit.click();
       await modal.waitFor({state:'hidden'});
       const saved=await snapshot();
@@ -331,6 +340,16 @@ async function itemEntryAcceptance(browser, url, engine) {
       await modal.locator('.modal-footer button').first().click();
       await modal.waitFor({state:'hidden'});
       assert.deepEqual((await snapshot()).events,saved.events);
+      // A duplicate is deliberately permitted, not silently renamed.
+      await open();
+      await name.fill('Kühlschrank');
+      await warning.locator('.duplicate-item-match').waitFor();
+      await cost.fill('30');
+      await submit.waitFor();
+      assert.ok(await submit.isEnabled(),'Q53 duplicate must not disable save');
+      await submit.click();
+      await modal.waitFor({state:'hidden'});
+      assert.equal((await snapshot()).items.filter(i=>i.name==='Kühlschrank').length,2);
       assert.deepEqual(errors,[]);
     } finally { await context.close(); }
     console.log('Q32 '+engine+' '+width+' '+locale+' passed');
@@ -531,6 +550,7 @@ async function formStateAcceptance(browser,url,engine) {
       await page.locator('.item-tile').filter({hasText:'Kühlschrank'}).locator('.tile-open').click();
       await page.locator('.secondary-actions .action-grid button').first().click();
       const metadata=modal.locator('.form-grid');
+      assert.equal(await modal.locator('.duplicate-item-match').count(),0,'Q53 exclude own name on edit');
       await metadata.locator('input').nth(0).fill('Q33 item name');
       await metadata.locator('input').nth(1).fill('Q33 category');
       await metadata.locator('textarea').fill('Q33 item note');
