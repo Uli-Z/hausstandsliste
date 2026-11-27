@@ -1627,7 +1627,7 @@ async function recentHistoryAcceptance(browser,url) {
         await page.locator('.recent-range').first().waitFor();
         const preview=await rowIds(page.locator('.timeline-preview .timeline-event-card'));
         assert.deepEqual(preview.slice(0,expected.length),expected);
-        assert.ok(preview.length<=10);
+        assert.ok(await page.locator('.timeline-preview .timeline-group').count()<=10,'Q55 limit counts complete groups');
         assert.equal(new Set(preview).size,preview.length);
         await page.locator('.overview-layout.second-row .section-header button').first().click();
         const history=await rowIds(page.locator('.timeline-event-card:not(.future-event)'));
@@ -1638,7 +1638,16 @@ async function recentHistoryAcceptance(browser,url) {
       assert.equal(await grouped.locator('.event-unit-change').count(),2);
       assert.match(await grouped.innerText(),/Ben.*\+1/s);
       assert.match(await grouped.innerText(),/Clara.*\+1/s);
-      assert.match(await page.locator('.recent-range').first().innerText(),/10/);
+      assert.match(await page.locator('.recent-range').first().innerText(),/Chronikzeilen|history rows/);
+      const shareGroup=page.locator('.timeline-preview .timeline-group[data-group-count="5"]');
+      assert.equal(await shareGroup.locator('.timeline-group-toggle').getAttribute('aria-expanded'),'false');
+      assert.equal(await shareGroup.locator('.timeline-event-card:visible').count(),0);
+      await shareGroup.locator('.timeline-group-toggle').press('Enter');
+      assert.equal(await shareGroup.locator('.timeline-event-card:visible').count(),5);
+      await shareGroup.locator('[data-event-id="q39-single-3"] .event-open-overlay').click();
+      assert.equal(await page.getByRole('dialog').locator('input[type=date]').inputValue(),'2025-03-01');
+      await page.getByRole('dialog').locator('.modal-header button.ghost').click();
+      await shareGroup.locator('.timeline-group-toggle').click();
       await compare(['q39-group','q39-single-4','q39-single-3','q39-single-2','q39-single-1']);
       assert.equal(await page.locator('[data-event-id="q39-group"]').count(),1);
       assert.equal(await page.locator('[data-event-id="q39-group"] .event-unit-change').count(),2);
@@ -1674,6 +1683,32 @@ async function recentHistoryAcceptance(browser,url) {
       assert.deepEqual(errors,[]);
     } finally {await context.close();}
   }
+}
+
+async function groupedPaymentAcceptance(browser,url) {
+  const context=await browser.newContext({locale:'de-DE',viewport:{width:375,height:812}});
+  try {
+    const page=await context.newPage();
+    const copy=structuredClone(fixture);
+    for(let i=0;i<10;i++)copy.events.push({id:'q55-paid-'+i,type:'claim-settlement-recorded',date:'2025-04-01',order:100+i,settlementKind:'paid',debtorPersonId:'anna',creditorPersonId:'ben',amountCents:8500});
+    copy.events.push({id:'q55-waive',type:'claim-settlement-recorded',date:'2025-04-01',order:105,settlementKind:'waived',debtorPersonId:'anna',creditorPersonId:'ben',amountCents:200});
+    await page.goto(url);
+    await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(copy)});
+    await page.reload();
+    const group=page.locator('.timeline-preview .timeline-group[data-group-count="10"]');
+    await group.locator('.timeline-group-toggle').waitFor();
+    assert.match(await group.locator('.timeline-group-toggle').innerText(),/10 Zahlungen.*850,00/s);
+    assert.equal(await group.locator('.timeline-event-card:visible').count(),0);
+    assert.equal(await page.locator('.timeline-preview [data-event-id="q55-waive"]:visible').count(),1);
+    await group.locator('.timeline-group-toggle').click();
+    assert.equal(await group.locator('.timeline-event-card:visible').count(),10);
+    await group.locator('[data-event-id="q55-paid-4"] .event-open-overlay').click();
+    const modal=page.getByRole('dialog');
+    await modal.waitFor();
+    assert.match(await modal.innerText(),/Ausgleich|Zahlung/);
+    await modal.locator('.modal-header button.ghost').click();
+    assert.deepEqual(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project.events,key),copy.events);
+  } finally { await context.close(); }
 }
 
 async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768, 1280], engine = 'Chromium') {
@@ -2353,6 +2388,7 @@ try {
   await acceptance('Chromium Q25 whole cards', () => wholeCardAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q29 compact names', () => overviewNamesAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q39 recent history', () => recentHistoryAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q55 grouped daily payments', () => groupedPaymentAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q31 mobile financing', () => purchaseFinancingAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q27 guided archive', () => guidedArchiveAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q40 archive discoverability', () => archiveDiscoverabilityAcceptance(browser, offlineServer.url));

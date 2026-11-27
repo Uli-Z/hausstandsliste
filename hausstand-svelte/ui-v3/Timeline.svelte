@@ -7,7 +7,7 @@
   import { translate, localizeGermanText, pluralMessage } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE } from '../src/lib/util.js';
-  import { splitHistoryAt, RECENT_HISTORY_LIMIT } from '../src/lib/eventHistory.js';
+  import { splitHistoryAt, groupedHistoryAt, RECENT_HISTORY_LIMIT } from '../src/lib/eventHistory.js';
   import { money } from '../src/lib/domain.js';
   import { eventUnitChangeRows } from '../src/lib/redistribution.js';
   import OwnershipHistorySummary from './OwnershipHistorySummary.svelte';
@@ -28,6 +28,20 @@
   let futureLimit = PAGE_SIZE;
   let showFuture = false;
   let expandedEventId = null;
+  let expandedGroups = new Set();
+  function toggleGroup(key) {
+    const next=new Set(expandedGroups);
+    if(next.has(key)) next.delete(key); else next.add(key);
+    expandedGroups=next;
+  }
+  const groupLabelKeys={
+    'settlement:paid':'timeline.group.paid', 'settlement:external':'timeline.group.external', 'settlement:waived':'timeline.group.waived',
+    'settlement:unknown':'timeline.group.settlement', 'item-added':'timeline.group.purchased','item-ended':'timeline.group.ended',
+    'person-added':'timeline.group.arrival','person-deactivated':'timeline.group.departure','person-reactivated':'timeline.group.return',
+    'shares-set':'timeline.group.shares','redistribution-executed':'timeline.group.redistribution'
+  };
+  function groupLabel(group) {return $translate(groupLabelKeys[group.kind] || 'timeline.group.generic',{count:group.count});}
+  function groupAmount(group) {return group.totalCents===null?'':$translate(group.type==='item-added'?'timeline.group.purchaseValue':'timeline.group.amount',{amount:money(group.totalCents/100)});}
 
     // View-only order: newest first on either side of the time-travel cutoff.
   $: allEvents = project.events || [];
@@ -92,17 +106,20 @@
     if (personId) return eventAffectsPerson(e);
     return true;
   });
-  $: history = splitHistoryAt(events, asOfDate);
-  $: future = history.future;
-  $: past = history.past;
+  // Group the shared dashboard/full chronology. Person/item detail histories
+  // remain individually readable and keep their established filtering behavior.
+  $: grouped = preview || full;
+  $: history = grouped ? groupedHistoryAt(events,asOfDate) : splitHistoryAt(events, asOfDate);
+  $: future = grouped ? history.future : history.future.map(event=>({key:'event:'+event.id,date:event.date,events:[event],count:1,type:event.type}));
+  $: past = grouped ? history.past : history.past.map(event=>({key:'event:'+event.id,date:event.date,events:[event],count:1,type:event.type}));
   $: visiblePast = past.slice(0, preview ? RECENT_HISTORY_LIMIT : pastLimit);
   $: visibleFuture = preview ? [] : full ? future.slice(0, futureLimit) : showFuture ? future : [];
   // A single keyed sequence keeps existing cards mounted during pagination and
   // when the selected date moves an event across the marker.
   $: rows = [
-    ...visibleFuture.map(event => ({key:'event:'+event.id, event})),
+    ...visibleFuture.map(group => ({key:group.key, group})),
     ...(!preview ? [{key:'cutoff'}] : []),
-    ...visiblePast.map(event => ({key:'event:'+event.id, event}))
+    ...visiblePast.map(group => ({key:group.key, group}))
   ];
   function loadPast() { pastLimit += PAGE_SIZE; }
   function loadFuture() { futureLimit += PAGE_SIZE; }
@@ -181,8 +198,19 @@
       </button>
     {/if}
     {#each rows as row (row.key)}
-      {#if row.event}
-        {@const event = row.event}
+      {#if row.group}
+        {@const group=row.group}
+        <div class="timeline-group" class:future-event={group.date > asOfDate} data-group-key={group.key} data-group-count={group.count}>
+          {#if group.count>1}
+            <button class="timeline-group-toggle" type="button" aria-expanded={expandedGroups.has(group.key)} on:click={()=>toggleGroup(group.key)}>
+              <span class="group-icon"><ActionIcon name={iconForTimelineEvent(group.type)} size={17}/></span>
+              <span class="group-text"><strong>{groupLabel(group)}</strong>{#if group.totalCents!==null}<small>{groupAmount(group)}</small>{/if}</span>
+              <span class="date">{dateDE(group.date)}</span>
+              <span class="group-chevron" aria-hidden="true">{expandedGroups.has(group.key)?'▾':'▸'}</span>
+            </button>
+          {/if}
+          <div class="timeline-group-members" class:group-expanded={group.count>1} hidden={group.count>1&&!expandedGroups.has(group.key)}>
+            {#each group.events as event (event.id)}
         <div class="event-card timeline-event-card" data-event-id={event.id} class:future-event={event.date > asOfDate}>
             <button
               type="button"
@@ -220,13 +248,19 @@
               {#if event.type === "item-added"}<p>{localizeGermanText(ITEM_FUNDING_NOTE(event))}</p>{/if}
               {#if event.note}<p>{event.note}</p>{/if}
               <p class="muted">{$translate($appState.readOnly ? 'errors.readOnly' : 'timeline.viewOnly')}</p>
+              {#if $appState.readOnly && interactionForTimelineEvent(event.type,false)==='edit'}
+                <button type="button" class="outline-action" on:click={()=>openEdit(event)}>{$translate('timeline.editEvent')}</button>
+              {/if}
             </div>
           {/if}
+        </div>
+            {/each}
+          </div>
         </div>
       {:else}
         {#if full && future.length > visibleFuture.length}
           <button class="timeline-more future-more" use:autoLoad={loadFuture} on:click={loadFuture}>
-            {pluralMessage('timeline.future', future.length - visibleFuture.length, $locale)} · {$translate("ui.older-events-ue6evx")}
+            {pluralMessage('timeline.future', future.slice(visibleFuture.length).reduce((n,g)=>n+g.count,0), $locale)} · {$translate("ui.older-events-ue6evx")}
           </button>
         {/if}
         <div class="timeline-marker" data-cutoff={asOfDate}>{$translate('timeline.asof')} {dateDE(asOfDate)}</div>
@@ -246,6 +280,19 @@
     font-size: 0.9rem;
   }
   .timeline-preview .panel-body { padding: 0; }
+  .timeline-group{min-width:0;display:grid;gap:5px}
+  .timeline-group.future-event{border-left:0}
+  .timeline-group-toggle{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:8px;text-align:left;border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--panel);min-height:54px;width:100%;overflow-wrap:anywhere}
+  .timeline-group-toggle:hover,.timeline-group-toggle:focus-visible{border-color:var(--accent)}
+  .future-event>.timeline-group-toggle{border-left:3px solid var(--accent)}
+  .group-icon,.group-chevron{color:var(--muted)}
+  .group-text{display:grid;gap:3px;min-width:0}
+  .group-text small{color:var(--muted)}
+  .timeline-group-members{display:grid;gap:5px;min-width:0}
+  .timeline-group-members[hidden]{display:none}
+  .timeline-group-members.group-expanded{margin-left:9px;border-left:2px solid var(--border);padding-left:7px}
+  .timeline-group-members.group-expanded .timeline-event-card{min-height:0;padding:9px 10px}
+  @media(max-width:380px){.timeline-group-toggle{gap:5px;padding:9px 7px}.timeline-group-members.group-expanded{margin-left:4px;padding-left:4px}}
   .timeline-event-card {
     min-width: 0;
     overflow-wrap: anywhere;

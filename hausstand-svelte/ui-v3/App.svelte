@@ -15,7 +15,7 @@
   import { requireShareEventFormat } from '../src/lib/shareUnits.js';
   import { addDays, eventDates, todayISO } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
-  import { recentHistoryAt } from '../src/lib/eventHistory.js';
+  import { groupedHistoryAt } from '../src/lib/eventHistory.js';
   import PersonDetail from './PersonDetail.svelte';
   import ItemDetail from './ItemDetail.svelte';
   import DialogRouter from './DialogRouter.svelte';
@@ -175,9 +175,9 @@
   $: lastDate = dates[dates.length - 1] || null;
   $: today = todayISO();
   $: dateMode = $appState.asOfDate > today ? 'future' : $appState.asOfDate < today ? 'past' : 'today';
-  $: recentHistory = recentHistoryAt($appState.project.events, $appState.asOfDate);
+  $: recentHistory = groupedHistoryAt($appState.project.events, $appState.asOfDate);
   $: latestEvents = recentHistory.recent;
-  $: futureEventCount = recentHistory.future.length;
+  $: futureEventCount = recentHistory.futureEventCount;
   $: balances = $ledger.simplified || [];
   $: outstandingCents = balances.reduce((sum, transfer) => sum + transfer.amountCents, 0);
 

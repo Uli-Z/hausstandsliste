@@ -1,4 +1,5 @@
 <script>
+  import { itemDisplayName } from '../src/lib/itemNames.js';
   import CompactNames from './CompactNames.svelte';
   import { nameEntries } from '../src/lib/overviewNames.js';
   import { translate, locale, pluralMessage } from '../src/lib/i18n.js';
@@ -12,7 +13,7 @@
   export let openPerson = null;
 
   $: people = new Map((project.people || []).map(p => [p.id,p.name || p.id]));
-  $: items = new Map((project.items || []).map(i => [i.id,i.name || i.id]));
+  $: items = new Map((project.items || []).map(i => [i.id,itemDisplayName(i) || i.id]));
   $: group = event.type === 'redistribution-executed';
   $: rows = eventUnitChangeRows(event).filter(row => !itemId || row.itemId === itemId);
   $: visible = compact ? rows.slice(0,2) : rows;
