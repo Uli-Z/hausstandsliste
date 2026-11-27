@@ -10,7 +10,9 @@
   async function submit() {
     if (busy || word !== $translate('reset.word')) return;
     busy = true;
-    try { await reset(); } finally { busy = false; }
+    // Close on failure as well so the shared error toast is not obscured by
+    // the native dialog's top layer; retry requires deliberate reconfirmation.
+    try { if (!(await reset())) close(); } finally { busy = false; }
   }
 </script>
 

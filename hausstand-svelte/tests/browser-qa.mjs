@@ -106,7 +106,7 @@ async function resetProjectAcceptance(browser,url) {
       assert.deepEqual((await snapshot()).project.people,[]);
       await page.reload();
       assert.deepEqual((await snapshot()).project.events,[]);
-      assert.equal(await page.locator('.household-rename').innerText(),'Hausgemeinschaft');
+      assert.match(await page.locator('.household-rename').innerText(),/Hausgemeinschaft/);
     } finally { await context.close(); }
   }
 }

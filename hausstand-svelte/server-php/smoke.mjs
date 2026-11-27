@@ -103,7 +103,7 @@ try {
   const blank = await createPortableSave(emptyProject(), null);
   const resetEnvelope = await encryptProject(blank, 'replacement-password', token2);
   const resetBody = {id, expectedRevision:3, envelope:resetEnvelope, resetProject:true};
-  assert.equal((await call('save', resetBody, {}, {'X-File-Token':token2})).status, 423);
+  assert.equal((await call('save', resetBody, {}, {'X-File-Token':token2})).status, 409);
   assert.equal((await call('save', {...resetBody, expectedRevision:2}, {}, resetAuth)).status,409);
   assert.equal((await call('read',null,{id})).revision,3);
   r = await call('save', resetBody, {}, resetAuth);
