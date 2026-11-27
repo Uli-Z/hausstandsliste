@@ -25,3 +25,15 @@ test('Q42 mail submission is not delivery; unknown status is never success', () 
   assert.match(dictionaries.en['mail.accepted'],/Delivery is not confirmed/);
   assert.match(dictionaries.de['mail.accepted'],/Zustellung ist nicht bestätigt/);
 });
+
+test('Q49 session feedback is not a second inline action-result channel', async () => {
+  const {readFileSync}=await import('node:fs');
+  const session=readFileSync(new URL('../ui-v3/ServerSession.svelte',import.meta.url),'utf8');
+  const app=readFileSync(new URL('../ui-v3/App.svelte',import.meta.url),'utf8');
+  assert.doesNotMatch(session,/export let feedback|feedbackError/);
+  assert.doesNotMatch(app,/serverFeedback|bind:feedback/);
+  assert.match(session,/sessionNotice\(committedResult \? 'session.finishOnly' : 'session.finishNoSave'\)/);
+  assert.match(session,/finally \{[\s\S]*?if \(committedResult\) reportMail\(committedResult\)/);
+  assert.match(dictionaries.en['session.finishNoSave'],/no new email backup/);
+  assert.match(dictionaries.de['session.finishNoSave'],/keine neue E-Mail-Sicherung/);
+});

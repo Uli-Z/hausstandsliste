@@ -45,8 +45,6 @@
   let serverEditing = false;
   let serverSaving = false;
   let mailRetryRevision = null;
-  let serverFeedback = '';
-  let serverFeedbackError = false;
   let onlineEditing = false;
   let onlineProjectOpen = false;
   let storageBusy = false;
@@ -86,10 +84,6 @@
   }
   function showFeedback(message, isError = false) {
     notifications.notify(message, {kind:isError ? 'error' : 'success', source:'storage'});
-  }
-  $: if (serverFeedback) {
-    showFeedback(serverFeedback, serverFeedbackError);
-    serverFeedback = '';
   }
 
   onMount(() => {
@@ -210,7 +204,7 @@
 <NotificationStack/>
 
 {#if SERVER_MODE}
-  <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:saving={serverSaving} bind:mailRetryRevision={mailRetryRevision} bind:busy={storageBusy} bind:feedback={serverFeedback} bind:feedbackError={serverFeedbackError}/>
+  <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:saving={serverSaving} bind:mailRetryRevision={mailRetryRevision} bind:busy={storageBusy}/>
 {/if}
 {#if !SERVER_MODE || serverAuthenticated}
 <div class="app-shell">
@@ -241,6 +235,7 @@
         <button type="button" class="household-rename" title={$translate('household.rename')} aria-label={$translate('household.rename') + ': ' + ($appState.project.community?.name || $translate('app.household'))} aria-haspopup="dialog" on:click={() => appState.setDialog({type:'householdRename'})}>
           <strong>{$appState.project.community?.name || $translate('app.household')}</strong><ActionIcon name="edit" size={16}/>
         </button>
+        {#if SERVER_MODE}<span class="server-mode-label" title={$translate(serverEditing ? 'session.editing' : 'session.readOnly')}>{$translate(serverEditing ? 'session.modeEditing' : 'session.modeReadOnly')}</span>{/if}
         <button type="button" class="mobile-session-log" aria-label={$translate($appState.dirty?'app.dirty':'app.clean')+' · '+$translate('sessionLog.title')} aria-haspopup="dialog" disabled={!!$appState.activeDialog || storageBusy} on:click={openHistory}><span class="status-dot" class:needs-save={$appState.dirty}></span>{$translate('sessionLog.short')}</button>
       </div>
       <div class="header-actions">
@@ -308,9 +303,7 @@
     </header>
 
     {#if SERVER_MODE}
-      <div class="server-edit-status" role="status">
-        {serverSaving ? $translate('session.saving') : storageBusy ? $translate('session.working') : serverEditing ? ($appState.dirty ? $translate('session.editingDirty') : $translate('session.editing')) : $translate('session.readOnly')}
-      </div>
+      {#if serverSaving || storageBusy}<div class="server-edit-status" role="status">{serverSaving ? $translate('session.saving') : $translate('session.working')}</div>{/if}
       {#if mailRetryRevision !== null}<div class="server-edit-status"><button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.retryMail()}>{$translate('mail.retry')}</button></div>{/if}
     {/if}
 

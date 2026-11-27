@@ -16,8 +16,11 @@
   export let busy = false;
   export let saving = false;
   export let mailRetryRevision = null;
-  export let feedback = '';
-  export let feedbackError = false;
+  // Session actions report directly to the shared stack, independent of navigation.
+  function sessionNotice(key, kind = 'success', params = {}) {
+    notifications.dismissSource('server-session');
+    notifications.notify($translate(key, params), {kind, source:'server-session'});
+  }
   let initialized = null, pass = '', repeat = '', admin = '', error = '';
   let activePassword = '', editToken = '', leaseToken = '', revision = 0;
   let leaseExpires = 0;
@@ -35,7 +38,7 @@
     if (!authenticated || !editing || !leaseToken || busy) return;
     if (leaseExpires && Date.now() >= leaseExpires * 1000) {
       const reason = serverErrorMessage('leaseExpired',409);
-      loseLease(reason); feedbackError = true; feedback = reason;
+      loseLease(reason); sessionNotice('session.leaseLost', 'error', {reason});
       return;
     }
     if (document.visibilityState !== 'visible') return;
@@ -46,7 +49,7 @@
     } catch (e) {
       // A transient network failure does not revoke a still-valid lease.
       // The existing API guard handles explicit server rejection immediately.
-      if (!editing) { feedbackError = true; feedback = localizeDiagnostic(e.message); }
+      if (!editing) sessionNotice('session.leaseLost', 'error', {reason:localizeDiagnostic(e.message)});
     } finally { busy = false; }
   }
 
@@ -117,11 +120,10 @@
       sessionStorage.setItem(deviceKey + ':lease', leaseToken);
       appState.importProject(project, {secure:true, readOnly:false, sameProjectRefresh:true});
       editing = true; appState.setReadOnly(false);
-      feedback = $translate('session.checkoutOk');
+      sessionNotice('session.checkoutOk');
     } catch (e) {
       editing = false; appState.setReadOnly(true, e.message);
-      feedbackError = true;
-      feedback = $translate('session.checkoutFailed', {reason:localizeDiagnostic(e.message)});
+      sessionNotice('session.checkoutFailed', 'error', {reason:localizeDiagnostic(e.message)});
     }
   }
   async function unlock(password, establishSession = true) {
@@ -164,7 +166,7 @@
   });
   async function submit() {
     if (busy) return;
-    busy = true; error = ''; feedback = ''; feedbackError = false;
+    busy = true; error = '';
     try {
       if (!initialized) {
         if (pass.length < 8) throw new Error($translate('session.passwordLength'));
@@ -193,10 +195,11 @@
   function reportMail(result) {
     const outcome = mailFeedback(result);
     notifications.dismissSource('mail');
-    notifications.notify($translate(outcome.key), {kind:outcome.kind, duration:outcome.kind==='warning' ? 0 : 5000, source:'mail'});
+    notifications.notify($translate(outcome.key), {kind:outcome.kind, duration:outcome.kind==='warning' ? 0 : 15000, source:'mail'});
     mailRetryRevision = outcome.retryable ? result.revision : null;
   }
   function reportConfirmedSave(result) {
+    notifications.dismissSource('server-save');
     notifications.notify($translate('session.serverSaved'), {kind:'success', source:'server-save'});
     reportMail(result);
   }
@@ -213,8 +216,9 @@
   }
   export async function save() {
     if (busy) return;
-    busy = true; feedback = ''; feedbackError = false;
-    let committed = false;
+    busy = true;
+    notifications.dismissSource('server-session');
+    let committedResult = null;
     try {
       if (!editing) { await checkout(); return; }
       saving = true;
@@ -224,29 +228,34 @@
         const result = await api('save', {expectedRevision:revision, envelope});
         if (!confirmedSave(result)) throw new Error($translate('session.saveUnconfirmed'));
         revision = result.revision; leaseExpires = result.expiresAt; appState.markSaved(saved);
-        committed = true;
-        reportConfirmedSave(result);
+        committedResult = result;
+        notifications.dismissSource('server-save');
+        notifications.notify($translate('session.serverSaved'), {kind:'success', source:'server-save'});
       }
       await api('checkin', {});
       leaseToken = ''; leaseExpires = 0; sessionStorage.removeItem(deviceKey + ':lease');
       editing = false; appState.setReadOnly(true);
-      if (!committed) feedback = $translate('session.finishOnly');
+      sessionNotice(committedResult ? 'session.finishOnly' : 'session.finishNoSave');
     } catch (e) {
-      feedbackError = true;
-      feedback = $translate(committed ? 'session.finishFailed' : 'session.checkinFailed', {reason:localizeDiagnostic(e.message)});
-    } finally { busy = false; saving = false; }
+      sessionNotice(committedResult ? 'session.finishFailed' : 'session.checkinFailed', 'error', {reason:localizeDiagnostic(e.message)});
+    } finally {
+      // Show the independent mail outcome after the check-in request settles,
+      // even when release fails. Never send or retry mail from this path.
+      if (committedResult) reportMail(committedResult);
+      busy = false; saving = false;
+    }
   }
   export async function downloadBackup() {
     if (busy) return;
-    busy = true; feedback = ''; feedbackError = false;
+    busy = true;
     try {
       const saved = await createPortableSave($appState.project, $appState.savedProject);
       const envelope = await encryptProject(exportProject(saved, $appState.asOfDate), activePassword, randomSecret());
       const url = URL.createObjectURL(new Blob([JSON.stringify(envelope)], {type:'application/json'}));
       const a = document.createElement('a'); a.href = url; a.download = 'hausstand-sicherung.enc.json'; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      feedback = $translate('session.backupOk');
-    } catch (e) { feedbackError = true; feedback = localizeDiagnostic(e.message); } finally { busy = false; }
+      sessionNotice('session.backupOk');
+    } catch (e) { sessionNotice('session.backupFailed', 'error', {reason:localizeDiagnostic(e.message)}); } finally { busy = false; }
   }
   export async function restoreBackup(event) {
     const file = event.currentTarget.files?.[0]; event.currentTarget.value = '';
@@ -254,7 +263,7 @@
     if (!confirm($translate('session.restoreConfirm'))) return;
     const backupPassword = prompt($translate('session.backupPassword'));
     if (!backupPassword) return;
-    busy = true; feedback = ''; feedbackError = false;
+    busy = true;
     try {
       if (!editing) throw new Error($translate('session.restoreReadOnly'));
       const decrypted = await decryptProject(JSON.parse(await file.text()), backupPassword);
@@ -265,19 +274,19 @@
       if (!confirmedSave(result)) throw new Error($translate('session.saveUnconfirmed'));
       revision = result.revision; leaseExpires = result.expiresAt; appState.importProject(saved, {secure:true, readOnly:false});
       reportConfirmedSave(result);
-    } catch(e) { feedbackError = true; feedback = $translate('session.restoreFailed', {reason:localizeDiagnostic(e.message)}); }
+    } catch(e) { sessionNotice('session.restoreFailed', 'error', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
   }
   export async function logout() {
     if (busy || ($appState.dirty && !confirm($translate('session.logoutConfirm')))) return;
-    busy = true; feedback = ''; feedbackError = false;
+    busy = true;
     try {
       if (leaseToken) await api('checkin', {});
       await api('logout', {});
       await deviceStore('delete'); sessionStorage.removeItem(deviceKey + ':lease');
       leaseToken = ''; leaseExpires = 0; editToken = ''; activePassword = ''; editing = false; authenticated = false;
       mailRetryRevision = null; notifications.dismissSource('mail');
-    } catch(e) { feedbackError = true; feedback = $translate('session.logoutFailed', {reason:localizeDiagnostic(e.message)}); }
+    } catch(e) { sessionNotice('session.logoutFailed', 'error', {reason:localizeDiagnostic(e.message)}); }
     finally { busy = false; }
   }
 </script>

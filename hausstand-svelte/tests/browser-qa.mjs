@@ -2042,7 +2042,7 @@ async function q37ReadOnlyAcceptance(browser) {
 }
 
 async function q42MailAcceptance(browser) {
-  for (const mode of ['accepted','rejected','disabled']) {
+  for (const mode of ['accepted','rejected','disabled','missing','checkin-failed']) {
     const root=await mkdtemp(join(tmpdir(),'hausstand-q42-'));
     const port=await freePort();
     const url='http://127.0.0.1:'+port+'/hausstand.php';
@@ -2074,6 +2074,19 @@ async function q42MailAcceptance(browser) {
       await page.getByRole('button',{name:de?'Bearbeitung starten':'Start editing',exact:true}).click();
       const save=page.getByRole('button',{name:de?'Speichern und Bearbeitung beenden':'Save and finish editing',exact:true});
       await save.waitFor();
+      const checkoutText=de?'Bearbeitung gestartet. Die Datei ist für andere schreibgeschützt.':'Editing started. The file is read-only for others.';
+      await page.locator('.notification').filter({hasText:checkoutText}).waitFor();
+      assert.equal(await page.getByText(checkoutText,{exact:true}).count(),1);
+      assert.equal(await page.locator('.server-edit-status').count(),0);
+      await page.locator('.server-mode-label').filter({hasText:de?'Bearbeitung':'Editing'}).waitFor();
+      // A clean check-in must not save or trigger another mail backup.
+      await save.click();
+      const cleanText=de?'Bearbeitung beendet. Keine Änderungen gespeichert, daher keine neue E-Mail-Sicherung versandt.':'Editing finished. No changes were saved, so no new email backup was sent.';
+      await page.locator('.notification').filter({hasText:cleanText}).waitFor();
+      assert.equal(await page.getByText(cleanText,{exact:true}).count(),1);
+      assert.equal(await (await (await fetch(url+'?api=read&id='+id)).json()).revision,1);
+      await page.getByRole('button',{name:de?'Bearbeitung starten':'Start editing',exact:true}).click();
+      await save.waitFor();
       await page.locator('.quick-actions .task-grid > button').nth(2).click();
       const modal=page.locator('.modal-backdrop');
       await modal.locator('input').first().fill('Q42 '+mode);
@@ -2092,7 +2105,14 @@ async function q42MailAcceptance(browser) {
       const gate=new Promise(resolve=>release=resolve);
       const started=new Promise(resolve=>signal=resolve);
       let saves=0;
-      await page.route('**/hausstand.php?api=save',async route=>{saves++;signal();await gate;await route.continue();});
+      await page.route('**/hausstand.php?api=save',async route=>{
+        saves++;signal();await gate;
+        if(mode==='missing') {
+          const response=await route.fetch(); const body=await response.json(); delete body.mailStatus;
+          await route.fulfill({response,json:body});
+        } else await route.continue();
+      });
+      if(mode==='checkin-failed') await page.route('**/hausstand.php?api=checkin',route=>route.abort());
       try {
         await save.click();
         await Promise.race([started,pause(10000).then(()=>{throw Error('Q42 save did not start');})]);
@@ -2104,8 +2124,18 @@ async function q42MailAcceptance(browser) {
       await saved.waitFor();
       assert.equal(saves,1);
       await page.unroute('**/hausstand.php?api=save');
-      const mailText=mode==='accepted'?'Email backup accepted by the mail service. Delivery is not confirmed.':mode==='rejected'?'E-Mail-Sicherung fehlgeschlagen: Maildienst hat den Versandauftrag abgelehnt.':'E-Mail-Sicherung nicht eingerichtet; keine E-Mail versandt.';
+      const mailText=mode==='accepted'?'Email backup accepted by the mail service. Delivery is not confirmed.':mode==='rejected'?'E-Mail-Sicherung fehlgeschlagen: Maildienst hat den Versandauftrag abgelehnt.':mode==='disabled'?'E-Mail-Sicherung nicht eingerichtet; keine E-Mail versandt.':mode==='missing'?'Status der E-Mail-Sicherung unklar. Vor erneutem Versand den Maildienst prüfen.':'E-Mail-Sicherung vom Maildienst angenommen. Die Zustellung ist nicht bestätigt.';
       await page.locator('.notification').filter({hasText:mailText}).waitFor();
+      assert.equal(await page.getByText(mailText,{exact:true}).count(),1);
+      if(mode==='checkin-failed') {
+        await page.locator('.notification[data-kind="error"]').filter({hasText:/Projektstand gespeichert, aber die Bearbeitung konnte nicht beendet werden/}).waitFor();
+        await page.unroute('**/hausstand.php?api=checkin');
+        await save.click();
+      } else {
+        const finishText=de?'Bearbeitung beendet. Die Datei ist wieder freigegeben.':'Editing finished. The file is available again.';
+        await page.locator('.notification').filter({hasText:finishText}).waitFor();
+        assert.equal(await page.getByText(finishText,{exact:true}).count(),1);
+      }
       await page.getByRole('button',{name:de?'Bearbeitung starten':'Start editing',exact:true}).waitFor();
       const packet=await (await fetch(url+'?api=read&id='+id)).json();
       assert.equal(packet.revision,2);
