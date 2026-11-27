@@ -4,6 +4,15 @@ import { writable, derived, get } from 'svelte/store';
 export const LANGUAGE_KEY = 'hausstand-language';
 export const dictionaries = {
   "en": {
+    "toast.region": "Notifications",
+    "toast.success": "Success",
+    "toast.error": "Error",
+    "toast.warning": "Warning",
+    "toast.info": "Information",
+    "toast.personAdded": "Person added to the working copy.",
+    "toast.itemAdded": "Item added to the working copy.",
+    "toast.changeRecorded": "Change recorded in the working copy.",
+    "toast.signedIn": "Signed in successfully.",
     "purchase.financing": "Purchase financing",
     "purchase.funded": "Paid",
     "purchase.ownershipValue": "Purchase share value",
@@ -856,6 +865,15 @@ export const dictionaries = {
     "items.give.other": "gives away {count} shares"
   },
   "de": {
+    "toast.region": "Benachrichtigungen",
+    "toast.success": "Erfolg",
+    "toast.error": "Fehler",
+    "toast.warning": "Warnung",
+    "toast.info": "Information",
+    "toast.personAdded": "Person wurde hinzugefügt.",
+    "toast.itemAdded": "Gegenstand wurde hinzugefügt.",
+    "toast.changeRecorded": "Änderung im Arbeitsstand erfasst.",
+    "toast.signedIn": "Anmeldung erfolgreich.",
     "purchase.financing": "Anschaffungsfinanzierung",
     "purchase.funded": "Bezahlt",
     "purchase.ownershipValue": "Anteilswert beim Kauf",
