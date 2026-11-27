@@ -10,6 +10,7 @@ import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
 import { createSessionUndo } from '../lib/sessionUndo.js';
 import { projectMutationProblem } from '../lib/mutationValidation.js';
 import { message, getLocale } from '../lib/i18n.js';
+import { notifications } from '../lib/notifications.js';
 import { openDatePicker, dismissDatePicker, selectAsOfDate, returnToToday, syncCalendarDay } from '../lib/timeTravel.js';
 
 const initial = {
@@ -126,7 +127,13 @@ function createStore() {
           return s;
         }
         saved = true;
-        return changedProject(s, project);
+        const next = changedProject(s, project);
+        if (next !== s) {
+          const key = s.activeDialog?.type === 'personAdd' ? 'toast.personAdded'
+            : s.activeDialog?.type === 'itemAdd' ? 'toast.itemAdded' : 'toast.changeRecorded';
+          notifications.notify(message(key, getLocale()), {kind:'success'});
+        }
+        return next;
       });
       return saved;
     },
