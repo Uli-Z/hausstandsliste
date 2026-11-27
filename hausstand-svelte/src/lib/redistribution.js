@@ -178,15 +178,15 @@ export function redistributionPreview(project, redistribution, { beforeEventId =
     }
   }
   
-  const rows = [...deltas.values()]
+  const centRows = [...deltas.values()]
     .filter(row => row.deltaCents !== 0)
-    .sort((a, b) => b.deltaCents - a.deltaCents)
-    .map(({deltaCents, ...row}) => ({...row, delta: deltaCents / 100}));
+    .sort((a, b) => b.deltaCents - a.deltaCents);
+  const rows = centRows.map(({deltaCents, ...row}) => ({...row, delta: deltaCents / 100}));
 
   return {
     base,
     rows,
-    payments: redistribution.financialMode === 'derived' ? settlementRecommendations(rows) : [],
+    payments: redistribution.financialMode === 'derived' ? settlementRecommendations(centRows) : [],
     itemRows: buildRedistributionItemRows(base, redistribution.changes || []).filter(row => row.changed)
   };
 }
@@ -196,11 +196,11 @@ export function redistributionPreview(project, redistribution, { beforeEventId =
  */
 export function settlementRecommendations(deltas) {
   const debtors = deltas
-    .map(d => ({...d, cents: Math.round(d.delta * 100)}))
+    .map(d => ({...d, cents: (d.deltaCents ?? Math.round(d.delta * 100))}))
     .filter(d => d.cents > 0);
 
   const creditors = deltas
-    .map(d => ({...d, cents: -Math.round(d.delta * 100)}))
+    .map(d => ({...d, cents: -(d.deltaCents ?? Math.round(d.delta * 100))}))
     .filter(d => d.cents > 0);
 
   const payments = [];

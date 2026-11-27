@@ -69,9 +69,19 @@ test('Q62: valuation rounded once, previews and dated transfer claims agree with
   const claims=deriveClaims(p,at).filter(c=>c.sourceEventId==='transfer');
   assert.equal(sum(claims.map(c=>c.amountCents)),sum(preview.payments.map(r=>Math.round(r.amount*100))));
   assert.deepEqual(byId(projectAt(p,at).items[0]),allocateCents(item.valueCents,{b:2,c:1}));
-  // Stored events are never mutated by any projection.
+  // A real overpayment and a membership exit must not affect ownership or
+  // be rewritten when the exact allocation is recalculated.
+  p.events.push({id:'paid',type:'claim-settlement-recorded',date:at,order:3,
+    debtorPersonId:'b',creditorPersonId:'a',amountCents:100000,settlementKind:'paid'});
+  p.events.push({id:'exit',type:'person-deactivated',date:at,order:4,personId:'b'});
   const previous=JSON.stringify(p.events);
-  ledgerAt(p,at);
+  const ledger=ledgerAt(p,at);
+  assert.equal(ledger.counterclaims[0].amountCents,100000);
+  assert.ok(ledger.balances.get('b')>0);
+  const archived=projectAt(p,at);
+  assert.equal(archived.allPeople.find(p=>p.id==='b').active,false);
+  assert.deepEqual(byId(archived.items[0]),allocateCents(item.valueCents,{b:2,c:1}));
+  assert.equal(sum(archived.allPeople.map(p=>p.totalValueCents)),archived.totalValueCents);
   assert.equal(JSON.stringify(p.events),previous);
   assert.equal(projectAt(p,'2030-01-01').items[0].valueCents,5000);
 });
