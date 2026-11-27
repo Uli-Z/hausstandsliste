@@ -1,12 +1,10 @@
 <script>
   import { itemDisplayName } from '../src/lib/itemNames.js';
-  import CompactNames from './CompactNames.svelte';
-  import { locale } from '../src/lib/i18n.js';
-  import { itemPeople } from '../src/lib/overviewNames.js';
+  import ItemValueCurve from './ItemValueCurve.svelte';
+  import { locale, formatDate, formatMoney } from '../src/lib/i18n.js';
   import { translate } from '../src/lib/i18n.js';
   import { appState, ledger } from '../src/stores/projectStore.js';
   import { money, pct } from '../src/lib/domain.js';
-  import { label as valuationLabel } from '../src/lib/valuation.js';
   import { dateDE } from '../src/lib/util.js';
   import { recordedContributions } from '../src/lib/purchaseFinancing.js';
   import { purchaseBreakdown } from '../src/lib/ledger.js';
@@ -14,6 +12,8 @@
   import Timeline from './Timeline.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   export let item;
+  $: rule = item.runtime.valuation || {};
+  $: knownEnd = ($appState.project.events || []).filter(e=>e.type==='item-ended' && e.itemId===item.id && e.date>=item.runtime.date).map(e=>e.date).sort()[0] || null;
   $: itemClaims = ($ledger.claims || []).filter(claim => claim.itemId === item.id);
   $: fundingEvents = ($appState.project.events || []).filter(event =>
     event.type === 'item-added' && event.itemId === item.id && event.date <= $appState.asOfDate &&
@@ -24,31 +24,36 @@
   $: personName = id => names.get(id) || id;
 </script>
 
-<section class="panel">
+<section class="panel item-overview">
   <div class="panel-body">
-    <div class="detail-hero">
+    <div class="detail-title">
+      <h2>{itemDisplayName(item)}</h2>
+      {#if item.status !== 'active'}<span class="item-status-text">{$translate("ui.no-longer-owned-2uva14")}</span>{/if}
+    </div>
+    <div class="detail-hero item-summary-layout">
       <div class="stack">
-        <div class="detail-title">
-          <h2>{itemDisplayName(item)}</h2>
-          {#if item.status !== 'active'}<span class="item-status-text">{$translate("ui.no-longer-owned-2uva14")}</span>{/if}
+        <div class="item-core-facts">
+          <div><span>{$translate('items.startValue')}</span><strong data-item-start-value>{formatMoney(item.runtime.initialValue,$locale)}</strong></div>
+          <div><span>{$translate('items.currentValue')}</span><strong data-item-current-value>{formatMoney(item.value,$locale)}</strong><small>{formatDate($appState.asOfDate,$locale)}</small></div>
         </div>
-        {#if item.tags?.length}<p class="item-categories">{item.tags.join(' · ')}</p>{/if}
-        {#if item.note}<p class="item-description">{item.note}</p>{/if}
-        <div class="grid-2 item-core-facts">
-          <div class="mini-card"><div class="muted">{$translate("ui.value-opx6hb")}</div><strong>{money(item.value)}</strong></div>
-          <div class="mini-card"><div class="muted">{$translate("ui.owners-1df2egp")}</div><strong>{item.shareRows.length}</strong></div>
-        </div>
-        <CompactNames entries={itemPeople(item, fundingEvents, $appState.project.people, $locale)}/>
-        <div class="valuation-detail">
-          <strong>{$translate("ui.valuation-13jfos6")}:</strong> {valuationLabel(item.runtime.valuation)}
-        </div>
+        <dl class="valuation-detail">
+          <div><dt>{$translate('items.startDate')}</dt><dd>{formatDate(item.runtime.date,$locale)}</dd></div>
+          <div><dt>{$translate('ui.valuation-13jfos6')}</dt><dd>{rule.type==='linear'?$translate('valuation.linear',{years:rule.durationYears}):rule.type==='degressive'?$translate('valuation.degressive',{rate:Math.round((rule.annualRate||0)*1000)/10}):$translate('valuation.fixed')}</dd></div>
+          <div><dt>{$translate('items.minimumValue')}</dt><dd>{formatMoney(rule.minimumValue||0,$locale)}</dd></div>
+          {#if item.runtime.endedAt}<div><dt>{$translate('items.endDate')}</dt><dd>{formatDate(item.runtime.endedAt,$locale)}{#if item.runtime.endReason} · {item.runtime.endReason}{/if}</dd></div>{/if}
+          {#if item.tags?.length}<div><dt>{$translate('ui.categories-2lwhku')}</dt><dd>{item.tags.join(' · ')}</dd></div>{/if}
+          {#if item.note}<div><dt>{$translate('ui.note-86vuh')}</dt><dd class="item-description">{item.note}</dd></div>{/if}
+        </dl>
       </div>
-      <div class="secondary-actions" role="group" aria-label={$translate("ui.moreActions")}>
-        <div class="action-grid">
-          <button on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-item-birsg")}</button>
-          <button on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}><ActionIcon name="archive" size={17}/>{$translate("ui.archive-qlwwpx")}</button>
-          <button on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}><ActionIcon name="plus" size={17}/>{$translate('items.replace')}</button>
-        </div>
+      <ItemValueCurve runtime={item.runtime} asOfDate={$appState.asOfDate} currentCents={item.valueCents} {knownEnd}/>
+    </div>
+    <div class="secondary-actions" role="group" aria-label={$translate("ui.moreActions")}>
+      <div class="action-grid">
+        <button class="outline-action" on:click={() => appState.setDialog({ type: 'itemMeta', itemId: item.id })}><ActionIcon name="edit" size={17}/>{$translate("ui.edit-item-birsg")}</button>
+        {#if item.status === 'active'}
+          <button class="outline-action" on:click={() => appState.setDialog({ type: 'itemContinue', itemId: item.id })}><ActionIcon name="arrows" size={17}/>{$translate('items.replace')}</button>
+          <button class="item-end-action" on:click={() => appState.setDialog({ type: 'itemEnd', itemId: item.id })}><ActionIcon name="archive" size={17}/>{$translate("ui.archive-qlwwpx")}</button>
+        {/if}
       </div>
     </div>
   </div>
@@ -58,7 +63,7 @@
   <section class="panel">
     <div class="panel-header ownership-header">
       <h2>{$translate("ui.who-owns-what-16guwgm")}</h2>
-      <button class="outline-action" on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}><ActionIcon name="arrows" size={17}/>{$translate("ui.change-ownership-shares-1x7cqup")}</button>
+      {#if item.status === 'active'}<button class="outline-action" on:click={() => appState.setDialog({ type: 'shareSet', itemId: item.id })}><ActionIcon name="arrows" size={17}/>{$translate("ui.change-ownership-shares-1x7cqup")}</button>{/if}
     </div>
     <div class="panel-body">
       {#if item.shareRows.length}
@@ -123,15 +128,26 @@
 </section>
 
 <style>
-  .action-grid button{display:inline-flex;align-items:center;justify-content:center;gap:8px}
-  .help-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .item-overview .panel-body{overflow:hidden}
+  .item-overview .detail-title{margin-bottom:16px}
+  .item-summary-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+  .item-summary-layout>*{min-width:0}
   .item-status-text{color:var(--muted);font-size:12px}
-  .item-core-facts{margin:0}
-  .valuation-detail{font-size:12px;color:var(--muted)}
-  .secondary-actions{align-self:start;min-width:0}
-  .secondary-actions .action-grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
-  .secondary-actions button{min-height:44px;white-space:normal}
-  .ownership-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .item-core-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .item-core-facts>div{display:grid;align-content:start;gap:3px;min-width:0}
+  .item-core-facts span,.item-core-facts small{font-size:12px;color:var(--muted)}
+  .item-core-facts strong{font-size:clamp(18px,2.7vw,28px);font-variant-numeric:tabular-nums;letter-spacing:-.035em;overflow-wrap:anywhere}
+  .valuation-detail{margin:0;display:grid;gap:7px;font-size:13px}
+  .valuation-detail>div{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:8px}
+  .valuation-detail dt{color:var(--muted)}
+  .valuation-detail dd{margin:0;min-width:0;overflow-wrap:anywhere}
+  .item-description{white-space:pre-wrap}
+  .secondary-actions{margin-top:20px;padding-top:12px;border-top:1px solid var(--border)}
+  .secondary-actions .action-grid{display:flex;flex-wrap:wrap;gap:8px}
+  .action-grid button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;white-space:normal;font-size:13px}
+  .item-end-action{background:transparent;color:var(--danger);border-color:var(--border)}
+  .help-heading,.ownership-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .ownership-header .outline-action{display:inline-flex;gap:8px;align-items:center}
-  .item-categories,.item-description{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+  @media(max-width:800px){.item-summary-layout{grid-template-columns:minmax(0,1fr);gap:18px}}
+  @media(max-width:420px){.secondary-actions .action-grid button{flex:1 1 130px}}
 </style>

@@ -69,7 +69,12 @@ test('item detail has one back control, prominent ownership and directly visible
   const item = source('ui-v3/ItemDetail.svelte');
   assert.ok(!item.includes('class="breadcrumb"'));
   assert.ok(item.includes('item-core-facts'));
-  assert.ok(item.includes('<div class="valuation-detail">'));
+  assert.ok(item.includes('<dl class="valuation-detail">'));
+  const hero=item.slice(0,item.indexOf('<section class="grid-2"'));
+  assert.ok(hero.includes('items.startValue') && hero.includes('items.currentValue') && hero.includes('items.minimumValue'));
+  assert.ok(hero.includes('<ItemValueCurve'));
+  assert.ok(!hero.includes('CompactNames') && !hero.includes('item.shareRows.length'));
+  assert.ok(hero.includes("item.status === 'active'"));
   assert.ok(item.includes('<div class="secondary-actions" role="group"'));
   assert.ok(item.includes('class="panel-header ownership-header"'));
   assert.ok(item.includes("type: 'shareSet', itemId: item.id"));

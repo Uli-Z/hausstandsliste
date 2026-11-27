@@ -88,6 +88,6 @@ test('A06: current UI uses consistent financial labels and no payment counts', (
   }
   const dashboard = source('ui-v3/App.svelte');
   assert.match(dashboard, /Ausgleichsvorschläge|app\.suggestions/);
-  assert.match(dashboard, /outstandingCents/);
+  assert.doesNotMatch(dashboard, /outstandingCents/); // Q59: only inventory value on dashboard.
   assert.doesNotMatch(dashboard, /Keine offenen Beträge/);
 });

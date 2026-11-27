@@ -1594,13 +1594,14 @@ async function overviewNamesAcceptance(browser,url) {
       assert.equal(await tile.locator('.name-group-label').count(),0);
       assert.equal(await tile.locator('.name-chip').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
       await tile.locator('.tile-open').click();
-      const detail=page.locator('.detail-hero .compact-names');
-      assert.match(await detail.innerText(),/Anna/);
-      assert.match(await detail.innerText(),/Ben/);
-      assert.match(await detail.innerText(),locale==='de-DE'?/Finanzierung/:/Funding/);
-      assert.equal(await detail.locator('.name-group-label').count(),2);
-      assert.equal(await detail.locator('.name-role').count(),0);
-      assert.equal(await detail.locator('.name-chip').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+      const detail=page.locator('.item-overview');
+      assert.equal(await detail.locator('.compact-names').count(),0);
+      assert.equal(await detail.locator('[data-item-start-value]').count(),1);
+      assert.equal(await detail.locator('[data-item-current-value]').count(),1);
+      assert.equal(await detail.locator('.value-curve svg').count(),1);
+      assert.equal(await detail.locator('.valuation-detail').count(),1);
+      assert.match(await page.locator('.ownership-header').locator('..').innerText(),/Ben/);
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
       assert.deepEqual(errors,[]);
     } finally {await context.close();}
   }
