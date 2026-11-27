@@ -1,4 +1,6 @@
 <script>
+  import { notifications } from '../src/lib/notifications.js';
+  const notifyError = message => notifications.notify(message, {kind:'error'});
   import { translate } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
     import HelpTip from '../src/components/HelpTip.svelte';
@@ -48,10 +50,10 @@
   let subModalData = {};
 
   function upsertChange(itemId, shares) {
-    if (!validShareMap(shares)) { alert($translate('forms.invalidShares')); return false; }
+    if (!validShareMap(shares)) { notifyError($translate('forms.invalidShares')); return false; }
     const clean = normShares(shares);
     if (shareTotal(clean) <= 0) {
-      alert($translate("ui.an-active-item-needs-at-least-one--na47gt"));
+      notifyError($translate("ui.an-active-item-needs-at-least-one--na47gt"));
       return false;
     }
     const baseItem = preview.base?.items.find(item => item.id === itemId);
@@ -80,7 +82,7 @@
     } else if (activeSubModal === 'special-remove') {
       const blocked = soleOwnedItems(preview.base, subModalData.sourceId);
       if (blocked.length) {
-        alert($translate('dialog.lastOwners', { items: blocked.map(item => item.name).join(', ') }));
+        notifyError($translate('dialog.lastOwners', { items: blocked.map(item => item.name).join(', ') }));
       }
       changes = buildRemovePersonChanges(preview.base, subModalData.sourceId);
     } else if (activeSubModal === 'special-add') {
