@@ -1403,7 +1403,7 @@ export const dictionaries = {
     "archive.balance": "Offener Ausgleichssaldo",
     "archive.prepare": "Anteile und Ausgleich klären",
     "archive.prepareHint": "Anteile und tatsächliche Ausgleiche können optional geklärt werden. Die Archivierung blendet die Person nur aus der aktiven Liste aus; vorhandene Anteile und Salden bleiben erhalten.",
-    "archive.ready": "Die Archivierung ändert nur die Sichtbarkeit. Eigentums- und Zahlungshistorie bleiben erhalten."
+    "archive.ready": "Die Archivierung ändert nur die Sichtbarkeit. Eigentums- und Zahlungshistorie bleiben erhalten.",
     "people.active": "Aktiv",
     "people.moved": "Archiviert",
     "people.inactive": "Nicht mehr dabei",
