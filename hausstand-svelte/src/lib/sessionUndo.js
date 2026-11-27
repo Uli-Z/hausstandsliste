@@ -1,11 +1,13 @@
 // Small, session-only edit history. File archives and credentials never enter it.
 // The archive always belongs to the current saved file, not an undo checkpoint.
+import { collectItemNumbers, applyItemNumbers } from './itemNumbers.js';
 const copy = value => structuredClone(value);
 const editData = project => {
   const value = copy(project);
   delete value.versionHistory;
   delete value.lastSavedAt;
   delete value.humanReadableSnapshot;
+  delete value.itemNumberRegistry; // Allocation never rewinds with business data.
   return value;
 };
 
@@ -14,7 +16,7 @@ const apply = (current, snapshot) => {
   for (const key of ['versionHistory', 'lastSavedAt', 'humanReadableSnapshot']) {
     if (key in current) restored[key] = copy(current[key]);
   }
-  return restored;
+  return applyItemNumbers(restored,collectItemNumbers([current,restored]));
 };
 
 export function createSessionUndo(limit = 50) {

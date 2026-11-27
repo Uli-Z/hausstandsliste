@@ -1,3 +1,4 @@
+import { nextItemNumber, applyItemNumbers } from './itemNumbers.js';
 import { uid, validMoney } from './util.js';
 export { validMoney } from './util.js';
 import { normShares } from './domain.js';
@@ -72,7 +73,11 @@ function purchase(project,payload,predecessor=null) {
       payments.push(payment);
     }
   }
-  project.items.push(item);
+  const registry=nextItemNumber(project,item.id);
+  item.number=registry.at(-1).number;
+  const numbered=applyItemNumbers({...project,items:[...project.items,item]},registry);
+  project.items=numbered.items;
+  project.itemNumberRegistry=numbered.itemNumberRegistry;
   project.events.push(event,...payments);
   if (draftId) project.drafts=(project.drafts||[]).filter(d=>d.id!==draftId);
   return {item,event,payments};
@@ -106,6 +111,7 @@ export function continueItem(project,{itemId,date,reason='',...payload}) {
   const ended=endItem(copy,{itemId,date,reason,statusAfter:'succeeded'}).event;
   const result=purchase(copy,{...payload,date},previous);
   project.items=copy.items;
+  project.itemNumberRegistry=copy.itemNumberRegistry;
   project.events=copy.events;
   return {...result,ended};
 }

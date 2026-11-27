@@ -6,6 +6,7 @@ import { requireProjectFile, emptyProject } from '../src/lib/domain.js';
 import { projectAt } from '../src/lib/projector.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 import { newestFirst } from '../src/lib/eventHistory.js';
+import { itemDisplayName } from '../src/lib/itemNames.js';
 import { getVersionEntries, createPortableSave, readPortableVersion, verifyPortableHistory } from '../src/lib/versionHistory.js';
 import { todayISO } from '../src/lib/util.js';
 import { validISODate, createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
@@ -216,7 +217,7 @@ const page = (rows,opts) => {
   return {total:filtered.length,offset,limit,rows:filtered.slice(offset,offset+limit)};
 };
 const cents = value => Math.round(value * 100);
-const itemRow = ({id,name,status,value,shares}) => ({id,name,status,valueCents:cents(value),shares});
+const itemRow = item => ({id:item.id,name:item.name,number:item.number,label:itemDisplayName(item),status:item.status,valueCents:cents(item.value),shares:item.shares});
 const personRow = ({id,name,active,totalValue}) => ({id,name,active,totalValueCents:cents(totalValue)});
 function find(rows,id) {
   const row = rows.find(r => r.id === id);
@@ -450,6 +451,7 @@ async function main(args) {
     process.stdout.write(JSON.stringify({responseVersion:1,command:key,...result})+'\n');return;
   }
   const {project:p,protection}=await load(opts['--input']);
+  await verifyArchive(p); // Number legacy identities before any mutation or projection.
   if (writeCommands.has(key)) {
     const result = await writeCommand(key,p,opts,protection);
     process.stdout.write(JSON.stringify({responseVersion:1,command:key,...result})+'\n');
@@ -470,7 +472,7 @@ async function main(args) {
     case 'people show': {
       const person = find(view.people,opts['--id']);
       data = {...personRow(person),holdings:person.holdings.map(h => ({
-        itemId:h.item.id, units:h.units, fraction:h.fraction, valueCents:cents(h.value)
+        itemId:h.item.id, itemNumber:h.item.number, itemLabel:itemDisplayName(h.item), units:h.units, fraction:h.fraction, valueCents:cents(h.value)
       })).sort((a,b)=>a.itemId < b.itemId ? -1 : a.itemId > b.itemId ? 1 : 0)}; break;
     }
     case 'items list': data = page(view.items.map(itemRow).sort(compareId),opts); break;

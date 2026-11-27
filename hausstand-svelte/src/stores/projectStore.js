@@ -1,4 +1,5 @@
 import { derived, get, writable } from 'svelte/store';
+import { collectItemNumbers, applyItemNumbers } from '../lib/itemNumbers.js';
 import { emptyProject, normalize } from '../lib/domain.js';
 import { clone, todayISO } from '../lib/util.js';
 import { createRedistribution, upsertDraft, removeDraft } from '../lib/draftMutations.js';
@@ -88,7 +89,7 @@ function createStore() {
       const savedArchiveEntries = (copy.project?.versionHistory?.entries || [])
         .filter(entry => (copy.savedHistoryIds || []).includes(entry.id));
       const saved = copy.savedProject
-        ? normalize({ ...copy.savedProject, ...(copy.savedHistoryIds?.length
+        ? normalize({ ...applyItemNumbers(copy.savedProject,collectItemNumbers([copy.project,copy.savedProject])), ...(copy.savedHistoryIds?.length
           ? { versionHistory: { format: 'portable-v1', entries: savedArchiveEntries } }
           : {}) })
         : copy.dirty ? null : normalize(copy.project);
@@ -221,7 +222,7 @@ function createStore() {
     restoreVersion: restored => update(s => {
       if (s.readOnly) return s;
       // Restoring is an editable draft, not an implicit file/server save.
-      const project = normalize(restored);
+      const project = normalize(applyItemNumbers(restored,collectItemNumbers([s.project,restored])));
       return persist(resetUndo({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
         activeDialog: null, route: { page: 'dashboard' }, asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false }));
     }),

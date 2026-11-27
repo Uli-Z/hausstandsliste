@@ -1,3 +1,4 @@
+import { applyItemNumbers, collectItemNumbers } from './itemNumbers.js';
 import { requireShareEventFormat } from './shareUnits.js';
 import { purchaseEventFieldsValid } from './purchaseFinancing.js';
 import { nowISO, todayISO } from './util.js';
@@ -27,7 +28,7 @@ export const normalize = raw => {
   p.events = Array.isArray(raw?.events) ? raw.events : [];
   p.drafts = Array.isArray(raw?.drafts) ? raw.drafts : [];
   p.currency = 'EUR';
-  return p;
+  return applyItemNumbers(p);
 };
 
 export const shareTotal = shares => Object.values(shares || {}).reduce((sum, value) => sum + (Number(value) > 0 ? Number(value) : 0), 0);
@@ -56,5 +57,6 @@ export const requireProjectFile = value => {
       (!successors.has(e.itemId) && !Object.hasOwn(e,'purchaseContributionsCents'))))) {
     throw new Error('Nicht unterstütztes Projektformat. Bitte eine aktuelle Hausstandsliste-Projektdatei öffnen.');
   }
+  collectItemNumbers([value]); // Reject conflicting explicit identities before import.
   return requireShareEventFormat(value);
 };

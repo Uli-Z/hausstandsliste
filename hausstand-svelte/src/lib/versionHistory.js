@@ -1,5 +1,6 @@
 // Portable project history. The current project stays readable at the JSON root;
 // only previously saved complete states are compressed into the trailing archive.
+import { collectItemNumbers, applyItemNumbers } from './itemNumbers.js';
 import { requireProjectFile } from './domain.js';
 
 const FORMAT = 'portable-v1';
@@ -113,6 +114,9 @@ async function archiveEntry(project, savedAt) {
 // A first save has no previously confirmed version to archive.
 export async function createPortableSave(project, previousSaved, savedAt = new Date().toISOString()) {
   const current = copy(project);
+  await verifyPortableHistory(current);
+  const merged=collectItemNumbers([previousSaved,current]);
+  Object.assign(current,applyItemNumbers(current,merged));
   const entries = [...getVersionEntries(current)];
   const baseline = previousSaved ? getVersionEntries(previousSaved) : [];
   // Refuse to save if an existing in-file archive has been truncated.
@@ -121,13 +125,13 @@ export async function createPortableSave(project, previousSaved, savedAt = new D
   }
   const businessChanged = previousSaved && hasProjectChanges(current, previousSaved);
   const archiveChanged = JSON.stringify(entries) !== JSON.stringify(baseline);
-  if (previousSaved && !businessChanged && !archiveChanged) return copy(previousSaved);
+  if (previousSaved && !businessChanged && !archiveChanged) return applyItemNumbers(copy(previousSaved),merged);
   if (businessChanged) entries.push(await archiveEntry(previousSaved, previousSaved.lastSavedAt));
   const { versionHistory: _ignored, ...root } = current;
   return { ...root, lastSavedAt: savedAt, versionHistory: { format: FORMAT, entries } };
 }
 
-export async function readPortableVersion(project, versionId) {
+async function readRawPortableVersion(project, versionId) {
   const entry = getVersionEntries(project).find(v => v.id === versionId);
   if (!entry) throw new Error('Diese Projektversion wurde nicht gefunden.');
   if (!/^[0-9a-f]{64}$/.test(entry.sha256 || '')) throw new Error('Ungültige Versionsprüfsumme.');
@@ -143,15 +147,26 @@ export async function readPortableVersion(project, versionId) {
   return requireProjectFile({ ...snapshot, versionHistory: copy(project.versionHistory), lastSavedAt: project.lastSavedAt });
 }
 
+// Restore business data, not the current identity allocation state.
+export async function readPortableVersion(project, versionId) {
+  const snapshot=await readRawPortableVersion(project,versionId);
+  const registry=collectItemNumbers([project,snapshot]);
+  return applyItemNumbers(snapshot,registry);
+}
+
 // Check every embedded snapshot before accepting a file. Do not silently
 // carry incompatible historical snapshots into the new storage format.
 export async function verifyPortableHistory(project, validate = () => {}) {
-  const ids=new Set();
+  const ids=new Set(), snapshots=[];
   for(const entry of getVersionEntries(project)) {
     if(typeof entry?.id !== 'string' || !entry.id || ids.has(entry.id))
       throw new Error('Unbekanntes oder beschädigtes Versionsarchiv. Die Datei wurde nicht verändert.');
     ids.add(entry.id);
-    const snapshot=await readPortableVersion(project,entry.id);
-    await validate(snapshot);
+    snapshots.push(await readRawPortableVersion(project,entry.id));
   }
+  // Preserve existing assigned identities, then assign legacy records in
+  // the order of first saved appearance. Keep compressed bytes and hashes.
+  const registry=collectItemNumbers([...snapshots,project]);
+  for (const snapshot of snapshots) await validate(applyItemNumbers(snapshot,registry));
+  Object.assign(project,applyItemNumbers(project,registry));
 }
