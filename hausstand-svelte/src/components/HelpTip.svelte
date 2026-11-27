@@ -6,6 +6,7 @@
   import { tick } from 'svelte';
 
   export let label = 'Help';
+  export let triggerText = '';
 
   const popupId = `help-tip-${++nextHelpId}`;
   let open = false;
@@ -97,14 +98,14 @@
   <button
     bind:this={trigger}
     type="button"
-    class="help-trigger"
+    class="help-trigger" class:text-trigger={!!triggerText}
     aria-label={label}
     aria-expanded={open}
     aria-controls={open ? popupId : undefined}
     aria-describedby={open ? popupId : undefined}
     on:click={toggle}
     on:keydown={onKeydown}
-  >?</button>
+  >{triggerText || "?"}</button>
   {#if open}
     <span
       bind:this={popup}
@@ -134,6 +135,8 @@
   }
   .help-trigger:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   @media (pointer:coarse){.help-trigger{width:44px;height:44px;min-width:44px;min-height:44px}}
+  .help-trigger.text-trigger{width:auto;min-width:0;max-width:100%;height:auto;min-height:36px;padding:4px 5px;border:0;border-radius:4px;text-decoration:underline;font-size:12px;font-weight:600;line-height:1.4;color:var(--accent);white-space:normal}
+  @media(pointer:coarse){.help-trigger.text-trigger{min-height:44px}}
   .help-popup{
     position:fixed;z-index:150;display:block;box-sizing:border-box;max-height:min(270px,48vh);overflow-y:auto;
     border:1px solid var(--border);border-radius:12px;

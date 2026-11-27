@@ -12,7 +12,6 @@
   import OwnershipHistorySummary from './OwnershipHistorySummary.svelte';
   import { projectBeforeEvent, shareDeltasForChange } from '../src/lib/projector.js';
   import { FINANCIAL_EVENT_NOTE, ITEM_FUNDING_NOTE } from '../src/lib/financialLabels.js';
-  import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   import { iconForTimelineEvent, interactionForTimelineEvent } from '../src/lib/timelineActions.js';
   export let project;
@@ -198,7 +197,7 @@
           <div class="event-summary">
             {#if event.type === 'redistribution-executed' || event.type === 'shares-set'}
                 <OwnershipHistorySummary {event} {project} {itemId} {openItem} {openPerson}/>
-                <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
+                <div class="context-note">{$translate(event.financialMode === "derived" ? "help.claimsCalculated" : "help.noNewClaims")}</div>
               {:else if event.type === 'person-added'}
               <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
             {:else if event.type === 'person-deactivated'}
@@ -206,7 +205,7 @@
             {:else if event.type === 'person-reactivated'}
               <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || $translate("ui.return-lfxhdv")}</span>
             {:else if event.type === 'item-added'}
-              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · {localizeGermanText('Startwert')} {money(event.initialValue)}</span><HelpTip label={$translate("ui.financing-of-this-purchase-1s2bh1x")}>{localizeGermanText(ITEM_FUNDING_NOTE(event))}</HelpTip>
+              <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · {localizeGermanText('Startwert')} {money(event.initialValue)}</span>
             {:else if event.type === 'item-ended'}
               <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || localizeGermanText('Beendet')}</span>
             {:else}
@@ -217,6 +216,7 @@
           {#if interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' && expandedEventId === event.id}
             <div class="event-readonly-details" role="region" aria-label={$translate('timeline.viewDetails')}>
               <p>{summary(event)}</p>
+              {#if event.type === "item-added"}<p>{localizeGermanText(ITEM_FUNDING_NOTE(event))}</p>{/if}
               {#if event.note}<p>{event.note}</p>{/if}
               <p class="muted">{$translate($appState.readOnly ? 'errors.readOnly' : 'timeline.viewOnly')}</p>
             </div>
@@ -300,7 +300,6 @@
     color: var(--text);
     line-height: 1.3;
   }
-  .event-summary :global(.help-wrap),
   .event-summary .entity-link {
     position: relative;
     z-index: 2;

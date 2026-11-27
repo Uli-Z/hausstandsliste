@@ -45,13 +45,14 @@
   <div class="panel-body settlement-content">
 
     <section class="settlement-section">
-      <div class="help-heading"><h3>{$translate("ui.how-to-settle-balances-1hpc1r")}</h3><HelpTip label={$translate("ui.how-do-payment-suggestions-work-1erz08t")}>{$translate("ui.the-suggestions-balance-everyone-s--c0cs6u")}</HelpTip></div>
+      <div class="help-heading"><h3>{$translate("ui.how-to-settle-balances-1hpc1r")}</h3></div>
       {#if suggestions.length}
+        <p class="section-description">{$translate("help.suggestionsFull")}</p>
         <div class="transfer-list">
           {#each suggestions as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
             <div class="transfer-row action-card">
               <div class="transfer-people">
-                <strong>{personName(transfer.fromPersonId)} zahlt an {personName(transfer.toPersonId)}</strong>
+                <strong>{$translate("help.paymentRoute",{from:personName(transfer.fromPersonId),to:personName(transfer.toPersonId)})}</strong>
               </div>
               <strong class="transfer-amount">{money(transfer.amountCents / 100)}</strong>
               <button class="primary transfer-action card-primary" type="button" on:click={() => addSettlement(transfer)}><ActionIcon name="wallet" size={17}/>{$translate("app.settle")}</button>
@@ -64,7 +65,7 @@
     </section>
 
     <section class="settlement-section">
-      <div class="help-heading"><h3>{$translate("ui.personal-balances-6tb5zl")}</h3><HelpTip label={$translate("ui.what-does-a-personal-balance-mean-1qhrnx3")}>{$translate("ui.someone-who-contributed-more-value--1s288g4")}</HelpTip></div>
+      <div class="help-heading"><h3>{$translate("ui.personal-balances-6tb5zl")}</h3><HelpTip label={$translate("ui.what-does-a-personal-balance-mean-1qhrnx3")} triggerText={$translate("help.calculation")}>{$translate("help.balanceExample")}</HelpTip></div>
       {#if balances.length}
         <div class="person-balance-list">
           {#each balances as balance (balance.id)}

@@ -21,7 +21,6 @@
   import ExecutedRedistributionEditDialog from './ExecutedRedistributionEditDialog.svelte';
   import ShareEditor from './ShareEditor.svelte';
   import SettlementDialog from '../src/components/SettlementDialog.svelte';
-  import HelpTip from '../src/components/HelpTip.svelte';
   import { isEnterForSubmit, rebaseUneditedMap } from './form-behavior.js';
   export let dialog;
   export let project;
@@ -556,9 +555,7 @@
               <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
             </select>
           </label>
-          <div class="financial-mode-help">
-            <HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip>
-          </div>
+          <p class="context-note">{$translate("help.shareChange")}</p>
         {:else if dialog.type === 'itemEnd'}
           <label>{$translate("ui.reason-1rj1mxt")} <input bind:value={reason} placeholder={$translate("ui.broken-sold-taken-over-privately-29sy7l")}></label>
         {:else if dialog.type === 'options'}

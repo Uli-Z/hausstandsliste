@@ -4,8 +4,7 @@
   import { translate, locale, formatDate, localizeGermanText } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { replaceEditableEvent, removeEvent, editableEventCopy, redateEditableEvent } from '../src/lib/eventMutations.js';
-  import { REDISTRIBUTION_SUGGESTION_TITLE, REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
-  import HelpTip from '../src/components/HelpTip.svelte';
+  import { REDISTRIBUTION_SUGGESTION_NOTICE } from '../src/lib/financialLabels.js';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { redistributionPreview, buildRedistributionItemRows, sharesEqual } from '../src/lib/redistribution.js';
   import ShareEditor from './ShareEditor.svelte';
@@ -141,7 +140,7 @@
                   <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
                 </select>
               </label>
-              <div class="financial-mode-help"><HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip></div>
+              <p class="context-note">{$translate("help.shareChange")}</p>
             </div>
           </section>
 
@@ -180,7 +179,8 @@
                 <div class="empty-small">{$translate("ui.no-transfer-of-value-awxg5c")}</div>
               {/if}
 
-              <div class="financial-help-heading"><strong>{$translate(edited.financialMode === 'derived' ? 'report.suggestions' : 'redistribution.withoutClaims')}</strong><HelpTip label={$translate("ui.what-is-the-financial-effect-of-thi-g85db9")}>{localizeGermanText(REDISTRIBUTION_SUGGESTION_TITLE, $locale)} {localizeGermanText(REDISTRIBUTION_SUGGESTION_NOTICE, $locale)}</HelpTip></div>
+              <div class="financial-help-heading"><strong>{$translate(edited.financialMode === 'derived' ? 'report.suggestions' : 'redistribution.withoutClaims')}</strong></div>
+              <p class="context-note">{localizeGermanText(REDISTRIBUTION_SUGGESTION_NOTICE, $locale)}</p>
               {#if preview.payments.length}
                 <table class="tight">
                   <tbody>

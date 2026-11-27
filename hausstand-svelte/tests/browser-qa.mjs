@@ -767,7 +767,7 @@ async function settlementEndToEnd(browser, url) {
     if (suggested) {
       const proposal = page.locator('.transfer-row').filter({ hasText: 'Ben zahlt an Anna' });
       assert.equal(await proposal.count(), 1);
-      await proposal.getByRole('button', { name: 'Ausgleichen' }).click();
+      await proposal.getByRole('button', { name: 'Ausgleich erfassen' }).click();
     } else {
       await page.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
     }
@@ -835,7 +835,7 @@ async function settlementEndToEnd(browser, url) {
           await page.getByRole('button', { name: 'Zahlung erfassen', exact: true }).click();
         } else {
           await page.locator('.transfer-row').filter({ hasText: 'Ben zahlt an Anna' })
-            .getByRole('button', { name: 'Ausgleichen' }).click();
+            .getByRole('button', { name: 'Ausgleich erfassen' }).click();
         }
         const payment = page.getByRole('dialog', { name: 'Ausgleich dokumentieren' });
         assert.equal(await payment.getByLabel('Zahlungsdatum').inputValue(), selectedDate,
@@ -1599,7 +1599,10 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
 
       await section('money');
       await noOverflow('settlement');
+      assert.equal(await page.locator('.settlement-section').first().locator('.help-trigger').count(),0);
+      assert.match(await page.locator('.settlement-section').first().locator('.section-description').innerText(),/offene Gemeinschaftssalden/);
       const helpButton = page.locator('.ledger-v3 .help-trigger').first();
+      assert.equal(await helpButton.innerText(),'Wie berechnet?');
       await helpButton.click();
       const help = page.locator('.help-popup');
       await help.waitFor();
@@ -1607,13 +1610,13 @@ async function responsiveUiAcceptance(browser, url, checks = [320, 375, 390, 768
       assert.match(await help.innerText(), /200\s*€/);
       assert.match(await help.innerText(), /100\s*€/);
       assert.match(await help.innerText(), /Ben und Clara/);
-      assert.match(await help.innerText(), /nichts überwiesen/);
+      assert.match(await help.innerText(), /140\s*€/);
       const popup = await help.boundingBox();
       assert.ok(popup.x >= 0 && popup.x + popup.width <= width + 2,
         'Q04 ' + width + 'px help popup clipped horizontally: ' + JSON.stringify(popup));
       // Make the tooltip genuinely scrollable at every viewport width and
       // verify keyboard access to the entire text, not merely to the trigger.
-      await help.evaluate(el=>{el.style.maxHeight='60px';});
+      await help.evaluate(el=>{el.style.maxHeight='40px';});
       assert.ok(await help.evaluate(el=>el.scrollHeight>el.clientHeight));
       await helpButton.focus();
       const pageScroll=await page.evaluate(()=>window.scrollY);

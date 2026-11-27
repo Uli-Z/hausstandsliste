@@ -11,7 +11,6 @@
   import { recordedContributions } from '../src/lib/purchaseFinancing.js';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
   import ShareEditor from './ShareEditor.svelte';
-  import HelpTip from '../src/components/HelpTip.svelte';
   import { isEnterForSubmit } from './form-behavior.js';
 
   export let dialog;
@@ -139,7 +138,7 @@
                   <option value="none">{$translate("ui.no-gift-or-correction-dim67p")}</option>
                 </select>
               </label>
-              <HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip>
+              <p class="context-note">{$translate("help.shareChange")}</p>
             </section>
           {/if}
         </div>

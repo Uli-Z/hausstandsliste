@@ -1,7 +1,6 @@
 <script>
   import { translate, getLocale, serverErrorMessage, localizeDiagnostic } from '../src/lib/i18n.js';
   import { onMount } from 'svelte';
-  import HelpTip from '../src/components/HelpTip.svelte';
   // Explizite Build-Kapazität: HTML-Builds besitzen keine Serverablage.
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   import { appState } from '../src/stores/projectStore.js';
@@ -343,7 +342,7 @@
   </section>
   {#if SERVER_MODE}
     <section class="ux-panel storage-online">
-      <div class="storage-heading"><h2>{$translate('storage.collaborate')}</h2><HelpTip label={$translate("ui.how-do-online-projects-work-25z9zy")}>{$translate("ui.open-and-edit-shared-project-files-fzled")}</HelpTip></div>
+      <div class="storage-heading"><h2>{$translate('storage.collaborate')}</h2></div>
       <p class="storage-explanation">{$translate('storage.onlineExplanation')}</p>
       {#if openedId}
         <div class="storage-online-current">

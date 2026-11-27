@@ -4,7 +4,6 @@
   import { editEvent, removeEvent } from '../lib/eventMutations.js';
   import { createClaimSettlementEvent, validISODate } from '../lib/claimSettlement.js';
   import { money } from '../lib/domain.js';
-  import HelpTip from './HelpTip.svelte';
   import { todayISO, dateDE } from '../lib/util.js';
 
   export let dialog;
@@ -86,7 +85,7 @@
 <div class="modal-backdrop">
   <div class="modal" role="dialog" aria-modal="true" aria-label={editing ? $translate("ui.edit-settlement-ok356z") : $translate("ui.record-settlement-1vfcczq")} style="max-width:560px" on:keydown={event => { if (event.key === 'Escape') close(); }}>
     <div class="modal-header">
-      <div class="dialog-title"><h3>{editing ? $translate("ui.edit-settlement-ok356z") : kind === 'paid' ? $translate("ui.record-payment-10dyeok") : $translate("ui.record-settlement-1vfcczq")}</h3><HelpTip label={$translate("ui.what-happens-when-recording-this-ni3kz3")}>{kind === 'paid' ? $translate("ui.record-a-payment-that-has-already-h-fwt66e") : $translate("ui.record-a-non-cash-settlement-withou-1obvpjx")} {$translate("ui.ownership-shares-do-not-change-the--16v4sx")}</HelpTip></div>
+      <div class="dialog-title"><h3>{editing ? $translate("ui.edit-settlement-ok356z") : kind === 'paid' ? $translate("ui.record-payment-10dyeok") : $translate("ui.record-settlement-1vfcczq")}</h3></div>
       <button class="ghost" type="button" aria-label={$translate("ui.close-1qnddid")} on:click={close}>×</button>
     </div>
     <form class="settlement-form" on:submit|preventDefault={save}>
@@ -134,6 +133,7 @@
         </details>
         <div class="settlement-confirmation">
           <strong>{kind === 'paid' ? $translate("ui.has-this-payment-already-been-made-120a38k") : $translate("ui.has-this-settlement-been-agreed-and-uy5i03")}</strong>
+          <p>{ $translate(kind === "paid" ? "help.confirmPaid" : "help.confirmNonCash") }</p>
         </div>
         {#if Number.isSafeInteger(cents) && cents > 0 && payer !== recipient && payer && recipient}
           <p class="settlement-effect">Saldo: {people.find(p => p.id === payer)?.name} <strong>+{money(cents / 100)}</strong> · {people.find(p => p.id === recipient)?.name} <strong>−{money(cents / 100)}</strong></p>

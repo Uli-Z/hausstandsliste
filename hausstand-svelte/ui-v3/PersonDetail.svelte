@@ -9,7 +9,6 @@
   import { dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
   import BalanceBreakdown from '../src/components/BalanceBreakdown.svelte';
-  import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   export let person;
   export let projection;
@@ -92,8 +91,9 @@
 
 {#if transfersForPerson.length}
   <section class="panel" style="margin-top:16px">
-    <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.settlement-options-1u5xuy7")}</h2><HelpTip label={$translate("ui.what-do-these-settlement-options-me-xd2ddh")}>{$translate("ui.these-are-potential-payment-routes--1gkcqar")}</HelpTip></div></div>
+    <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.settlement-options-1u5xuy7")}</h2></div></div>
     <div class="panel-body stack">
+      <p class="context-note">{$translate("help.suggestionsFull")}</p>
       {#each transfersForPerson as transfer, index (transfer.fromPersonId + ':' + transfer.toPersonId + ':' + index)}
         <div class="split action-card">
           <span>{nameOf(transfer.fromPersonId)} → {nameOf(transfer.toPersonId)} · <strong>{money(transfer.amountCents / 100)}</strong></span>
@@ -104,7 +104,7 @@
   </section>
 {/if}
 <section class="panel" style="margin-top:16px">
-  <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.balance-breakdown-kyjlab")}</h2><HelpTip label={$translate("ui.how-is-this-balance-calculated-n09gh")}>{$translate("ui.the-balance-comes-from-historical-p-1kuufew")}</HelpTip></div></div>
+  <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.balance-breakdown-kyjlab")}</h2></div></div>
   <div class="panel-body">
     <BalanceBreakdown detail={balanceDetail} {balanceCents}/>
   </div>

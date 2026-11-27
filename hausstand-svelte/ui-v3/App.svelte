@@ -18,7 +18,6 @@
   import InventoryView from './InventoryView.svelte';
   import PeopleView from './PeopleView.svelte';
   import LedgerView from './LedgerView.svelte';
-  import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   import StorageView from './StorageView.svelte';
   import ServerSession from './ServerSession.svelte';
@@ -352,12 +351,13 @@
             </div>
           </section>
           <section class="ux-panel financial-overview">
-            <div class="section-header"><div class="help-heading"><h2>{$translate("app.suggestions")}</h2><HelpTip label={$translate("ui.how-are-settlement-suggestions-cal-6ze5l4")}>{$translate("ui.who-should-receive-a-settlement-is-5lw302")}</HelpTip></div><button class="text-action" on:click={() => navigate('money')}>{$translate("app.viewAll")}</button></div>
+            <div class="section-header"><div class="help-heading"><h2>{$translate("app.suggestions")}</h2></div><button class="text-action" on:click={() => navigate('money')}>{$translate("app.viewAll")}</button></div>
             {#if balances.length}
+              <p class="context-note">{$translate("help.suggestionsShort")}</p>
               <div class="simple-debts">
                 {#each balances.slice(0,5) as b}
                   <div class="debt-row action-card">
-                  <span>{personName(b.fromPersonId)} an {personName(b.toPersonId)}</span>
+                  <span>{$translate("help.paymentRoute",{from:personName(b.fromPersonId),to:personName(b.toPersonId)})}</span>
                   <strong>{money(b.amountCents / 100)}</strong>
                   <button class="debt-action card-primary" type="button" on:click={() => appState.setDialog({type:'settlementAdd',payerPersonId:b.fromPersonId,recipientPersonId:b.toPersonId,amountCents:b.amountCents})}><ActionIcon name="wallet" size={16}/>{$translate("app.settle")}</button>
                 </div>
@@ -400,7 +400,7 @@
         <div class="page-heading"><div><h1>{$translate("nav.people")}</h1></div><button class="solid-action" on:click={() => appState.setDialog({type:'personAdd'})}>＋ {$translate("app.personAdd")}</button></div>
         <PeopleView people={$projection.people} ledger={$ledger}/>
       {:else if activeSection === 'money'}
-        <div class="page-heading"><div class="help-heading"><h1>{$translate("nav.money")}</h1><HelpTip label={$translate("ui.what-does-value-settlement-mean-9p85pk")}>{$translate("ui.when-people-finance-items-or-acquir-mc1vof")}</HelpTip></div></div>
+        <div class="page-heading"><div class="help-heading"><h1>{$translate("nav.money")}</h1></div></div>
         <LedgerView project={$appState.project} data={$ledger} asOfDate={$appState.asOfDate}/>
       {:else if activeSection === 'activity'}
         <div class="page-heading"><div><h1>{$translate("nav.activity")}</h1></div></div>
@@ -437,7 +437,7 @@
         <section class="ux-panel setting-panel settings-advanced" aria-label={$translate('settings.advanced')}>
           <div class="settings-advanced-body">
             <section class="setting-advanced-block">
-              <div class="section-header"><div class="help-heading"><h2>{$translate("app.inspect")}</h2><HelpTip label={$translate("ui.what-does-the-technical-view-show-fofuc8")}>{$translate("ui.the-technical-view-shows-the-compl-xkqom1")}</HelpTip></div></div>
+              <div class="section-header"><div class="help-heading"><h2>{$translate("app.inspect")}</h2></div></div>
               <button class="outline-action" aria-expanded={showJson} on:click={() => showJson = !showJson}>{showJson ? $translate('app.technicalClose') : $translate('app.technicalOpen')}</button>
               {#if showJson}<pre class="json-preview">{JSON.stringify(exportProject($appState.project, $appState.asOfDate), null, 2)}</pre>{/if}
             </section>

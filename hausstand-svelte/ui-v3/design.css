@@ -604,3 +604,6 @@ tr.clickable-row:hover td{background:#eef7f8}
   .metric-grid .metric{padding:10px 12px}
   .metric-grid .metric-names{grid-column:1/-1}
 }
+
+/* Q46: essential, short context is visible without a help icon. */
+.context-note{margin:0;color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}

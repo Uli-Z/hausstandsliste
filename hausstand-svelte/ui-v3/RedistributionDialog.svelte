@@ -3,7 +3,6 @@
   const notifyError = message => notifications.notify(message, {kind:'error'});
   import { translate } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
-    import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   import { money, normShares, shareTotal } from '../src/lib/domain.js';
   import { 
@@ -166,8 +165,8 @@
         <section class="redistribution-preview">
           <div class="help-heading">
             <strong>{$translate("ui.effect-of-the-change-13xavst")}</strong>
-            <HelpTip label={$translate("ui.what-does-paid-ownership-mean")}>{$translate("ui.paid-ownership-explained")}</HelpTip>
           </div>
+          <p class="context-note">{$translate("help.shareChange")}</p>
           {#if redistribution?.changes?.length}
             {#if preview.rows.length}
               <div class="muted">{$translate("ui.change-in-ownership-value-132omm0")}</div>

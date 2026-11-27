@@ -11,7 +11,6 @@
   import { purchaseBreakdown } from '../src/lib/ledger.js';
   import PurchaseBreakdown from './PurchaseBreakdown.svelte';
   import Timeline from './Timeline.svelte';
-  import HelpTip from '../src/components/HelpTip.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   export let item;
   $: itemClaims = ($ledger.claims || []).filter(claim => claim.itemId === item.id);
@@ -89,7 +88,7 @@
 </section>
 
 <section class="panel" style="margin-top:16px">
-  <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.financing-amp-settlement-gbf737")}</h2><HelpTip label={$translate("ui.how-are-these-amounts-calculated-1c65kpc")}>{$translate("ui.this-shows-who-originally-financed--1psxqs5")}</HelpTip></div></div>
+  <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.financing-amp-settlement-gbf737")}</h2></div></div>
   <div class="panel-body stack">
     {#each fundingEvents as event (event.id)}
       <div class="stack">

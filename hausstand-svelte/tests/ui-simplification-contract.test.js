@@ -173,3 +173,22 @@ test('Q09/Q25: standalone build finance checks accept compound class attributes,
   assert.ok(classes.has('action-card'));
   assert.ok(!classes.has('transfer'));
 });
+
+
+test('Q46: concise settlement context is visible, calculation help is descriptive', () => {
+  const app=source('ui-v3/App.svelte'), ledger=source('ui-v3/LedgerView.svelte');
+  assert.ok(app.includes('help.suggestionsShort'));
+  assert.ok(ledger.includes('help.suggestionsFull'));
+  assert.ok(ledger.includes('triggerText={$translate("help.calculation")}'));
+  for(const file of ['App','PersonDetail','ItemDetail','Timeline','DialogRouter','EventEditDialog','RedistributionDialog','ExecutedRedistributionEditDialog','StorageView']){
+    assert.ok(!source('ui-v3/'+file+'.svelte').includes('<HelpTip'),file);
+  }
+  const dialog=source('src/components/SettlementDialog.svelte');
+  assert.ok(dialog.includes('help.confirmPaid') && dialog.includes('help.confirmNonCash'));
+  assert.ok(!dialog.includes('<HelpTip'));
+  assert.ok(source('ui-v3/Timeline.svelte').includes('help.noNewClaims'));
+  const language=source('src/lib/i18n.js');
+  for(const key of ['suggestionsShort','suggestionsFull','calculation','balanceExample','shareChange','confirmPaid','confirmNonCash']){
+    assert.equal(language.split('"help.'+key+'"').length-1,2,key);
+  }
+});
