@@ -102,3 +102,6 @@ try {
   server.kill();
   await rm(root, { recursive: true, force: true });
 }
+
+
+await import('./smoke-mail.mjs');
