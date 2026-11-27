@@ -5,6 +5,7 @@
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
   import { appState, projection, ledger } from '../src/stores/projectStore.js';
   import { loadWorkingCopy, exportProject } from '../src/lib/persistence.js';
+  import { connectRouteHistory, routeSection } from '../src/lib/navigation.js';
   import { historyShortcut } from '../src/lib/sessionUndo.js';
   import { sessionChangeText } from '../src/lib/sessionLog.js';
   import SessionHistoryDialog from './SessionHistoryDialog.svelte';
@@ -38,7 +39,17 @@
     { id: 'activity', icon: 'list' }
   ];
   let localReady = false;
-  let activeSection = 'overview';
+  let mounted = false;
+  let disconnectRouteHistory;
+  function syncRouteConnection(ready) {
+    if(ready && !disconnectRouteHistory) disconnectRouteHistory=connectRouteHistory(window,appState,()=>{
+      mobileMoreOpen=false;
+      window.scrollTo({top:0,behavior:'instant'});
+    });
+    else if(!ready && disconnectRouteHistory) { disconnectRouteHistory(); disconnectRouteHistory=undefined; }
+  }
+  $: syncRouteConnection(mounted && (SERVER_MODE ? serverAuthenticated : localReady));
+  $: activeSection = routeSection(route);
   let showJson = false;
   let resetOpen = false;
   let resetTrigger;
@@ -128,6 +139,7 @@
   }
 
   onMount(() => {
+    mounted=true;
     const stop = locale.subscribe(language => {
       document.documentElement.lang = language;
       document.title = 'Hausstandsliste – Shared Ownership Tracker';
@@ -157,6 +169,7 @@
     document.addEventListener('visibilitychange', refreshDay);
     refreshDay();
     return () => {
+      syncRouteConnection(false);
       stop();
       window.clearInterval(clock);
       window.removeEventListener('focus', refreshDay);
@@ -185,12 +198,10 @@
   function navigate(id) {
     appState.dismissDatePicker();
     mobileMoreOpen = false;
-    activeSection = id;
-    if ($appState.route.page !== 'dashboard') appState.setRoute({ page: 'dashboard' });
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    appState.setRoute({page:'dashboard',section:id});
   }
   function goToDetailReturn() {
-    appState.setRoute({ page: 'dashboard' });
+    appState.setRoute({ page: 'dashboard', section:activeSection });
   }
   function warnUnsavedBeforeLeaving(event) {
     if (!$appState.dirty) return;
@@ -379,10 +390,10 @@
       {#key $locale}
       {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">{$translate("ui.the-browser-could-not-cache-the-wo-1u1cj1a")}</p>{/if}
       {#if route.page === 'person' && person}
-        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← {$translate('app.backTo')} {$translate(activeSection === 'people' ? 'nav.people' : 'nav.overview')}</button></div>
+        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← {$translate('app.backTo')} {$translate('nav.'+activeSection)}</button></div>
         <PersonDetail {person} projection={$projection} asOfDate={$appState.asOfDate} ledger={$ledger} />
       {:else if route.page === 'item' && item}
-        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← {$translate('app.backTo')} {$translate(activeSection === 'items' ? 'nav.items' : 'nav.overview')}</button></div>
+        <div class="details-top"><button class="back-link" on:click={goToDetailReturn}>← {$translate('app.backTo')} {$translate('nav.'+activeSection)}</button></div>
         <ItemDetail {item} />
       {:else if route.page !== 'dashboard'}
         <div class="blank-card"><p>{$translate("ui.this-detail-view-could-not-be-foun-d4faaj")}</p><button on:click={() => navigate('overview')}>{$translate("ui.back-to-overview-h1kkqo")}</button></div>

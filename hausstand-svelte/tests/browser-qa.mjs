@@ -227,6 +227,46 @@ async function paymentSessionAcceptance(browser,url) {
     await page.keyboard.press('Escape');
   } finally {await context.close();}
 }
+// Q64: navigation via URL and native history is independent of session edits.
+async function routeAcceptance(browser,url) {
+  const context=await browser.newContext({locale:'de-DE',viewport:{width:1280,height:812}});
+  try{
+    const page=await context.newPage();
+    await bootFixture(page,url);
+    await page.locator('.household-rename').click();
+    const input=page.getByRole('dialog').locator('input');
+    await input.fill('Q64 unsaved');await input.press('Enter');
+    await page.getByRole('dialog').waitFor({state:'hidden'});
+    await page.locator('.time-travel-toggle').click();
+    await page.locator('#state-date').fill('2025-01-03');
+    await page.locator('.time-travel-close').click();
+    const before=await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
+    const undoTitle=await page.locator('.session-history-actions button').first().getAttribute('title');
+    await page.locator('.sidebar button').filter({hasText:'Gegenstände'}).first().click();
+    await page.waitForURL(u=>u.hash==='#/items');
+    await page.locator('.sidebar button').filter({hasText:'Personen'}).first().click();
+    await page.waitForURL(u=>u.hash==='#/people');
+    await page.goBack();await page.waitForURL(u=>u.hash==='#/items');
+    await page.goBack();await page.waitForURL(u=>u.hash==='#/overview');
+    await page.locator('[data-overview-item="fridge"]').click();
+    await page.waitForURL(u=>u.hash==='#/items/fridge');
+    await page.goBack();await page.waitForURL(u=>u.hash==='#/overview');
+    await page.goForward();await page.waitForURL(u=>u.hash==='#/items/fridge');
+    assert.deepEqual(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key),before);
+    assert.equal(await page.locator('.session-history-actions button').first().getAttribute('title'),undoTitle);
+    await page.locator('.time-travel-toggle').click();
+    assert.equal(await page.locator('#state-date').inputValue(),'2025-01-03');
+    await page.locator('.time-travel-close').click();
+    await page.evaluate(()=>{location.hash='#/people/anna';});
+    await page.waitForURL(u=>u.hash==='#/people/anna');
+    await page.locator('.details-top').waitFor();
+    // Reload resets session Undo and viewing date by existing design, but not URL.
+    await page.reload();await page.locator('.details-top').waitFor();
+    assert.equal(new URL(page.url()).hash,'#/people/anna');
+    await page.evaluate(()=>{location.hash='#/items/unknown';});
+    await page.waitForURL(u=>u.hash==='#/items');
+  }finally{await context.close();}
+}
 // Q32: exercise intermediate values and DOM identity, not just the final submit.
 async function itemEntryAcceptance(browser, url, engine) {
   for (const [width, locale] of [[320,'de-DE'], [375,'de-DE'], [390,'en-GB'], [1280,'en-GB']]) {
@@ -2152,6 +2192,11 @@ async function q37ReadOnlyAcceptance(browser) {
     };
     const editor = await login('de-DE',1280);
     const reader = await login('en-GB',375);
+    // Q64: the authenticated PHP reader can traverse details without checkout.
+    await reader.locator('[data-overview-person="anna"]').click();
+    await reader.waitForURL(u=>u.hash==='#/people/anna');
+    await reader.goBack(); await reader.waitForURL(u=>u.hash==='#/overview');
+    await reader.locator('.overview-directory-grid').waitFor();
     const rejected = async (page,control,expected,keyboard=false) => {
       if (keyboard) await control.press('Enter'); else await control.click();
       const toast = page.locator('.notification[data-kind="error"]').filter({hasText:expected});
@@ -2420,6 +2465,7 @@ try {
   await acceptance('Chromium Q50 destructive local reset', () => resetProjectAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q48 session history', () => sessionLogAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q65 individual payment history', () => paymentSessionAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q64 URL navigation', () => routeAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q47 household rename', () => householdRenameAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium Q32/Q33 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));

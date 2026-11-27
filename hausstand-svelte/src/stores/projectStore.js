@@ -14,6 +14,7 @@ import { describeSessionChange } from '../lib/sessionLog.js';
 import { projectMutationProblem } from '../lib/mutationValidation.js';
 import { message, getLocale } from '../lib/i18n.js';
 import { notifications } from '../lib/notifications.js';
+import { normalizeRoute, routeSection } from '../lib/navigation.js';
 import { openDatePicker, dismissDatePicker, selectAsOfDate, returnToToday, syncCalendarDay } from '../lib/timeTravel.js';
 
 const initial = {
@@ -26,7 +27,7 @@ const initial = {
   secure: false,
   readOnly: false,
   readOnlyReason: '',
-  route: { page: 'dashboard' },
+  route: { page: 'dashboard', section:'overview' },
   activeDialog: null,
   dialogRevision: 0 // Session-only identity; unrelated store notifications must not remount forms.
 };
@@ -115,7 +116,7 @@ function createStore() {
       const restored=resetUndo({ ...s, project, savedProject: saved,
         dirty: hasProjectChanges(project, saved),
         localCacheWarning: false, secure: false, readOnly: false, readOnlyReason: '',
-        asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, route: { page: 'dashboard' }, activeDialog: null });
+        asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, route: { page: 'dashboard',section:routeSection(s.route) }, activeDialog: null });
       if (!persistMigration) return restored;
       // Migration is a technical update, not an edit. If quota/storage fails,
       // retain the original cached data rather than deleting it.
@@ -126,7 +127,7 @@ function createStore() {
         return restored;
       } catch { return {...restored,localCacheWarning:true}; }
     }),
-    setRoute: route => update(s => ({ ...dismissDatePicker(s), route })),
+    setRoute: route => update(s => ({ ...dismissDatePicker(s), route:normalizeRoute(route,s.route) })),
     requireEditing: () => requireEditing(get({ subscribe })),
     setDialog: activeDialog => update(s => openDialog(s, activeDialog)),
     closeDialog: () => update(s => ({ ...s, activeDialog: s.readOnly ? null : s.activeDialog?.returnTo || null, dialogRevision: s.dialogRevision + 1 })),
@@ -137,7 +138,7 @@ function createStore() {
       const view = sameProjectRefresh ? syncCalendarDay(s, todayISO()) : returnToToday(s, todayISO());
       return persist(resetUndo({ ...s, project, savedProject: clone(project), secure, readOnly, readOnlyReason: '',
         asOfDate: view.asOfDate, datePickerOpen: view.datePickerOpen, timeTravelActive: view.timeTravelActive,
-        dirty: false, route: { page: 'dashboard' }, activeDialog: null }));
+        dirty: false, route: sameProjectRefresh ? s.route : { page:'dashboard',section:routeSection(s.route) }, activeDialog: null }));
     }),
     setReadOnly: (readOnly, reason = '') => update(s => {
       if (!readOnly) notifications.dismissSource('read-only');
@@ -154,7 +155,7 @@ function createStore() {
         // Remove the previous working copy before publishing the blank one.
         clearWorkingCopy();
         replaced = true;
-        return persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, secure: false, readOnly: false, readOnlyReason: '', asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard' }, activeDialog: null }));
+        return persist(resetUndo({ ...s, project: { ...emptyProject(), community: { name: name || 'Hausgemeinschaft' } }, savedProject: null, secure: false, readOnly: false, readOnlyReason: '', asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false, dirty: true, route: { page: 'dashboard',section:routeSection(s.route) }, activeDialog: null }));
       });
       return replaced;
     },
@@ -254,7 +255,7 @@ function createStore() {
       // Restoring is an editable draft, not an implicit file/server save.
       const project = normalize(applyItemNumbers(restored,collectItemNumbers([s.project,restored])));
       return persist(resetUndo({ ...s, project, dirty: hasProjectChanges(project, s.savedProject),
-        activeDialog: null, route: { page: 'dashboard' }, asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false }));
+        activeDialog: null, route: { page: 'dashboard',section:routeSection(s.route) }, asOfDate: todayISO(), datePickerOpen: false, timeTravelActive: false }));
     }),
     markSaved: saved => update(s => {
       const savedProject = normalize(saved);
