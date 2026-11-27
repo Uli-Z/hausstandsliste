@@ -24,10 +24,11 @@ test('the payment form states the fact of a completed transfer and stays scrolla
   const s = source('src/components/SettlementDialog.svelte');
   assert.ok(atTranslation(s, 'Ist diese Zahlung bereits erfolgt?') >= 0);
   assert.ok(atTranslation(s, 'Zahlung als erfolgt erfassen') >= 0);
-  assert.match(dictionaries.de['ui.record-a-payment-that-has-already-h-fwt66e'], /tatsächlich gezahlt/);
-  assert.match(dictionaries.de['ui.record-a-payment-that-has-already-h-fwt66e'], /Kaufänderung/);
-  assert.match(dictionaries.en['ui.record-a-payment-that-has-already-h-fwt66e'], /payment/i);
-  assert.ok(s.includes('ui.record-a-payment-that-has-already-h-fwt66e'));
+  assert.match(dictionaries.de['help.confirmPaid'], /bereits erfolgte Zahlungen/);
+  assert.match(dictionaries.de['help.confirmPaid'], /Kaufänderung/);
+  assert.match(dictionaries.en['help.confirmPaid'], /completed payments/i);
+  assert.match(dictionaries.en['help.confirmPaid'], /purchase correction/i);
+  assert.ok(s.includes('help.confirmPaid'));
   assert.match(s, /settlement-form/);
   assert.match(s, /grid-template-rows:minmax\(0,1fr\) auto/);
   assert.match(s, /setAsOfDate\(date\)/);
@@ -60,14 +61,17 @@ test('contextual help does not occupy the main layout until requested', () => {
   for (const file of ['ui-v3/LedgerView.svelte']) {
     const s = source(file);
     assert.match(s, /import HelpTip/);
-    assert.ok(atTranslation(s, 'Wie funktionieren die Zahlungsvorschläge?') >= 0);
+    assert.match(s, /help\.suggestionsFull/);
+    assert.match(s, /<HelpTip[^>]*triggerText=\{\$translate\("help\.calculation"\)\}/);
     assert.doesNotMatch(s, /<p class="intro">/);
     assert.doesNotMatch(s, /<p class="section-footnote">/);
   }
-  for (const file of ['ui-v3/PersonDetail.svelte', 'ui-v3/ItemDetail.svelte',
-    'ui-v3/Timeline.svelte', 'ui-v3/RedistributionDialog.svelte',
-    'ui-v3/ExecutedRedistributionEditDialog.svelte', 'src/components/SettlementDialog.svelte']) {
-    assert.match(source(file), /<HelpTip/);
+  for (const [file,key] of [['ui-v3/Timeline.svelte','help.claimsCalculated'],
+    ['ui-v3/RedistributionDialog.svelte','help.shareChange'],
+    ['ui-v3/ExecutedRedistributionEditDialog.svelte','help.shareChange'],
+    ['src/components/SettlementDialog.svelte','help.confirmPaid']]) {
+    assert.ok(source(file).includes(key),file);
+    assert.doesNotMatch(source(file), /<HelpTip/);
   }
   const dialog = source('src/components/SettlementDialog.svelte');
   assert.ok(atTranslation(dialog, 'Ist diese Zahlung bereits erfolgt?') >= 0);

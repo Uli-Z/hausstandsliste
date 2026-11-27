@@ -70,7 +70,8 @@ test('A06: current UI uses consistent financial labels and no payment counts', (
     assert.doesNotMatch(timeline, /\} Zahlungen/);
     const panel = source(flavor + 'LedgerView.svelte');
     assert.ok(hasTranslation(panel, 'Offene Beträge pro Person'));
-    assert.ok(hasTranslation(panel, 'Ausgleichen'));
+    assert.ok(hasTranslation(panel, 'Ausgleich erfassen'));
+    assert.match(panel, /help\.suggestionsFull/);
     assert.match(panel, /BalanceBreakdown/);
     assert.ok(hasTranslation(panel, 'Zahlung erfassen'));
     assert.ok(hasTranslation(panel, 'Woher die Beträge stammen'));

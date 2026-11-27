@@ -95,6 +95,10 @@ test('Q13: PHP session controls, messages and new generated labels use the activ
       assert.ok(dictionaries.de[key],key);
     }
   }
-  const app=readFileSync(new URL('../ui-v3/App.svelte',import.meta.url),'utf8');
-  assert.ok(app.includes('showFeedback(serverFeedback, serverFeedbackError)'));
+  const session=readFileSync(new URL('../ui-v3/ServerSession.svelte',import.meta.url),'utf8');
+  assert.match(session,/notifications\.notify\(\$translate\(key, params\)/);
+  for (const [,key] of session.matchAll(/sessionNotice\('(session\.[^']+)'/g)) {
+    assert.ok(dictionaries.en[key],key);
+    assert.ok(dictionaries.de[key],key);
+  }
 });

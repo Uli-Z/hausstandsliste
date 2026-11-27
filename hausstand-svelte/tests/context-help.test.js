@@ -29,21 +29,23 @@ test('redundant help icons are removed while meaningful explanations and warning
   const save = app.slice(app.indexOf("{:else if activeSection === 'save'}"), app.indexOf("{:else if activeSection === 'settings'}"));
   assert.equal((save.match(/<HelpTip/g) || []).length, 0, 'the saving task is explained directly without redundant help buttons');
   const storage = source('ui-v3/StorageView.svelte');
-  assert.equal((storage.match(/<HelpTip/g) || []).length, 1, 'only online collaboration needs contextual help');
+  assert.equal((storage.match(/<HelpTip/g) || []).length, 0, 'storage uses direct explanations');
+  assert.match(storage, /storage\.onlineExplanation/);
   assert.match(storage, /storage\.openExplanation/);
   const settings = app.slice(app.indexOf("{:else if activeSection === 'settings'}"), app.indexOf("{/key}"));
   assert.ok(!settings.includes("<HelpTip label={$translate('language.title')}"));
   assert.ok(!settings.includes('ui.what-happens-when-starting-a-new-p-8ivv1x'));
   assert.ok(settings.includes('inline-info warning'));
-  assert.ok(app.includes('ui.how-are-settlement-suggestions-cal-6ze5l4'));
-  assert.ok(app.includes('ui.what-does-value-settlement-mean-9p85pk'));
+  assert.match(app, /help\.suggestionsShort/);
+  assert.match(app, /help\.paymentRoute/);
   const payment = source('src/components/SettlementDialog.svelte');
   assert.ok(payment.includes('ui.has-this-payment-already-been-made-120a38k'));
   assert.ok(!payment.includes('ui.what-does-confirmation-mean-1c76cot'));
-  assert.ok(payment.includes('ui.what-happens-when-recording-this-ni3kz3'));
+  assert.match(payment, /help\.confirmPaid/);
+  assert.match(payment, /help\.confirmNonCash/);
   const redistribution = source('ui-v3/ExecutedRedistributionEditDialog.svelte');
   assert.ok(!redistribution.includes('class="workflow-help"'));
-  assert.ok(redistribution.includes('ui.what-is-the-financial-effect-of-thi-g85db9'));
+  assert.match(redistribution, /help\.shareChange/);
 });
 
 

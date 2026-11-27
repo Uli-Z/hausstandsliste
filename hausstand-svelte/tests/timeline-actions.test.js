@@ -33,19 +33,23 @@ test('read-only states and unknown events never open a mutation dialog', () => {
 });
 
 test('both time-travel partitions use accessible whole-row actions without redundant edit buttons', () => {
-  assert.equal((timeline.match(/class="event-open-overlay"/g) || []).length, 2);
-  assert.equal((timeline.match(/on:click=\{\(\) => activateEvent\(event\)\}/g) || []).length, 2);
-  assert.equal((timeline.match(/aria-expanded=\{interactionForTimelineEvent/g) || []).length, 2);
-  assert.equal((timeline.match(/class="event-icon"/g) || []).length, 2);
+  assert.equal((timeline.match(/class="event-open-overlay"/g) || []).length, 1);
+  assert.equal((timeline.match(/on:click=\{\(\) => activateEvent\(event\)\}/g) || []).length, 1);
+  assert.equal((timeline.match(/aria-expanded=\{interactionForTimelineEvent/g) || []).length, 1);
+  assert.equal((timeline.match(/class="event-icon"/g) || []).length, 1);
   assert.doesNotMatch(timeline, /class="event-actions"|class="small ghost edit-button"/);
   assert.match(timeline, /type: event\.type === 'claim-settlement-recorded' \? 'settlementEdit'/);
   assert.match(timeline, /eventId: event\.id/);
   assert.match(timeline, /\.event-open-overlay:focus-visible/);
-  assert.match(timeline, /\.event-summary :global\(\.help-wrap\)/);
+  assert.match(timeline, /\.event-summary \.entity-link/);
+  assert.match(timeline, /\{#each rows as row \(row.key\)\}/);
+  assert.match(timeline, /\.\.\.visibleFuture\.map\(event =>/);
+  assert.match(timeline, /\.\.\.visiblePast\.map\(event =>/);
+  assert.match(timeline, /key:'cutoff'/);
 });
 
 test('readonly details are present on both sides of the cutoff and strings are localized', () => {
-  assert.equal((timeline.match(/class="event-readonly-details"/g) || []).length, 2);
+  assert.equal((timeline.match(/class="event-readonly-details"/g) || []).length, 1);
   assert.match(timeline, /history = splitHistoryAt\(events, asOfDate\)/);
   for (const key of ['timeline.editEvent', 'timeline.viewDetails', 'timeline.viewOnly']) {
     assert.equal(i18n.split('"' + key + '"').length - 1, 2, key + ' should exist in EN and DE');
