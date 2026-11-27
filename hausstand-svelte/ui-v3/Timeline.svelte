@@ -1,11 +1,12 @@
 <script>
   import CompactNames from './CompactNames.svelte';
+  import { tick } from 'svelte';
   import { locale } from '../src/lib/i18n.js';
   import { eventPeople } from '../src/lib/overviewNames.js';
   import { translate, localizeGermanText, pluralMessage } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { dateDE } from '../src/lib/util.js';
-  import { splitHistoryAt } from '../src/lib/eventHistory.js';
+  import { splitHistoryAt, RECENT_HISTORY_LIMIT } from '../src/lib/eventHistory.js';
   import { money } from '../src/lib/domain.js';
   import { eventUnitChangeRows } from '../src/lib/redistribution.js';
   import OwnershipHistorySummary from './OwnershipHistorySummary.svelte';
@@ -20,7 +21,11 @@
   export let personId = null;
   export let title = 'Änderungsverlauf';
 
-  let pastLimit = 10;
+  export let preview = false;
+  export let full = false;
+  const PAGE_SIZE = RECENT_HISTORY_LIMIT;
+  let pastLimit = PAGE_SIZE;
+  let futureLimit = PAGE_SIZE;
   let showFuture = false;
   let expandedEventId = null;
 
@@ -90,7 +95,32 @@
   $: history = splitHistoryAt(events, asOfDate);
   $: future = history.future;
   $: past = history.past;
-  $: visiblePast = past.slice(0, pastLimit);
+  $: visiblePast = past.slice(0, preview ? RECENT_HISTORY_LIMIT : pastLimit);
+  $: visibleFuture = preview ? [] : full ? future.slice(0, futureLimit) : showFuture ? future : [];
+  // A single keyed sequence keeps existing cards mounted during pagination and
+  // when the selected date moves an event across the marker.
+  $: rows = [
+    ...visibleFuture.map(event => ({key:'event:'+event.id, event})),
+    ...(!preview ? [{key:'cutoff'}] : []),
+    ...visiblePast.map(event => ({key:'event:'+event.id, event}))
+  ];
+  function loadPast() { pastLimit += PAGE_SIZE; }
+  function loadFuture() { futureLimit += PAGE_SIZE; }
+  // The same actual button is the keyboard/manual fallback. Re-observe after
+  // each batch so short pages can continue filling the viewport.
+  function autoLoad(node, load) {
+    if (!full || typeof IntersectionObserver === 'undefined') return {};
+    let active = true;
+    const observer = new IntersectionObserver(async entries => {
+      if (!active || !entries.some(entry => entry.isIntersecting)) return;
+      observer.unobserve(node);
+      load();
+      await tick();
+      if (active && node.isConnected) observer.observe(node);
+    });
+    observer.observe(node);
+    return {destroy() { active = false; observer.disconnect(); }};
+  }
 
   const labels = {
     'redistribution-executed': 'timeline.redistribution',
@@ -142,62 +172,17 @@
   }
 </script>
 
-<section class="panel timeline-panel">
-  <div class="panel-header"><h2>{localizeGermanText(title)}</h2></div>
+<section class:panel={!preview} class="timeline-panel" class:timeline-preview={preview}>
+  {#if !preview}<div class="panel-header"><h2>{localizeGermanText(title)}</h2></div>{/if}
   <div class="panel-body stack">
-    {#if future.length}
+    {#if !preview && !full && future.length}
       <button class="timeline-more" on:click={() => showFuture = !showFuture}>
         {pluralMessage('timeline.future', future.length)} {localizeGermanText(showFuture ? 'ausblenden' : 'anzeigen')}
       </button>
-      {#if showFuture}
-        {#each future as event}
-          <div class="event-card timeline-event-card" data-event-id={event.id} class:future-event={event.date > asOfDate}>
-            <button
-              type="button"
-              class="event-open-overlay"
-              aria-label={`${$translate(interactionForTimelineEvent(event.type, $appState.readOnly) === 'edit' ? 'timeline.editEvent' : 'timeline.viewDetails')}: ${eventLabel(event.type)} · ${dateDE(event.date)}`}
-              aria-expanded={interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' ? expandedEventId === event.id : undefined}
-              on:click={() => activateEvent(event)}
-            ></button>
-            <div class="event-meta">
-              <span class="event-kind"><span class="event-icon" aria-hidden="true"><ActionIcon name={iconForTimelineEvent(event.type)} size={17}/></span><span class="label">{eventLabel(event.type)}</span></span>
-              <span class="date">{dateDE(event.date)}</span>
-            </div>
-            <div class="event-summary">
-              {#if event.type === 'redistribution-executed' || event.type === 'shares-set'}
-                <OwnershipHistorySummary {event} {project} {itemId} {openItem} {openPerson}/>
-                <HelpTip label={$translate("ui.financial-effect-of-the-ownership-c-1ojpegx")}>{localizeGermanText(FINANCIAL_EVENT_NOTE(event))}</HelpTip>
-              {:else if event.type === 'person-added'}
-                <span>{$translate("ui.welcome-1051rti")} </span><button class="entity-link" on:click={() => openPerson(event.personId)}>{event.name || personName(event.personId)}</button><span>!</span>
-              {:else if event.type === 'person-deactivated'}
-                <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || localizeGermanText('Auszug')}</span>
-              {:else if event.type === 'person-reactivated'}
-                <button class="entity-link" on:click={() => openPerson(event.personId)}>{personName(event.personId)}</button><span> · {event.reason || $translate("ui.return-lfxhdv")}</span>
-              {:else if event.type === 'item-added'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId, event.name)}</button><span> · {localizeGermanText('Startwert')} {money(event.initialValue)}</span><HelpTip label={$translate("ui.financing-of-this-purchase-1s2bh1x")}>{localizeGermanText(ITEM_FUNDING_NOTE(event))}</HelpTip>
-              {:else if event.type === 'item-ended'}
-                <button class="entity-link" on:click={() => openItem(event.itemId)}>{itemName(event.itemId)}</button><span> · {event.reason || localizeGermanText('Beendet')}</span>
-              {:else}
-                {summary(event)}
-              {/if}
-            </div>
-            {#if event.type === "item-added" || event.type === "item-ended"}<CompactNames entries={eventPeople(project, event, $locale)}/>{/if}
-            {#if interactionForTimelineEvent(event.type, $appState.readOnly) === 'details' && expandedEventId === event.id}
-              <div class="event-readonly-details" role="region" aria-label={$translate('timeline.viewDetails')}>
-                <p>{summary(event)}</p>
-                {#if event.note}<p>{event.note}</p>{/if}
-                <p class="muted">{$translate($appState.readOnly ? 'errors.readOnly' : 'timeline.viewOnly')}</p>
-              </div>
-            {/if}
-          </div>
-        {/each}
-      {/if}
     {/if}
-
-    <div class="timeline-marker">{localizeGermanText('Stichtag')} {dateDE(asOfDate)}</div>
-
-    {#if visiblePast.length}
-      {#each visiblePast as event}
+    {#each rows as row (row.key)}
+      {#if row.event}
+        {@const event = row.event}
         <div class="event-card timeline-event-card" data-event-id={event.id} class:future-event={event.date > asOfDate}>
             <button
               type="button"
@@ -237,11 +222,19 @@
             </div>
           {/if}
         </div>
-      {/each}
-      {#if past.length > visiblePast.length}
-        <button class="timeline-more" on:click={() => pastLimit += 10}>{$translate("ui.older-events-ue6evx")}</button>
+      {:else}
+        {#if full && future.length > visibleFuture.length}
+          <button class="timeline-more future-more" use:autoLoad={loadFuture} on:click={loadFuture}>
+            {pluralMessage('timeline.future', future.length - visibleFuture.length, $locale)} · {$translate("ui.older-events-ue6evx")}
+          </button>
+        {/if}
+        <div class="timeline-marker" data-cutoff={asOfDate}>{$translate('timeline.asof')} {dateDE(asOfDate)}</div>
       {/if}
-    {:else if !events.length}
+    {/each}
+    {#if !preview && past.length > visiblePast.length}
+      <button class="timeline-more past-more" use:autoLoad={loadPast} on:click={loadPast}>{$translate("ui.older-events-ue6evx")}</button>
+    {/if}
+    {#if preview ? !past.length : !events.length}
       <div class="empty">{$translate("ui.no-events-yet-kk73s4")}</div>
     {/if}
   </div>
@@ -251,7 +244,10 @@
   .timeline-panel {
     font-size: 0.9rem;
   }
+  .timeline-preview .panel-body { padding: 0; }
   .timeline-event-card {
+    min-width: 0;
+    overflow-wrap: anywhere;
     position: relative;
     padding: 12px 14px;
     min-height: 66px;

@@ -1,6 +1,6 @@
 <script>
   import CompactNames from './CompactNames.svelte';
-  import { nameEntries, rankedItems, eventPeople } from '../src/lib/overviewNames.js';
+  import { nameEntries, rankedItems } from '../src/lib/overviewNames.js';
   import { onMount, tick } from 'svelte';
   import { locale, languagePreference, setLanguage, resolveLocale, translate, pluralMessage, formatDate } from '../src/lib/i18n.js';
   import { prepareDialogNumber, finishDialogNumber } from './form-behavior.js';
@@ -9,9 +9,8 @@
   import { historyShortcut } from '../src/lib/sessionUndo.js';
   import { money } from '../src/lib/domain.js';
   import { requireShareEventFormat } from '../src/lib/shareUnits.js';
-  import { addDays, eventDates, todayISO, dateDE } from '../src/lib/util.js';
+  import { addDays, eventDates, todayISO } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
-  import OwnershipHistorySummary from './OwnershipHistorySummary.svelte';
   import { recentHistoryAt } from '../src/lib/eventHistory.js';
   import PersonDetail from './PersonDetail.svelte';
   import ItemDetail from './ItemDetail.svelte';
@@ -121,31 +120,12 @@
   $: outstandingCents = balances.reduce((sum, transfer) => sum + transfer.amountCents, 0);
 
   function personName(id) { return $appState.project.people.find(p => p.id === id)?.name || $translate('ui.unknown-1qdpc2x'); }
-  function itemName(id) { return $appState.project.items.find(i => i.id === id)?.name || $translate('timeline.unknownItem'); }
-  function eventName(e) {
-    if (e.type === 'item-added') return $translate("ui.item-recorded-sylo1j") + " " + (e.name || itemName(e.itemId));
-    if (e.type === 'item-ended') return $translate("ui.item-archived-132z2tu") + " " + itemName(e.itemId);
-    if (e.type === 'person-added') return $translate("ui.person-added-1bh7i23") + " " + (e.name || personName(e.personId));
-    if (e.type === 'person-deactivated') return $translate("ui.person-left-1bmnpom") + " " + personName(e.personId);
-    if (e.type === 'person-reactivated') return $translate("ui.person-rejoined-1rgz8oi") + " " + personName(e.personId);
-    if (e.type === 'claim-settlement-recorded') return $translate('timeline.summaryPayment', { kind: $translate(e.settlementKind === 'paid' ? 'timeline.payment' : e.settlementKind === 'external' ? 'timeline.external' : 'timeline.waiver'), from: personName(e.debtorPersonId), to: personName(e.creditorPersonId), amount: money(e.amountCents / 100) });
-    return e.title || e.note || $translate('timeline.genericChange');
-  }
   function navigate(id) {
     appState.dismissDatePicker();
     mobileMoreOpen = false;
     activeSection = id;
     if ($appState.route.page !== 'dashboard') appState.setRoute({ page: 'dashboard' });
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }
-  async function focusRecentEvent(eventId) {
-    // Recent events are the first entries in the shared chronological list.
-    // Navigate without changing the viewing date or starting an edit.
-    navigate('activity');
-    await tick();
-    const card = Array.from(document.querySelectorAll('.timeline-event-card')).find(node => node.dataset.eventId === eventId);
-    card?.querySelector('.event-open-overlay')?.focus();
-    card?.scrollIntoView({block:'center',behavior:'instant'});
   }
   function goToDetailReturn() {
     appState.setRoute({ page: 'dashboard' });
@@ -375,26 +355,7 @@
           <section class="ux-panel">
             <div class="section-header"><div><h2>{$translate("app.recent")}</h2></div><button class="text-action" on:click={() => navigate('activity')}>{$translate("app.viewActivity")}</button></div>
             <p class="recent-range">{$translate('app.recentRange', {shown:latestEvents.length,total:recentHistory.past.length,date:formatDate($appState.asOfDate,$locale)})}</p>
-            {#if latestEvents.length}
-              <div class="recent-list">
-                {#each latestEvents as event (event.id)}
-                  <div class="recent-row action-card" data-event-id={event.id}>
-                    <div>
-                      {#if event.type === 'redistribution-executed' || event.type === 'shares-set'}
-                        <OwnershipHistorySummary {event} project={$appState.project} compact={true}/>
-                      {:else}
-                        <strong>{eventName(event)}</strong>
-                        {#if event.type === "item-added" || event.type === "item-ended"}<CompactNames entries={eventPeople($appState.project, event, $locale)}/>{/if}
-                      {/if}
-                      <small>{formatDate(event.date,$locale)}</small>
-                    </div>
-                    <button class="recent-open card-primary" type="button" aria-label={`${$translate("timeline.viewDetails")}: ${eventName(event)} · ${formatDate(event.date,$locale)}`} on:click={() => focusRecentEvent(event.id)}><ActionIcon name="chevron-right" size={19}/></button>
-                  </div>
-                {/each}
-              </div>
-            {:else}
-              <div class="gentle-empty"><p>{$translate("app.none")}</p></div>
-            {/if}
+            <Timeline project={$appState.project} asOfDate={$appState.asOfDate} preview={true}/>
             {#if futureEventCount}<p class="recent-range">{pluralMessage('app.futureEvents',futureEventCount,$locale)}</p>{/if}
           </section>
           {#if drafts.length}
@@ -426,7 +387,7 @@
       {:else if activeSection === 'activity'}
         <div class="page-heading"><div><h1>{$translate("nav.activity")}</h1></div></div>
         {#if futureEventCount}<div class="inline-info">{pluralMessage('app.futureEvents', futureEventCount)}</div>{/if}
-        <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title={$translate('app.allChanges')}/>
+        <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title={$translate('app.allChanges')} full={true}/>
       {:else if activeSection === 'save'}
         <div class="page-heading"><div><h1>{$translate('storage.pageTitle')}</h1></div></div>
       {:else if activeSection === 'settings'}

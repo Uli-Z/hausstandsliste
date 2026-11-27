@@ -40,7 +40,7 @@ test('Q14: future settlement and ownership events remain outside historical calc
 
 // Q39: the former dashboard stable sort used the opposite tie-break at the
 // five-event boundary and therefore selected a different set of events.
-test('Q39: dashboard is exactly the first five past events in the timeline, including grouped transfers',()=>{
+test('Q39: dashboard is exactly the first ten past events in the timeline, including grouped transfers',()=>{
   const list=[
     ...Array.from({length:5},(_,i)=>({id:'old-'+i,date:'2026-03-01',order:1,type:'shares-set'})),
     {id:'group',date:'2026-03-01',order:1,type:'redistribution-executed',events:[{itemId:'one'},{itemId:'two'}]},
@@ -55,7 +55,18 @@ test('Q39: dashboard is exactly the first five past events in the timeline, incl
     assert.deepEqual(preview.future,history.future);
     assert.deepEqual(preview.past,history.past);
   }
-  assert.deepEqual(ids(recentHistoryAt(list,'2026-03-01').recent),['group','old-4','old-3','old-2','old-1']);
-  assert.deepEqual(ids(recentHistoryAt(list.filter(e=>e.id!=='group'),'2026-03-01').recent),['old-4','old-3','old-2','old-1','old-0']);
+  assert.deepEqual(ids(recentHistoryAt(list,'2026-03-01').recent),['group','old-4','old-3','old-2','old-1','old-0','backdated']);
+  assert.deepEqual(ids(recentHistoryAt(list.filter(e=>e.id!=='group'),'2026-03-01').recent),['old-4','old-3','old-2','old-1','old-0','backdated']);
   assert.equal(list.length,8);
+});
+
+test('Q44: preview is capped at ten for empty, short and long histories',()=>{
+  for(const count of [0,1,10,11,75]){
+    const events=Array.from({length:count},(_,i)=>({id:'event-'+i,date:'2026-01-01',order:i}));
+    const view=recentHistoryAt(events,'2026-01-02');
+    assert.equal(view.recent.length,Math.min(10,count));
+    assert.deepEqual(view.recent,view.past.slice(0,10));
+    assert.equal(new Set(ids(view.past)).size,count);
+    assert.equal(recentHistoryAt(events,'2025-12-31').recent.length,0);
+  }
 });

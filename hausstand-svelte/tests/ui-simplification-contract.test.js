@@ -127,7 +127,9 @@ test('Q25: cards extend native primary buttons without nesting secondary control
   }
   const app=source('ui-v3/App.svelte');
   assert.ok(app.includes('subtle-danger card-secondary'));
-  assert.ok(app.includes('focusRecentEvent(event.id)'));
+  assert.ok(app.includes('preview={true}/>'));
+  assert.ok(app.includes('full={true}/>'));
+  assert.ok(!app.includes('focusRecentEvent'));
   assert.ok(app.includes("navigate('activity')"));
   assert.ok(source('ui-v3/CompactNames.svelte').includes('pointer-events:auto'));
 });

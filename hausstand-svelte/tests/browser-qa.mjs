@@ -1265,11 +1265,13 @@ async function wholeCardAcceptance(browser,url) {
       await page.locator('.time-travel-toggle').click();
       await page.locator('#state-date').fill('2025-01-02');
       await page.keyboard.press('Escape');
-      const recent=page.locator('.recent-row[data-event-id="purchase"]');
-      await recent.locator('strong').first().click({force:true});
-      const timeline=page.locator('.timeline-event-card[data-event-id="purchase"] .event-open-overlay');
-      await timeline.waitFor();
-      assert.equal(await timeline.evaluate(el=>el===document.activeElement),true);
+      const recent=page.locator('.timeline-preview [data-event-id="purchase"] .event-open-overlay');
+      await recent.focus();
+      await page.keyboard.press('Enter');
+      await page.locator('.modal-backdrop').waitFor();
+      assert.equal(await page.locator('.timeline-preview').count(),1);
+      await page.locator('.modal-header button.ghost').click();
+      await page.locator('.modal-backdrop').waitFor({state:'hidden'});
       assert.equal(await page.locator('.time-travel-toggle').getAttribute('aria-pressed'),'true');
       await goHome();
       // The payment card opens the existing confirmation form, not a payment.
@@ -1425,19 +1427,20 @@ async function recentHistoryAcceptance(browser,url) {
       const rowIds=locator=>locator.evaluateAll(rows=>rows.map(r=>r.dataset.eventId));
       const compare=async expected=>{
         await page.locator('.recent-range').first().waitFor();
-        const preview=await rowIds(page.locator('.recent-list .recent-row'));
-        assert.deepEqual(preview,expected);
+        const preview=await rowIds(page.locator('.timeline-preview .timeline-event-card'));
+        assert.deepEqual(preview.slice(0,expected.length),expected);
+        assert.ok(preview.length<=10);
         assert.equal(new Set(preview).size,preview.length);
         await page.locator('.overview-layout.second-row .section-header button').first().click();
         const history=await rowIds(page.locator('.timeline-event-card:not(.future-event)'));
-        assert.deepEqual(history.slice(0,5),preview);
+        assert.deepEqual(history.slice(0,preview.length),preview);
       };
       await cutoff('2025-03-01');
-      const grouped=page.locator('.recent-row[data-event-id="q39-group"]');
+      const grouped=page.locator('.timeline-preview [data-event-id="q39-group"]');
       assert.equal(await grouped.locator('.event-unit-change').count(),2);
       assert.match(await grouped.innerText(),/Ben.*\+1/s);
       assert.match(await grouped.innerText(),/Clara.*\+1/s);
-      assert.match(await page.locator('.recent-range').first().innerText(),/5/);
+      assert.match(await page.locator('.recent-range').first().innerText(),/10/);
       await compare(['q39-group','q39-single-4','q39-single-3','q39-single-2','q39-single-1']);
       assert.equal(await page.locator('[data-event-id="q39-group"]').count(),1);
       assert.equal(await page.locator('[data-event-id="q39-group"] .event-unit-change').count(),2);
@@ -1461,6 +1464,15 @@ async function recentHistoryAcceptance(browser,url) {
       await goHome();
       await cutoff('2099-01-01');
       await compare(['q39-future','q39-group','q39-single-4','q39-single-3','q39-single-2']);
+      // Scroll the manual fallback into view: the observer loads the next batch.
+      const more=page.locator('.past-more');
+      if(await more.count()) await more.scrollIntoViewIfNeeded();
+      await page.waitForFunction(total=>document.querySelectorAll('.timeline-event-card').length===total,copy.events.length);
+      assert.equal(new Set(await rowIds(page.locator('.timeline-event-card'))).size,copy.events.length);
+      await cutoff('2025-02-15');
+      const marker=page.locator('.timeline-marker');
+      assert.equal(await marker.getAttribute('data-cutoff'),'2025-02-15');
+      assert.equal(await marker.evaluate(el=>el.previousElementSibling.classList.contains('future-event') && !el.nextElementSibling.classList.contains('future-event')),true);
       assert.deepEqual(errors,[]);
     } finally {await context.close();}
   }
