@@ -23,6 +23,8 @@
 8. Keep protected projects and their complete archived history encrypted; never cache their plaintext in `localStorage`.
 9. Keep the UI minimal and responsive; explanations belong in contextual help. Warn clearly about saving, historical as-of dates, and factual payment confirmation.
 
+**Membership (Q60, decision 27 Nov 2026):** `person-added.date` is the entry date, `person-deactivated.date` the exit date; reactivation starts another active interval. Active directories show only people within the interval (entry inclusive, exit exclusive). Explicit archived views and historical references retain identities. Membership dates must never invalidate ownership, purchase contributions or payments. Archiving does not require zero holdings or balance, and never changes these records. Unknown dates are not manufactured.
+
 ## Checks
 
 ```bash

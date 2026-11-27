@@ -31,7 +31,7 @@ Use `--input project.json` (or `--input -` for stdin); writes use `--payload pay
 | events show | input, --id event ID |
 | events edit | input, --id event ID, payload of changed fields, --confirm for save |
 | events delete | input, --id event ID, --confirm for save |
-| people add | {"name":"Anna","date":"2025-09-17"} (date optional; audit only) |
+| people add | {"name":"Anna","date":"2025-09-17"} (entry date optional; defaults to today) |
 | people rename | {"personId":"ID","name":"Anna"} |
 | people deactivate / reactivate | {"personId":"ID","date":"2026-12-01","reason":"optional"} |
 | people delete | {"personId":"ID"}; --confirm for save; only unused people |
@@ -46,6 +46,8 @@ Use `--input project.json` (or `--input -` for stdin); writes use `--payload pay
 | drafts put | draft payload below; optional existing id for replacement |
 | drafts execute / drafts delete | --id draft ID; --confirm for save |
 | versions restore | --id archive ID; no payload |
+
+Membership only controls directory visibility (entry inclusive, exit exclusive); historical ownership and payment references remain valid. Use `people show --id` or stored project data for inactive identities.
 
 Purchase (use real IDs from people list):
 ```json
