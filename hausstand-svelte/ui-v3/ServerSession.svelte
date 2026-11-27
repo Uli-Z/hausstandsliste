@@ -325,6 +325,71 @@
       busy = false; saving = false;
     }
   }
+  export async function rotatePassword(current, next, repeated) {
+    if (busy || !authenticated || !editing || !leaseToken || $appState.readOnly) {
+      sessionNotice('session.restoreReadOnly','error'); return false;
+    }
+    if ($appState.dirty) { sessionNotice('session.saveFirst','error'); return false; }
+    if (current !== activePassword) { sessionNotice('session.rotationCurrentWrong','error'); return false; }
+    if (next.length < 8 || next === current || next !== repeated) {
+      sessionNotice(next.length < 8 ? 'session.passwordLength' : next === current ? 'session.rotationSame' : 'session.passwordMismatch','error');
+      return false;
+    }
+    busy = true; saving = true;
+    appState.setReadOnly(true);
+    try {
+      const saved = await createPortableSave($appState.project, $appState.savedProject);
+      const newToken = randomSecret(), expectedRevision = revision;
+      const envelope = await encryptProject(exportProject(saved,$appState.asOfDate), next, newToken);
+      const newTokenHash = await hashSecret(newToken);
+      let result;
+      try {
+        result = await api('save',{expectedRevision,envelope,newTokenHash});
+        if (!confirmedSave(result) || result.revision !== expectedRevision + 1)
+          throw new Error($translate('session.saveUnconfirmed'));
+      } catch (error) {
+        // A response can be lost after an atomic server commit. Do not blindly
+        // retry with stale credentials. Verify the exact new encrypted revision.
+        let packet;
+        try { packet = await api('read'); } catch {}
+        if (packet?.revision === expectedRevision) throw error;
+        if (packet?.revision === expectedRevision + 1) {
+          try {
+            const decoded = await decryptProject(packet.envelope,next);
+            if (decoded.editToken === newToken)
+              result = {revision:packet.revision,saveStatus:'saved',mailStatus:'unknown'};
+          } catch {}
+        }
+        if (!result || !confirmedSave(result) || result.revision !== expectedRevision + 1) {
+          // Preserve the tab's persisted lease for an explicit reload/login
+          // recovery, but never allow writes with uncertain credentials.
+          editing = false; leaseToken = ''; leaseExpires = 0;
+          try { await deviceStore('delete'); } catch {}
+          sessionNotice('session.rotationUnconfirmed','error');
+          return false;
+        }
+      }
+      revision = result.revision;
+      editToken = newToken; activePassword = next;
+      if (result.expiresAt) leaseExpires = result.expiresAt;
+      appState.markSaved(saved);
+      // Replace the remembered credential only after the server commit.
+      try { await remember(next); }
+      catch {
+        try { await deviceStore('delete'); } catch {}
+        notifications.notify($translate('session.rememberFailed'),{kind:'warning'});
+      }
+      reportConfirmedSave(result);
+      sessionNotice('session.rotationSuccess');
+      return true;
+    } catch(e) {
+      sessionNotice('session.rotationFailed','error',{reason:localizeDiagnostic(e.message)});
+      return false;
+    } finally {
+      if (authenticated && editing && leaseToken) appState.setReadOnly(false);
+      busy = false; saving = false;
+    }
+  }
   export async function logout() {
     if (busy || ($appState.dirty && !confirm($translate('session.logoutConfirm')))) return;
     busy = true;

@@ -29,7 +29,7 @@ The PHP API checks an exclusive checkout lease and the expected technical revisi
 
 ### Password rotation
 
-During checkout, password change re-encrypts the entire current document including all embedded earlier versions and rotates the editing capability. Older capabilities cannot continue writing. Previously downloaded or emailed encrypted copies cannot be retroactively re-encrypted or revoked; their old passwords still work. Test rotation and recovery on the intended host.
+In the integrated PHP UI, Settings > Project password requires a clean checked-out project, the current password, a different new password (at least eight characters), repetition and explicit confirmation. During checkout, password change re-encrypts the entire current document including all embedded earlier versions and rotates the editing capability. Older capabilities cannot continue writing. Remembered device credentials are replaced only after the confirmed save. If the save response is lost, the browser verifies the new encrypted revision and its capability; when the outcome cannot be established, writes are blocked pending reopening the project. Previously downloaded or emailed encrypted copies cannot be retroactively re-encrypted or revoked; their old passwords still work. Test rotation and recovery on the intended host.
 
 ## Local working copies and backups
 

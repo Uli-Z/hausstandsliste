@@ -92,6 +92,14 @@ try {
   r = await call('save', { id, expectedRevision: 2, envelope: env2, newTokenHash: await hashSecret(token2) }, {}, saving);
   assert.equal(r.status, 200);
   assert.equal((await call('renew', { id }, {}, saving)).status, 403);
+  const rotatedPacket = await call('read',null,{id});
+  await assert.rejects(()=>decryptProject(rotatedPacket.envelope,'integration-password'));
+  const rotated = await decryptProject(rotatedPacket.envelope,'replacement-password');
+  assert.equal(rotated.editToken,token2);
+  assert.deepEqual(rotated.project,nextSaved);
+  assert.equal((await readPortableVersion(rotated.project,rotated.project.versionHistory.entries[0].id)).community.name,'Test');
+  assert.equal((await decryptProject(nextEnvelope,'integration-password')).project.community.name,'Test');
+  assert.equal((await call('save',{id,expectedRevision:3,envelope:env2}, {}, saving)).status,403);
   const saving2 = { ...saving, 'X-File-Token': token2 };
   assert.equal((await call('checkin', { id }, {}, saving2)).status, 200);
   const checkout2 = await call('checkout', { id, expectedRevision: 3 }, {}, { 'X-File-Token': token2 });

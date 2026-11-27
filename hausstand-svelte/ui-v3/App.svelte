@@ -26,6 +26,7 @@
   import StorageView from './StorageView.svelte';
   import PortableVersions from './PortableVersions.svelte';
   import ServerSession from './ServerSession.svelte';
+  import PasswordRotation from './PasswordRotation.svelte';
   import NotificationStack from './NotificationStack.svelte';
   import { notifications } from '../src/lib/notifications.js';
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
@@ -563,6 +564,8 @@
             {/if}
             {#if updateStatus}<p role="status">{updateStatus}</p>{/if}
           </section>
+          <PasswordRotation busy={storageBusy} editable={serverEditing && !$appState.readOnly} dirty={$appState.dirty}
+            rotate={(current,next,repeated)=>serverSession?.rotatePassword(current,next,repeated)} />
           <section class="ux-panel setting-panel"><h2>{$translate('session.login')}</h2><button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.logout()}>{$translate('session.logout')}</button></section>
         {/if}
         <section class="ux-panel setting-panel settings-advanced" aria-label={$translate('settings.advanced')}>

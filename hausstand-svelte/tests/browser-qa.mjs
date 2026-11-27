@@ -2426,6 +2426,69 @@ async function q68ServerImportAcceptance(browser) {
   } finally {await context.close();php.kill();await rm(root,{recursive:true,force:true});}
 }
 
+// S04: rotate a real server project, including its portable archive.
+async function passwordRotationAcceptance(browser) {
+  const root=await mkdtemp(join(tmpdir(),'hausstand-rotate-'));
+  const port=await freePort(), url='http://127.0.0.1:'+port+'/hausstand.php';
+  const php=spawn('php',['-S','127.0.0.1:'+port,'-t','dist'],{env:{...process.env,HAUSSTAND_DATA_DIR:root,HAUSSTAND_ADMIN_TOKEN:'rotation-admin'},stdio:['ignore','ignore','pipe']});
+  const context=await browser.newContext({locale:'de-DE',viewport:{width:375,height:812}});
+  try {
+    let ready=false;
+    for(let i=0;i<80;i++){try{ready=(await fetch(url+'?api=config')).ok;if(ready)break;}catch{}await pause(100);}
+    assert.ok(ready);
+    const id='hausstand-hauptdatei', password='rotation-old-password', next='rotation-new-password', token=randomSecret();
+    const saved=await createPortableSave({...fixture,community:{name:'Rotation test'}},fixture);
+    const original=await encryptProject(saved,password,token);
+    const created=await fetch(url+'?api=create',{method:'POST',headers:{'Content-Type':'application/json','X-Hausstand-Admin':'rotation-admin'},body:JSON.stringify({id,name:'Rotation',envelope:original,tokenHash:await hashSecret(token)})});
+    assert.equal(created.status,200);
+    const page=await context.newPage();
+    let approve=false;
+    page.on('dialog',d=>approve?d.accept():d.dismiss());
+    await page.goto(url);
+    await page.getByLabel('Passwort',{exact:true}).fill(password);
+    await page.getByRole('button',{name:'Anmelden',exact:true}).click();
+    await page.locator('.overview-directory-grid').waitFor();
+    await page.evaluate(()=>location.hash='#/settings');
+    const panel=page.locator('.password-rotation');
+    await panel.waitFor();
+    assert.ok(await panel.getByRole('button',{name:'Projektpasswort ändern'}).isDisabled());
+    await page.getByRole('button',{name:'Bearbeitung starten',exact:true}).click();
+    await page.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).waitFor();
+    await panel.getByRole('button',{name:'Projektpasswort ändern'}).click();
+    const fill=async(current,repeat=next)=>{
+      await panel.getByLabel('Aktuelles Projektpasswort',{exact:true}).fill(current);
+      await panel.getByLabel('Neues Projektpasswort',{exact:true}).fill(next);
+      await panel.getByLabel('Neues Projektpasswort wiederholen',{exact:true}).fill(repeat);
+    };
+    const submit=panel.locator('button[type=submit]');
+    const read=async()=>await(await fetch(url+'?api=read&id='+id)).json();
+    const prior=await read();
+    await fill(password,'incorrect-repeat');assert.ok(await submit.isDisabled());
+    await fill(password);await submit.click();
+    assert.equal((await read()).revision,prior.revision);
+    approve=true;await fill('wrong-current-password');await submit.click();
+    await page.getByText('Das aktuelle Projektpasswort ist falsch.',{exact:true}).waitFor();
+    assert.equal((await read()).revision,prior.revision);
+    await fill(password);
+    const response=page.waitForResponse(r=>r.url().includes('api=save')&&r.status()===200);
+    await submit.click();await response;
+    await page.getByText('Projektpasswort geändert. Auf anderen Geräten das neue Passwort verwenden.',{exact:true}).waitFor();
+    const packet=await read();
+    assert.equal(packet.revision,prior.revision+1);
+    await assert.rejects(()=>decryptProject(packet.envelope,password));
+    const decoded=await decryptProject(packet.envelope,next);
+    assert.notEqual(decoded.editToken,token);
+    assert.deepEqual(decoded.project.versionHistory.entries,saved.versionHistory.entries);
+    assert.deepEqual(decoded.project.events,saved.events);
+    assert.equal((await readPortableVersion(decoded.project,saved.versionHistory.entries[0].id)).community.name,fixture.community.name);
+    assert.equal((await decryptProject(original,password)).editToken,token);
+    await page.getByRole('button',{name:'Speichern und Bearbeitung beenden',exact:true}).click();
+    await page.getByRole('button',{name:'Bearbeitung starten',exact:true}).waitFor();
+    await page.reload();await page.locator('.password-rotation').waitFor();
+    assert.ok(await page.getByRole('button',{name:'Bearbeitung starten',exact:true}).isVisible());
+  } finally {await context.close();php.kill();await rm(root,{recursive:true,force:true});}
+}
+
 async function q42MailAcceptance(browser) {
   for (const mode of ['accepted','rejected','disabled','missing','checkin-failed']) {
     const root=await mkdtemp(join(tmpdir(),'hausstand-q42-'));
@@ -2606,6 +2669,7 @@ try {
   server = offlineServer.server;
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
   await acceptance('Chromium Q68 plain server file import', () => q68ServerImportAcceptance(browser));
+  await acceptance('Chromium S04 server password rotation', () => passwordRotationAcceptance(browser));
   await acceptance('Chromium Q37 read-only dialog guard', () => q37ReadOnlyAcceptance(browser));
   await acceptance('Chromium Q54 legacy browser number migration', () => legacyItemNumberAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q50 destructive local reset', () => resetProjectAcceptance(browser, offlineServer.url));
