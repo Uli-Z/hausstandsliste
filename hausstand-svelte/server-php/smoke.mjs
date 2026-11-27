@@ -38,6 +38,10 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   if (!ready) throw new Error('PHP server not ready: ' + log);
+  // Q52: authorization and request-origin checks happen before any GitHub access.
+  assert.equal((await call('update-list', {})).status,403);
+  assert.equal((await call('update', {tag:'php-test'})).status,403);
+  assert.equal((await call('update-list', {}, {}, {'X-Hausstand-Admin':'integration-admin-token'})).status,403);
   const config = await call('config');
   assert.equal(config.status, 200);
   assert.equal(config.initialized, false);

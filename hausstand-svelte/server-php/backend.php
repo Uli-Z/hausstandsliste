@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+// The release workflow embeds the exact tag in the single-file artifact.
+define('HAUSSTAND_RELEASE_TAG', 'development');
+define('HAUSSTAND_UPDATE_CONTRACT', 'portable-v1-reset-1');
+
 /**
  * Hausstand: Diese PHP-Datei ist die vollständige Server-App inklusive Oberfläche.
  * Nur der Serverbetreiber bearbeitet den folgenden Konfigurationsblock.
@@ -18,6 +22,11 @@ $HAUSSTAND_CONFIG = [
     // Configure only on the server, never in a committed build artifact.
     'admin_token' => '',
 ];
+// Refuse a code swap if a legacy installation has customized its inline block.
+$inlineConfigDefault = $HAUSSTAND_CONFIG === [
+    'data_dir' => __DIR__ . '/../hausstand-private-data',
+    'backup_email' => '', 'mail_from' => '', 'admin_token' => '',
+];
 // Optional private config kept beside the deployed script, excluded from releases.
 $privateConfig = (string) (getenv('HAUSSTAND_CONFIG_FILE') ?: (__DIR__ . '/../hausstand-config.php'));
 if (is_file($privateConfig)) {
@@ -29,36 +38,146 @@ header('Referrer-Policy: no-referrer');
 header('Cache-Control: no-store');
 header('X-Frame-Options: DENY');
 $api = (string) ($_GET['api'] ?? '');
-if ($api === 'update') {
+// Return only published, non-prerelease PHP artifacts from the trusted repository.
+function updateReleaseList(array $releases): array {
+    $result = [];
+    foreach ($releases as $release) {
+        if (!is_array($release) || !empty($release['draft']) || !empty($release['prerelease'])) continue;
+        $tag = $release['tag_name'] ?? '';
+        $date = $release['published_at'] ?? '';
+        if (!is_string($tag) || !preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/D', $tag)
+            || !is_string($date) || strtotime($date) === false) continue;
+        foreach ($release['assets'] ?? [] as $asset) {
+            if (($asset['name'] ?? '') !== 'hausstand.php' || ($asset['state'] ?? '') !== 'uploaded'
+                || !is_int($asset['id'] ?? null) || $asset['id'] < 1) continue;
+            $digest = $asset['digest'] ?? '';
+            $result[$tag] = [
+                'tag' => $tag, 'publishedAt' => $date, 'notes' => (string) ($release['body'] ?? ''),
+                'assetId' => $asset['id'], 'digest' => is_string($digest) && preg_match('/^sha256:[a-f0-9]{64}$/D', $digest) ? $digest : null,
+            ];
+            break;
+        }
+    }
+    usort($result, static fn($a,$b) => strtotime($b['publishedAt']) <=> strtotime($a['publishedAt']));
+    return array_slice($result, 0, 5);
+}
+function updateSelectRelease(array $releases, string $tag): ?array {
+    foreach ($releases as $release) if ($release['tag'] === $tag) return $release;
+    return null;
+}
+function updateArtifactProblem(string $code, array $release): ?string {
+    if (strlen($code) < 10000 || !str_starts_with($code, '<?php') || !str_contains($code, 'Hausstandsliste'))
+        return 'invalidArtifact';
+    if (!$release['digest'] || !hash_equals($release['digest'], 'sha256:' . hash('sha256', $code))) return 'integrity';
+    // The artifact must declare its actual release identity and the exact supported
+    // project/storage contract. Unmarked historical builds cannot be proven safe.
+    if (!str_contains($code, "define('HAUSSTAND_RELEASE_TAG', '" . $release['tag'] . "');")
+        || !str_contains($code, "define('HAUSSTAND_UPDATE_CONTRACT', '" . HAUSSTAND_UPDATE_CONTRACT . "');"))
+        return 'incompatible';
+    return null;
+}
+if ($api === 'update-list' || $api === 'update') {
     header('Content-Type: application/json; charset=utf-8');
+    $failUpdate = static function(int $status, string $code): never {
+        http_response_code($status);
+        echo json_encode(['ok'=>false,'errorCode'=>$code]); exit;
+    };
     $token = (string) (getenv('HAUSSTAND_ADMIN_TOKEN') ?: ($HAUSSTAND_CONFIG['admin_token'] ?? ''));
     $provided = (string) ($_SERVER['HTTP_X_HAUSSTAND_ADMIN'] ?? '');
-    if ($token === '' || !hash_equals($token, $provided)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'Admin-Autorisierung fehlgeschlagen.']); exit; }
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['ok'=>false,'error'=>'POST erforderlich.']); exit; }
-    if (!function_exists('curl_init')) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'PHP-cURL ist nicht verfügbar.']); exit; }
-    $releaseUrl = 'https://api.github.com/repos/Uli-Z/hausstandsliste/releases/latest';
-    $ch = curl_init($releaseUrl);
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_FOLLOWLOCATION=>false, CURLOPT_TIMEOUT=>30, CURLOPT_USERAGENT=>'Hausstandsliste-Updater']);
-    $releaseRaw = curl_exec($ch); $releaseCode = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE); curl_close($ch);
-    $release = is_string($releaseRaw) ? json_decode($releaseRaw, true) : null;
-    $assetId = 0;
-    foreach (($release['assets'] ?? []) as $asset) if (($asset['name'] ?? '') === 'hausstand.php') $assetId = (int) ($asset['id'] ?? 0);
-    if ($releaseCode !== 200 || $assetId < 1) { http_response_code(502); echo json_encode(['ok'=>false,'error'=>'Kein gültiges PHP-Artefakt im neuesten Release.']); exit; }
-    $download = curl_init('https://api.github.com/repos/Uli-Z/hausstandsliste/releases/assets/' . $assetId);
-    curl_setopt_array($download, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_FOLLOWLOCATION=>true, CURLOPT_MAXREDIRS=>3, CURLOPT_TIMEOUT=>60, CURLOPT_USERAGENT=>'Hausstandsliste-Updater', CURLOPT_HTTPHEADER=>['Accept: application/octet-stream']]);
-    $php = curl_exec($download); $downloadCode = (int) curl_getinfo($download, CURLINFO_RESPONSE_CODE); curl_close($download);
-    if ($downloadCode !== 200 || !is_string($php) || strlen($php) < 10000 || !str_starts_with($php, '<?php') || !str_contains($php, 'Hausstandsliste')) { http_response_code(502); echo json_encode(['ok'=>false,'error'=>'Release-Datei ist ungültig.']); exit; }
-    // Validate the new PHP before replacing the live file. The private config is a
-    // separate file outside the web root, so the atomic code swap cannot overwrite it.
-    $checkFile = __FILE__ . '.validate-' . bin2hex(random_bytes(6));
-    if (file_put_contents($checkFile, $php, LOCK_EX) === false) { http_response_code(500); echo json_encode(['ok'=>false,'error'=>'Updateprüfung fehlgeschlagen.']); exit; }
-    // Under FPM, PHP_BINARY identifies php-fpm rather than the CLI interpreter.
-    $phpCli = PHP_SAPI === 'cli' ? PHP_BINARY : 'php';
-    $lint = []; $lintCode = 1; exec(escapeshellarg($phpCli) . ' -l ' . escapeshellarg($checkFile) . ' 2>&1', $lint, $lintCode); @unlink($checkFile);
-    if ($lintCode !== 0) { http_response_code(502); echo json_encode(['ok'=>false,'error'=>'Release enthält ungültigen PHP-Code.']); exit; }
-    $tmp = __FILE__ . '.update-' . bin2hex(random_bytes(6));
-    if (file_put_contents($tmp, $php, LOCK_EX) === false || !rename($tmp, __FILE__)) { @unlink($tmp); http_response_code(500); echo json_encode(['ok'=>false,'error'=>'Update konnte nicht atomar installiert werden.']); exit; }
-    echo json_encode(['ok'=>true,'version'=>(string)($release['tag_name'] ?? '')]); exit;
+    if ($token === '' || !hash_equals($token, $provided)) $failUpdate(403, 'admin');
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') $failUpdate(405, 'method');
+    $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+    $originHost = $origin !== '' ? (string) (parse_url($origin, PHP_URL_HOST) ?: '') : '';
+    $originPort = $origin !== '' ? parse_url($origin, PHP_URL_PORT) : null;
+    if (($origin !== '' && strcasecmp($originHost . ($originPort ? ':' . $originPort : ''), (string) ($_SERVER['HTTP_HOST'] ?? '')) !== 0)
+        || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'Hausstandsliste') $failUpdate(403, 'origin');
+    if (!function_exists('curl_init')) $failUpdate(503, 'curl');
+    $getGitHub = static function(string $url, bool $asset = false) use ($failUpdate): string {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_FOLLOWLOCATION=>$asset,
+            CURLOPT_MAXREDIRS=>3, CURLOPT_TIMEOUT=>$asset ? 60 : 30,
+            CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS, CURLOPT_REDIR_PROTOCOLS=>CURLPROTO_HTTPS,
+            CURLOPT_USERAGENT=>'Hausstandsliste-Updater',
+            CURLOPT_HTTPHEADER=>['Accept: ' . ($asset ? 'application/octet-stream' : 'application/vnd.github+json')]]);
+        $raw = curl_exec($ch); $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE); curl_close($ch);
+        if ($status !== 200 || !is_string($raw)) $failUpdate(502, 'github');
+        return $raw;
+    };
+    // Query explicit published releases, not /latest. Paginate when releases
+    // without PHP artifacts occupy the first page.
+    $all = [];
+    for ($page = 1; $page <= 10; $page++) {
+        $batch = json_decode($getGitHub('https://api.github.com/repos/Uli-Z/hausstandsliste/releases?per_page=100&page=' . $page), true);
+        if (!is_array($batch) || !array_is_list($batch)) $failUpdate(502, 'github');
+        $all = array_merge($all, $batch);
+        if (count($batch) < 100) break;
+    }
+    $releases = updateReleaseList($all);
+    if ($api === 'update-list') {
+        echo json_encode(['ok'=>true,'current'=>HAUSSTAND_RELEASE_TAG,
+            'releases'=>array_map(static fn($r) => ['tag'=>$r['tag'],'publishedAt'=>$r['publishedAt'],
+                'notes'=>$r['notes'],'verifiedDigest'=>$r['digest'] !== null], $releases)],
+            JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE); exit;
+    }
+    $body = json_decode(file_get_contents('php://input') ?: '', true);
+    $target = is_array($body) ? ($body['tag'] ?? null) : null;
+    if (!is_string($target) || ($body['current'] ?? null) !== HAUSSTAND_RELEASE_TAG) $failUpdate(409, 'selection');
+    $release = updateSelectRelease($releases, $target);
+    if (!$release || $target === HAUSSTAND_RELEASE_TAG) $failUpdate(400, 'selection');
+    if (!$release['digest']) $failUpdate(422, 'integrity');
+    if (!$inlineConfigDefault) $failUpdate(409, 'inlineConfig');
+    if (PHP_VERSION_ID < 80100 || !function_exists('exec')) $failUpdate(503, 'php');
+    $code = $getGitHub('https://api.github.com/repos/Uli-Z/hausstandsliste/releases/assets/' . $release['assetId'], true);
+    if ($problem = updateArtifactProblem($code, $release)) $failUpdate(422, $problem);
+    $root = realpath((string) (getenv('HAUSSTAND_DATA_DIR') ?: ($HAUSSTAND_CONFIG['data_dir'] ?? '')));
+    $webroot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__FILE__)));
+    if (!$root || !$webroot || !is_dir($root) || !is_writable($root)
+        || $root === $webroot || str_starts_with($root, $webroot . DIRECTORY_SEPARATOR)
+        || !is_writable(dirname(__FILE__))) $failUpdate(503, 'storage');
+    // Share the project mutex so a version swap cannot overlap a project save.
+    $lock = @fopen($root . '/.mutex', 'c');
+    if (!$lock || !flock($lock, LOCK_EX)) $failUpdate(503, 'lock');
+    $original = @file_get_contents(__FILE__);
+    if (!is_string($original) || !str_contains($original, "define('HAUSSTAND_RELEASE_TAG', '" . HAUSSTAND_RELEASE_TAG . "');"))
+        $failUpdate(409, 'selection');
+    $metaPath = $root . '/files/hausstand-hauptdatei/meta.json';
+    if (is_file($metaPath)) {
+        $meta = json_decode((string) @file_get_contents($metaPath), true);
+        if (!is_array($meta)) $failUpdate(503, 'storage');
+        if (!empty($meta['leaseHash']) && (int) ($meta['leaseExpires'] ?? 0) > time()) $failUpdate(409, 'editing');
+    }
+    // Back up the prior code outside the web root. Lint the candidate before
+    // touching the live script; atomic rename is the only live-file change.
+    $backup = @tempnam($root, '.program-backup-');
+    $stage = dirname(__FILE__) . '/.hausstand-update-' . bin2hex(random_bytes(12)) . '.php';
+    $backupTarget = $root . '/previous-program.php';
+    $installed = false;
+    try {
+        if (!$backup || dirname($backup) !== $root || !@chmod($backup, 0600)
+            || @file_put_contents($backup, $original, LOCK_EX) !== strlen($original)
+            || !@rename($backup, $backupTarget)) throw new RuntimeException('backup');
+        if (@file_put_contents($stage, $code, LOCK_EX) !== strlen($code)) throw new RuntimeException('storage');
+        $phpCli = PHP_SAPI === 'cli' ? PHP_BINARY : 'php';
+        $lint = []; $lintStatus = 1;
+        exec(escapeshellarg($phpCli) . ' -l ' . escapeshellarg($stage) . ' 2>&1', $lint, $lintStatus);
+        if ($lintStatus !== 0) throw new RuntimeException('php');
+        if (!@chmod($stage, fileperms(__FILE__) & 0777) || !@rename($stage, __FILE__)) throw new RuntimeException('storage');
+        $installed = true;
+        clearstatcache(true, __FILE__);
+        if (!hash_equals(hash('sha256', $code), (string) @hash_file('sha256', __FILE__))) throw new RuntimeException('integrity');
+        if (function_exists('opcache_invalidate')) @opcache_invalidate(__FILE__, true);
+    } catch (Throwable $e) {
+        $reason = in_array($e->getMessage(), ['backup','storage','php','integrity'], true) ? $e->getMessage() : 'storage';
+        if ($installed) {
+            if (@file_put_contents($stage, $original, LOCK_EX) !== strlen($original)
+                || !@chmod($stage, fileperms(__FILE__) & 0777) || !@rename($stage, __FILE__)) $reason = 'rollback';
+            if (function_exists('opcache_invalidate')) @opcache_invalidate(__FILE__, true);
+        }
+        @unlink($stage); if ($backup) @unlink($backup);
+        $failUpdate(500, $reason);
+    }
+    @unlink($stage); if ($backup) @unlink($backup);
+    echo json_encode(['ok'=>true,'version'=>$target]); exit;
 }
 if ($api !== '') {
     function fail(int $code, string $message, string $errorCode): never {

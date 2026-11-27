@@ -73,17 +73,54 @@
   let adminToken = '';
   let updateBusy = false;
   let updateStatus = '';
-  async function runServerUpdate() {
+  let currentRelease = '';
+  let releases = [];
+  let selectedRelease = '';
+  let updateLoaded = false;
+  function resetReleaseList() {
+    releases = []; selectedRelease = ''; currentRelease = ''; updateLoaded = false; updateStatus = '';
+  }
+  async function updateRequest(action, body = {}) {
+    const response = await fetch(location.pathname + '?api=' + action, {
+      method: 'POST', headers: { 'Content-Type':'application/json', 'X-Hausstand-Admin':adminToken, 'X-Requested-With':'Hausstandsliste' },
+      body: JSON.stringify(body), cache:'no-store'
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      const code = data.errorCode;
+      const known = ['admin','method','origin','curl','github','selection','integrity','inlineConfig','php','invalidArtifact','incompatible','storage','lock','editing','backup','rollback'];
+      throw new Error($translate(known.includes(code) ? 'update.error.' + code : 'session.updateFailed'));
+    }
+    return data;
+  }
+  async function checkServerReleases() {
     if (!adminToken.trim() || updateBusy) return;
-    updateBusy = true; updateStatus = '';
+    resetReleaseList(); updateBusy = true;
     try {
-      const response = await fetch(`${location.pathname}?api=update`, { method: 'POST', headers: { 'X-Hausstand-Admin': adminToken, 'X-Requested-With': 'Hausstandsliste' } });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || $translate('session.updateFailed'));
-      updateStatus = $translate('session.updateOk', {version:data.version || $translate('session.latestVersion')});
-      setTimeout(() => location.reload(), 1200);
+      const data = await updateRequest('update-list');
+      currentRelease = data.current; releases = data.releases; updateLoaded = true;
     } catch (error) { updateStatus = error.message || $translate('session.updateFailed'); }
     finally { updateBusy = false; }
+  }
+  function releaseIsDowngrade(tag) {
+    const index = releases.findIndex(r => r.tag === currentRelease);
+    return index < 0 || releases.findIndex(r => r.tag === tag) > index;
+  }
+  async function installServerRelease() {
+    if (updateBusy || storageBusy || serverEditing || $appState.dirty || !selectedRelease || !adminToken.trim()) return;
+    const target = releases.find(r => r.tag === selectedRelease);
+    if (!target || !target.verifiedDigest || target.tag === currentRelease) return;
+    const warning = releaseIsDowngrade(target.tag) ? '\n\n' + $translate('update.downgradeWarning') : '';
+    if (!confirm($translate('update.confirm',{current:currentRelease,target:target.tag}) + warning)) return;
+    updateBusy = true; updateStatus = '';
+    try {
+      const data = await updateRequest('update', {tag:target.tag,current:currentRelease});
+      updateStatus = $translate('session.updateOk',{version:data.version});
+      setTimeout(() => location.reload(), 1200);
+    } catch (error) {
+      updateStatus = error.message || $translate('session.updateFailed');
+      updateBusy = false;
+    }
   }
   function showFeedback(message, isError = false) {
     notifications.notify(message, {kind:isError ? 'error' : 'success', source:'storage'});
@@ -470,8 +507,29 @@
           <section class="ux-panel setting-panel">
             <h2>{$translate('session.update')}</h2>
             <label for="server-admin-token">{$translate('session.admin')}</label>
-            <input id="server-admin-token" type="password" autocomplete="current-password" bind:value={adminToken} />
-            <button class="outline-action" disabled={updateBusy || !adminToken.trim()} on:click={runServerUpdate}>{updateBusy ? $translate('session.updateChecking') : $translate('session.updateInstall')}</button>
+            <input id="server-admin-token" type="password" autocomplete="current-password" bind:value={adminToken} disabled={updateBusy} on:input={resetReleaseList} />
+            <button class="outline-action" disabled={updateBusy || !adminToken.trim()} on:click={checkServerReleases}>{$translate(updateBusy && !updateLoaded ? 'session.updateChecking' : 'update.check')}</button>
+            {#if updateLoaded}
+              <p>{$translate('update.current',{version:currentRelease})}</p>
+              {#if !releases.length}<p>{$translate('update.empty')}</p>{/if}
+              <fieldset class="release-options">
+                <legend>{$translate('update.choose')}</legend>
+                {#each releases as release (release.tag)}
+                  <div class="setting-advanced-block">
+                    <label><input type="radio" name="target-release" value={release.tag} bind:group={selectedRelease}
+                      disabled={updateBusy || release.tag === currentRelease || !release.verifiedDigest}/> <strong>{release.tag}</strong>
+                      <span> · {formatDate(release.publishedAt.slice(0,10),$locale)}</span></label>
+                    {#if release.tag === currentRelease}<p class="muted">{$translate('update.installed')}</p>
+                    {:else if !release.verifiedDigest}<p class="muted">{$translate('update.error.integrity')}</p>
+                    {:else if releaseIsDowngrade(release.tag)}<p class="muted">{$translate('update.downgrade')}</p>{/if}
+                    <details><summary>{$translate('update.notes')}</summary><p style="white-space:pre-wrap;overflow-wrap:anywhere">{release.notes || $translate('update.noNotes')}</p></details>
+                  </div>
+                {/each}
+              </fieldset>
+              {#if serverEditing || $appState.dirty}<p class="inline-info">{$translate('update.error.editing')}</p>{/if}
+              <button class="outline-action" disabled={updateBusy || storageBusy || serverEditing || $appState.dirty || !selectedRelease}
+                on:click={installServerRelease}>{$translate(updateBusy ? 'update.installing' : 'update.install')}</button>
+            {/if}
             {#if updateStatus}<p role="status">{updateStatus}</p>{/if}
           </section>
           <section class="ux-panel setting-panel"><h2>{$translate('session.login')}</h2><button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.logout()}>{$translate('session.logout')}</button></section>

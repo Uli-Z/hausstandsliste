@@ -13,7 +13,12 @@ const run = (args, env) => {
 const env = { ...process.env, VITE_HAUSSTAND_SERVER_MODE:'true' };
 run([path.join(root,'node_modules','vite','bin','vite.js'),'build','--config','vite.ui-v3.config.js'],env);
 run([path.join(root,'scripts','inline-ui-v3.mjs'),'--php'],env);
-const php = await readFile('server-php/backend.php', 'utf8');
+const releaseTag = process.env.HAUSSTAND_RELEASE_TAG || 'development';
+if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(releaseTag)) throw new Error('Invalid release tag');
+const backend = await readFile('server-php/backend.php', 'utf8');
+const marker = "define('HAUSSTAND_RELEASE_TAG', 'development');";
+if (!backend.includes(marker)) throw new Error('Release tag marker missing');
+const php = backend.replace(marker, "define('HAUSSTAND_RELEASE_TAG', '" + releaseTag + "');");
 const html = await readFile('dist/php-ui.html', 'utf8');
 if (!html.includes('<!doctype html>') || !php.startsWith('<?php') || !html.includes('Online-Projekte')) {
   throw new Error('PHP bundle does not contain the expected server-enabled UI V3.');

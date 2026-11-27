@@ -28,12 +28,15 @@ jobs:
         run: npm test
       - name: Build PHP app with integrated server UI V3
         working-directory: hausstand-svelte
+        env:
+          HAUSSTAND_RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('php-{0}', github.run_number) }}
         run: npm run build:php
       - name: Validate PHP syntax and exercise API
         working-directory: hausstand-svelte
         run: |
           php -l dist/hausstand.php
           php -l server-php/backend.php
+          php server-php/update-test.php
           node server-php/smoke.mjs
       - name: Upload PHP artifact
         uses: actions/upload-artifact@v4
@@ -50,3 +53,4 @@ jobs:
           name: Hausstandsliste PHP ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build {0}', github.run_number) }}
           files: hausstand-svelte/dist/hausstand.php
           make_latest: true
+          generate_release_notes: true
