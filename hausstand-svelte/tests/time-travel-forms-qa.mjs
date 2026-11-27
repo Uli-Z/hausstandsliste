@@ -140,7 +140,7 @@ export async function timeTravelFormsAcceptance(browser,url) {
     assert.equal(carla.date,'2030-09-17');
     assert.match(await page.locator('.time-travel-selected-text strong').innerText(), /01\.03\.2031/);
 
-    await page.locator('.person-tile').filter({hasText:'Carla'}).locator('.person-bottom button').click();
+    await page.locator('.person-row').filter({hasText:'Carla'}).locator('.person-name').click();
     // Q35/Q40: the archive action must be discoverable without a disclosure.
     const personActions = page.locator('.detail-hero .secondary-actions');
     assert.equal(await personActions.getByRole('button',{name:'Person archivieren'}).isVisible(),true);
@@ -160,13 +160,13 @@ export async function timeTravelFormsAcceptance(browser,url) {
 
     await nav('Personen').click();
     await page.getByRole('button',{name:'Archiviert (0)',exact:true}).click();
-    assert.equal(await page.locator('.person-tile').count(),0);
+    assert.equal(await page.locator('.person-row').count(),0);
     await cutoff('2032-04-05');
-    assert.equal(await page.locator('.person-tile').filter({hasText:'Carla'}).count(),1);
+    assert.equal(await page.locator('.person-row').filter({hasText:'Carla'}).count(),1);
     await page.getByRole('button',{name:/^Aktiv \(/}).click();
-    assert.equal(await page.locator('.person-tile').filter({hasText:'Carla'}).count(),0);
+    assert.equal(await page.locator('.person-row').filter({hasText:'Carla'}).count(),0);
     await cutoff('2032-05-05');
-    assert.equal(await page.locator('.person-tile').filter({hasText:'Carla'}).count(),1);
+    assert.equal(await page.locator('.person-row').filter({hasText:'Carla'}).count(),1);
     await nav('Überblick').click();
     await page.locator('.quick-actions .task-grid > button').nth(1).click();
     assert.equal(await page.locator('#redistribution-effective-date').inputValue(),'2032-05-05');
@@ -272,7 +272,7 @@ export async function guidedArchiveAcceptance(browser,url) {
     // Q27 guided archive: every step returns to the original date; no implicit payment.
     await cutoff('2033-01-01');
     await nav('Personen').click();
-    await page.locator('.person-tile').filter({hasText:'Anna'}).locator('.person-bottom button').click();
+    await page.locator('.person-row').filter({hasText:'Anna'}).locator('.person-name').click();
     const personActions = page.locator('.detail-hero .secondary-actions');
     assert.equal(await personActions.getByRole('button',{name:'Person archivieren'}).isVisible(),true);
     await personActions.getByRole('button',{name:'Person archivieren'}).click();

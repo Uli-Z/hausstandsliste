@@ -48,7 +48,15 @@ test('people keep directional balances and a link to detail without an idle coun
   assert.ok(people.includes('{#if search.trim()}'));
   assert.ok(people.includes("cents > 0 ? $translate('people.toReceive') : $translate('people.toSettle')"));
   assert.ok(people.includes("appState.setRoute({page:'person',id:person.id})"));
-  assert.ok(people.includes("pluralMessage('people.itemCount'"));
+  assert.ok(people.includes('role="table"'));
+  assert.equal((people.match(/role="columnheader"/g)||[]).length,5);
+  assert.ok(people.includes('filter(h => h.units > 0).length'));
+  assert.ok(people.includes('money(person.totalValue || 0)'));
+  assert.ok(people.includes('ledger?.balances?.get(person.id)'));
+  assert.ok(people.includes("cents === 0 ? $translate('balance.zero')"));
+  assert.ok(!people.includes('CompactNames'));
+  assert.ok(!people.includes('people-grid'));
+  assert.ok(people.includes('mobile-cell-label'));
 });
 
 
@@ -131,7 +139,7 @@ test('Q25: cards extend native primary buttons without nesting secondary control
   assert.match(css,/\.action-card \.card-primary::after\{[^}]*inset:0/);
   assert.match(css,/\.card-primary:focus-visible::after/);
   assert.match(css,/\.card-secondary\{position:relative;z-index:2/);
-  for(const [path,kind] of [['InventoryView','item-tile'],['PeopleView','person-tile'],['App','metric'],['LedgerView','transfer-row']]){
+  for(const [path,kind] of [['InventoryView','item-tile'],['PeopleView','person-row'],['App','metric'],['LedgerView','transfer-row']]){
     const s=source('ui-v3/'+path+'.svelte');
     assert.ok(s.includes('class="'+kind+' action-card"'),path);
     assert.ok(s.includes('card-primary'),path);

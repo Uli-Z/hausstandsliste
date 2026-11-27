@@ -1434,7 +1434,10 @@ async function wholeCardAcceptance(browser,url) {
       await title.filter({hasText:'Kühlschrank'}).waitFor();
       await goHome();
       await metric('people').click({position:{x:3,y:3}});
-      const anna=page.locator('.person-tile').filter({has:page.getByRole('heading',{name:'Anna',exact:true})});
+      const anna=page.locator('.person-row[data-person-id="anna"]');
+      assert.equal(await anna.locator('.person-count strong').innerText(),'1');
+      assert.equal(await anna.locator('.person-balance strong').count(),1);
+      assert.equal(await anna.locator('.compact-names').count(),0);
       await anna.locator('.card-primary').focus();
       await page.keyboard.press('Enter');
       await title.filter({hasText:'Anna'}).waitFor();
@@ -1483,13 +1486,13 @@ async function archiveDiscoverabilityAcceptance(browser,url) {
       await page.locator('#state-date').fill('2033-01-01');
       await page.keyboard.press('Escape');
       await page.locator('.metric-grid [data-metric="people"] .metric-link').click();
-      const tile=name=>page.locator('.person-tile').filter({has:page.getByRole('heading',{name,exact:true})});
+      const tile=name=>page.locator('.person-row').filter({has:page.getByRole('button',{name,exact:true})});
       const dialog=page.getByRole('dialog');
       const submit=dialog.locator('.modal-footer .primary');
       const snapshot=()=>page.evaluate(key=>JSON.parse(localStorage.getItem(key)).project,key);
       await tile('Anna').getByRole('button',{name:archive,exact:true}).click();
       await dialog.waitFor();
-      assert.equal(await submit.isDisabled(),true,'existing shares and balance still block archive');
+      assert.equal(await submit.isEnabled(),true,'Q60: membership changes do not depend on holdings or balances');
       await dialog.locator('.modal-header button.ghost').click();
       await dialog.waitFor({state:'hidden'});
       const direct=tile('Q40 Free').getByRole('button',{name:archive,exact:true});
@@ -1567,7 +1570,10 @@ async function overviewNamesAcceptance(browser,url) {
         await page.locator('.metric-grid').screenshot({path:join(process.env.Q45_SCREENSHOT_DIR,browser.browserType().name()+'-'+width+'-many.png')});
       }
       await people.locator('.name-more').click();
-      assert.equal(await page.locator('.person-tile').count(),13);
+      assert.equal(await page.locator('.person-row').count(),13);
+      assert.equal(await page.getByRole('table',{name:locale==='de-DE'?'Personen':'People',exact:true}).count(),1);
+      assert.equal(await page.locator('.person-row .compact-names').count(),0);
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
       const goHome=()=>page.locator(width<600?'.mobile-bottom-nav > button':'.sidebar-links > button').first().click();
       await goHome();
       await page.locator('.time-travel-toggle').click();
