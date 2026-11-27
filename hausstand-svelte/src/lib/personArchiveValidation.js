@@ -1,3 +1,4 @@
+import { itemDisplayName } from './itemNames.js';
 import { walkEvents } from './projector.js';
 import { ledgerAt } from './ledger.js';
 import { byDateOrder } from './util.js';
@@ -30,7 +31,7 @@ export function archiveHistoryProblems(project) {
       if (held.length) {
         const item = held[0];
         add('errors.archiveHoldings', id, event, parent, {
-          item: state.itemsById.get(item.itemId)?.name || item.itemId
+          item: itemDisplayName(state.itemsById.get(item.itemId)) || item.itemId
         });
       }
       const index = positions.get(event);

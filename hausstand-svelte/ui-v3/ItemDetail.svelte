@@ -1,4 +1,5 @@
 <script>
+  import { itemDisplayName } from '../src/lib/itemNames.js';
   import CompactNames from './CompactNames.svelte';
   import { locale } from '../src/lib/i18n.js';
   import { itemPeople } from '../src/lib/overviewNames.js';
@@ -28,7 +29,7 @@
     <div class="detail-hero">
       <div class="stack">
         <div class="detail-title">
-          <h2>{item.name}</h2>
+          <h2>{itemDisplayName(item)}</h2>
           {#if item.status !== 'active'}<span class="item-status-text">{$translate("ui.no-longer-owned-2uva14")}</span>{/if}
         </div>
         {#if item.tags?.length}<p class="item-categories">{item.tags.join(' · ')}</p>{/if}

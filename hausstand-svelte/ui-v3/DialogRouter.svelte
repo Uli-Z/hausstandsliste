@@ -12,7 +12,7 @@
   import { purchaseClaims as derivePurchaseClaims, purchaseBreakdown } from '../src/lib/ledger.js';
   import PurchaseBreakdown from './PurchaseBreakdown.svelte';
   import ItemDuplicateWarning from './ItemDuplicateWarning.svelte';
-  import { duplicateItemNames } from '../src/lib/itemNames.js';
+  import { duplicateItemNames, itemDisplayName } from '../src/lib/itemNames.js';
   import PurchaseFinancing from './PurchaseFinancing.svelte';
   import { normalizePersonName, duplicatePersonName, addPerson as applyPersonAdd, renamePerson, personStatusProblem, changePersonStatus, previewPersonStatus } from '../src/lib/personMutations.js';
   import { addItem as applyItemAdd, continueItem as applyItemContinue, updateItemMetadata, setItemShares, endItem as applyItemEnd, validMoney } from '../src/lib/itemMutations.js';
@@ -426,7 +426,7 @@
                 <div class="archive-item-steps">
                   {#each statusPreview.holdings as h (h.item.id)}
                     <div class="archive-step">
-                      <strong>{h.item.name}</strong>
+                      <strong>{itemDisplayName(h.item)}</strong>
                       <div class="archive-step-actions">
                         <button type="button" disabled={$appState.readOnly} on:click={() => archiveItemStep('shareSet',h.item.id)}>{$translate('ui.change-ownership-shares-1x7cqup')}</button>
                         {#if archiveSoleItems.some(i=>i.id===h.item.id)}
@@ -449,7 +449,7 @@
                   <button type="button" disabled={$appState.readOnly} on:click={() => archiveBulkStep(true)}>{$translate('archive.giftRemaining')}</button>
                 {/if}
                 {#if archiveSoleItems.length}
-                  <p class="muted">{$translate('archive.soleItems',{items:archiveSoleItems.map(i=>i.name).join(', ')})}</p>
+                  <p class="muted">{$translate('archive.soleItems',{items:archiveSoleItems.map(itemDisplayName).join(', ')})}</p>
                 {/if}
               {/if}
               <div class="split"><span>{$translate('archive.balance')}</span><strong>{money(statusPreview.balanceCents / 100)}</strong></div>

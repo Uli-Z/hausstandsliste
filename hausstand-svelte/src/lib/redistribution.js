@@ -1,3 +1,4 @@
+import { itemDisplayName } from './itemNames.js';
 import { message, getLocale, formatMoney } from './i18n.js';
 import { normShares, shareTotal, money } from './domain.js';
 import { projectAt, projectBeforeEvent, shareDeltasForChange } from './projector.js';
@@ -71,7 +72,7 @@ export function buildRedistributionItemRows(baseProjection, changes = [], itemId
 
     return {
       itemId: item.id,
-      itemName: item.name,
+      itemName: itemDisplayName(item),
       itemValue: item.value,
       changed: entries.length > 0 || unitDeltaProblem,
       unitDeltaProblem,

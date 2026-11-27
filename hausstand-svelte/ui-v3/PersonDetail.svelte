@@ -1,4 +1,5 @@
 <script>
+  import { itemDisplayName } from '../src/lib/itemNames.js';
   import CompactNames from './CompactNames.svelte';
   import { locale } from '../src/lib/i18n.js';
   import { rankedItems } from '../src/lib/overviewNames.js';
@@ -39,7 +40,7 @@
     if (!appState.requireEditing()) return;
     const blocked = soleOwnedItems(projection,person.id);
     if (blocked.length) {
-      alert($translate('dialog.lastOwners',{items:blocked.map(item=>item.name).join(', ')}));
+      alert($translate('dialog.lastOwners',{items:blocked.map(itemDisplayName).join(', ')}));
       return;
     }
     const changes = buildRemovePersonChanges(projection,person.id);
@@ -111,7 +112,7 @@
 </section>
 <section class="grid-2" style="margin-top:16px">
   <section class="panel"><div class="panel-header"><h2>{$translate("ui.which-items-does-this-person-own-553tea")}</h2></div><div class="panel-body">
-    {#if person.holdings?.length}<table><thead><tr><th>{$translate("ui.item-7uthuv")}</th><th class="right">{$translate("ui.units-1xtsz9u")}</th><th class="money">{$translate("ui.share-value-169kov6")}</th></tr></thead><tbody>{#each person.holdings as h}<tr class="clickable-row" on:click={() => appState.setRoute({ page: 'item', id: h.item.id })}><td>{h.item.name}</td><td class="right">{h.units}</td><td class="money">{money(h.value)}</td></tr>{/each}</tbody></table>{:else}<div class="empty">{$translate("ui.no-shares-at-the-selected-date-1hdgjmi")}</div>{/if}
+    {#if person.holdings?.length}<table><thead><tr><th>{$translate("ui.item-7uthuv")}</th><th class="right">{$translate("ui.units-1xtsz9u")}</th><th class="money">{$translate("ui.share-value-169kov6")}</th></tr></thead><tbody>{#each person.holdings as h}<tr class="clickable-row" on:click={() => appState.setRoute({ page: 'item', id: h.item.id })}><td>{itemDisplayName(h.item)}</td><td class="right">{h.units}</td><td class="money">{money(h.value)}</td></tr>{/each}</tbody></table>{:else}<div class="empty">{$translate("ui.no-shares-at-the-selected-date-1hdgjmi")}</div>{/if}
   </div></section>
   <section class="panel">
     <Timeline project={$appState.project} asOfDate={$appState.asOfDate} personId={person.id} title={$translate("ui.changes-involving-this-person-1xmckgg")} />

@@ -1,3 +1,4 @@
+import { itemDisplayName } from './itemNames.js';
 // Q29: presentation-only summaries. Use the existing dated projection and
 // stored event participants; do not compute independent ownership or money.
 import { projectBeforeEvent } from './projector.js';
@@ -7,7 +8,7 @@ export function nameEntries(entries, locale='en') {
   return [...entries].sort((a,b)=>cmp(a,b,locale));
 }
 export function rankedItems(items, locale='en') {
-  return [...items].sort((a,b)=>b.value-a.value || cmp(a,b,locale));
+  return [...items].sort((a,b)=>b.value-a.value || cmp(a,b,locale)).map(item=>({...item,name:itemDisplayName(item)}));
 }
 export function ownerNames(item, locale='en') {
   return nameEntries((item.shareRows || []).filter(r=>r.units>0).map(r=>({id:r.personId,name:r.personName})),locale);

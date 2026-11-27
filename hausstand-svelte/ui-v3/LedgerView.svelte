@@ -1,4 +1,5 @@
 <script>
+  import { itemDisplayName } from '../src/lib/itemNames.js';
   import { pluralMessage, translate } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
   import { money } from '../src/lib/domain.js';
@@ -12,7 +13,7 @@
   export let asOfDate;
 
   $: names = new Map((project.people || []).map(p => [p.id, p.name || p.id]));
-  $: itemNames = new Map((project.items || []).map(item => [item.id, item.name || item.id]));
+  $: itemNames = new Map((project.items || []).map(item => [item.id, itemDisplayName(item) || item.id]));
   $: eventById = new Map((project.events || []).map(event => [event.id, event]));
   $: balances = [...(data.balances || new Map())]
     .filter(([, cents]) => cents !== 0)
@@ -22,7 +23,7 @@
   $: recorded = [...(data.counterclaims || [])].reverse();
 
   function personName(id) { return names.get(id) || id; }
-  function itemName(id) { return itemNames.get(id) || id; }
+  function itemName(id) { return itemNames.get(id) || itemDisplayName({name:id,number:project.itemNumberRegistry?.find(row=>row.id===id)?.number}); }
   function addSettlement(transfer = null) {
     appState.setDialog({
       type: 'settlementAdd',

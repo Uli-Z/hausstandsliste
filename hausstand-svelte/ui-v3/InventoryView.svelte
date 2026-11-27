@@ -1,4 +1,5 @@
 <script>
+  import { itemDisplayName } from '../src/lib/itemNames.js';
   import CompactNames from './CompactNames.svelte';
   import { ownerNames } from '../src/lib/overviewNames.js';
   import { appState } from '../src/stores/projectStore.js';
@@ -10,7 +11,7 @@
   let search = '';
   let tag = '';
   let showArchive = false;
-  $: filtered = items.filter(i => (!tag || (i.tags || []).includes(tag)) && (!search.trim() || [i.name, i.note, ...(i.tags||[])].join(' ').toLowerCase().includes(search.trim().toLowerCase()))).sort((a,b) => a.name.localeCompare(b.name, $locale));
+  $: filtered = items.filter(i => (!tag || (i.tags || []).includes(tag)) && (!search.trim() || [itemDisplayName(i), i.note, ...(i.tags||[])].join(' ').toLowerCase().includes(search.trim().toLowerCase()))).sort((a,b) => a.name.localeCompare(b.name, $locale));
 </script>
 
 <section class="ux-panel inventory-panel">
@@ -28,7 +29,7 @@
       {#each filtered as item (item.id)}
         <article class="item-tile action-card">
           <div class="item-top"><span class="item-worth">{money(item.value)}</span></div>
-          <h2>{item.name}</h2>
+          <h2>{itemDisplayName(item)}</h2>
           {#if item.note}<p class="item-note">{item.note}</p>{/if}
           {#if item.tags?.length}<p class="item-categories">{item.tags.join(', ')}</p>{/if}
           <div class="item-facts"><span>{pluralMessage('items.ownerCount', item.shareRows.length, $locale)}</span></div>
@@ -50,7 +51,7 @@
     {#if showArchive}
       <div class="archive-list">
         {#each archived as item (item.id)}
-          <div class="archive-row action-card"><div><strong>{item.name}</strong><small>{item.runtime.endedAt || $translate('items.dateUnknown')} · {item.runtime.endReason || item.status || $translate('items.archived')}</small></div><button class="card-primary" type="button" on:click={() => appState.setRoute({page:'item',id:item.id})}>{$translate("items.detailsLink")}</button></div>
+          <div class="archive-row action-card"><div><strong>{itemDisplayName(item)}</strong><small>{item.runtime.endedAt || $translate('items.dateUnknown')} · {item.runtime.endReason || item.status || $translate('items.archived')}</small></div><button class="card-primary" type="button" on:click={() => appState.setRoute({page:'item',id:item.id})}>{$translate("items.detailsLink")}</button></div>
         {/each}
       </div>
     {/if}

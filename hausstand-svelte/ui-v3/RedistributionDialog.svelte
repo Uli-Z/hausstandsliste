@@ -1,4 +1,5 @@
 <script>
+  import { itemDisplayName } from '../src/lib/itemNames.js';
   import { notifications } from '../src/lib/notifications.js';
   const notifyError = message => notifications.notify(message, {kind:'error'});
   import { translate } from '../src/lib/i18n.js';
@@ -81,7 +82,7 @@
     } else if (activeSubModal === 'special-remove') {
       const blocked = soleOwnedItems(preview.base, subModalData.sourceId);
       if (blocked.length) {
-        notifyError($translate('dialog.lastOwners', { items: blocked.map(item => item.name).join(', ') }));
+        notifyError($translate('dialog.lastOwners', { items: blocked.map(itemDisplayName).join(', ') }));
       }
       changes = buildRemovePersonChanges(preview.base, subModalData.sourceId);
     } else if (activeSubModal === 'special-add') {
@@ -215,7 +216,7 @@
     <div class="modal" role="dialog" aria-modal="true" aria-label={$translate("items.change")} style="max-width: 600px">
       <div class="modal-header">
         <h3>
-          {#if activeSubModal === 'item'}{$translate('dialog.editItemShares', { name: subModalData.item.name })}{/if}
+          {#if activeSubModal === 'item'}{$translate('dialog.editItemShares', { name: itemDisplayName(subModalData.item) })}{/if}
           {#if activeSubModal === 'special-transfer'}{$translate('ui.transfer-all-shares-to-one-person-m0ednu')}{/if}
           {#if activeSubModal === 'special-remove'}{$translate('ui.remove-a-person-s-shares-from-all-i-1eiw9j2')}{/if}
           {#if activeSubModal === 'special-add'}{$translate('dialog.addToAll')}{/if}

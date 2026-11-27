@@ -1,4 +1,5 @@
 <script>
+  import { itemDisplayName } from '../src/lib/itemNames.js';
   import { appState } from '../src/stores/projectStore.js';
   import { getVersionEntries, readPortableVersion, withoutHistory } from '../src/lib/versionHistory.js';
   import { projectAt } from '../src/lib/projector.js';
@@ -77,7 +78,7 @@
         <h4>{$translate('nav.people')}</h4>
         <ul>{#each projected.people as person (person.id)}<li>{person.name} · {formatMoney((balances.get(person.id) || 0)/100,$locale)}{!person.active ? ' · ' + $translate('versions.inactive') : ''}</li>{/each}</ul>
         <h4>{$translate('nav.items')}</h4>
-        <ul>{#each projected.items as item (item.id)}<li>{item.name} · {formatMoney(item.value,$locale)}{#if item.shareRows.length}<small>{item.shareRows.map(row => row.personName + ': ' + row.units).join(' · ')}</small>{/if}</li>{/each}</ul>
+        <ul>{#each projected.items as item (item.id)}<li>{itemDisplayName(item)} · {formatMoney(item.value,$locale)}{#if item.shareRows.length}<small>{item.shareRows.map(row => row.personName + ': ' + row.units).join(' · ')}</small>{/if}</li>{/each}</ul>
         <p class="muted">{$translate('versions.records', {events:snapshot.events.length,drafts:snapshot.drafts.length})}</p>
         <details><summary>{$translate('versions.data')}</summary><pre class="json-preview">{JSON.stringify(withoutHistory(snapshot),null,2)}</pre></details>
         {#if $appState.readOnly}<p class="muted">{$translate('versions.readOnly')}</p>{/if}

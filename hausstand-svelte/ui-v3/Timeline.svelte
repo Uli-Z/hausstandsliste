@@ -1,4 +1,5 @@
 <script>
+  import { itemDisplayName } from '../src/lib/itemNames.js';
   import CompactNames from './CompactNames.svelte';
   import { tick } from 'svelte';
   import { locale } from '../src/lib/i18n.js';
@@ -31,7 +32,7 @@
     // View-only order: newest first on either side of the time-travel cutoff.
   $: allEvents = project.events || [];
   $: peopleById = new Map((project.people || []).map(person => [person.id, person.name || person.id]));
-  $: itemsById = new Map((project.items || []).map(item => [item.id, item.name || item.id]));
+  $: itemsById = new Map((project.items || []).map(item => [item.id, itemDisplayName(item) || item.id]));
 
   function personName(personId) {
     if (!personId) return localizeGermanText('Unbekannte Person');
@@ -40,7 +41,7 @@
 
   function itemName(itemId, fallbackName = '') {
     if (!itemId) return fallbackName || localizeGermanText('Unbekannter Gegenstand');
-    return itemsById.get(itemId) || fallbackName || itemId;
+    return itemsById.get(itemId) || itemDisplayName({name:fallbackName || itemId,number:project.itemNumberRegistry?.find(row=>row.id===itemId)?.number});
   }
 
   function openPerson(personId) {

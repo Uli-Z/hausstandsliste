@@ -1,3 +1,4 @@
+import { itemDisplayName } from './itemNames.js';
 import { nowISO } from './util.js';
 import { money } from './domain.js';
 import { projectAt } from './projector.js';
@@ -37,6 +38,8 @@ export const exportProject = (project, asOfDate) => {
       items: projection.activeItems.map(i => ({
         id: i.id,
         name: i.name,
+        number: i.number,
+        label: itemDisplayName(i),
         currentValue: Math.round(i.value * 100) / 100,
         // Keep the same machine-readable rule as the canonical item-added event.
         valuation: { ...i.runtime.valuation },

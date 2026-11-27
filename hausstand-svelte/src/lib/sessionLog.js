@@ -1,3 +1,4 @@
+import { itemDisplayName } from './itemNames.js';
 // Derive presentation metadata once from an accepted atomic business mutation.
 // Keep keys and raw names/amounts, not translated sentences, so locale changes
 // also translate earlier session entries. Nothing here is persisted.
@@ -16,14 +17,14 @@ function changes(before,after) {
 export function describeSessionChange(before,after) {
   const rows=[];
   const person=id=>named(after.people,id)||named(before.people,id)||id||'—';
-  const item=id=>named(after.items,id)||named(before.items,id)||id||'—';
+  const item=id=>itemDisplayName((after.items||[]).find(row=>row.id===id)||(before.items||[]).find(row=>row.id===id)||{name:id||'—'});
   if(before.community?.name!==after.community?.name)
     rows.push(label('rename',{old:before.community?.name||'—',name:after.community?.name||'—'}));
   const people=changes(before.people,after.people), items=changes(before.items,after.items);
   for(const [type,list] of [['person',people],['item',items],['draft',changes(before.drafts,after.drafts)]])
     for(const {a,b,kind} of list) {
       const value=b||a;
-      rows.push(label(type+kind,{name:value.name||value.title||value.data?.name||value.id||'—'}));
+      rows.push(label(type+kind,{name:type==='item'?itemDisplayName(value):value.name||value.title||value.data?.name||value.id||'—'}));
     }
   for(const {a,b,kind} of changes(before.events,after.events)) {
     const e=b||a;
