@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { translate, serverErrorMessage, localizeDiagnostic } from '../src/lib/i18n.js';
   import { appState } from '../src/stores/projectStore.js';
+  import { notifications } from '../src/lib/notifications.js';
   import { exportProject } from '../src/lib/persistence.js';
   import { emptyProject, requireProjectFile } from '../src/lib/domain.js';
   import { createPortableSave, verifyPortableHistory } from '../src/lib/versionHistory.js';
@@ -173,8 +174,14 @@
       }
       const chosen = pass;
       await unlock(chosen);
-      try { await remember(chosen); } catch { feedback = $translate('session.rememberFailed'); }
-    } catch (e) { error = localizeDiagnostic(e.message) || $translate('session.loginFailed'); }
+      notifications.dismissSource('login');
+      notifications.notify($translate('toast.signedIn'), {kind:'success'});
+      try { await remember(chosen); } catch { notifications.notify($translate('session.rememberFailed'), {kind:'warning'}); }
+    } catch (e) {
+      error = localizeDiagnostic(e.message) || $translate('session.loginFailed');
+      notifications.dismissSource('login');
+      notifications.notify($translate('session.loginFailed'), {kind:'error', source:'login'});
+    }
     finally { busy = false; }
   }
   export async function save() {
