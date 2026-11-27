@@ -607,3 +607,10 @@ tr.clickable-row:hover td{background:#eef7f8}
 
 /* Q46: essential, short context is visible without a help icon. */
 .context-note{margin:0;color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+
+/* Q47: keep the project name and edit affordance usable in the sticky bar. */
+.household-rename{display:flex;align-items:center;gap:5px;min-width:0;max-width:100%;width:fit-content;padding:5px 4px;border:0;background:transparent;color:inherit;text-align:left;min-height:36px}
+.household-rename strong{min-width:0;flex:1}
+.household-rename .action-icon,.household-rename svg{flex:none;color:var(--muted)}
+.household-rename:hover,.household-rename:focus-visible{background:var(--soft)}
+@media(max-width:780px){.household-rename{gap:3px;padding:4px 2px}}

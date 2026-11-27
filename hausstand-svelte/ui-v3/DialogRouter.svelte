@@ -56,6 +56,7 @@
     archiveTarget = dialog.archiveTarget || '';
     paymentDate = effectiveDate;
     const current = projectAt(project, effectiveDate).activeItems.find(i => i.id === dialog.itemId);
+    if (dialog.type === 'householdRename') name = project.community?.name || '';
     if (dialog.type === 'personMeta') name = project.people.find(p => p.id === dialog.personId)?.name || '';
     if (dialog.type === 'itemMeta') {
       const metadata = project.items.find(i => i.id === dialog.itemId);
@@ -185,6 +186,7 @@
   function confirmFromInput(event) {
     if (!isEnterForSubmit(event)) return;
     const action = {
+      householdRename: saveHouseholdName,
       personAdd: addPerson,
       personStatus: savePersonStatus,
       personMeta: savePersonMeta,
@@ -202,6 +204,10 @@
   }
 
   function close() { appState.closeDialog(); }
+  function saveHouseholdName() {
+    if (!name.trim()) return;
+    if (appState.renameHousehold(name)) close();
+  }
   function addPerson() {
     if (!canSavePersonName) return;
     const saved = appState.mutateProject(p => { applyPersonAdd(p, { name }); });
@@ -365,6 +371,7 @@
     <div class="modal" class:item-entry-modal={itemNeedsOwners} role="dialog" aria-modal="true" aria-labelledby="active-dialog-title" style="max-width:720px" on:keydown={confirmFromInput}>
       <div class="modal-header">
         <h3 id="active-dialog-title">{
+          dialog.type === 'householdRename' ? $translate('household.rename') :
           dialog.type === 'personAdd' ? $translate("app.personAdd") : 
           dialog.type === 'personMeta' ? $translate("ui.edit-person-jstaod") :
           dialog.type === 'personStatus' ? $translate(dialog.kind === 'deactivate' ? 'ui.mark-as-moved-out-11arjl' : 'ui.reactivate-iggdm2') : 
@@ -388,7 +395,10 @@
           {#if dateValid && !statusTargetValid}<p role="alert" class="notice warn">{$translate('timeTravel.statusUnavailable')}</p>{/if}
           {#if dateSharesRebased}<p role="status" class="muted">{$translate('timeTravel.sharesRebased')}</p>{/if}
         {/if}
-        {#if dialog.type === 'personAdd' || dialog.type === 'personMeta'}
+        {#if dialog.type === 'householdRename'}
+          <label>{$translate('household.name')} <input bind:value={name} enterkeyhint="done" required></label>
+          {#if !name.trim()}<p role="alert" class="notice warn">{$translate('household.required')}</p>{/if}
+        {:else if dialog.type === 'personAdd' || dialog.type === 'personMeta'}
           <label class="person-name-field">{$translate("ui.name-4el6o6")} <input bind:value={name} placeholder="Vor- und Nachname" autocomplete="name" enterkeyhint="done"></label>
           {#if duplicatePerson}
             <div class="notice warn">
@@ -566,6 +576,7 @@
       </div>
       <div class="modal-footer"><button on:click={close}>{$translate("ui.cancel-cl4zc9")}</button>
         <div style="flex:1"></div>
+        {#if dialog.type === 'householdRename'}<button class="primary" on:click={saveHouseholdName} disabled={!name.trim() || $appState.readOnly}>{$translate("ui.save-sq2189")}</button>{/if}
         {#if dialog.type === 'personAdd'}<button class="primary" on:click={addPerson} disabled={!canSavePersonName || $appState.readOnly}>{$translate("ui.create-zqi05d")}</button>{/if}
         {#if dialog.type === 'personStatus'}<button class="primary" on:click={savePersonStatus} disabled={!canSubmitDated || $appState.readOnly}>{$translate(dialog.kind === 'deactivate' ? 'ui.mark-as-moved-out-11arjl' : 'ui.reactivate-iggdm2')}</button>{/if}
         {#if dialog.type === 'personMeta'}<button class="primary" on:click={savePersonMeta} disabled={!canSavePersonName || $appState.readOnly}>{$translate("ui.save-sq2189")}</button>{/if}

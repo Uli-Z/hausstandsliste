@@ -62,6 +62,43 @@ async function bootFixture(page, url) {
   await page.reload();
   await page.getByText('Browser-Abnahme').first().waitFor();
 }
+// Q47: direct name editing, cancellation, validation and session history.
+async function householdRenameAcceptance(browser, url) {
+  for (const [width, locale] of [[320,'de-DE'],[1280,'en-GB']]) {
+    const context = await browser.newContext({locale, viewport:{width,height:812}});
+    try {
+      const page = await context.newPage();
+      await bootFixture(page,url);
+      const snapshot = () => page.evaluate(k=>JSON.parse(localStorage.getItem(k)),key);
+      const original = await snapshot();
+      const rename = page.locator('.household-rename');
+      const dialog = page.getByRole('dialog');
+      const input = dialog.locator('input');
+      await rename.click();
+      assert.equal(await input.inputValue(),fixture.community.name);
+      await input.fill('  ');
+      assert.equal(await dialog.locator('.primary').isDisabled(),true);
+      await input.press('Enter');
+      assert.equal(await dialog.isVisible(),true);
+      await dialog.locator('.modal-header button').click();
+      assert.equal((await snapshot()).project.community.name,fixture.community.name);
+      await rename.click();
+      await input.fill('WG Hafen');
+      await input.press('Enter');
+      await dialog.waitFor({state:'hidden'});
+      assert.match(await rename.innerText(),/WG Hafen/);
+      assert.equal((await snapshot()).dirty,true);
+      assert.deepEqual((await snapshot()).project.events,original.project.events);
+      await page.locator('.session-history-actions button').first().click();
+      assert.match(await rename.innerText(),/Browser-Abnahme/);
+      assert.equal((await snapshot()).dirty,false);
+      await page.locator('.session-history-actions button').nth(1).click();
+      assert.match(await rename.innerText(),/WG Hafen/);
+      await page.reload();
+      assert.match(await rename.innerText(),/WG Hafen/);
+    } finally { await context.close(); }
+  }
+}
 // Q32: exercise intermediate values and DOM identity, not just the final submit.
 async function itemEntryAcceptance(browser, url, engine) {
   for (const [width, locale] of [[320,'de-DE'], [375,'de-DE'], [390,'en-GB'], [1280,'en-GB']]) {
@@ -2083,6 +2120,7 @@ try {
   server = offlineServer.server;
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
   await acceptance('Chromium Q37 read-only dialog guard', () => q37ReadOnlyAcceptance(browser));
+  await acceptance('Chromium Q47 household rename', () => householdRenameAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium Q32/Q33 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium Q33 other form drafts', () => formStateAcceptance(browser, offlineServer.url, 'Chromium'));

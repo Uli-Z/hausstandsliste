@@ -13,7 +13,7 @@ test('Q37: read-only blocks all writing dialog entries and preserves an open dra
     setLanguage('en');
     appState.setReadOnly(true, 'Another session holds the checkout.');
     const before = get(appState);
-    for (const type of ['personAdd','personMeta','personStatus','itemAdd','itemMeta','itemEnd','itemContinue','shareSet','redistributionEdit','executedRedistributionEdit','eventEdit','settlementAdd','settlementEdit','futureWritingDialog']) {
+    for (const type of ['householdRename','personAdd','personMeta','personStatus','itemAdd','itemMeta','itemEnd','itemContinue','shareSet','redistributionEdit','executedRedistributionEdit','eventEdit','settlementAdd','settlementEdit','futureWritingDialog']) {
       appState.setDialog({ type, id: 'draft' });
       assert.equal(get(appState), before, type + ' must not change state');
       assert.match(lastError(), /read-only.*top right/s);

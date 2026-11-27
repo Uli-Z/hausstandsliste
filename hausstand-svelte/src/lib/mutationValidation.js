@@ -57,6 +57,10 @@ export function mutationProblem(before, after) {
 // Shared transaction guard for every frontend (browser, CLI, future adapters).
 // No UI, storage or global state; return stable diagnostic keys and parameters.
 export function projectMutationProblem(before, after) {
+  if (before?.community?.name !== after?.community?.name &&
+      (typeof after?.community?.name !== 'string' || !after.community.name.trim())) {
+    return { key: 'household.required' };
+  }
   // Check the original references as well as the proposed state: a caller
   // must not bypass the no-cascade rule by deleting the person AND their
   // history in one transaction. An unused person's initial creation event

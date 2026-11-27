@@ -219,7 +219,9 @@
     <header class="app-header" class:header-in-time-travel={$appState.timeTravelActive}>
       <div class="header-context">
         
-        <strong><span class="mobile-header-brand">Hausstandsliste · </span>{$appState.project.community?.name || 'Meine Hausgemeinschaft'}</strong>
+        <button type="button" class="household-rename" title={$translate('household.rename')} aria-label={$translate('household.rename') + ': ' + ($appState.project.community?.name || $translate('app.household'))} aria-haspopup="dialog" on:click={() => appState.setDialog({type:'householdRename'})}>
+          <strong>{$appState.project.community?.name || $translate('app.household')}</strong><ActionIcon name="edit" size={16}/>
+        </button>
       </div>
       <div class="header-actions">
         <div class="time-travel-control" bind:this={timeTravelControl}>

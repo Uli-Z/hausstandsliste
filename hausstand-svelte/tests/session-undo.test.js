@@ -185,3 +185,31 @@ test('rejected drafts do not change the project or undo history', () => {
   assert.equal(appState.upsertDraft({id:'readonly',type:'item',data:{name:'Chair'}}),false);
   assert.equal(get(appState).project.drafts.length,1);
 });
+
+
+test('Q47: rename changes only household metadata, respects permissions and supports session history', () => {
+  appState.importProject(project('Hausgemeinschaft'));
+  const before = get(appState).project;
+  appState.setAsOfDate('2020-01-01');
+  assert.equal(appState.renameHousehold('  '), false);
+  assert.equal(appState.mutateProject(p => { p.community.name = ''; }), false);
+  assert.equal(get(appState).dirty, false);
+  assert.equal(appState.renameHousehold('  WG am Hafen  '), true);
+  assert.deepEqual(get(appState).project, {...before, community:{...before.community,name:'WG am Hafen'}});
+  assert.equal(get(appState).asOfDate,'2020-01-01');
+  assert.equal(get(appState).dirty,true);
+  assert.equal(get(appState).history.undoCount,1);
+  appState.renameHousehold('WG am Hafen');
+  assert.equal(get(appState).history.undoCount,1);
+  appState.undo();
+  assert.equal(get(appState).project.community.name,'Hausgemeinschaft');
+  assert.equal(get(appState).dirty,false);
+  appState.redo();
+  assert.equal(get(appState).project.community.name,'WG am Hafen');
+  appState.setReadOnly(true);
+  try { assert.equal(appState.renameHousehold('Not allowed'),false); }
+  finally { appState.setReadOnly(false); }
+  assert.equal(get(appState).project.community.name,'WG am Hafen');
+  appState.markSaved(get(appState).project);
+  assert.equal(get(appState).dirty,false);
+});

@@ -70,7 +70,7 @@ function createStore() {
       return { ...state, localCacheWarning: true };
     }
   };
-  return {
+  const api = {
     subscribe,
     openDatePicker: () => update(s => openDatePicker(s)),
     dismissDatePicker: () => update(s => dismissDatePicker(s)),
@@ -138,6 +138,10 @@ function createStore() {
         return next;
       });
       return saved;
+    },
+    renameHousehold: name => {
+      if (typeof name !== 'string' || !name.trim()) return false;
+      return api.mutateProject(project => { project.community = { ...project.community, name: name.trim() }; });
     },
     startRedistribution: (title, date, changes = [], extraDialog = {}) => update(s => {
       if (!requireEditing(s)) return s;
@@ -207,6 +211,7 @@ function createStore() {
     }),
     markExported: () => update(s => persist({ ...s, dirty: false, savedProject: clone(s.project) }))
   };
+  return api;
 }
 
 export const appState = createStore();
