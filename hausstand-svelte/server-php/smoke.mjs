@@ -27,7 +27,7 @@ async function call(action, payload = null, params = {}, headers = {}) {
     body: payload ? JSON.stringify(payload) : undefined
   });
   const body = await response.json();
-  return { status: response.status, ...body };
+  return { status: response.status, retryAfter: response.headers.get('retry-after'), ...body };
 }
 try {
   let ready = false;
@@ -119,7 +119,23 @@ try {
   assert.deepEqual(resetProject.versionHistory.entries,[]);
   await assert.rejects(access(join(root,'files',id,'current-3.json')));
   assert.equal((await call('renew',{id},{},resetAuth)).status,200);
-  process.stdout.write('PHP API portable-history and project reset smoke test passed\n');
+  // S05: invalid administrator guesses share one budget across both update
+  // endpoints and initial creation. No GitHub network request is needed.
+  const wrongAdmin = {'X-Hausstand-Admin':'wrong','X-Requested-With':'Hausstandsliste'};
+  for (let i=0;i<5;i++) {
+    const attempt = await call(i%2 ? 'update' : 'update-list', {}, {}, wrongAdmin);
+    assert.equal(attempt.status,403);
+    assert.equal(attempt.errorCode,'admin');
+  }
+  const throttled = await call('update-list', {}, {}, {'X-Hausstand-Admin':'integration-admin-token','X-Requested-With':'Hausstandsliste','X-Forwarded-For':'192.0.2.8'});
+  assert.equal(throttled.status,429);
+  assert.equal(throttled.errorCode,'rateLimit');
+  assert.ok(Number(throttled.retryAfter)>0 && Number(throttled.retryAfter)<=300);
+  const blockedCreate=await call('create',{id,name:'Test'}, {}, {'X-Hausstand-Admin':'integration-admin-token'});
+  assert.equal(blockedCreate.status,429);
+  assert.equal(blockedCreate.errorCode,'adminRateLimit');
+  assert.equal((await call('read',null,{id})).revision,4,'throttle cannot modify project');
+  process.stdout.write('PHP API portable-history, project reset and administrator rate limit smoke test passed\n');
 } finally {
   server.kill();
   await rm(root, { recursive: true, force: true });

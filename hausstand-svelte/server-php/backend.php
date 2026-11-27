@@ -76,6 +76,58 @@ function updateArtifactProblem(string $code, array $release): ?string {
         return 'incompatible';
     return null;
 }
+// Shared administrator credential throttling, independent of project data.
+// Fixed five-minute windows: at most five failed guesses per peer and sixty
+// across the installation. Never trust client-supplied forwarding headers.
+// A separate lock plus atomic replacement protects state across PHP workers.
+function adminAttempt(string $root, string $peer, string $expected, string $provided, ?int $now = null): array {
+    if ($expected === '' || $provided === '') return ['status'=>403,'retryAfter'=>0];
+    $now ??= time();
+    $window = intdiv($now, 300);
+    $retry = 300 - ($now % 300);
+    $key = hash('sha256', $peer);
+    $lock = @fopen($root . '/.admin-attempts.lock', 'c');
+    if (!$lock) return ['status'=>503,'retryAfter'=>0];
+    $tmp = null;
+    try {
+        if (!@chmod($root . '/.admin-attempts.lock', 0600) || !@flock($lock, LOCK_EX))
+            return ['status'=>503,'retryAfter'=>0];
+        $path = $root . '/.admin-attempts.json';
+        $state = ['window'=>$window,'total'=>0,'peers'=>[]];
+        if (is_file($path)) {
+            $raw = @file_get_contents($path, false, null, 0, 16384);
+            $saved = is_string($raw) ? json_decode($raw, true) : null;
+            if (!is_array($saved) || !is_int($saved['window'] ?? null)
+                || !is_int($saved['total'] ?? null) || !is_array($saved['peers'] ?? null)
+                || $saved['total'] < 0 || $saved['total'] > 60 || count($saved['peers']) > 60)
+                return ['status'=>503,'retryAfter'=>0];
+            foreach ($saved['peers'] as $hash=>$count) {
+                if (!is_string($hash) || !preg_match('/^[a-f0-9]{64}$/D', $hash)
+                    || !is_int($count) || $count < 1 || $count > 5)
+                    return ['status'=>503,'retryAfter'=>0];
+            }
+            if ($saved['window'] === $window) $state = $saved;
+        }
+        $count = $state['peers'][$key] ?? 0;
+        if ($count >= 5 || $state['total'] >= 60)
+            return ['status'=>429,'retryAfter'=>$retry];
+        if (hash_equals($expected, $provided)) return ['status'=>200,'retryAfter'=>0];
+        $state['peers'][$key] = $count + 1;
+        $state['total']++;
+        $json = json_encode($state, JSON_THROW_ON_ERROR);
+        $tmp = @tempnam($root, '.admin-attempt-');
+        if (!$tmp || dirname($tmp) !== $root || !@chmod($tmp, 0600)
+            || @file_put_contents($tmp, $json) !== strlen($json) || !@rename($tmp, $path))
+            return ['status'=>503,'retryAfter'=>0];
+        return ['status'=>403,'retryAfter'=>0];
+    } catch (Throwable $e) {
+        return ['status'=>503,'retryAfter'=>0];
+    } finally {
+        if (is_string($tmp) && is_file($tmp)) @unlink($tmp);
+        @flock($lock, LOCK_UN);
+        fclose($lock);
+    }
+}
 if ($api === 'update-list' || $api === 'update') {
     header('Content-Type: application/json; charset=utf-8');
     $failUpdate = static function(int $status, string $code): never {
@@ -84,13 +136,24 @@ if ($api === 'update-list' || $api === 'update') {
     };
     $token = (string) (getenv('HAUSSTAND_ADMIN_TOKEN') ?: ($HAUSSTAND_CONFIG['admin_token'] ?? ''));
     $provided = (string) ($_SERVER['HTTP_X_HAUSSTAND_ADMIN'] ?? '');
-    if ($token === '' || !hash_equals($token, $provided)) $failUpdate(403, 'admin');
+    if ($token === '' || $provided === '') $failUpdate(403, 'admin');
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') $failUpdate(405, 'method');
     $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
     $originHost = $origin !== '' ? (string) (parse_url($origin, PHP_URL_HOST) ?: '') : '';
     $originPort = $origin !== '' ? parse_url($origin, PHP_URL_PORT) : null;
     if (($origin !== '' && strcasecmp($originHost . ($originPort ? ':' . $originPort : ''), (string) ($_SERVER['HTTP_HOST'] ?? '')) !== 0)
         || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'Hausstandsliste') $failUpdate(403, 'origin');
+    $root = realpath((string) (getenv('HAUSSTAND_DATA_DIR') ?: ($HAUSSTAND_CONFIG['data_dir'] ?? '')));
+    $webroot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__FILE__)));
+    if (!$root || !$webroot || !is_dir($root) || !is_writable($root)
+        || $root === $webroot || str_starts_with($root, $webroot . DIRECTORY_SEPARATOR)) $failUpdate(503, 'storage');
+    $attempt = adminAttempt($root, (string) ($_SERVER['REMOTE_ADDR'] ?? ''), $token, $provided);
+    if ($attempt['status'] === 429) {
+        header('Retry-After: ' . $attempt['retryAfter']);
+        $failUpdate(429, 'rateLimit');
+    }
+    if ($attempt['status'] === 503) $failUpdate(503, 'rateStorage');
+    if ($attempt['status'] !== 200) $failUpdate(403, 'admin');
     if (!function_exists('curl_init')) $failUpdate(503, 'curl');
     $getGitHub = static function(string $url, bool $asset = false) use ($failUpdate): string {
         $ch = curl_init($url);
@@ -426,7 +489,13 @@ if ($api !== '') {
     if ($api === 'create') {
         $admin = (string) (getenv('HAUSSTAND_ADMIN_TOKEN') ?: ($HAUSSTAND_CONFIG['admin_token'] ?? ''));
         $provided = (string) ($_SERVER['HTTP_X_HAUSSTAND_ADMIN'] ?? '');
-        if ($admin === '' || !hash_equals($admin, $provided)) fail(403, 'Administrationsschlüssel ungültig.', 'notAuthorized');
+        $attempt = adminAttempt($root, (string) ($_SERVER['REMOTE_ADDR'] ?? ''), $admin, $provided);
+        if ($attempt['status'] === 429) {
+            header('Retry-After: ' . $attempt['retryAfter']);
+            fail(429, 'Zu viele fehlgeschlagene Administrationsversuche.', 'adminRateLimit');
+        }
+        if ($attempt['status'] === 503) fail(503, 'Administrationsschutz nicht verfügbar.', 'adminRateStorage');
+        if ($attempt['status'] !== 200) fail(403, 'Administrationsschlüssel ungültig.', 'notAuthorized');
         $name = trim((string) ($body['name'] ?? ''));
         if ($name === '' || strlen($name) > 240) fail(400, 'Dateiname ungültig.', 'invalidName');
         $envelope = requireEnvelope($body['envelope'] ?? null);

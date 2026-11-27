@@ -100,7 +100,7 @@
     const data = await response.json();
     if (!response.ok || !data.ok) {
       const code = data.errorCode;
-      const known = ['admin','method','origin','curl','github','selection','integrity','inlineConfig','php','invalidArtifact','incompatible','storage','lock','editing','backup','rollback'];
+      const known = ['admin','rateLimit','rateStorage','method','origin','curl','github','selection','integrity','inlineConfig','php','invalidArtifact','incompatible','storage','lock','editing','backup','rollback'];
       throw new Error($translate(known.includes(code) ? 'update.error.' + code : 'session.updateFailed'));
     }
     return data;

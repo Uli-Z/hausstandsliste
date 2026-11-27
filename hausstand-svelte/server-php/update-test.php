@@ -28,3 +28,26 @@ $old=str_replace(HAUSSTAND_UPDATE_CONTRACT,'unsupported',$code);
 $release['digest']='sha256:'.hash('sha256',$old);
 check(updateArtifactProblem($old,$release)==='incompatible','incompatible old release blocked');
 echo "Q52 release selection and artifact validation passed\n";
+
+ // S05: deterministic time and isolated private directory, no external network.
+$rateRoot = sys_get_temp_dir() . '/hausstand-admin-rate-' . bin2hex(random_bytes(8));
+check(mkdir($rateRoot, 0700), 'private throttle test directory');
+try {
+    $attempt = static fn($peer,$provided,$time=600) => adminAttempt($rateRoot,$peer,'test-admin-secret',$provided,$time);
+    check($attempt('192.0.2.1','')['status']===403,'missing credential is rejected without counting');
+    for ($i=0;$i<5;$i++) check($attempt('192.0.2.1','wrong')['status']===403,'failed attempt recorded');
+    check($attempt('192.0.2.1','test-admin-secret',601)===['status'=>429,'retryAfter'=>299],'valid key also waits after limit');
+    check($attempt('192.0.2.2','test-admin-secret')['status']===200,'other peer unaffected by per-peer limit');
+    check($attempt('192.0.2.1','test-admin-secret',900)['status']===200,'window expires');
+    for ($i=0;$i<60;$i++) check($attempt('peer-'.$i,'wrong',900)['status']===403,'distributed attempt recorded');
+    check($attempt('another-peer','test-admin-secret',901)['status']===429,'installation-wide cap');
+    $raw = file_get_contents($rateRoot . '/.admin-attempts.json');
+    check(!str_contains($raw,'test-admin-secret') && !str_contains($raw,'wrong') && !str_contains($raw,'peer-'),'no raw secret or peer in storage');
+    check($attempt('another-peer','test-admin-secret',1200)['status']===200,'installation cap expires');
+    file_put_contents($rateRoot . '/.admin-attempts.json','invalid');
+    check($attempt('another-peer','test-admin-secret',1200)['status']===503,'corrupt protection fails closed');
+} finally {
+    foreach (glob($rateRoot . '/.*') ?: [] as $entry) if (is_file($entry)) unlink($entry);
+    rmdir($rateRoot);
+}
+echo "S05 administration rate limit passed\n";

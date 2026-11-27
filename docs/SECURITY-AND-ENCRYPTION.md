@@ -54,3 +54,8 @@ Before production, review XSS, CSP/security headers, same-origin request protect
 - [OWASP: Web Frontend Security](https://cheatsheetseries.owasp.org/cheatsheets/Web_Frontend_Security_Cheat_Sheet.html)
 - [PHP: flock](https://www.php.net/manual/en/function.flock.php)
 - [PHP: rename](https://www.php.net/manual/en/function.rename.php)
+
+
+## Administration credential throttling (S05)
+
+The manual PHP updater and initial project creation share a private, installation-wide credential-attempt budget. Five failed non-empty administrator key attempts per remote address, or sixty failures across the installation, within a fixed five-minute window cause HTTP 429 with `Retry-After` until that window ends. The peer identity is derived from the web server's `REMOTE_ADDR`, not forwarded headers. A reverse proxy may therefore share a budget across clients; the global limit deliberately trades short administrative unavailability for protection against distributed guessing. Do not configure a publicly writable private data directory. The separate `.admin-attempts.lock` and `.admin-attempts.json` hold only bounded counters and hashed peer identifiers, not the supplied key or project contents. These files are technical state, not portable project history. Storage failure blocks administrative operations, not normal project access. Use a high-entropy random administrator key, HTTPS and server-level rate limits as additional protections. The limit does not protect locally performed file decryption or replace hosting security.
