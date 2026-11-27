@@ -23,6 +23,8 @@
   import ActionIcon from '../src/components/ActionIcon.svelte';
   import StorageView from './StorageView.svelte';
   import ServerSession from './ServerSession.svelte';
+  import NotificationStack from './NotificationStack.svelte';
+  import { notifications } from '../src/lib/notifications.js';
   const SERVER_MODE = import.meta.env.VITE_HAUSSTAND_SERVER_MODE === 'true';
   const autoLanguage = resolveLocale('auto', typeof navigator === 'undefined' ? [] : (navigator.languages?.length ? navigator.languages : [navigator.language]));
 
@@ -46,9 +48,6 @@
   let onlineEditing = false;
   let onlineProjectOpen = false;
   let storageBusy = false;
-  let saveMessage = '';
-  let saveMessageError = false;
-  let feedbackTimer;
   let timeTravelControl;
   let dateToggleButton;
   let adminToken = '';
@@ -66,17 +65,8 @@
     } catch (error) { updateStatus = error.message || $translate('session.updateFailed'); }
     finally { updateBusy = false; }
   }
-  function dismissFeedback() {
-    if (feedbackTimer) window.clearTimeout(feedbackTimer);
-    feedbackTimer = undefined;
-    saveMessage = '';
-  }
   function showFeedback(message, isError = false) {
-    dismissFeedback();
-    saveMessage = message;
-    saveMessageError = isError;
-    // Success is a brief, non-blocking notification. Errors remain until dismissed.
-    if (!isError) feedbackTimer = window.setTimeout(() => { saveMessage = ''; feedbackTimer = undefined; }, 4500);
+    notifications.notify(message, {kind:isError ? 'error' : 'success', source:'storage'});
   }
   $: if (serverFeedback) {
     showFeedback(serverFeedback, serverFeedbackError);
@@ -109,7 +99,6 @@
       window.clearInterval(clock);
       window.removeEventListener('focus', refreshDay);
       document.removeEventListener('visibilitychange', refreshDay);
-      if (feedbackTimer) window.clearTimeout(feedbackTimer);
     };
   });
 
@@ -142,7 +131,6 @@
   }
   function navigate(id) {
     appState.dismissDatePicker();
-    dismissFeedback();
     mobileMoreOpen = false;
     activeSection = id;
     if ($appState.route.page !== 'dashboard') appState.setRoute({ page: 'dashboard' });
@@ -218,6 +206,8 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} on:pointerdown={handleOutsidePointer} on:beforeunload={warnUnsavedBeforeLeaving} on:focusin={prepareDialogNumber} on:focusout={finishDialogNumber} />
+
+<NotificationStack/>
 
 {#if SERVER_MODE}
   <ServerSession bind:this={serverSession} bind:authenticated={serverAuthenticated} bind:editing={serverEditing} bind:busy={storageBusy} bind:feedback={serverFeedback} bind:feedbackError={serverFeedbackError}/>
@@ -320,15 +310,6 @@
       </div>
     {/if}
 
-    {#if saveMessage}
-      <div class="save-feedback" class:save-feedback-error={saveMessageError}
-        role={saveMessageError ? 'alert' : 'status'}>
-        <span>{saveMessage}</span>
-        <button type="button" on:click={dismissFeedback} aria-label={$translate("ui.close-1qnddid")}>
-          <ActionIcon name="close" size={17}/>
-        </button>
-      </div>
-    {/if}
     <main class="work-content">
       {#key $locale}
       {#if $appState.localCacheWarning}<p role="alert" class="inline-info warning">{$translate("ui.the-browser-could-not-cache-the-wo-1u1cj1a")}</p>{/if}
