@@ -6,9 +6,9 @@ import { createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
 import { appState } from '../src/stores/projectStore.js';
 import { ledgerAt } from '../src/lib/ledger.js';
 
-const alerts = [];
+import { notifications } from '../src/lib/notifications.js';
+const errors = () => get(notifications).filter(n=>n.kind==='error');
 const cache = new Map();
-globalThis.alert = value => alerts.push(String(value));
 globalThis.localStorage = {
   getItem: key => cache.get(key) ?? null,
   setItem: (key, value) => cache.set(key, value),
@@ -99,7 +99,7 @@ test('Q06: unchanged bad imported entry can be repaired without blocking other e
 });
 
 test('Q06: rejected changes do not dirty project, mutate events, or enter Undo history', () => {
-  alerts.length = 0;
+  notifications.clear();
   appState.importProject(fixture());
   const before = JSON.stringify(get(appState).project);
   const history = get(appState).history.undoCount;
@@ -110,7 +110,7 @@ test('Q06: rejected changes do not dirty project, mutate events, or enter Undo h
   assert.equal(JSON.stringify(get(appState).project), before);
   assert.equal(get(appState).dirty, false);
   assert.equal(get(appState).history.undoCount, history);
-  assert.equal(alerts.length, 4);
+  assert.equal(errors().length, 4);
 });
 
 test('Q06: read-only blocks mutations, while valid changes can be saved exactly once', () => {
