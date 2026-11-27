@@ -66,10 +66,7 @@
       tags = (metadata?.tags || []).join(', ');
       note = metadata?.note || '';
     }
-    if (dialog.type === 'itemAdd' && !dialog.id) {
-      shares = Object.fromEntries(projectAt(project, effectiveDate).people
-        .filter(p => p.active).map(p => [p.id, 1]));
-    }
+    // A new purchase starts without owners; a saved draft restores its own map.
     if (dialog.type === 'itemAdd' && draft?.type === 'item') {
       itemName = draft.data.name ?? '';
       tags = (draft.data.tags || []).join(', ');
@@ -522,7 +519,7 @@
                 <div class="item-flow-heading"><strong>{$translate("ui.who-owns-this-item-nnrc3g")}</strong></div>
                 <ShareEditor people={entryProjection.people.filter(p=>p.active || Object.hasOwn(shares,p.id))} bind:shares allowEqualize={true} allPeople={true} />
               {/if}
-              {#if !ownersValid}<p role="alert" class="notice warn">{$translate('forms.invalidShares')}</p>{/if}
+              {#if !ownersValid}<p role="alert" class="notice warn">{$translate(dialog.type === 'itemAdd' && !Object.keys(normShares(shares)).length ? 'purchase.ownerRequired' : 'forms.invalidShares')}</p>{/if}
             </section>
             {#if dialog.type === 'itemAdd'}
               {#if itemCostValid && ownersValid && financingValid}

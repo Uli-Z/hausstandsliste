@@ -96,7 +96,10 @@ export async function timeTravelFormsAcceptance(browser,url) {
     await dateField.fill('2031-01-15');
     await dialog.locator('.item-primary-fields input').first().fill('Zeitreise-Lampe');
     await dialog.locator('.item-primary-fields input[type="number"]').fill('100');
-    await dialog.locator('.item-financing-field select').last().selectOption('anna');
+    await dialog.locator('.purchase-owner-select').selectOption('anna');
+    await dialog.locator('.purchase-owner-select').selectOption('ben');
+    await dialog.locator('.purchase-owner-select').selectOption('clara');
+    await dialog.locator('.purchase-payer').selectOption('anna');
     assert.equal(await dialog.locator('.modal-footer .primary').isEnabled(), true, 'Q19: complete purchase financing enables creation');
     await dialog.locator('.modal-footer .primary').click();
     await dialog.waitFor({state:'hidden'});

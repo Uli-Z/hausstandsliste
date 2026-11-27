@@ -1,6 +1,7 @@
 <script>
   import NumericDraftInput from './NumericDraftInput.svelte';
   import ShareEditor from './ShareEditor.svelte';
+  import PurchaseOwners from './PurchaseOwners.svelte';
   import { translate, parseDecimal } from '../src/lib/i18n.js';
   import { money } from '../src/lib/domain.js';
   import { validMoney } from '../src/lib/util.js';
@@ -49,14 +50,14 @@
   {#if !editing}
     <div class="purchase-payment-mode">
     <label>{$translate('purchase.mode')}
-      <select value={mode} on:change={e=>selectMode(e.currentTarget.value)}>
+      <select class="purchase-mode" value={mode} on:change={e=>selectMode(e.currentTarget.value)}>
         <option value="single">{$translate('purchase.single')}</option>
         <option value="individual">{$translate('purchase.individual')}</option>
       </select>
     </label>
     {#if mode === 'single'}
     <label>{$translate('purchase.payer')}
-      <select bind:value={payer}>
+      <select class="purchase-payer" bind:value={payer}>
         <option value="">{$translate('purchase.choose')}</option>
         {#if payer && !eligible.some(p=>p.id===payer)}<option value={payer} disabled>{people.find(p=>p.id===payer)?.name || payer}</option>{/if}
         {#each eligible as person (person.id)}<option value={person.id}>{person.name}</option>{/each}
@@ -65,6 +66,22 @@
     {/if}
     </div>
   {/if}
+  {#if !editing}
+    <PurchaseOwners people={tablePeople} bind:shares />
+    <!-- Keep the keyed numeric inputs mounted across payment-mode switches,
+         including incomplete decimal text. Single-payer mode hides the list. -->
+    <div class="contribution-list" hidden={mode !== 'individual'}>
+      <strong>{$translate('purchase.fundingTitle')}</strong>
+      {#each tablePeople as person (person.id)}
+        <div class="funding-row">
+          <span>{person.name}{#if person.active === false} · {$translate('purchase.ownerUnavailable')}{/if}</span>
+          <NumericDraftInput inputClass="purchase-contribution" label={person.name} description={$translate('purchase.paidColumn')}
+            value={individualDraft && Object.hasOwn(individualDraft,person.id) ? individualDraft[person.id] : 0}
+            display={displayContribution} parse={parseContribution} onValue={cents=>change(person.id,cents)} />
+        </div>
+      {/each}
+    </div>
+  {:else}
   <ShareEditor people={tablePeople} bind:shares allPeople={true} showAmounts={true} allowEqualize={!editing}>
     <svelte:fragment slot="amount" let:personId let:personName>
       <NumericDraftInput inputClass="purchase-contribution" label={personName} description={$translate('purchase.paidColumn')}
@@ -76,6 +93,7 @@
       {/if}
     </svelte:fragment>
   </ShareEditor>
+  {/if}
   {#if mode === 'individual' && !contributions}<p class="notice warn">{$translate('purchase.unknown')}</p>{/if}
   {#if Number.isFinite(total)}<p class="financing-total">{$translate('purchase.total',{paid:money(total/100),price:money(amountCents/100)})}</p>{/if}
   {#if !valid}
@@ -95,6 +113,10 @@
   :global(.purchase-contribution){min-width:0;width:100%;padding:5px}
   .purchase-paid-text{text-align:right;font-size:12px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
   @media(max-width:540px){.purchase-payment-mode{grid-template-columns:minmax(0,1fr)}:global(.purchase-contribution){font-size:13px}.purchase-paid-text{font-size:11px}}
+  .contribution-list{display:grid;gap:5px;border-top:1px solid var(--border);padding-top:8px}
+  .contribution-list[hidden]{display:none}
+  .funding-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(76px,120px);align-items:center;gap:8px;font-size:13px}
+  .funding-row span{overflow-wrap:anywhere}
   .financing-total,.item-financing-field .notice{margin:0;font-size:13px}
   .item-financing-field .notice{padding:7px 9px}
 </style>

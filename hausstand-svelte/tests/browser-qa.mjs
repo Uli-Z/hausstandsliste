@@ -260,15 +260,18 @@ async function itemEntryAcceptance(browser, url, engine) {
       await duration.fill('0.3');
       await method.selectOption('linear');
       assert.equal(await duration.inputValue(),'8');
-      await finance.locator('select').first().selectOption('individual');
+      assert.equal(await finance.locator('.purchase-units').count(),0,'Q56 empty owner list');
+      assert.equal(await submit.isDisabled(),true);
+      for (const id of ['anna','ben','clara']) await finance.locator('.purchase-owner-select').selectOption(id);
+      await finance.locator('.purchase-mode').selectOption('individual');
       assert.equal(await finance.locator('.purchase-person-row:not(.purchase-column-head)').count(),3);
       assert.equal(await finance.locator('.purchase-units').count(),3);
       assert.equal(await finance.locator('.purchase-contribution').count(),3);
       for(const row of await finance.locator('.purchase-person-row:not(.purchase-column-head)').all()){
-        const boxes=await row.locator('.purchase-units, .share-percent, .purchase-contribution').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y+r.height/2};}));
+        const boxes=await row.locator('.purchase-units, .share-percent, .remove-owner').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y+r.height/2};}));
         assert.equal(boxes.length,3);
-        assert.ok(Math.max(...boxes.map(b=>b.y))-Math.min(...boxes.map(b=>b.y))<5,'share units, percentage and payment must be on the same row');
-        assert.ok(boxes[0].x<boxes[1].x && boxes[1].x<boxes[2].x,'person columns are in the correct order');
+        assert.ok(Math.max(...boxes.map(b=>b.y))-Math.min(...boxes.map(b=>b.y))<5,'ownership controls must share a row');
+        assert.ok(boxes[0].x<boxes[1].x && boxes[1].x<boxes[2].x);
       }
       const dateBox = await modal.locator('#event-effective-date').boundingBox();
       const bodyBox = await modal.locator('.modal-body').boundingBox();
@@ -310,17 +313,17 @@ async function itemEntryAcceptance(browser, url, engine) {
       await method.selectOption('fixed');
       await method.selectOption('linear');
       await verifyRows(unequal,['150.25','100','0'],'Q33 changing valuation method');
-      await finance.locator('select').first().selectOption('single');
-      await finance.locator('select').last().selectOption('ben');
-      await finance.locator('select').first().selectOption('individual');
+      await finance.locator('.purchase-mode').selectOption('single');
+      await finance.locator('.purchase-payer').selectOption('ben');
+      await finance.locator('.purchase-mode').selectOption('individual');
       await verifyRows(unequal,['150.25','100','0'],'Q33 restoring individual financing after mode switch');
       assert.equal(await submit.isDisabled(),true,'invalid financing blocks save');
       const anna=finance.getByLabel('Anna',{exact:true});
       await anna.fill(locale==='de-DE'?'150,':'150.');
       await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
       await units.nth(1).click();
-      await finance.locator('select').first().selectOption('single');
-      await finance.locator('select').first().selectOption('individual');
+      await finance.locator('.purchase-mode').selectOption('single');
+      await finance.locator('.purchase-mode').selectOption('individual');
       assert.equal(await anna.inputValue(),locale==='de-DE'?'150,':'150.','Q33 raw invalid text survives focus and mode switching');
       assert.equal(await submit.isDisabled(),true);
       await anna.fill(locale==='de-DE'?'150,25':'150.25');
@@ -368,6 +371,15 @@ async function itemEntryAcceptance(browser, url, engine) {
       await name.fill('Kühlschrank');
       await warning.locator('.duplicate-item-match').waitFor();
       await cost.fill('30');
+      await finance.locator('.purchase-payer').selectOption('ben');
+      assert.ok(await submit.isDisabled(),'payer alone does not create ownership');
+      await finance.locator('.purchase-owner-select').selectOption('anna');
+      await finance.locator('.remove-owner').click();
+      assert.equal(await finance.locator('.purchase-units').count(),0);
+      assert.ok(await submit.isDisabled());
+      await finance.locator('.purchase-owner-select').selectOption('anna');
+      assert.equal(await finance.locator('.purchase-units').inputValue(),'1');
+      assert.equal(await finance.locator('.purchase-payer').inputValue(),'ben');
       await submit.waitFor();
       assert.ok(await submit.isEnabled(),'Q53 duplicate must not disable save');
       await submit.click();
@@ -426,7 +438,8 @@ async function itemEntryLongListAcceptance(browser,url,engine) {
       await method.selectOption('degressive');
       await modal.locator('.item-valuation-fields input[type=number]').fill('0.25');
       await minimum.fill('17,50');
-      await finance.locator('select').last().selectOption('anna');
+      await finance.locator('.purchase-payer').selectOption('anna');
+      for(const id of ['anna','ben','clara',...Array.from({length:6},(_,i)=>'extra-'+i)]) await finance.locator('.purchase-owner-select').selectOption(id);
       assert.equal(await finance.locator('.purchase-person-row:not(.purchase-column-head)').count(),9);
       assert.equal(await submit.isEnabled(),true);
       const row=finance.locator('.purchase-person-row').filter({hasText:'Mitbewohnerin 6'});
@@ -1156,7 +1169,8 @@ async function purchaseFinancingAcceptance(browser, url) {
       await dialog.locator('.item-primary-fields input').first().fill(name);
       await dialog.locator('.item-primary-fields input[type=number]').fill('300');
       assert.equal(await submit.isDisabled(), true, 'no implicit purchase financing');
-      await financing.locator('select').first().selectOption('individual');
+      for(const id of ['anna','ben','clara']) await financing.locator('.purchase-owner-select').selectOption(id);
+      await financing.locator('.purchase-mode').selectOption('individual');
       for (const person of ['Anna','Ben','Clara']) {
         assert.equal(Number(await financing.getByLabel(person,{exact:true}).inputValue()), 100);
       }
