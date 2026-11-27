@@ -29,7 +29,14 @@ test('V3 Save persists an explicit version, and restores open as unsaved drafts'
   assert.doesNotMatch(app, /setAsOfDate\(copy\.asOfDate\)/);
   assert.match(storage, /createPortableSave\(project, \$appState\.savedProject\)/);
   assert.match(storage, /await api\('save', payload/);
-  assert.match(storage, /readPortableVersion\(/);
+  const versions = source('ui-v3/PortableVersions.svelte');
+  assert.match(versions, /readPortableVersion\(project, id\)/);
+  assert.match(versions, /appState\.restoreVersion\(snapshot\)/);
+  assert.match(versions, /source !== \$appState\.project/);
+  assert.match(versions, /versions\.confirmDirty/);
+  assert.match(versions, /\$appState\.readOnly/);
+  assert.match(app, /<PortableVersions busy=\{storageBusy\}/);
+  assert.match(storage, /<PortableVersions \{busy\}/);
   assert.match(store, /restoreVersion/);
 });
 

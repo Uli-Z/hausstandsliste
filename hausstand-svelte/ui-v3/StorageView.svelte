@@ -7,7 +7,8 @@
   import { notifications } from '../src/lib/notifications.js';
   import { exportProject, downloadProject } from '../src/lib/persistence.js';
   import { requireProjectFile } from '../src/lib/domain.js';
-  import { createPortableSave, readPortableVersion, verifyPortableHistory } from '../src/lib/versionHistory.js';
+  import PortableVersions from './PortableVersions.svelte';
+  import { createPortableSave, verifyPortableHistory } from '../src/lib/versionHistory.js';
   import { encryptProject, decryptProject, hashSecret, randomSecret } from '../src/lib/crypto.js';
 
   export let onProjectLoaded = () => {};
@@ -16,9 +17,7 @@
   let password = '', remotePassword = '', remoteCreatePassword = '', openPassword = '', newPassword = '';
   let backupName = '', remoteDraftName = '', openedName = '', pendingEncrypted = null, pendingFileName = '';
   let serverCanCreate = false, serverReady = false;
-  let files = [], selectedPortableVersion = '';
-  $: portableVersions = Array.isArray($appState.project.versionHistory?.entries)
-    ? [...$appState.project.versionHistory.entries].reverse() : [];
+  let files = [];
   let openedId = '', revision = 0, editToken = '', leaseToken = '', leaseExpires = 0;
   let activePassword = '';
   export let onlineEditing = false;
@@ -64,7 +63,7 @@
   function clearOnlineLink() {
     openedId = ''; openedName = ''; revision = 0;
     leaseToken = ''; leaseExpires = 0; editToken = '';
-    activePassword = ''; remotePassword = ''; remoteCreatePassword = ''; selectedPortableVersion = ''; backupName = '';
+    activePassword = ''; remotePassword = ''; remoteCreatePassword = ''; backupName = '';
   }
   export function prepareToReplace() {
     if (busy) { notifications.notify($translate('storage.busy'), {kind:'warning'}); return false; }
@@ -189,7 +188,7 @@
     await verifyPortableHistory(verified);
     editToken = decrypted.editToken; activePassword = remotePassword;
     openedId = file.id; openedName = file.name; revision = result.revision; backupName = '';
-    leaseToken = ''; leaseExpires = 0; selectedPortableVersion = '';
+    leaseToken = ''; leaseExpires = 0;
     pendingEncrypted = null; remotePassword = '';
     appState.importProject(verified, { secure: true, readOnly: true });
     message = $translate("ui.opened-read-only-check-out-to-edit-3jcsh9");
@@ -273,14 +272,6 @@
     }
     const result = await saveFromHeader();
     if (result.message) notifications.notify(result.ok ? result.message : $translate('toast.operationFailed'), {kind:result.ok ? 'success' : 'error', source:'storage'});
-  }
-  async function restorePortable() {
-    if ($appState.readOnly) throw new Error($translate("ui.enable-editing-before-restoring-1xm00bb"));
-    if (!selectedPortableVersion) throw new Error($translate("ui.select-a-saved-version-kmh00f"));
-    if (!confirm($translate("ui.open-this-version-as-an-unsaved-wo-1q3leot"))) return;
-    const restored = await readPortableVersion($appState.project, selectedPortableVersion);
-    appState.restoreVersion(restored);
-    message = $translate("ui.previous-state-loaded-it-becomes-a-mzgam7");
   }
   async function changePassword() {
     if (!leaseToken) throw new Error($translate("ui.check-out-before-changing-the-pass-n2lncy"));
@@ -391,23 +382,7 @@
       {/if}
     </section>
   {/if}
-  {#if portableVersions.length}
-    <details class="ux-panel storage-versions" aria-label={$translate("ui.saved-file-versions-9wc9wn")}>
-      <summary>{$translate('storage.earlierVersions')}</summary>
-      <p class="muted">{$translate('storage.restoreExplanation')}</p>
-      <div class="storage-form stack">
-        <label>{$translate("ui.select-a-previous-saved-state-1mfrevx")}
-          <select bind:value={selectedPortableVersion}>
-            <option value="">{$translate("ui.please-select-1qm0osl")}</option>
-            {#each portableVersions as v (v.id)}
-              <option value={v.id}>{v.savedAt ? new Date(v.savedAt).toLocaleString(getLocale() === 'de' ? 'de-DE' : 'en-GB') : $translate("ui.previous-version-date-unknown-1cpadmd")}</option>
-            {/each}
-          </select>
-        </label>
-        <button type="button" disabled={busy || $appState.readOnly || !selectedPortableVersion} on:click={() => run(restorePortable)}>{$translate("ui.restore-as-unsaved-working-copy-r3yheu")}</button>
-      </div>
-    </details>
-  {/if}
+  <PortableVersions {busy}/>
 </div>
 <style>
   .storage-flow { display:grid;gap:14px;max-width:840px; }
@@ -423,8 +398,6 @@
   .storage-secondary { margin-top:18px;padding-top:12px;border-top:1px solid var(--border); }
   .storage-secondary > h3 { margin:0 0 6px;font-size:.95rem;font-weight:650; }
   .storage-secondary .storage-form { border:0;padding-top:0;margin-top:8px; }
-  .storage-versions > summary { cursor:pointer;font-weight:600;min-height:38px; }
-  .storage-versions > summary:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
   .storage-form { display:grid;gap:12px;margin-top:12px; }
   .storage-form .form-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
   .storage-form label,.storage-form input { min-width:0;width:100%; }

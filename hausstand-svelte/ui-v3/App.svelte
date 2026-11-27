@@ -22,6 +22,7 @@
   import LedgerView from './LedgerView.svelte';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   import StorageView from './StorageView.svelte';
+  import PortableVersions from './PortableVersions.svelte';
   import ServerSession from './ServerSession.svelte';
   import NotificationStack from './NotificationStack.svelte';
   import { notifications } from '../src/lib/notifications.js';
@@ -222,7 +223,7 @@
       {/each}
     </nav>
     <div class="sidebar-bottom">
-      {#if !SERVER_MODE}<button class:nav-active={route.page === 'dashboard' && activeSection === 'save'} on:click={() => navigate('save')} aria-current={route.page === 'dashboard' && activeSection === 'save' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⇩</span> {$translate("nav.save")}</button>{/if}
+      <button class:nav-active={route.page === 'dashboard' && activeSection === 'save'} on:click={() => navigate('save')} aria-current={route.page === 'dashboard' && activeSection === 'save' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⇩</span> {$translate("nav.save")}</button>
       <button class:nav-active={route.page === 'dashboard' && activeSection === 'settings'} on:click={() => navigate('settings')} aria-current={route.page === 'dashboard' && activeSection === 'settings' ? 'page' : undefined}><span class="nav-glyph" aria-hidden="true">⚙</span> {$translate("nav.settings")}</button>
       
     </div>
@@ -290,7 +291,7 @@
           <span class="status-dot" class:needs-save={$appState.dirty}></span>
           {$translate($appState.dirty ? 'app.dirty' : 'app.clean')}
         </button>
-        {#if !(route.page === 'dashboard' && activeSection === 'save')}
+        {#if SERVER_MODE || !(route.page === 'dashboard' && activeSection === 'save')}
           <button class="header-save" disabled={storageBusy} aria-busy={storageBusy} on:click={saveNow}
             aria-label={SERVER_MODE ? (serverEditing ? $translate('session.finish') : $translate('storage.startEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}
             title={SERVER_MODE ? (serverEditing ? $translate('session.finish') : $translate('storage.startEditing')) : $translate(onlineProjectOpen ? (onlineEditing ? 'storage.primaryOnline' : 'storage.startEditing') : 'storage.primaryDownload')}>
@@ -362,7 +363,7 @@
               <button on:click={() => appState.setDialog({ type: 'itemAdd' })}><span class="task-icon"><ActionIcon name="box" size={22}/></span><strong>{$translate("app.addSomething")}</strong><small>{$translate("app.recordItem")}</small></button>
               <button on:click={() => appState.startRedistribution()}><span class="task-icon"><ActionIcon name="arrows" size={22}/></span><strong>{$translate("app.transfer")}</strong><small>{$translate("app.split")}</small></button>
               <button on:click={() => appState.setDialog({ type: 'personAdd' })}><span class="task-icon"><ActionIcon name="person-add" size={22}/></span><strong>{$translate("app.personAdd")}</strong><small>{$translate("app.join")}</small></button>
-              <button on:click={() => navigate(SERVER_MODE ? 'settings' : 'save')}><span class="task-icon"><ActionIcon name="download" size={22}/></span><strong>{$translate("app.backup")}</strong><small>{SERVER_MODE ? 'Sicherung verwalten' : $translate("app.share")}</small></button>
+              <button on:click={() => navigate('save')}><span class="task-icon"><ActionIcon name="download" size={22}/></span><strong>{$translate("app.backup")}</strong><small>{$translate("app.share")}</small></button>
             </div>
           </section>
           <section class="ux-panel financial-overview">
@@ -423,6 +424,17 @@
         <Timeline project={$appState.project} asOfDate={$appState.asOfDate} title={$translate('app.allChanges')} full={true}/>
       {:else if activeSection === 'save'}
         <div class="page-heading"><div><h1>{$translate('storage.pageTitle')}</h1></div></div>
+        {#if SERVER_MODE}
+          <div class="server-save-panels">
+          <section class="ux-panel setting-panel">
+            <h2>{$translate('session.backup')}</h2>
+            <p>{$translate('session.backupHint')}</p>
+            <button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.downloadBackup()}>{$translate('session.backupDownload')}</button>
+            <label>{$translate('session.backupUpload')}<input type="file" accept="application/json,.json" disabled={storageBusy} on:change={event => serverSession?.restoreBackup(event)} /></label>
+          </section>
+          <PortableVersions busy={storageBusy}/>
+          </div>
+        {/if}
       {:else if activeSection === 'settings'}
         <div class="page-heading"><div><h1>{$translate("nav.settings")}</h1></div></div>
         <section class="ux-panel setting-panel">
@@ -434,12 +446,7 @@
           </select>
         </section>
         {#if SERVER_MODE}
-          <section class="ux-panel setting-panel">
-            <h2>{$translate('session.backup')}</h2>
-            <p>{$translate('session.backupHint')}</p>
-            <button type="button" class="outline-action" disabled={storageBusy} on:click={() => serverSession?.downloadBackup()}>{$translate('session.backupDownload')}</button>
-            <label>{$translate('session.backupUpload')}<input type="file" accept="application/json,.json" disabled={storageBusy} on:change={event => serverSession?.restoreBackup(event)} /></label>
-          </section>
+          <section class="ux-panel setting-panel"><h2>{$translate('session.backup')}</h2><button type="button" class="outline-action" on:click={() => navigate('save')}>{$translate('nav.save')}</button></section>
           <section class="ux-panel setting-panel">
             <h2>{$translate('session.update')}</h2>
             <label for="server-admin-token">{$translate('session.admin')}</label>
@@ -486,7 +493,7 @@
     {#if mobileMoreOpen}
       <div class="mobile-more-menu" id="mobile-more-menu">
         <button type="button" class:nav-active={activeSection === 'activity'} on:click={() => navigate('activity')}><ActionIcon name="list" size={20}/> {$translate("nav.activity")}</button>
-        {#if !SERVER_MODE}<button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><ActionIcon name="download" size={20}/> {$translate("nav.save")}</button>{/if}
+        <button type="button" class:nav-active={activeSection === 'save'} on:click={() => navigate('save')}><ActionIcon name="download" size={20}/> {$translate("nav.save")}</button>
         <button type="button" class:nav-active={activeSection === 'settings'} on:click={() => navigate('settings')}><ActionIcon name="settings" size={20}/> {$translate("nav.settings")}</button>
       </div>
     {/if}

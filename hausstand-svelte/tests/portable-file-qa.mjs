@@ -115,9 +115,13 @@ async function exerciseQuota(page, entryCount) {
     return largest;
   }, STORAGE_KEY);
   assert.ok(filled >= 256 * 1024, 'A browser quota could not be simulated');
-  await page.locator('.storage-versions > summary').click();
   const picker = page.locator('.storage-versions select');
   await picker.selectOption({ index: entryCount }); // oldest saved version
+  await page.locator('.version-preview').getByText('Q05 Archiv 00',{exact:true}).waitFor();
+  await page.locator('.header-context').getByText('Q05 Archiv 35',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Vorschau schließen',exact:true}).click();
+  assert.equal(await page.locator('.version-preview').count(),0);
+  await picker.selectOption({ index: entryCount });
   page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
   await page.locator('.header-context').getByText('Q05 Archiv 00').waitFor();
@@ -224,7 +228,6 @@ export async function portableFileAcceptance(browser, url, engine) {
     // Restore an older archived state, then save encrypted again, preserving
     // the old snapshot and archiving the previously current version.
     await openSave(page);
-    await page.locator('.storage-versions > summary').click();
     await page.locator('.storage-versions select')
       .selectOption({ index: 1 });
     page.once('dialog', dialog => dialog.accept());

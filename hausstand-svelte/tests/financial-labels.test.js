@@ -82,7 +82,8 @@ test('A06: current UI uses consistent financial labels and no payment counts', (
     assert.match(transfer, /redistribution\.noPaymentRecorded/);
     assert.match(transfer, /redistribution\.withoutClaims/);
     const existingTransfer = source('ui-v3/ExecutedRedistributionEditDialog.svelte');
-    assert.match(existingTransfer, /REDISTRIBUTION_SUGGESTION_TITLE/);
+    assert.match(existingTransfer, /report\.suggestions/);
+    assert.match(existingTransfer, /redistribution\.withoutClaims/);
     assert.match(existingTransfer, /REDISTRIBUTION_SUGGESTION_NOTICE/);
   }
   const dashboard = source('ui-v3/App.svelte');

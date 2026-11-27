@@ -690,7 +690,6 @@ async function offline(browser, url) {
   const width = await mobile.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: innerWidth }));
   assert.ok(width.document <= width.viewport + 2, 'Mobile page overflows: ' + JSON.stringify(width));
   await openSave(mobile);
-  await mobile.locator('.storage-versions > summary').click();
   const picker = mobile.locator('.storage-versions select');
   await picker.selectOption({ index: 1 });
   mobile.on('dialog', dialog => dialog.accept());
@@ -734,13 +733,12 @@ async function offline(browser, url) {
     await balance(encryptedPage, 'Anna', '200,00');
     await openSave(encryptedPage);
     // Versions are displayed newest first: index 1 is the payment state.
-    await encryptedPage.locator('.storage-versions > summary').click();
     await encryptedPage.locator('.storage-versions select')
       .selectOption({ index: 1 });
     encryptedPage.on('dialog', dialog => dialog.accept());
     await encryptedPage.getByRole('button', { name: 'Als ungespeicherten Arbeitsstand wiederherstellen' }).click();
     try {
-      await encryptedPage.getByText(/Früherer Stand geladen/).waitFor({ timeout: 12000 });
+      await encryptedPage.locator('.notification').filter({hasText:/Früherer Stand geladen/}).waitFor({ timeout: 12000 });
     } catch {
       throw new Error('Encrypted restore did not finish: ' +
         (await encryptedPage.locator('.storage-flow').innerText()).slice(0, 900));
@@ -2140,6 +2138,34 @@ async function q42MailAcceptance(browser) {
       const packet=await (await fetch(url+'?api=read&id='+id)).json();
       assert.equal(packet.revision,2);
       assert.ok((await decryptProject(packet.envelope,password)).project.people.some(p=>p.name==='Q42 '+mode));
+      if(mode==='accepted'){
+        // Q43: online version preview is available while read-only and does not modify the server.
+        await page.locator('.sidebar').getByRole('button',{name:'Save & open',exact:true}).click();
+        const picker=page.locator('.storage-versions select');
+        await picker.selectOption({index:1});
+        await page.locator('.version-preview').waitFor();
+        const restore=page.getByRole('button',{name:'Restore as unsaved working copy',exact:true});
+        assert.ok(await restore.isDisabled());
+        assert.equal((await (await fetch(url+'?api=read&id='+id)).json()).revision,2);
+        await page.getByRole('button',{name:'Start editing',exact:true}).click();
+        await save.waitFor();
+        await picker.selectOption({index:1});
+        await page.locator('.version-preview').waitFor();
+        await restore.waitFor();
+        page.once('dialog',dialog=>dialog.dismiss());
+        await restore.click();
+        assert.equal((await (await fetch(url+'?api=read&id='+id)).json()).revision,2);
+        page.once('dialog',dialog=>dialog.accept());
+        await restore.click();
+        assert.equal((await (await fetch(url+'?api=read&id='+id)).json()).revision,2);
+        await save.click();
+        await page.getByRole('button',{name:'Start editing',exact:true}).waitFor();
+        const restored=await (await fetch(url+'?api=read&id='+id)).json();
+        assert.equal(restored.revision,3);
+        const restoredProject=(await decryptProject(restored.envelope,password)).project;
+        assert.equal(restoredProject.people.some(p=>p.name==='Q42 accepted'),false);
+        assert.equal(restoredProject.versionHistory.entries.length,2);
+      }
       if(mode==='rejected'){
         const retry=page.getByRole('button',{name:'E-Mail-Sicherung erneut versuchen',exact:true});
         await retry.waitFor();

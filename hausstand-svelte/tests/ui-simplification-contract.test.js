@@ -117,7 +117,7 @@ test('Q35: short option groups are visible while extensive histories remain coll
   const storage = source('ui-v3/StorageView.svelte');
   assert.ok(storage.includes('bind:value={remoteCreatePassword}'));
   assert.ok(storage.includes('bind:value={remotePassword}'));
-  assert.ok(storage.includes('<details class="ux-panel storage-versions"'));
+  assert.ok(storage.includes('<PortableVersions {busy}'));
   const ledger = source('ui-v3/LedgerView.svelte');
   assert.ok(ledger.includes('<details class="audit-disclosure">'));
 });
