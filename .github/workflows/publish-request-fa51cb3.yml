@@ -1,0 +1,68 @@
+name: Publish tested release fa51cb3
+on:
+  push:
+    branches: ['release-request/fa51cb3']
+    paths: ['.github/workflows/publish-request-fa51cb3.yml']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: release-fa51cb3232431ef1554ce3d250071a32e2718009
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_SHA: 'fa51cb3232431ef1554ce3d250071a32e2718009'
+      RELEASE_TAG: 'v2026.11.27-fa51cb3'
+    steps:
+      - name: Verify the exact tested commit
+        run: |
+          set -euo pipefail
+          for run in 46011158763 46011158788; do
+            result="$(gh api repos/${GITHUB_REPOSITORY}/actions/runs/$run)"
+            jq -e --arg sha "$RELEASE_SHA" '.head_sha == $sha and .conclusion == "success" and .status == "completed"' <<< "$result"
+          done
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to overwrite."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: 'fa51cb3232431ef1554ce3d250071a32e2718009'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: hausstand-svelte/package-lock.json
+      - name: Build and validate release
+        working-directory: hausstand-svelte
+        env:
+          HAUSSTAND_RELEASE_TAG: 'v2026.11.27-fa51cb3'
+        run: |
+          npm ci
+          npm run check:js
+          npm test
+          npm run build:single
+          node scripts/check-standalone.mjs
+          npm run build:php
+          php -l dist/hausstand.php
+          php server-php/update-test.php
+          node server-php/smoke.mjs
+      - name: Publish immutable version
+        working-directory: hausstand-svelte
+        run: |
+          cat > /tmp/hausstand-release-notes.md <<'NOTES'
+          ## Hausstandsliste – 27. November 2026
+
+          - Q64: URL-basierte Navigation, Browser-Zurück/Vorwärts ohne Undo.
+          - Q65: Einzelne Schreibaktionen und Ausgleichszahlungen in der Sitzungs-Historie.
+          - Q66: Unabhängige Kaufbeiträge und Eigentumsanteile.
+          - Q67: Eigentümer aus ursprünglicher Anschaffung entfernen, ohne Kaufbeiträge oder Zahlungen zu ändern.
+          - S05: Begrenzung fehlgeschlagener Administrationsversuche in der PHP-Version.
+          - Weitere UI-, Chronik-, Datums- und Centgenauigkeitskorrekturen des aktuellen Entwicklungsstands.
+
+          Getesteter Commit: fa51cb3232431ef1554ce3d250071a32e2718009. CI und Pages erfolgreich; separate Browser-/Hosting-Abnahme noch offen.
+          NOTES
+          gh release create "$RELEASE_TAG" dist/hausstand.php dist/hausstand-standalone.html --repo "$GITHUB_REPOSITORY" --target "$RELEASE_SHA" --title "Hausstandsliste $RELEASE_TAG" --notes-file /tmp/hausstand-release-notes.md --latest
