@@ -317,10 +317,28 @@
         {/if}
 
         <div class="metric-grid">
-          <div class="metric action-card"><button class="metric-link card-primary" type="button" on:click={() => navigate("items")}><span>{$translate("app.totalValue")}</span><strong>{money($projection.totalValue)}</strong><small>{$translate("app.activeItems")}</small></button></div>
-          <div class="metric action-card"><button class="metric-link card-primary" type="button" on:click={() => navigate("items")}><span>{$translate("nav.items")}</span><strong>{$projection.activeItems.length}</strong><small>{$translate("app.inInventory")}</small></button><CompactNames entries={rankedItems($projection.activeItems, $locale)} onMore={() => navigate("items")}/></div>
-          <div class="metric action-card"><button class="metric-link card-primary" type="button" on:click={() => navigate("people")}><span>{$translate("nav.people")}</span><strong>{$projection.people.filter(p=>p.active).length}</strong><small>{$translate("app.participants")}</small></button><CompactNames entries={nameEntries($projection.people.filter(p=>p.active), $locale)} onMore={() => navigate("people")}/></div>
-          <div class="metric action-card"><button class="metric-link card-primary" type="button" on:click={() => navigate("money")}><span>{$translate("app.outstanding")}</span><strong>{money(outstandingCents / 100)}</strong><small>{$translate("app.sharedBalance")}</small></button></div>
+          <div class="metric action-card" data-metric="value">
+            <button class="metric-link card-primary" type="button" on:click={() => navigate("items")}><span>{$translate("app.totalValue")}</span><strong>{money($projection.totalValue)}</strong><small>{$translate("app.activeItems")}</small></button>
+          </div>
+          <div class="metric action-card" data-metric="balance">
+            <button class="metric-link card-primary" type="button" on:click={() => navigate("money")}><span>{$translate("app.outstanding")}</span><strong>{money(outstandingCents / 100)}</strong><small>{$translate("app.sharedBalance")}</small></button>
+          </div>
+          <div class="metric action-card metric-names" data-metric="items">
+            <button class="metric-link card-primary" type="button" on:click={() => navigate("items")}><span class="metric-list-title">{$translate("nav.items")}</span><ActionIcon name="chevron-right" size={16}/></button>
+            {#if $projection.activeItems.length}
+              <CompactNames plain={true} entries={rankedItems($projection.activeItems, $locale)} onMore={() => navigate("items")}/>
+            {:else}
+              <span class="metric-empty">{$translate('overview.noItems')}</span>
+            {/if}
+          </div>
+          <div class="metric action-card metric-names" data-metric="people">
+            <button class="metric-link card-primary" type="button" on:click={() => navigate("people")}><span class="metric-list-title">{$translate("nav.people")}</span><ActionIcon name="chevron-right" size={16}/></button>
+            {#if $projection.people.some(p=>p.active)}
+              <CompactNames plain={true} entries={nameEntries($projection.people.filter(p=>p.active), $locale)} onMore={() => navigate("people")}/>
+            {:else}
+              <span class="metric-empty">{$translate('overview.noPeople')}</span>
+            {/if}
+          </div>
         </div>
 
         <div class="overview-layout">

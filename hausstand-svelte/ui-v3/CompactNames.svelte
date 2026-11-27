@@ -2,13 +2,15 @@
   import { translate } from '../src/lib/i18n.js';
   import { visibleNames } from '../src/lib/overviewNames.js';
   export let entries = [];
+  // Dashboard-only typography: detail lists retain their role chips.
+  export let plain = false;
   export let onMore = null;
   export let onName = null;
   let expanded = false;
   $: summary = visibleNames(entries, expanded);
 </script>
 {#if entries.length}
-  <div class="compact-names">
+  <div class="compact-names" class:plain-names={plain}>
     <ul class="name-list">
       {#each summary.visible as entry (entry.id)}
         <li class="name-chip">
@@ -31,4 +33,9 @@
   .name-link,.name-more{background:transparent;color:var(--accent);border:0;padding:2px 0;font-size:inherit;text-align:left;overflow-wrap:anywhere;max-width:100%;white-space:normal;pointer-events:auto}
   .name-more{min-height:32px;text-decoration:underline}
   .name-link:focus-visible,.name-more:focus-visible{outline:2px solid var(--accent)}
+  .plain-names{font-size:13px;line-height:1.5}
+  .plain-names .name-list{display:block}
+  .plain-names .name-chip{display:inline;padding:0;background:transparent;border-radius:0;overflow-wrap:anywhere}
+  .plain-names .name-chip:not(:last-child)::after{content:", "}
+  .plain-names .name-more{display:block;min-height:32px;padding:3px 0 0;font-weight:600}
 </style>

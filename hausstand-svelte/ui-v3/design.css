@@ -586,3 +586,21 @@ tr.clickable-row:hover td{background:#eef7f8}
 .action-card:focus-within{border-color:var(--accent)}
 .recent-row.action-card{justify-content:space-between;align-items:center}
 .recent-open{display:inline-flex;align-items:center;justify-content:center;align-self:center;color:var(--accent);background:transparent;border:0;flex:none;min-width:40px;min-height:40px}
+
+/* Q45: separate short financial metrics from content-first, unbadged lists. */
+.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px;align-items:stretch}
+.metric-grid .metric{padding:12px 14px;gap:4px;border-radius:12px;min-width:0}
+.metric-grid .metric-link{gap:3px}
+.metric-grid .metric-names{align-content:start}
+.metric-grid .metric-names .metric-link{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:24px}
+.metric-grid .metric-list-title{color:var(--text);font-size:14px;font-weight:700;line-height:1.3}
+.metric-grid .metric-names .action-icon{flex:none;color:var(--muted)}
+.metric-grid .metric-empty{font-size:13px;color:var(--muted);line-height:1.5}
+@media(min-width:1450px){
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr)) repeat(2,minmax(0,1.4fr));align-items:start}
+}
+@media(max-width:540px){
+  .metric-grid{gap:8px}
+  .metric-grid .metric{padding:10px 12px}
+  .metric-grid .metric-names{grid-column:1/-1}
+}

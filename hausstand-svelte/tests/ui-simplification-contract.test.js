@@ -4,10 +4,17 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 const source = (path) => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('overview retains the four metrics and quick actions but has no duplicate add-item button', () => {
+test('Q45: overview retains two financial metrics, two content cards and quick actions', () => {
   const app = source('ui-v3/App.svelte');
   const overview = app.slice(app.indexOf("{:else if activeSection === 'overview'}"), app.indexOf("{:else if activeSection === 'items'}"));
-  assert.equal((overview.match(/<div class="metric action-card">/g) || []).length, 4);
+  assert.equal((overview.match(/<div class="metric action-card(?: metric-names)?"/g) || []).length, 4);
+  assert.equal((overview.match(/<CompactNames plain={true}/g) || []).length, 2);
+  assert.ok(!overview.includes('<strong>{$projection.activeItems.length}</strong>'));
+  assert.ok(!overview.includes('<strong>{$projection.people.filter(p=>p.active).length}</strong>'));
+  assert.ok(overview.includes('overview.noItems'));
+  assert.ok(overview.includes('overview.noPeople'));
+  assert.ok(overview.includes('money($projection.totalValue)'));
+  assert.ok(overview.includes('money(outstandingCents / 100)'));
   assert.equal((overview.match(/<span class="task-icon">/g) || []).length, 4);
   assert.ok(overview.includes('rankedItems($projection.activeItems, $locale)'));
   assert.ok(overview.includes('nameEntries($projection.people.filter(p=>p.active), $locale)'));

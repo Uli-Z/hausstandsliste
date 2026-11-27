@@ -1248,14 +1248,14 @@ async function wholeCardAcceptance(browser,url) {
       await bootFixture(page,url);
       const goHome=()=>page.locator(width<600?'.mobile-bottom-nav > button':'.sidebar-links > button').first().click();
       const title=page.locator('.detail-title h2');
-      const metric=page.locator('.metric-grid .metric');
+      const metric=kind=>page.locator('.metric-grid [data-metric="'+kind+'"]');
       // Non-button content and padding must activate the same primary action.
-      await metric.nth(1).locator('.name-chip').first().click({force:true});
+      await metric('items').locator('.name-chip').first().click({force:true});
       const item=page.locator('.item-tile').filter({hasText:'Kühlschrank'});
       await item.locator('h2').click({force:true});
       await title.filter({hasText:'Kühlschrank'}).waitFor();
       await goHome();
-      await metric.nth(2).click({position:{x:3,y:3}});
+      await metric('people').click({position:{x:3,y:3}});
       const anna=page.locator('.person-tile').filter({has:page.getByRole('heading',{name:'Anna',exact:true})});
       await anna.locator('.card-primary').focus();
       await page.keyboard.press('Enter');
@@ -1304,7 +1304,7 @@ async function archiveDiscoverabilityAcceptance(browser,url) {
       await page.locator('.time-travel-toggle').click();
       await page.locator('#state-date').fill('2033-01-01');
       await page.keyboard.press('Escape');
-      await page.locator('.metric-grid .metric').nth(2).locator('.metric-link').click();
+      await page.locator('.metric-grid [data-metric="people"] .metric-link').click();
       const tile=name=>page.locator('.person-tile').filter({has:page.getByRole('heading',{name,exact:true})});
       const dialog=page.getByRole('dialog');
       const submit=dialog.locator('.modal-footer .primary');
@@ -1344,13 +1344,13 @@ async function archiveDiscoverabilityAcceptance(browser,url) {
 }
 
 async function overviewNamesAcceptance(browser,url) {
-  for (const [locale,width] of [['de-DE',375],['en-GB',1280]]) {
+  for (const [locale,width] of [['de-DE',320],['de-DE',375],['en-GB',1280],['en-GB',1600]]) {
     const context=await browser.newContext({locale,viewport:{width,height:820}});
     try {
       const page=await context.newPage();
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
       const copy=structuredClone(fixture);
-      for(let i=0;i<10;i++) copy.people.push({id:'q29-person-'+i,name:'Person '+String(i).padStart(2,'0')});
+      for(let i=0;i<10;i++) copy.people.push({id:'q29-person-'+i,name:'Person '+String(i).padStart(2,'0')+(i===0?' SehrLangerZusammengesetzterPersonenname':'')});
       const purchase=copy.events.find(e=>e.id==='purchase');
       for(let i=0;i<12;i++){
         const id='q29-item-'+i,name='Q29 Item '+String(i).padStart(2,'0');
@@ -1364,19 +1364,39 @@ async function overviewNamesAcceptance(browser,url) {
       await page.evaluate(({key,copy})=>localStorage.setItem(key,JSON.stringify(copy)),{key,copy:oneSaved(copy)});
       await page.reload();
       await page.getByText('Browser-Abnahme').first().waitFor();
-      const metrics=page.locator('.metric-grid .metric');
-      const items=metrics.nth(1), people=metrics.nth(2);
+      const metric=kind=>page.locator('.metric-grid [data-metric="'+kind+'"]');
+      const items=metric('items'), people=metric('people');
       const names=loc=>loc.locator('.name-chip').allTextContents();
+      for(const card of [items,people]) {
+        assert.equal(await card.locator('.metric-link strong, .metric-link small').count(),0);
+        assert.equal(await card.locator('.plain-names').count(),1);
+        assert.equal(await card.locator('.name-chip').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+      }
+      assert.equal(await metric('value').locator('strong').count(),1);
+      assert.equal(await metric('balance').locator('strong').count(),1);
+      if(width<=540){
+        const a=await items.boundingBox(), b=await people.boundingBox();
+        assert.ok(Math.abs(a.x-b.x)<2 && Math.abs(a.width-b.width)<2 && b.y>=a.y+a.height);
+      }
       assert.equal((await names(people)).length,10);
       assert.match(await people.locator('.name-more').innerText(),/3/);
       assert.deepEqual((await names(items)).map(s=>s.trim()),Array.from({length:10},(_,i)=>'Q29 Item '+String(10-i).padStart(2,'0')));
       assert.match(await items.locator('.name-more').innerText(),/3/);
       const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
       assert.equal(overflow,false);
+      if(process.env.Q45_SCREENSHOT_DIR){
+        await mkdir(process.env.Q45_SCREENSHOT_DIR,{recursive:true});
+        await page.locator('.metric-grid').screenshot({path:join(process.env.Q45_SCREENSHOT_DIR,browser.browserType().name()+'-'+width+'-many.png')});
+      }
       await people.locator('.name-more').click();
       assert.equal(await page.locator('.person-tile').count(),13);
       const goHome=()=>page.locator(width<600?'.mobile-bottom-nav > button':'.sidebar-links > button').first().click();
       await goHome();
+      await page.locator('.time-travel-toggle').click();
+      await page.locator('#state-date').fill('2024-12-31');
+      await page.keyboard.press('Escape');
+      assert.equal(await items.locator('.name-chip').count(),0);
+      assert.equal(await items.locator('.metric-empty').count(),1);
       await page.locator('.time-travel-toggle').click();
       await page.locator('#state-date').fill('2025-01-02');
       await page.keyboard.press('Escape');
