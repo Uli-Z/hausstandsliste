@@ -18,7 +18,7 @@ const archive = (date='2026-02-01',order=1) => event('archive','person-deactivat
 const reactivate = (date='2026-03-01',order=1) => event('return','person-reactivated',date,{personId:'a'},order);
 const payment = (date,order=1) => event('pay','claim-settlement-recorded',date,{
   debtorPersonId:'b',creditorPersonId:'a',amountCents:1000,settlementKind:'paid'},order);
-const fixture = () => ({people:[{id:'a',name:'A'},{id:'b',name:'B'}],items:[{id:'i',name:'Table'}],drafts:[],
+const fixture = () => ({people:[{id:'a',name:'A'},{id:'b',name:'B'}],items:[{id:'i',name:'Table',number:1}],itemNumberRegistry:[{id:'i',number:1}],drafts:[],
   events:[event('a','person-added','2026-01-01',{personId:'a'}),
     event('b','person-added','2026-01-01',{personId:'b'},2)]});
 const purchase = (date,shares={b:1},value=10,contributions={a:1000}) =>

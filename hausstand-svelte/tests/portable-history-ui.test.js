@@ -25,7 +25,7 @@ test('V3 Save persists an explicit version, and restores open as unsaved drafts'
   assert.match(storage, /downloadProject\(saved, \$appState\.asOfDate\)/);
   assert.match(storage, /appState\.markSaved\(saved\)/);
   assert.match(app, /storageView\?\.saveFromHeader\?\.\(\)/);
-  assert.match(app, /restoreWorkingCopy\(copy\)/);
+  assert.match(app, /restoreWorkingCopy\(copy, \{ persistMigration:migrated \}\)/);
   assert.doesNotMatch(app, /setAsOfDate\(copy\.asOfDate\)/);
   assert.match(storage, /createPortableSave\(project, \$appState\.savedProject\)/);
   assert.match(storage, /await api\('save', payload/);

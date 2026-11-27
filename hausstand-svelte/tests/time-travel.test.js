@@ -118,7 +118,8 @@ test('only same-project PHP checkout opts into preserving the viewing date', () 
 
 
 test('Q16/Q19: entering dialogs and detail navigation closes the picker without changing the cutoff', () => {
-  appState.newProject('Q16 dialog');
+  appState.setReadOnly(false);
+  assert.equal(appState.newProject('Q16 dialog'),true);
   const date='2033-01-01';
   appState.setAsOfDate(date);
   const before = get(appState);

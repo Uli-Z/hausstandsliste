@@ -153,6 +153,7 @@ test('Q27: shared transaction guard rejects removing a referenced person even to
   assert.deepEqual(projectMutationProblem(before, after), expected);
   after.events = after.events.filter(e => e.id === 'enter-ben');
   after.items = [];
+  after.itemNumberRegistry = [{id:'desk',number:1}]; // Retain the immutable allocation even after removal.
   assert.deepEqual(projectMutationProblem(before, after), expected);
 });
 

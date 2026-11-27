@@ -103,7 +103,11 @@ test('settings show one language selector and show commands without a nested dis
   assert.ok(settings.includes('settings.advanced'));
   assert.ok(settings.includes('<section class="ux-panel setting-panel settings-advanced"'));
   assert.ok(settings.includes('showJson'));
-  assert.ok(settings.includes('showDanger'));
+  assert.match(settings,/on:click=\{openReset\}/);
+  assert.match(app,/<ResetProjectDialog server=\{SERVER_MODE\}/);
+  const reset=source('ui-v3/ResetProjectDialog.svelte');
+  assert.match(reset,/word !== \$translate\('reset.word'\)/);
+  assert.match(reset,/disabled=\{busy \|\| word !== \$translate\('reset.word'\)\}/);
   const language = source('src/lib/i18n.js');
   assert.equal((language.match(/"settings.advanced"/g) || []).length, 2);
   assert.equal((language.match(/"ui.moreActions"/g) || []).length, 2);

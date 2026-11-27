@@ -33,7 +33,7 @@ test('CLI help and version are discoverable without a project',()=>{
 });
 test('CLI file contract, stored snapshot and archive listing',()=>{
   assert.equal(query(['project','validate']).data.valid,true);
-  assert.deepEqual(query(['project','show']).data,p);
+  assert.deepEqual(query(['project','show']).data,{...p,items:[{...p.items[0],number:1}],itemNumberRegistry:[{id:'i',number:1}]});
   assert.deepEqual(query(['versions','list']).data.rows,[]);
 });
 test('CLI uses identical date-specific shared ledger and item projection',()=>{

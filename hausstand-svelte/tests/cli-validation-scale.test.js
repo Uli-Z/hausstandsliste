@@ -42,7 +42,6 @@ const fixture = (count = 1) => ({
 test('explicit stored-data audit rejects corrupted historical rows without rewriting files', async () => {
   const cases = [
     p => p.people.push({...p.people[0]}),
-    p => p.items.push({...p.items[0]}),
     p => p.events.push({...p.events[2]}),
     p => p.events[2].date='2026-02-30',
     p => p.events[2].order='1',
@@ -76,6 +75,16 @@ test('explicit stored-data audit rejects corrupted historical rows without rewri
       assert.equal(JSON.parse(r.stderr).error.code,'INVALID_BUSINESS_DATA');
       assert.deepEqual(readFileSync(file),previous);
     }
+    // Duplicate item identity is rejected at the strict file-format boundary.
+    const duplicate=fixture(); duplicate.items.push({...duplicate.items[0]});
+    assert.throws(()=>storedProjectProblem(duplicate),/INVALID_ITEM_NUMBER_REGISTRY/);
+    writeFileSync(file,JSON.stringify(duplicate));
+    const duplicateBytes=readFileSync(file);
+    const rejected=run(['project','validate','--input',file]);
+    assert.equal(rejected.status,4,rejected.stderr);
+    assert.equal(rejected.stdout,'');
+    assert.equal(JSON.parse(rejected.stderr).error.code,'UNSUPPORTED_PROJECT');
+    assert.deepEqual(readFileSync(file),duplicateBytes);
     // A cryptographically valid archive may still contain invalid business data.
     const damaged=fixture(); damaged.events.at(-1).amountCents=-100;
     const archived=await createPortableSave(fixture(),damaged);

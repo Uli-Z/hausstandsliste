@@ -43,14 +43,14 @@ test('both time-travel partitions use accessible whole-row actions without redun
   assert.match(timeline, /\.event-open-overlay:focus-visible/);
   assert.match(timeline, /\.event-summary \.entity-link/);
   assert.match(timeline, /\{#each rows as row \(row.key\)\}/);
-  assert.match(timeline, /\.\.\.visibleFuture\.map\(event =>/);
-  assert.match(timeline, /\.\.\.visiblePast\.map\(event =>/);
+  assert.match(timeline, /\.\.\.visibleFuture\.map\(group =>/);
+  assert.match(timeline, /\.\.\.visiblePast\.map\(group =>/);
   assert.match(timeline, /key:'cutoff'/);
 });
 
 test('readonly details are present on both sides of the cutoff and strings are localized', () => {
   assert.equal((timeline.match(/class="event-readonly-details"/g) || []).length, 1);
-  assert.match(timeline, /history = splitHistoryAt\(events, asOfDate\)/);
+  assert.match(timeline, /history = grouped \? groupedHistoryAt\(events,asOfDate\) : splitHistoryAt\(events, asOfDate\)/);
   for (const key of ['timeline.editEvent', 'timeline.viewDetails', 'timeline.viewOnly']) {
     assert.equal(i18n.split('"' + key + '"').length - 1, 2, key + ' should exist in EN and DE');
   }

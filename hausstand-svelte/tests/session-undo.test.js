@@ -167,7 +167,11 @@ test('local working copies have no filename identity and protected imports never
   assert.equal(get(appState).readOnly, true);
   assert.equal(rename('Blocked'), false);
   assert.equal(values.has(key), false);
-  appState.newProject('New');
+  assert.equal(appState.newProject('New'),false);
+  assert.equal(get(appState).secure,true);
+  assert.equal(values.has(key),false);
+  appState.setReadOnly(false);
+  assert.equal(appState.newProject('New'),true);
   assert.equal(get(appState).secure, false);
   assert.equal(get(appState).readOnly, false);
   assert.equal(Object.hasOwn(JSON.parse(values.get(key)), 'fileName'), false);

@@ -35,7 +35,10 @@ test('redundant help icons are removed while meaningful explanations and warning
   const settings = app.slice(app.indexOf("{:else if activeSection === 'settings'}"), app.indexOf("{/key}"));
   assert.ok(!settings.includes("<HelpTip label={$translate('language.title')}"));
   assert.ok(!settings.includes('ui.what-happens-when-starting-a-new-p-8ivv1x'));
-  assert.ok(settings.includes('inline-info warning'));
+  assert.match(settings, /on:click=\{openReset\}/);
+  const reset = source('ui-v3/ResetProjectDialog.svelte');
+  assert.match(reset, /inline-info warning/);
+  assert.match(reset, /reset\.warning/);
   assert.match(app, /help\.suggestionsShort/);
   assert.match(app, /help\.paymentRoute/);
   const payment = source('src/components/SettlementDialog.svelte');

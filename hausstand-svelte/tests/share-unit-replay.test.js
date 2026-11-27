@@ -11,7 +11,7 @@ import { storedProjectProblem } from '../src/lib/projectValidation.js';
 import { createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
 import { projectMutationProblem } from '../src/lib/mutationValidation.js';
 const makeProject=()=>({...emptyProject(),people:['a','b','c'].map(id=>({id,name:id})),
-  items:[{id:'i',name:'Table'}],events:[{id:'purchase',type:'item-added',itemId:'i',date:'2026-01-01',order:1,
+  items:[{id:'i',name:'Table',number:1}],itemNumberRegistry:[{id:'i',number:1}],events:[{id:'purchase',type:'item-added',itemId:'i',date:'2026-01-01',order:1,
     initialValue:100,valuation:{type:'fixed',minimumValue:0},shares:{a:6,b:4},purchaseContributionsCents:{a:6000,b:4000},financialMode:'derived'}]});
 const date='2026-04-01';
 test('Q30: real factories store deltas and chronological replay preserves later changes',()=>{

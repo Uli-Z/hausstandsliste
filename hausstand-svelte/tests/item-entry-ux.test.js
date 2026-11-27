@@ -31,12 +31,16 @@ test('item creation keeps ownership/financing explicit and directly visible meta
   assert.ok(block.includes('allowEqualize={true}'));
 });
 
-test('new items show default equal shares; changed dates preserve owners and block unavailable participants', () => {
+test('new items start without owners; changed dates preserve references and reject unknown participants', () => {
   const dialog = source('ui-v3/DialogRouter.svelte');
-  assert.ok(dialog.includes("if (dialog.type === 'itemAdd' && !dialog.id)"));
-  assert.ok(dialog.includes('Object.fromEntries(projectAt(project, effectiveDate).people'));
-  assert.ok(dialog.includes('entryProjection.peopleById.get(id)?.active'));
-  assert.ok(source('ui-v3/PurchaseFinancing.svelte').includes('eligible.some(p => p.id === payer)'));
+  assert.match(dialog,/let shares = \{\};/);
+  assert.match(dialog,/if \(dialog.type === 'itemAdd' && draft\?\.type === 'item'\)/);
+  assert.match(dialog,/shares = \{ \.\.\.\(draft.data.shares \|\| \{\}\) \}/);
+  assert.match(dialog,/Object.keys\(normShares\(shares\)\).every\(id=>entryProjection.peopleById.has\(id\)\)/);
+  const financing=source('ui-v3/PurchaseFinancing.svelte');
+  assert.match(financing,/eligible = editing \? people : \(ownerPeople \|\| people\).filter\(p=>p.active !== false\)/);
+  assert.match(financing,/Object.hasOwn\(shares,p.id\)/);
+  assert.match(financing,/!eligible.some\(p=>p.id===payer\)/);
   assert.ok(dialog.includes('dateSharesRebased = true'));
   assert.ok(dialog.includes('ownersValid'));
   assert.ok(dialog.includes('itemCostValid'));
