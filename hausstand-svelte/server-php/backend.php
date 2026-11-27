@@ -141,54 +141,104 @@ if ($api !== '') {
         if (!isset($body['expectedRevision']) || (int) $body['expectedRevision'] !== (int) $meta['revision'])
             fail(409, 'Eine neuere Revision existiert. Nicht überschrieben; bitte neu öffnen.', 'revisionConflict');
     }
+    // Optional transport writes must never terminate an already committed save.
+    function tryMailJson(string $path, array $data): bool {
+        $tmp = false;
+        try {
+            $str = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            $tmp = @tempnam(dirname($path), '.mail_');
+            if ($tmp === false || dirname($tmp) !== dirname($path)) return false;
+            if (@file_put_contents($tmp, $str, LOCK_EX) !== strlen($str)) return false;
+            if (!@chmod($tmp, 0600) || !@rename($tmp, $path)) return false;
+            $tmp = false;
+            return true;
+        } catch (Throwable $e) { return false; }
+        finally { if ($tmp !== false) @unlink($tmp); }
+    }
     function mailConfig(): array {
         global $HAUSSTAND_CONFIG;
         $email = (string) (getenv('HAUSSTAND_BACKUP_EMAIL') ?: ($HAUSSTAND_CONFIG['backup_email'] ?? ''));
         $from = (string) (getenv('HAUSSTAND_MAIL_FROM') ?: ($HAUSSTAND_CONFIG['mail_from'] ?? ''));
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !filter_var($from, FILTER_VALIDATE_EMAIL)) return ['', ''];
-        return [$email, $from];
+        if ($email === '' && $from === '') return ['disabled', '', ''];
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !filter_var($from, FILTER_VALIDATE_EMAIL))
+            return ['invalid', '', ''];
+        return ['ready', $email, $from];
     }
-    // E-mail is a separate encrypted backup transport, never the project history.
-    function stageMailCopy(string $dir, array &$meta, int $rev, array $envelope): string {
-        [$email, $from] = mailConfig();
-        if ($email === '') return 'disabled';
+    function mailResult(string $status, ?string $errorCode = null, bool $retryable = false): array {
+        return ['mailStatus' => $status, 'mailErrorCode' => $errorCode, 'mailRetryable' => $retryable];
+    }
+    // Mail is a separate encrypted transport, never the project history.
+    function stageMailCopy(string $dir, array &$meta, int $rev, array $envelope): array {
+        [$config] = mailConfig();
+        if ($config === 'disabled') return mailResult('disabled');
+        if ($config !== 'ready') return mailResult('failed', 'configuration', true);
         $mailDir = $dir . '/mail-queue';
-        if (!is_dir($mailDir) && !mkdir($mailDir, 0700, true)) fail(500, 'Mail-Sicherung kann nicht vorbereitet werden.', 'mailPreparation');
-        atomicJson($mailDir . '/' . $rev . '.json', $envelope);
+        if ((!is_dir($mailDir) && !@mkdir($mailDir, 0700, true)) ||
+            !tryMailJson($mailDir . '/' . $rev . '.json', $envelope))
+            return mailResult('failed', 'preparation', true);
         $meta['mailQueue'] = $meta['mailQueue'] ?? [];
         $meta['mailQueue'][] = [
             'revision' => $rev, 'createdAt' => gmdate('c'), 'mailStatus' => 'pending',
             'attempts' => 0, 'lastAttempt' => 0
         ];
-        return 'pending';
+        return mailResult('pending', null, true);
     }
-    function mailPending(string $dir, array &$meta): void {
-        [$email, $from] = mailConfig();
-        if ($email === '') return;
-        foreach ($meta['mailQueue'] ?? [] as &$entry) {
-            if (($entry['mailStatus'] ?? '') === 'sent') continue;
+    function mailStatusFor(array $meta, int $rev, array $fallback): array {
+        foreach ($meta['mailQueue'] ?? [] as $entry) {
+            if ((int) $entry['revision'] !== $rev) continue;
+            if ($entry['mailStatus'] === 'sent') return mailResult('accepted');
+            if ($entry['mailStatus'] === 'sending') return mailResult('unknown', 'uncertain');
+            $retryable = (int) ($entry['attempts'] ?? 0) < 5;
+            return mailResult('failed', $entry['mailErrorCode'] ?? 'pending', $retryable);
+        }
+        return $fallback;
+    }
+    function mailPending(string $dir, array &$meta, ?int $onlyRevision = null): void {
+        [$config, $email, $from] = mailConfig();
+        if ($config !== 'ready' || empty($meta['mailQueue'])) return;
+        // Iterate the actual array: a foreach over a null-coalescing expression
+        // can update only a temporary copy instead of persisting the entry.
+        foreach ($meta['mailQueue'] as &$entry) {
+            if ($onlyRevision !== null && (int) $entry['revision'] !== $onlyRevision) continue;
+            if (($entry['mailStatus'] ?? '') !== 'pending') continue;
             if (($entry['attempts'] ?? 0) >= 5) continue;
             if (($entry['lastAttempt'] ?? 0) + 300 > time()) continue;
-            $rev = $entry['revision'];
+            $rev = (int) $entry['revision'];
             $source = $dir . '/mail-queue/' . $rev . '.json';
             $content = @file_get_contents($source);
-            if ($content === false) continue;
-            $boundary = 'hausstand-' . bin2hex(random_bytes(12));
-            $body = "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n"
-                . "Verschluesselte Hausstand-Projektdatei, Revision $rev. Das Passwort wird nicht mitgesendet.\r\n"
-                . "--$boundary\r\nContent-Type: application/octet-stream; name=\"hausstand-$rev.enc.json\"\r\n"
-                . "Content-Disposition: attachment; filename=\"hausstand-$rev.enc.json\"\r\n"
-                . "Content-Transfer-Encoding: base64\r\n\r\n"
-                . chunk_split(base64_encode($content)) . "\r\n--$boundary--\r\n";
-            $headers = "From: $from\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"$boundary\"";
-            $ok = @mail($email, "Hausstand verschluesselte Sicherung Revision $rev", $body, $headers);
+            if ($content === false) { $entry['mailErrorCode'] = 'preparation'; continue; }
+            if (!function_exists('mail')) { $entry['mailErrorCode'] = 'unavailable'; continue; }
+            // Persist the attempt before calling the transport. If the process
+            // dies after submission, never automatically submit an uncertain copy again.
+            $before = $entry;
+            $entry['mailStatus'] = 'sending';
             $entry['attempts'] = ((int) ($entry['attempts'] ?? 0)) + 1;
             $entry['lastAttempt'] = time();
-            $entry['mailStatus'] = $ok ? 'sent' : 'pending';
-            if ($ok) @unlink($source);
+            if (!tryMailJson($dir . '/meta.json', $meta)) {
+                $entry = $before; $entry['mailErrorCode'] = 'preparation'; continue;
+            }
+            try {
+                $boundary = 'hausstand-' . bin2hex(random_bytes(12));
+                $body = "--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n"
+                    . "Verschluesselte Hausstand-Projektdatei, Revision $rev. Das Passwort wird nicht mitgesendet.\r\n"
+                    . "--$boundary\r\nContent-Type: application/octet-stream; name=\"hausstand-$rev.enc.json\"\r\n"
+                    . "Content-Disposition: attachment; filename=\"hausstand-$rev.enc.json\"\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n\r\n"
+                    . chunk_split(base64_encode($content)) . "\r\n--$boundary--\r\n";
+                $headers = "From: $from\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"$boundary\"";
+                $ok = @mail($email, "Hausstand verschluesselte Sicherung Revision $rev", $body, $headers);
+                $entry['mailStatus'] = $ok ? 'sent' : 'pending';
+                $entry['mailErrorCode'] = $ok ? null : 'rejected';
+            } catch (Throwable $e) {
+                $entry['mailStatus'] = 'sending';
+                $entry['mailErrorCode'] = 'uncertain';
+            }
+            if (tryMailJson($dir . '/meta.json', $meta) && $entry['mailStatus'] === 'sent') @unlink($source);
         }
         unset($entry);
-        atomicJson($dir . '/meta.json', $meta);
+        // Failure to persist mail-only state cannot turn a saved project into
+        // a failed save response.
+        tryMailJson($dir . '/meta.json', $meta);
     }
     $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
     $originHost = $origin !== '' ? (string) (parse_url($origin, PHP_URL_HOST) ?: '') : '';
@@ -239,7 +289,7 @@ if ($api !== '') {
         [$dir, $meta] = checkedFile($root, $id);
         reply(['revision' => $meta['revision'], 'envelope' => readJson(currentPath($dir, $meta))]);
     }
-    if (!in_array($api, ['create', 'login', 'logout', 'checkout', 'renew', 'checkin', 'save'], true))
+    if (!in_array($api, ['create', 'login', 'logout', 'checkout', 'renew', 'checkin', 'save', 'retryMail'], true))
         fail(404, 'Unbekannte API-Aktion.', 'unknownAction');
     if ($method !== 'POST') fail(405, 'POST erforderlich.', 'postRequired');
     $body = submitted();
@@ -271,11 +321,10 @@ if ($api !== '') {
             'leaseHash' => null, 'leaseExpires' => 0, 'updatedAt' => gmdate('c'),
             'mailQueue' => []
         ];
-        $mailStatus = stageMailCopy($dir, $meta, 1, $envelope);
+        $mail = stageMailCopy($dir, $meta, 1, $envelope);
         atomicJson($dir . '/meta.json', $meta);
         mailPending($dir, $meta);
-        $status = $meta['mailQueue'][0]['mailStatus'] ?? $mailStatus;
-        reply(['revision' => 1, 'mailStatus' => $status]);
+        reply(['revision' => 1, 'saveStatus' => 'saved'] + mailStatusFor($meta, 1, $mail));
     }
     [$dir, $meta] = checkedFile($root, $id);
     authorize($meta);
@@ -309,6 +358,32 @@ if ($api !== '') {
         atomicJson($dir . '/meta.json', $meta);
         reply(['checkedIn' => true]);
     }
+    if ($api === 'retryMail') {
+        // A verified file capability may retry transport without obtaining a
+        // write lease. Require the same revision and do not write project data.
+        assertRevision($meta, $body);
+        $rev = (int) $meta['revision'];
+        [$config] = mailConfig();
+        if ($config !== 'ready') reply(['revision' => $rev] + ($config === 'disabled'
+            ? mailResult('disabled') : mailResult('failed', 'configuration', true)));
+        $existing = mailStatusFor($meta, $rev, mailResult('missing'));
+        if (in_array($existing['mailStatus'], ['accepted', 'unknown'], true) ||
+            ($existing['mailStatus'] === 'failed' && !$existing['mailRetryable']))
+            reply(['revision' => $rev] + $existing);
+        if ($existing['mailStatus'] === 'missing') {
+            $staged = stageMailCopy($dir, $meta, $rev, readJson(currentPath($dir, $meta)));
+            if ($staged['mailStatus'] !== 'pending' || !tryMailJson($dir . '/meta.json', $meta))
+                reply(['revision' => $rev] + ($staged['mailStatus'] === 'pending'
+                    ? mailResult('failed', 'preparation', true) : $staged));
+        } else {
+            foreach ($meta['mailQueue'] as $entry) {
+                if ((int) $entry['revision'] === $rev && ($entry['lastAttempt'] ?? 0) + 300 > time())
+                    reply(['revision' => $rev] + mailResult('failed', 'cooldown', true));
+            }
+        }
+        mailPending($dir, $meta, $rev);
+        reply(['revision' => $rev] + mailStatusFor($meta, $rev, mailResult('failed', 'preparation', true)));
+    }
     if ($api === 'save') {
         authorizeLease($meta);
         assertRevision($meta, $body);
@@ -325,16 +400,14 @@ if ($api !== '') {
         if ($rotateHash !== null) $meta['tokenHash'] = $rotateHash;
         $meta['updatedAt'] = gmdate('c');
         $meta['leaseExpires'] = time() + 7200;
-        $mailStatus = stageMailCopy($dir, $meta, $next, $envelope);
+        $mail = stageMailCopy($dir, $meta, $next, $envelope);
         atomicJson($dir . '/meta.json', $meta);
         mailPending($dir, $meta);
         if ($previousCurrent && $previousCurrent !== $nextCurrent) {
             @unlink($dir . '/' . $previousCurrent); // after successful meta commit only
         }
-        $queue = $meta['mailQueue'] ?? [];
-        $status = $queue ? $queue[count($queue) - 1]['mailStatus'] : $mailStatus;
-        reply(['revision' => $next, 'expiresAt' => $meta['leaseExpires'],
-            'mailStatus' => $status]);
+        reply(['revision' => $next, 'expiresAt' => $meta['leaseExpires'], 'saveStatus' => 'saved']
+            + mailStatusFor($meta, $next, $mail));
     }
     fail(404, 'Unbekannte API-Aktion.', 'unknownAction');
 }
