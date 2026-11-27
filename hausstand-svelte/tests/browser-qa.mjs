@@ -204,6 +204,29 @@ async function sessionLogAcceptance(browser,url) {
     } finally {await context.close();}
   }
 }
+// Q65: same-day real payment actions must remain distinct in the session dialog.
+async function paymentSessionAcceptance(browser,url) {
+  const context=await browser.newContext({locale:'de-DE',viewport:{width:1280,height:812}});
+  try {
+    const page=await context.newPage();
+    await bootFixture(page,url);
+    await openFinance(page);
+    for(let i=1;i<=10;i++) await payment(page,i);
+    const snapshot=()=>page.evaluate(k=>JSON.parse(localStorage.getItem(k)).project,key);
+    const count=async()=> (await snapshot()).events.filter(e=>e.type==='claim-settlement-recorded').length;
+    assert.equal(await count(),10);
+    await page.locator('button.working-indicator').click();
+    const dialog=page.locator('.session-log-dialog');
+    const rows=dialog.locator('.session-log-list button');
+    assert.equal(await rows.count(),11);
+    assert.equal(await dialog.locator('time').count(),10);
+    for(let i=1;i<=10;i++) assert.match(await rows.nth(i).innerText(),new RegExp('#'+i+' ·'));
+    await rows.nth(9).click(); assert.equal(await count(),9);
+    await rows.nth(0).click(); assert.equal(await count(),0);
+    await rows.nth(10).click(); assert.equal(await count(),10);
+    await page.keyboard.press('Escape');
+  } finally {await context.close();}
+}
 // Q32: exercise intermediate values and DOM identity, not just the final submit.
 async function itemEntryAcceptance(browser, url, engine) {
   for (const [width, locale] of [[320,'de-DE'], [375,'de-DE'], [390,'en-GB'], [1280,'en-GB']]) {
@@ -2396,6 +2419,7 @@ try {
   await acceptance('Chromium Q54 legacy browser number migration', () => legacyItemNumberAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q50 destructive local reset', () => resetProjectAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q48 session history', () => sessionLogAcceptance(browser, offlineServer.url));
+  await acceptance('Chromium Q65 individual payment history', () => paymentSessionAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q47 household rename', () => householdRenameAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q32 item entry', () => itemEntryAcceptance(browser, offlineServer.url, 'Chromium'));
   await acceptance('Chromium Q32/Q33 long list', () => itemEntryLongListAcceptance(browser, offlineServer.url, 'Chromium'));

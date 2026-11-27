@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { get } from 'svelte/store';
 import { createSessionUndo, historyShortcut } from '../src/lib/sessionUndo.js';
 import { appState } from '../src/stores/projectStore.js';
+import { createClaimSettlementEvent } from '../src/lib/claimSettlement.js';
+import { ledgerAt } from '../src/lib/ledger.js';
 
 const values = new Map();
 globalThis.localStorage = {
@@ -260,4 +262,50 @@ test('Q48: session log survives save, not project reload, and jump respects read
   assert.equal(JSON.parse(values.get('hausstand_svelte_v07_working_copy')).sessionLog,undefined);
   appState.importProject(get(appState).project);
   assert.equal(appState.sessionLog().entries.length,0);
+});
+
+test('Q65: equal timestamps never merge distinct edits; identity survives undo, redo and branching',()=>{
+  const h=createSessionUndo(50,()=> '2026-11-27T12:00:00Z');
+  const a=project('A'), b=project('B'), c=project('C');
+  h.record(a,b); h.record(b,c);
+  const steps=h.view(c,a).steps;
+  assert.deepEqual(steps.map(s=>s.sequence),[1,2]);
+  assert.equal(steps[0].recordedAt,steps[1].recordedAt);
+  assert.deepEqual(h.view(h.undo(c),a).steps,steps);
+  assert.deepEqual(h.view(h.redo(b),a).steps,steps);
+  h.undo(c); h.record(b,project('D'));
+  assert.deepEqual(h.view(project('D'),a).steps.map(s=>s.sequence),[1,3]);
+});
+test('Q65: ten payments in one transaction and ten individual payments have independent checkpoints',()=>{
+  for(const batch of [true,false]){
+    const date='2026-11-27';
+    appState.importProject({...project('Q65'),people:[{id:'a',name:'Anna'},{id:'b',name:'Ben'}]});
+    const append=(p,i)=>p.events.push(createClaimSettlementEvent(p,{date,amountCents:i*100,debtorPersonId:'a',creditorPersonId:'b'}));
+    if(batch) assert.equal(appState.mutateProject(p=>{for(let i=1;i<=10;i++)append(p,i);}),true);
+    else for(let i=1;i<=10;i++)assert.equal(appState.mutateProject(p=>append(p,i)),true);
+    const all=get(appState).project.events;
+    assert.equal(appState.sessionLog().entries.length,10);
+    assert.ok(appState.sessionLog().entries.every(e=>e.length===1));
+    const verify=n=>{
+      const state=get(appState);
+      assert.deepEqual(state.project.events,all.slice(0,n));
+      assert.equal(ledgerAt(state.project,date).balances.get('a')||0,n*(n+1)*50);
+      assert.equal(state.dirty,n!==0);
+      assert.equal(appState.sessionLog().cursor,n);
+    };
+    verify(10);
+    for(let i=9;i>=0;i--){assert.equal(appState.undo(),true);verify(i);}
+    for(let i=1;i<=10;i++){assert.equal(appState.redo(),true);verify(i);}
+    assert.equal(appState.jumpHistory(4),true);verify(4);
+    assert.equal(appState.jumpHistory(10),true);verify(10);
+    const log=appState.sessionLog();
+    assert.equal(appState.mutateProject(p=>{append(p,11);append(p,12);p.events.at(-1).amountCents=0;}),false);
+    assert.deepEqual(appState.sessionLog(),log);verify(10);
+    assert.equal(appState.mutateProject(()=>{}),true);
+    assert.deepEqual(appState.sessionLog(),log);
+    // A mixed operation remains atomic rather than inventing an intermediate domain state.
+    assert.equal(appState.mutateProject(p=>{p.community.name='Renamed';append(p,11);append(p,12);}),true);
+    assert.equal(appState.sessionLog().entries.length,11);
+    assert.equal(appState.undo(),true);verify(10);
+  }
 });

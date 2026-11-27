@@ -19,16 +19,28 @@ const apply = (current, snapshot) => {
   return applyItemNumbers(restored,collectItemNumbers([current,restored]));
 };
 
-export function createSessionUndo(limit = 50) {
+// Independent appended settlements can be undone one at a time. Never split
+// purchases, redistributions, edits/deletions or mixed domain transactions.
+export function sessionMutationStates(before, after) {
+  const old = before.events || [], next = after.events || [];
+  const appended = next.slice(old.length);
+  if (appended.length < 2 || appended.some(e => e.type !== 'claim-settlement-recorded')
+      || JSON.stringify({...before, events:old}) !== JSON.stringify({...after, events:next.slice(0,old.length)})) return [after];
+  return appended.map((_, index) => index === appended.length - 1
+    ? after : {...after, events:next.slice(0,old.length+index+1)});
+}
+
+export function createSessionUndo(limit = 50, now = () => new Date().toISOString()) {
   if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError('Undo limit must be a positive integer');
   let past = [];
   let future = [];
+  let sequence = 0;
   const counts = () => ({ undoCount: past.length, redoCount: future.length });
   const reset = () => { past = []; future = []; return counts(); };
   const record = (before, after, description = []) => {
     const previous = editData(before);
     if (JSON.stringify(previous) === JSON.stringify(editData(after))) return false;
-    past.push({ snapshot: previous, description: copy(description) });
+    past.push({ snapshot: previous, description: copy(description), step: { sequence: ++sequence, recordedAt: now() } });
     if (past.length > limit) past.shift();
     future = [];
     return true;
@@ -39,7 +51,7 @@ export function createSessionUndo(limit = 50) {
     const result = apply(current, entry.snapshot);
     if (validate && !validate(result)) return null;
     stack.pop();
-    opposite.push({ snapshot: editData(current), description: entry.description });
+    opposite.push({ snapshot: editData(current), description: entry.description, step: entry.step });
     if (opposite.length > limit) opposite.shift();
     return result;
   };
@@ -51,7 +63,8 @@ export function createSessionUndo(limit = 50) {
     // Match the saved business state, never an archive or a technical revision.
     const savedIndices = target == null ? [] : states.flatMap((state,index)=>JSON.stringify(state)===target?[index]:[]);
     const savedIndex = savedIndices.includes(cursor) ? cursor : savedIndices.at(-1) ?? null;
-    return { entries:[...past,...chronologicalFuture].map(entry=>copy(entry.description)), cursor,
+    const entries = [...past,...chronologicalFuture];
+    return { entries:entries.map(entry=>copy(entry.description)), steps:entries.map(entry=>copy(entry.step)), cursor,
       hasSaved:target!==null, savedIndex, savedOutside:target!==null&&savedIndex===null };
   };
   const jump = (current, index, validate) => {

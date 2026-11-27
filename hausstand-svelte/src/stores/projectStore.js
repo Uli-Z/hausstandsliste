@@ -9,7 +9,7 @@ import { ledgerAt } from '../lib/ledger.js';
 import { ownershipHistoryProblems } from '../lib/ownershipValidation.js';
 import { saveWorkingCopy, clearWorkingCopy } from '../lib/persistence.js';
 import { hasProjectChanges, withoutHistory } from '../lib/versionHistory.js';
-import { createSessionUndo } from '../lib/sessionUndo.js';
+import { createSessionUndo, sessionMutationStates } from '../lib/sessionUndo.js';
 import { describeSessionChange } from '../lib/sessionLog.js';
 import { projectMutationProblem } from '../lib/mutationValidation.js';
 import { message, getLocale } from '../lib/i18n.js';
@@ -47,7 +47,24 @@ function createStore() {
   };
   const resetUndo = state => ({ ...state, history: sessionUndo.reset() });
   const changedProject = (state, nextProject) => {
-    if (!sessionUndo.record(state.project, nextProject, describeSessionChange(state.project,nextProject))) return state;
+    // The full mutation was validated before this point. Stage every
+    // intermediate payment state before recording anything or persisting.
+    let previous = state.project;
+    const steps = sessionMutationStates(previous,nextProject).map(project => {
+      const step = {before:previous, project, description:describeSessionChange(previous,project)};
+      previous=project;
+      return step;
+    });
+    const invalid = steps.length > 1 && steps.map(step=>projectMutationProblem(step.before,step.project)).find(Boolean);
+    if (invalid) {
+      notifications.notify(message(invalid.key,getLocale(),invalid.params||{}),{kind:'error'});
+      return null;
+    }
+    let changed=false;
+    for(const step of steps) {
+      if(sessionUndo.record(step.before,step.project,step.description)) changed=true;
+    }
+    if(!changed) return state;
     return persist({ ...state, project: nextProject,
       dirty: hasProjectChanges(nextProject, state.savedProject),
       history: sessionUndo.counts() });
@@ -153,8 +170,9 @@ function createStore() {
           notifications.notify(message(problem.key, getLocale(), problem.params || {}), {kind:'error'});
           return s;
         }
-        saved = true;
         const next = changedProject(s, project);
+        if (!next) return s;
+        saved = true;
         if (next !== s) {
           const key = s.activeDialog?.type === 'personAdd' ? 'toast.personAdded'
             : s.activeDialog?.type === 'itemAdd' ? 'toast.itemAdded' : 'toast.changeRecorded';

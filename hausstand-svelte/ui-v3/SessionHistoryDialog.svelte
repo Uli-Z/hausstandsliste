@@ -25,13 +25,14 @@
     {#if log.savedOutside}<p class="muted">{$translate('sessionLog.savedOutside')}</p>{:else if !log.hasSaved}<p class="muted">{$translate('sessionLog.noSaved')}</p>{/if}
     {#if !log.entries.length}<p class="muted">{$translate('sessionLog.empty')}</p>{/if}
     <ol class="session-log-list" start="0">
-      {#each [null,...log.entries] as entry,index (index)}
+      {#each [null,...log.entries] as entry,index (index===0?'start':log.steps[index-1].sequence)}
         <li>
           <button type="button" class:log-current={index===log.cursor} class:log-undone={index>log.cursor}
             aria-current={index===log.cursor?'step':undefined} disabled={locked}
             on:click={()=>choose(index)}>
             <span class="session-log-name">{entry?sessionChangeText(entry,$locale):$translate('sessionLog.start')}</span>
             <span class="session-log-status">
+              {#if entry}<span class="session-log-step">#{log.steps[index-1].sequence} · <time datetime={log.steps[index-1].recordedAt}>{new Date(log.steps[index-1].recordedAt).toLocaleString($locale,{dateStyle:'short',timeStyle:'medium'})}</time> · </span>{/if}
               {index===log.cursor?$translate('sessionLog.current'):index>log.cursor?$translate('sessionLog.redoable'):$translate('sessionLog.applied')}
               {#if log.savedIndex===index} · {$translate('sessionLog.saved')}{/if}
             </span>
