@@ -19,7 +19,13 @@ test('item creation keeps ownership/financing explicit and directly visible meta
   assert.ok(block.indexOf('bind:value={itemName}') < block.indexOf('ShareEditor'));
   assert.ok(block.includes('bind:shares')); // PurchaseFinancing and neutral successor use the shared editor.
   const financing = source('ui-v3/PurchaseFinancing.svelte');
-  assert.ok(financing.includes('<ShareEditor people={tablePeople} bind:shares allPeople={true} showAmounts={true}'));
+  assert.ok(financing.includes('<PurchaseOwners people={tablePeople} bind:shares individual={mode === \'individual\'}'));
+  assert.ok(financing.includes('{editing}'));
+  const matrix = source('ui-v3/PurchaseOwners.svelte');
+  assert.ok(matrix.includes('class:editing'));
+  assert.ok(matrix.includes('on:click={()=>shares=removePurchaseOwner(shares,id)}'));
+  assert.ok(matrix.includes('<slot name="amount" personId={id}'));
+  assert.ok(!matrix.includes('individualDraft')); // A share edit cannot modify the contribution map.
   assert.ok(financing.includes('slot="amount"'));
   assert.ok(block.includes('<section class="item-extra-fields"'));
   assert.ok(block.includes('bind:value={valuationType}'));
