@@ -62,6 +62,33 @@ async function bootFixture(page, url) {
   await page.reload();
   await page.getByText('Browser-Abnahme').first().waitFor();
 }
+// Q69: a genuine PDF download works without a print popup or project mutation.
+async function personalReportAcceptance(browser,url) {
+  for(const [width,locale] of [[375,'de-DE'],[1280,'en-GB']]){
+    const context=await browser.newContext({locale,viewport:{width,height:812},acceptDownloads:true});
+    try{
+      const page=await context.newPage();
+      await bootFixture(page,url);
+      await page.locator('[data-overview-person="anna"]').click();
+      const report=page.locator('.personal-report');
+      await report.waitFor();
+      const before=await page.evaluate(k=>localStorage.getItem(k),key);
+      const download=page.waitForEvent('download');
+      await report.getByRole('button',{name:locale==='de-DE'?'PDF herunterladen':'Download PDF',exact:true}).click();
+      const file=await download;
+      assert.match(file.suggestedFilename(),/Anna-\d{4}-\d{2}-\d{2}\.pdf$/);
+      const data=await readFile(await file.path());
+      assert.ok(data.length>10000);
+      const content=data.toString('latin1');
+      assert.match(content,/^%PDF-1.4/);
+      assert.match(content,/\/MediaBox \[0 0 595.28 841.89\]/);
+      assert.match(content,/\/Filter \/DCTDecode/);
+      const count=Number(content.match(/\/Type \/Pages \/Count (\d+)/)[1]);
+      assert.ok(count>=2,'report should span multiple A4 pages');
+      assert.equal(await page.evaluate(k=>localStorage.getItem(k),key),before);
+    }finally{await context.close();}
+  }
+}
 // Q54: migrate an existing browser cache without waiting for an explicit save.
 async function legacyItemNumberAcceptance(browser,url) {
   const context=await browser.newContext({locale:'de-DE'});
@@ -2667,6 +2694,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
+  await acceptance('Chromium Q69 personal PDF', () => personalReportAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
   await acceptance('Chromium Q68 plain server file import', () => q68ServerImportAcceptance(browser));
   await acceptance('Chromium S04 server password rotation', () => passwordRotationAcceptance(browser));

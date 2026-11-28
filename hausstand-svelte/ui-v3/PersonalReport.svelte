@@ -1,18 +1,30 @@
 <script>
   import { locale } from '../src/lib/i18n.js';
   import { reportCopy, assetLines, paymentLines, reportMoney, openPersonalReport } from '../src/lib/personalReportPrint.js';
+  import { downloadPersonalReport } from '../src/lib/personalReportPdf.js';
   export let report;
   export let dirty = false;
   $: t = reportCopy($locale);
   let blocked = false;
+  let generating = false;
+  let failed = false;
+  async function downloadReport() {
+    if (generating) return;
+    generating = true;
+    failed = false;
+    try { await downloadPersonalReport(report, $locale, dirty); }
+    catch { failed = true; }
+    finally { generating = false; }
+  }
   function printReport() {
     blocked = !openPersonalReport(report, $locale, dirty);
   }
 </script>
 {#if report}
 <section class="panel personal-report" style="margin-top:16px">
-  <div class="panel-header"><h2>{t.title}</h2><button type="button" on:click={printReport}>{t.print}</button></div>
+  <div class="panel-header"><h2>{t.title}</h2><div class="report-actions"><button class="primary" type="button" disabled={generating} on:click={downloadReport}>{generating ? t.generating : t.download}</button><button type="button" on:click={printReport}>{t.print}</button></div></div>
   <div class="panel-body stack">
+    {#if failed}<p role="alert">{t.pdfError}</p>{/if}
     {#if blocked}<p role="alert">{t.blocked}</p>{/if}
     {#if dirty}<p class="context-note">{t.dirty}</p>{/if}
     {#if report.incomplete}<p role="alert">{t.incomplete}</p>{/if}
@@ -29,6 +41,7 @@
 {/if}
 <style>
   .personal-report .panel-header{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .report-actions{display:flex;gap:8px;flex-wrap:wrap}
   .personal-report th{text-align:left;font-weight:400;white-space:normal}
   .personal-report td{white-space:nowrap}
 </style>
