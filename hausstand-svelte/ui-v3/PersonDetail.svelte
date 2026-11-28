@@ -9,14 +9,15 @@
   import { buildTransferChanges, buildRemovePersonChanges, soleOwnedItems } from '../src/lib/redistribution.js';
   import { dateDE } from '../src/lib/util.js';
   import Timeline from './Timeline.svelte';
-  import BalanceBreakdown from '../src/components/BalanceBreakdown.svelte';
+  import PersonalReport from './PersonalReport.svelte';
+  import { personalReport } from '../src/lib/personalReport.js';
   import ActionIcon from '../src/components/ActionIcon.svelte';
   export let person;
   export let projection;
   export let asOfDate;
   export let ledger = null;
   $: balanceCents = ledger?.balances?.get(person.id) || 0;
-  $: balanceDetail = ledger?.details?.get(person.id) || null;
+  $: report = personalReport($appState.project, person.id, asOfDate);
   $: transfersForPerson = (ledger?.simplified || []).filter(t => t.fromPersonId === person.id || t.toPersonId === person.id);
   const nameOf = id => $appState.project.people.find(p => p.id === id)?.name || id;
   let transferDialogOpen = false;
@@ -105,12 +106,7 @@
     </div>
   </section>
 {/if}
-<section class="panel" style="margin-top:16px">
-  <div class="panel-header"><div class="help-heading"><h2>{$translate("ui.balance-breakdown-kyjlab")}</h2></div></div>
-  <div class="panel-body">
-    <BalanceBreakdown detail={balanceDetail} {balanceCents}/>
-  </div>
-</section>
+<PersonalReport {report} dirty={$appState.dirty}/>
 <section class="grid-2" style="margin-top:16px">
   <section class="panel"><div class="panel-header"><h2>{$translate("ui.which-items-does-this-person-own-553tea")}</h2></div><div class="panel-body">
     {#if person.holdings?.length}<table><thead><tr><th>{$translate("ui.item-7uthuv")}</th><th class="right">{$translate("ui.units-1xtsz9u")}</th><th class="money">{$translate("ui.share-value-169kov6")}</th></tr></thead><tbody>{#each person.holdings as h}<tr class="clickable-row" on:click={() => appState.setRoute({ page: 'item', id: h.item.id })}><td>{itemDisplayName(h.item)}</td><td class="right">{h.units}</td><td class="money">{money(h.value)}</td></tr>{/each}</tbody></table>{:else}<div class="empty">{$translate("ui.no-shares-at-the-selected-date-1hdgjmi")}</div>{/if}
