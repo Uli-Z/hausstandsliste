@@ -53,10 +53,10 @@ export function householdReportBlocks(report,lang,dirty=false){
     add('heading',t.matrix+(groups.length>1?' · '+t.part+' '+(i+1)+' / '+groups.length:''));
     add('text',t.units);
     // Full untruncated names are repeated in the column block legend and
-    // in the preceding people table. Column headers stay narrow and stable.
+    // in the preceding people table. Ordinary names also appear in the headers; very long names use the key alone.
     if(group.length)for(const person of group)add('text',person.key+' · '+person.name+(!person.active?' ('+t.inactive+')':''));
     const columns=[col(t.item,2.2),numeric(t.initial,1.25),numeric(t.loss,1.25),numeric(t.value,1.25),
-      ...group.map(p=>numeric(p.key,.9))];
+      ...group.map(p=>numeric(p.key+(Array.from(p.name).length<=32?' · '+p.name:''),.9))];
     const rows=report.items.map(item=>({cells:[item.name,money(item.initial),money(item.depreciation),money(item.remaining),
       ...group.map(p=>item.shares[p.id]>0?unit.format(item.shares[p.id]):'–')]}));
     rows.push({total:true,cells:[t.total,money(report.activeTotals.initial),money(report.activeTotals.depreciation),

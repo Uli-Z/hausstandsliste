@@ -34,6 +34,7 @@ test('matrix has items as rows, complete units and identical money columns acros
   assert.deepEqual(matrices[0].rows[0].cells.slice(0,4),matrices[1].rows[0].cells.slice(0,4));
   assert.ok(matrices.flatMap(b=>b.rows[0].cells.slice(4)).includes('0,5'));
   assert.ok(matrices.flatMap(b=>b.rows[0].cells.slice(4)).includes('2'));
+  assert.ok(matrices.some(m=>m.columns.some(c=>c.label.includes('Änne'))));
   for(const m of matrices){assert.equal(m.rows[0].cells[0],'#1 Tisch');assert.equal(m.rows.at(-1).total,true);}
   assert.ok(blocks.some(b=>b.kind==='warning'));
   assert.ok(blocks.some(b=>b.text?.includes('Änne mit sehr langem Namen')));
