@@ -2652,7 +2652,14 @@ const failures = [];
 // Each scenario owns independent browser contexts. A failed selector in one
 // scenario must not prevent the PHP/security and other engine checks from
 // producing their own results. The overall workflow still fails on any error.
+// Shards only change test scheduling, not any assertion or product source.
+const qaEngine=process.env.QA_ENGINE || '';
+const qaShard=Number(process.env.QA_SHARD || 0), qaShards=Number(process.env.QA_SHARDS || 1);
+let scenarioIndex=0, executed=0;
 async function acceptance(name, run) {
+  if(qaEngine && !name.startsWith(qaEngine+' '))return;
+  if(!name.endsWith(' browser launch') && scenarioIndex++ % qaShards !== qaShard)return;
+  executed++;
   console.log('Browser QA start: ' + name);
   try {
     await run();
@@ -2664,7 +2671,7 @@ async function acceptance(name, run) {
 }
 
 try {
-  browser = await chromium.launch({ headless: true });
+  if(!qaEngine || qaEngine === 'Chromium') browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
@@ -2714,6 +2721,8 @@ try {
       await acceptance(name + ' portable file', () => portableFileAcceptance(additional, offlineServer.url, name));
     });
   }
+  if(!executed) throw new Error('No browser acceptance scenario executed');
+  console.log('Browser QA executed: '+executed);
   if (failures.length) throw new AggregateError(failures, failures.length + ' browser QA scenario(s) failed');
 } finally {
   for (const extra of extraBrowsers) await extra.close();

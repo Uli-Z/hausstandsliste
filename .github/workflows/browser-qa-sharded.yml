@@ -1,0 +1,61 @@
+name: Full browser acceptance d067fd6
+on:
+  push:
+    branches: ['qa/browser-20261128-d067fd6']
+permissions:
+  contents: read
+jobs:
+  browser-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {engine: Chromium, browser: chromium, shard: 0, shards: 4}
+          - {engine: Chromium, browser: chromium, shard: 1, shards: 4}
+          - {engine: Chromium, browser: chromium, shard: 2, shards: 4}
+          - {engine: Chromium, browser: chromium, shard: 3, shards: 4}
+          - {engine: Firefox, browser: firefox, shard: 0, shards: 2}
+          - {engine: Firefox, browser: firefox, shard: 1, shards: 2}
+          - {engine: WebKit, browser: webkit, shard: 0, shards: 2}
+          - {engine: WebKit, browser: webkit, shard: 1, shards: 2}
+    name: ${{ matrix.engine }} shard ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify unchanged product source
+        run: |
+          git fetch --no-tags --depth=1 origin d067fd607d36dbfff2244f539744ef32b3c84c4d
+          git diff --exit-code d067fd607d36dbfff2244f539744ef32b3c84c4d HEAD -- . ':!.github/workflows/browser-qa-sharded.yml' ':!hausstand-svelte/tests/browser-qa.mjs'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: hausstand-svelte/package-lock.json
+      - name: Install browser and app
+        working-directory: hausstand-svelte
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.65.1
+          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Build both variants
+        working-directory: hausstand-svelte
+        run: |
+          npm run build:single
+          npm run build:php
+      - name: Run browser acceptance shard
+        working-directory: hausstand-svelte
+        env:
+          QA_ENGINE: ${{ matrix.engine }}
+          QA_SHARD: ${{ matrix.shard }}
+          QA_SHARDS: ${{ matrix.shards }}
+        run: |
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-qa.log
+      - name: Preserve acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-${{ matrix.engine }}-${{ matrix.shard }}
+          path: hausstand-svelte/browser-qa.log
+          if-no-files-found: ignore
