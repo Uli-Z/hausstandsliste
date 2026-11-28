@@ -46,7 +46,7 @@ test('ordinary person and item views do not use decorative badges and empty cate
     assert.doesNotMatch(s, /keine Tags/, path);
   }
   assert.match(source('ui-v3/InventoryView.svelte'), /bind:value=\{tag\}/);
-  assert.match(source('ui-v3/PersonDetail.svelte'), /BalanceBreakdown/);
+  assert.match(source('ui-v3/PersonDetail.svelte'), /<PersonalReport/);
 });
 
 

@@ -95,8 +95,8 @@ test('person detail puts the personal balance and settlement first, without losi
   assert.ok(person.includes("type:'personStatus'"));
   assert.ok(person.includes('on:click={startTransfer}'));
   assert.ok(person.includes('on:click={startDissolve}'));
-  assert.ok(person.indexOf('ui.settlement-options-1u5xuy7') < person.indexOf('ui.balance-breakdown-kyjlab'));
-  assert.ok(person.includes('<BalanceBreakdown detail={balanceDetail} {balanceCents}/>'));
+  assert.ok(person.indexOf('ui.settlement-options-1u5xuy7') < person.indexOf('<PersonalReport'));
+  assert.ok(person.includes('<PersonalReport {report} dirty={$appState.dirty}/>'));
   assert.ok(person.includes('<Timeline project='));
 });
 

@@ -6,7 +6,7 @@ const copy = {
 export const reportCopy = lang => copy[lang === 'de' ? 'de' : 'en'];
 export const assetLines = [['acquired',1],['giftIn',1],['depreciation',-1],['appreciation',1],['relinquished',-1],['giftOut',-1],['ended',-1],['remaining',1]];
 export const paymentLines = [['funded',1],['initial',-1],['taken',-1],['given',1],['paid',1],['received',-1],['externalPlus',1],['externalMinus',-1],['waivedPlus',1],['waivedMinus',-1]];
-export const reportMoney = (cents, lang) => new Intl.NumberFormat(lang === 'de' ? 'de-DE' : 'en-GB', { style:'currency', currency:'EUR' }).format(cents / 100);
+export const reportMoney = (cents, lang) => new Intl.NumberFormat(lang === 'de' ? 'de-DE' : 'en-GB', { style:'currency', currency:'EUR' }).format((cents || 0) / 100);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateText = (date,lang) => new Intl.DateTimeFormat(lang === 'de' ? 'de-DE' : 'en-GB',{timeZone:'UTC'}).format(new Date(date+'T00:00:00Z'));
 export function personalReportHtml(report, lang, dirty = false) {
