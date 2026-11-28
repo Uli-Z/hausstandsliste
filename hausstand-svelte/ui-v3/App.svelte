@@ -10,6 +10,9 @@
   import { sessionChangeText } from '../src/lib/sessionLog.js';
   import SessionHistoryDialog from './SessionHistoryDialog.svelte';
   import ResetProjectDialog from './ResetProjectDialog.svelte';
+  import { householdReport } from '../src/lib/householdReport.js';
+  import { downloadHouseholdReport, householdReportCopy } from '../src/lib/householdReportPdf.js';
+  import { reportCopy } from '../src/lib/personalReportPrint.js';
   import { money } from '../src/lib/domain.js';
   import { verifyPortableHistory } from '../src/lib/versionHistory.js';
   import { requireShareEventFormat } from '../src/lib/shareUnits.js';
@@ -39,6 +42,19 @@
     { id: 'money', icon: 'arrows' },
     { id: 'activity', icon: 'list' }
   ];
+  let reportGenerating = false;
+  $: reportLabels = householdReportCopy($locale);
+  async function exportHouseholdReport() {
+    if(reportGenerating)return;
+    reportGenerating=true;
+    const lang=$locale, dirty=$appState.dirty;
+    try {
+      const report=householdReport($appState.project,$appState.asOfDate,todayISO());
+      await downloadHouseholdReport(report,lang,dirty);
+    } catch {
+      notifications.notify(reportCopy(lang).pdfError,{kind:'error'});
+    } finally {reportGenerating=false;}
+  }
   let localReady = false;
   let mounted = false;
   let disconnectRouteHistory;
@@ -401,6 +417,7 @@
       {:else if activeSection === 'overview'}
         <section class="page-heading">
           <div><h1>{$translate("nav.overview")}</h1></div>
+          <button class="solid-action" type="button" disabled={reportGenerating} on:click={exportHouseholdReport}>{reportGenerating ? reportCopy($locale).generating : reportLabels.download}</button>
         </section>
 
         <section class="ux-panel overview-total" data-metric="value">

@@ -7,9 +7,9 @@ import { recordedContributions, contributionProblem } from './purchaseFinancing.
 
 // Ownership bridge is independent of the money ledger. Value changes are
 // measured on the OLD allocation immediately before each dated transition.
-export function personalReport(project, personId, asOfDate) {
-  const projection = projectAt(project, asOfDate);
-  const ledger = ledgerAt(project, asOfDate);
+export function personalReport(project, personId, asOfDate, context = {}) {
+  const projection = context.projection ?? projectAt(project, asOfDate);
+  const ledger = context.ledger ?? ledgerAt(project, asOfDate);
   const person = projection.allPeople.find(p => p.id === personId);
   if (!person) return null;
   const items = new Map();

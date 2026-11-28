@@ -90,9 +90,68 @@ export async function renderA4Pdf(blocks,{header='',pageLabel='Page'}={}) {
     const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('JPEG encoding failed')),'image/jpeg',0.94));
     pages.push({width:canvas.width,height:canvas.height,jpeg:new Uint8Array(await blob.arrayBuffer())});
   };
+  // Each table has fixed column widths as relative weights. Headers repeat
+  // after vertical page breaks, and long cells continue rather than clip.
+  async function drawTable(block) {
+    const columns=block.columns, rows=block.rows;
+    const total=columns.reduce((n,c)=>n+c.weight,0);
+    const widths=columns.map(c=>(WIDTH-2*MARGIN)*c.weight/total);
+    const xs=widths.map((_,i)=>MARGIN+widths.slice(0,i).reduce((n,w)=>n+w,0));
+    const size=block.fontSize||9, leading=size*1.35, pad=4;
+    const layout=(cells,bold)=> {
+      font(size,bold);
+      return columns.map((_,i)=>wrapReportText(cells[i]??'',widths[i]-2*pad,s=>ctx.measureText(s).width));
+    };
+    const header=layout(columns.map(c=>c.label),true);
+    const headerHeight=Math.max(...header.map(c=>c.length))*leading+2*pad;
+    // Arbitrarily long names are represented by short column IDs in wide
+    // matrices, with a full legend; headers can never consume a whole page.
+    if(headerHeight>200)throw new Error('Table header too tall');
+    const lineCount=lines=>Math.max(...lines.map(c=>c.length));
+    const paint=(lines,start,count,isHeader,bold,shade=false)=>{
+      const height=count*leading+2*pad;
+      ctx.fillStyle=isHeader?'#e3ebf2':shade?'#f4f7fa':'#fff';
+      ctx.fillRect(MARGIN,y,WIDTH-2*MARGIN,height);
+      font(size,bold);
+      ctx.fillStyle='#182c40';
+      for(let col=0;col<columns.length;col++){
+        for(let j=0;j<count;j++){
+          const s=lines[col][start+j];
+          if(s===undefined)continue;
+          const x=columns[col].align==='right'&&!isHeader?xs[col]+widths[col]-pad-ctx.measureText(s).width:xs[col]+pad;
+          ctx.fillText(s,x,y+pad+j*leading);
+        }
+      }
+      ctx.strokeStyle='#c7d0da';ctx.lineWidth=.45;
+      ctx.beginPath();
+      for(const x of [...xs,WIDTH-MARGIN]){ctx.moveTo(x,y);ctx.lineTo(x,y+height);}
+      ctx.moveTo(MARGIN,y+height);ctx.lineTo(WIDTH-MARGIN,y+height);ctx.stroke();
+      y+=height;
+    };
+    const paintHeader=()=>paint(header,0,lineCount(header),true,true);
+    if(y+headerHeight+leading+2*pad>BOTTOM){await finish();begin();}
+    paintHeader();
+    for(let ri=0;ri<rows.length;ri++){
+      const row=rows[ri], lines=layout(row.cells,!!row.total);
+      const count=lineCount(lines);
+      let start=0;
+      while(start<count){
+        let capacity=Math.floor((BOTTOM-y-2*pad)/leading);
+        if(capacity<1 || (start===0 && count>capacity && count*leading+2*pad<=BOTTOM-50-headerHeight)){
+          await finish();begin();paintHeader();capacity=Math.floor((BOTTOM-y-2*pad)/leading);
+        }
+        const take=Math.min(count-start,capacity);
+        paint(lines,start,take,false,!!row.total,!!row.total||ri%2===1);
+        start+=take;
+      }
+    }
+    y+=10;
+  }
   begin();
   try {
     for(const block of blocks){
+      if(block.kind==='pageBreak'){if(y>50){await finish();begin();}continue;}
+      if(block.kind==='table'){await drawTable(block);continue;}
       const size=block.kind==='title'?19:block.kind==='heading'?14:block.kind==='subheading'?12:10.5;
       const bold=['title','heading','subheading','total','warning'].includes(block.kind);
       const leading=size*1.4, before=block.kind==='heading'?12:block.kind==='subheading'?8:0;

@@ -62,6 +62,25 @@ async function bootFixture(page, url) {
   await page.reload();
   await page.getByText('Browser-Abnahme').first().waitFor();
 }
+async function householdReportAcceptance(browser,url){
+  for(const [width,locale] of [[375,'de-DE'],[1280,'en-GB']]){
+    const context=await browser.newContext({locale,viewport:{width,height:812},acceptDownloads:true});
+    try{
+      const page=await context.newPage();
+      await bootFixture(page,url);
+      const before=await page.evaluate(k=>localStorage.getItem(k),key);
+      const download=page.waitForEvent('download');
+      await page.getByRole('button',{name:locale==='de-DE'?'Bericht als PDF':'Report as PDF',exact:true}).click();
+      const file=await download;
+      assert.match(file.suggestedFilename(),/^Browser-Abnahme-\d{4}-\d{2}-\d{2}\.pdf$/);
+      const data=await readFile(await file.path());
+      assert.ok(data.length>10000);
+      assert.match(data.toString('latin1'),/^%PDF-1.4/);
+      assert.ok(Number(data.toString('latin1').match(/\/Type \/Pages \/Count (\d+)/)[1])>=2);
+      assert.equal(await page.evaluate(k=>localStorage.getItem(k),key),before);
+    }finally{await context.close();}
+  }
+}
 // Q69: a genuine PDF download works without a print popup or project mutation.
 async function personalReportAcceptance(browser,url) {
   for(const [width,locale] of [[375,'de-DE'],[1280,'en-GB']]){
@@ -2694,6 +2713,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const offlineServer = await makeHttpServer();
   server = offlineServer.server;
+  await acceptance('Chromium Q70/Q71 household PDF', () => householdReportAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q69 personal PDF', () => personalReportAcceptance(browser, offlineServer.url));
   await acceptance('Chromium Q42 save and email backup feedback', () => q42MailAcceptance(browser));
   await acceptance('Chromium Q68 plain server file import', () => q68ServerImportAcceptance(browser));
